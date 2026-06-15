@@ -1,0 +1,426 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../../../core/theme/app_theme.dart';
+import 'package:theydi/features/events/models/event_model.dart';
+
+class EventsMapScreen extends StatefulWidget {
+  final List<EventModel> events;
+  final double? userLat;
+  final double? userLng;
+
+  const EventsMapScreen({
+    super.key,
+    required this.events,
+    this.userLat,
+    this.userLng,
+  });
+
+  @override
+  State<EventsMapScreen> createState() => _EventsMapScreenState();
+}
+
+class _EventsMapScreenState extends State<EventsMapScreen> {
+  EventModel? _selectedEvent;
+  late final MapController _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+  }
+
+  LatLng get _initialCenter {
+    if (widget.userLat != null && widget.userLng != null) {
+      return LatLng(widget.userLat!, widget.userLng!);
+    }
+    // Default to India center
+    final eventsWithCoords = widget.events
+        .where((e) => e.latitude != 0 && e.longitude != 0)
+        .toList();
+    if (eventsWithCoords.isNotEmpty) {
+      return LatLng(
+          eventsWithCoords.first.latitude, eventsWithCoords.first.longitude);
+    }
+    return const LatLng(20.5937, 78.9629); // India center
+  }
+
+  void _onMarkerTap(EventModel event) {
+    setState(() => _selectedEvent = event);
+    _mapController.move(
+      LatLng(event.latitude, event.longitude),
+      14.0,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final eventsWithCoords = widget.events
+        .where((e) => e.latitude != 0 && e.longitude != 0)
+        .toList();
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          // ── Map ──
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _initialCenter,
+              initialZoom: widget.userLat != null ? 12.0 : 5.0,
+              onTap: (_, __) => setState(() => _selectedEvent = null),
+            ),
+            children: [
+              // OpenStreetMap tiles (dark style)
+              TileLayer(
+                urlTemplate:
+                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c'],
+                userAgentPackageName: 'com.tiein.app',
+              ),
+
+              // User location marker
+              if (widget.userLat != null && widget.userLng != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: LatLng(widget.userLat!, widget.userLng!),
+                      width: 20,
+                      height: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+              // Event markers
+              MarkerLayer(
+                markers: eventsWithCoords.map((event) {
+                  final isSelected = _selectedEvent?.id == event.id;
+                  return Marker(
+                    point: LatLng(event.latitude, event.longitude),
+                    width: isSelected ? 52 : 44,
+                    height: isSelected ? 52 : 44,
+                    child: GestureDetector(
+                      onTap: () => _onMarkerTap(event),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.6),
+                            width: isSelected ? 3 : 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: TheyDiColors.primary
+                                  .withValues(alpha: isSelected ? 0.6 : 0.3),
+                              blurRadius: isSelected ? 12 : 6,
+                              spreadRadius: isSelected ? 3 : 1,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            event.isFree
+                                ? 'F'
+                                : '₹${event.price.toInt()}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSelected ? 11 : 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+
+          // ── Dark overlay for contrast ──
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF0D0D14).withValues(alpha: 0.3),
+                      Colors.transparent,
+                      Colors.transparent,
+                      const Color(0xFF0D0D14).withValues(alpha: 0.4),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Top bar ──
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  // Back / List View toggle
+                  GestureDetector(
+                    onTap: () => context.pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D0D14).withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: TheyDiColors.divider),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.list_outlined,
+                              color: Colors.white, size: 16),
+                          const SizedBox(width: 6),
+                          Text('List View',
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Event count badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D0D14).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: TheyDiColors.divider),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.place_outlined,
+                            color: TheyDiColors.primary, size: 14),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${eventsWithCoords.length} events',
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Event preview card ──
+          if (_selectedEvent != null)
+            Positioned(
+              bottom: 32,
+              left: 16,
+              right: 16,
+              child: _EventPreviewCard(
+                event: _selectedEvent!,
+                onClose: () => setState(() => _selectedEvent = null),
+              ),
+            ),
+
+          // ── No events on map hint ──
+          if (eventsWithCoords.isEmpty)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D0D14).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: TheyDiColors.divider),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_off_outlined,
+                        color: TheyDiColors.textMuted, size: 40),
+                    const SizedBox(height: 8),
+                    Text('No events with location data',
+                        style: TheyDiTextStyles.bodySmall
+                            .copyWith(color: TheyDiColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    Text('Events need a pinned location to show on map',
+                        style: TheyDiTextStyles.caption
+                            .copyWith(color: TheyDiColors.textMuted),
+                        textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Event preview card shown when marker is tapped ──
+class _EventPreviewCard extends StatelessWidget {
+  final EventModel event;
+  final VoidCallback onClose;
+
+  const _EventPreviewCard({required this.event, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/event/${event.id}', extra: event),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0D14).withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: TheyDiColors.primary.withValues(alpha: 0.3), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Category thumbnail
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                gradient: TheyDiColors.gradientPrimary,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(
+                  event.category.isNotEmpty ? event.category[0] : 'E',
+                  style: TheyDiTextStyles.displayMedium
+                      .copyWith(color: Colors.white, fontSize: 24),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(event.title,
+                      style: TheyDiTextStyles.labelLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 11, color: TheyDiColors.textMuted),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${event.dateTime.day}/${event.dateTime.month} · ${_formatTime(event.dateTime)}',
+                        style: TheyDiTextStyles.caption,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined,
+                          size: 11, color: TheyDiColors.textMuted),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text('${event.venue}, ${event.city}',
+                            style: TheyDiTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Price + close
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: onClose,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: TheyDiColors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TheyDiColors.divider),
+                    ),
+                    child: const Icon(Icons.close,
+                        size: 12, color: TheyDiColors.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: event.isFree
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : TheyDiColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    event.isFree ? 'FREE' : '₹${event.price.toInt()}',
+                    style: TheyDiTextStyles.caption.copyWith(
+                      color:
+                          event.isFree ? Colors.green : TheyDiColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+}

@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read, create: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.creatorUid;
+      allow update: if request.auth != null && (
+        resource.data.creatorUid == request.auth.uid ||
+        (request.resource.data.creatorUid == resource.data.creatorUid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeUids', 'pendingUids']))
+      );
+      allow delete: if request.auth != null && request.auth.uid == resource.data.creatorUid;
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.hostUid
+      );
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.hostUid
+      );
+      allow delete: if false;
+    }
+
+    match /circles/{circleId} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.memberUids;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.creatorUid;
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.creatorUid ||
+        request.auth.uid in resource.data.memberUids
+      );
+      allow delete: if request.auth != null && request.auth.uid == resource.data.creatorUid;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/circles/$(circleId)).data.memberUids;
+        allow create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/circles/$(circleId)).data.memberUids;
+        allow update, delete: if request.auth != null && request.auth.uid == resource.data.senderUid;
+      }
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.reviewerUid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.reviewerUid;
+    }
+  }
+}

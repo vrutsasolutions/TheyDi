@@ -1,0 +1,591 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
+import '../../../core/router/app_routes.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/services/notification_service.dart';
+import '../models/booking_model.dart';
+import '../models/event_model.dart';
+
+// ── PaymentScreen now accepts a Map<String,dynamic> as extra ─────────────────
+// extra = { 'event': EventModel, 'fromApproval': bool }
+// fromApproval = true  → PAID + Host Approval path (host already approved)
+// fromApproval = false → PAID + First Come path
+
+class PaymentScreen extends ConsumerStatefulWidget {
+  final EventModel event;
+  final bool fromApproval;
+
+  const PaymentScreen({
+    super.key,
+    required this.event,
+    this.fromApproval = false,
+  });
+
+  @override
+  ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends ConsumerState<PaymentScreen> {
+  bool _isProcessing = false;
+  bool _paymentFailed = false;
+  String _selectedMethod = 'UPI';
+
+  final List<Map<String, dynamic>> _paymentMethods = [
+    {
+      'name': 'UPI',
+      'icon': Icons.account_balance,
+      'desc': 'Google Pay, PhonePe, Paytm'
+    },
+    {
+      'name': 'Card',
+      'icon': Icons.credit_card,
+      'desc': 'Credit or Debit card'
+    },
+    {
+      'name': 'Net Banking',
+      'icon': Icons.language,
+      'desc': 'All major banks'
+    },
+  ];
+
+  double get _eventPrice => widget.event.price;
+  double get _platformFee =>
+      BookingModel.calculatePlatformFee(_eventPrice);
+  double get _totalAmount =>
+      BookingModel.calculateTotal(_eventPrice);
+
+  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  // ── Guard: prevent duplicate payment ────────────────────────────────────────
+  Future<bool> _alreadyPaid() async {
+    if (_myUid.isEmpty) return false;
+    final payDoc = await FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.event.id)
+        .collection('attendeePayments')
+        .doc(_myUid)
+        .get();
+    if (!payDoc.exists) return false;
+    return (payDoc.data()?['status'] as String?) == 'paid';
+  }
+
+  // ── Process payment ──────────────────────────────────────────────────────────
+  Future<void> _processPayment() async {
+    setState(() { _isProcessing = true; _paymentFailed = false; });
+
+    try {
+      // Duplicate payment guard
+      if (await _alreadyPaid()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('You have already paid for this event.'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      final user = FirebaseAuth.instance.currentUser!;
+      String userName = user.displayName ?? user.email!.split('@').first;
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          userName = userDoc.data()?['displayName'] ?? userName;
+        }
+      } catch (_) {}
+
+      // Simulate payment processing
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      final txnId = 'TXN${DateTime.now().millisecondsSinceEpoch}';
+
+      // ── Write booking record ──
+      final booking = BookingModel(
+        id: '',
+        eventId: widget.event.id,
+        eventTitle: widget.event.title,
+        userId: user.uid,
+        userName: userName,
+        hostUid: widget.event.creatorUid,
+        amount: _eventPrice,
+        platformFee: _platformFee,
+        totalAmount: _totalAmount,
+        status: BookingStatus.confirmed,
+        paymentMethod: _selectedMethod,
+        transactionId: txnId,
+        createdAt: DateTime.now(),
+        confirmedAt: DateTime.now(),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .add(booking.toFirestoreMap());
+
+      final eventRef = FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.event.id);
+
+      // ── Move user into attendees ──
+      // If fromApproval, also remove from pendingUids (was already moved to
+      // attendeePayments = approved_pending_payment by host_manage)
+      final updates = <String, dynamic>{
+        'attendeeUids': FieldValue.arrayUnion([user.uid]),
+      };
+      if (widget.fromApproval) {
+        updates['approvedPendingPaymentUids'] = FieldValue.arrayRemove([user.uid]);
+      }
+      await eventRef.update(updates);
+
+      // ── Mark attendeePayments as paid ──
+      await eventRef
+          .collection('attendeePayments')
+          .doc(user.uid)
+          .set({
+        'status': 'paid',
+        'userName': userName,
+        'transactionId': txnId,
+        'paymentMethod': _selectedMethod,
+        'amount': _totalAmount,
+        'paidAt': Timestamp.now(),
+        'eventId': widget.event.id,
+      }, SetOptions(merge: true));
+
+      // ── Update user event count ──
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'eventsAttended': FieldValue.increment(1)});
+
+      // ── Notify host ──
+      await NotificationService.notifyHostNewBooking(
+        hostUid: widget.event.creatorUid,
+        attendeeName: userName,
+        eventTitle: widget.event.title,
+        amount: _totalAmount.toStringAsFixed(0),
+        eventId: widget.event.id,
+      );
+
+      // ── Notify user ──
+      await NotificationService.notifyPaymentConfirmed(
+        userUid: user.uid,
+        eventTitle: widget.event.title,
+        amount: _totalAmount.toStringAsFixed(0),
+        eventId: widget.event.id,
+      );
+
+      if (!mounted) return;
+
+      context.pushReplacement(
+        AppRoutes.paymentsuccess,
+        extra: {
+          'eventTitle': widget.event.title,
+          'amount': _totalAmount,
+          'transactionId': txnId,
+          'dateTime': widget.event.dateTime,
+          'venue': widget.event.venue,
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() { _isProcessing = false; _paymentFailed = true; });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Payment failed: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final event = widget.event;
+    final dateStr =
+        DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
+
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── App Bar ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      onPressed:
+                          _isProcessing ? null : () => context.pop(),
+                    ),
+                    const SizedBox(width: 4),
+                    Text('Checkout', style: TheyDiTextStyles.displayMedium),
+                  ],
+                ),
+              ).animate().fade(duration: 300.ms),
+
+              const SizedBox(height: 16),
+
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+
+                    // ── Approval context banner ──
+                    if (widget.fromApproval) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.verified_user_outlined,
+                              color: Colors.green, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Your request was approved! Complete payment to confirm your spot.',
+                              style: TheyDiTextStyles.bodySmall.copyWith(
+                                  color: TheyDiColors.textSecondary,
+                                  height: 1.4),
+                            ),
+                          ),
+                        ]),
+                      ).animate().fade(duration: 300.ms),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // ── Event summary card ──
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: TheyDiColors.card,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: TheyDiColors.divider),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              gradient: TheyDiColors.gradientPrimary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                event.category.isNotEmpty
+                                    ? event.category[0]
+                                    : 'E',
+                                style: TheyDiTextStyles.displayMedium
+                                    .copyWith(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(event.title,
+                                    style: TheyDiTextStyles.labelLarge,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                                const SizedBox(height: 4),
+                                Text(dateStr,
+                                    style: TheyDiTextStyles.caption),
+                                const SizedBox(height: 2),
+                                Text(event.venue,
+                                    style: TheyDiTextStyles.caption,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ).animate(delay: 100.ms).fade(duration: 400.ms),
+
+                    const SizedBox(height: 24),
+
+                    // ── Payment method ──
+                    Text('Payment method',
+                            style: TheyDiTextStyles.labelLarge)
+                        .animate(delay: 150.ms)
+                        .fade(duration: 300.ms),
+                    const SizedBox(height: 12),
+
+                    ...List.generate(_paymentMethods.length, (index) {
+                      final method = _paymentMethods[index];
+                      final isSelected =
+                          method['name'] == _selectedMethod;
+                      return GestureDetector(
+                        onTap: _isProcessing
+                            ? null
+                            : () => setState(
+                                () => _selectedMethod = method['name']),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? TheyDiColors.primary
+                                  : TheyDiColors.divider,
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(method['icon'] as IconData,
+                                  color: isSelected
+                                      ? TheyDiColors.primary
+                                      : TheyDiColors.textMuted,
+                                  size: 22),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(method['name'] as String,
+                                        style:
+                                            TheyDiTextStyles.labelMedium),
+                                    Text(method['desc'] as String,
+                                        style: TheyDiTextStyles.caption),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? TheyDiColors.primary
+                                        : TheyDiColors.textMuted,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? Center(
+                                        child: Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: TheyDiColors.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                          .animate(delay: Duration(
+                              milliseconds: 200 + 50 * index))
+                          .fade(duration: 300.ms);
+                    }),
+
+                    const SizedBox(height: 24),
+
+                    // ── Price breakdown ──
+                    Text('Price breakdown',
+                            style: TheyDiTextStyles.labelLarge)
+                        .animate(delay: 350.ms)
+                        .fade(duration: 300.ms),
+                    const SizedBox(height: 12),
+
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: TheyDiColors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: TheyDiColors.divider),
+                      ),
+                      child: Column(
+                        children: [
+                          _priceRow('Event ticket',
+                              '₹${_eventPrice.toStringAsFixed(0)}'),
+                          const SizedBox(height: 10),
+                          _priceRow('Platform fee (5%)',
+                              '₹${_platformFee.toStringAsFixed(0)}'),
+                          const SizedBox(height: 12),
+                          Container(height: 1, color: TheyDiColors.divider),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total',
+                                  style: TheyDiTextStyles.labelLarge),
+                              Text('₹${_totalAmount.toStringAsFixed(0)}',
+                                  style: TheyDiTextStyles.displayMedium
+                                      .copyWith(
+                                          color: TheyDiColors.primary)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ).animate(delay: 400.ms).fade(duration: 300.ms),
+
+                    const SizedBox(height: 12),
+
+                    // ── Payment failure retry banner ──
+                    if (_paymentFailed)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.error_outline,
+                              color: Colors.red, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Payment failed. Please try again or choose a different method.',
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: Colors.red),
+                            ),
+                          ),
+                        ]),
+                      ),
+
+                    // ── Sandbox notice ──
+                    if (!_paymentFailed)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.amber.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.info_outline,
+                              color: Colors.amber, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Sandbox mode — no real money will be charged',
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: Colors.amber),
+                            ),
+                          ),
+                        ]),
+                      ).animate(delay: 450.ms).fade(duration: 300.ms),
+
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
+
+              // ── Pay button ──
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                decoration: BoxDecoration(
+                  color: TheyDiColors.dark,
+                  border:
+                      Border(top: BorderSide(color: TheyDiColors.divider)),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: _isProcessing
+                          ? null
+                          : const LinearGradient(colors: [
+                              Color(0xFFFF4466),
+                              Color(0xFFAA44FF)
+                            ]),
+                      color:
+                          _isProcessing ? Colors.grey[800] : null,
+                    ),
+                    child: ElevatedButton(
+                      onPressed:
+                          _isProcessing ? null : _processPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: _isProcessing
+                          ? Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5),
+                                ),
+                                const SizedBox(width: 12),
+                                Text('Processing payment...',
+                                    style: TheyDiTextStyles.labelLarge
+                                        .copyWith(color: Colors.white)),
+                              ],
+                            )
+                          : Text(
+                              _paymentFailed
+                                  ? 'Retry Payment ₹${_totalAmount.toStringAsFixed(0)}'
+                                  : 'Pay ₹${_totalAmount.toStringAsFixed(0)}',
+                              style: TheyDiTextStyles.labelLarge.copyWith(
+                                  color: Colors.white, fontSize: 16),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _priceRow(String label, String amount) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TheyDiTextStyles.bodySmall
+                .copyWith(color: TheyDiColors.textSecondary)),
+        Text(amount, style: TheyDiTextStyles.labelMedium),
+      ],
+    );
+  }
+}

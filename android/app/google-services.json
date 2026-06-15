@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "703233514575",
+    "project_id": "theydi-cefdf",
+    "storage_bucket": "theydi-cefdf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703233514575:android:1cd925f3dc51bebccf1e3a",
+        "android_client_info": {
+          "package_name": "com.theydi.theydi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtW2DKWm0p4iNlaJUPZSSbX5_ISaYaPiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

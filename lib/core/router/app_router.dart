@@ -1,0 +1,306 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:theydi/core/router/app_routes.dart';
+import 'package:theydi/features/auth/screens/splash_screen.dart';
+import 'package:theydi/features/auth/screens/login_screen.dart';
+import 'package:theydi/features/events/models/event_model.dart';
+import 'package:theydi/features/auth/models/signup_data.dart';
+import 'package:theydi/features/auth/screens/signup_step1_screen.dart';
+import 'package:theydi/features/auth/screens/signup_otp_screen.dart'; 
+import 'package:theydi/features/auth/screens/signup_step2_screen.dart';
+import 'package:theydi/features/auth/screens/signup_step3_screen.dart';
+import 'package:theydi/features/auth/screens/signup_step4_screen.dart';
+import 'package:theydi/features/auth/screens/signup_step5_screen.dart';
+import 'package:theydi/features/auth/screens/forgot_password_screen.dart';  // ← NEW
+import 'package:theydi/features/events/screens/create_event_screen.dart';
+import 'package:theydi/shared/widgets/main_shell.dart';
+import 'package:theydi/features/home/screens/home_screen.dart';
+import 'package:theydi/features/profile/screens/profile_screen.dart';
+import 'package:theydi/features/explore/screens/explore_screen.dart';
+import 'package:theydi/features/events/screens/my_events_screen.dart';
+import 'package:theydi/features/events/screens/event_detail_screen.dart';
+import 'package:theydi/features/profile/screens/edit_profile_screen.dart';
+import 'package:theydi/features/events/screens/payment_screen.dart';
+import 'package:theydi/features/events/screens/payment_success_screen.dart';
+import 'package:theydi/features/events/screens/payment_history_screen.dart';
+import 'package:theydi/features/notifications/screens/notifications_screen.dart';
+import 'package:theydi/features/settings/screens/privacy_safety_screen.dart';
+import 'package:theydi/features/settings/screens/help_support_screen.dart';
+import 'package:theydi/features/reviews/screens/submit_review_screen.dart';
+import 'package:theydi/features/reviews/screens/my_reviews_screen.dart';
+import 'package:theydi/features/host/screens/host_dashboard_screen.dart';
+import 'package:theydi/features/circles/screens/circles_list_screen.dart';
+import 'package:theydi/features/circles/screens/create_circle_screen.dart';
+import 'package:theydi/features/circles/screens/circle_chat_screen.dart';
+import 'package:theydi/features/circles/models/circle_model.dart';
+import 'package:theydi/features/events/screens/host_manage_screen.dart';
+import 'package:theydi/features/search/screens/search_screen.dart';
+import 'package:theydi/features/events/screens/attendees_screen.dart';
+import 'package:theydi/features/profile/screens/friend_requests_screen.dart';
+import 'package:theydi/features/circles/screens/dm_chat_screen.dart';
+import 'package:theydi/features/profile/screens/user_profile_screen.dart';
+import 'package:theydi/features/circles/screens/circle_info_screen.dart';
+import 'package:theydi/features/profile/screens/friend_info_screen.dart';
+import 'package:theydi/features/profile/screens/friends_hub_screen.dart';
+import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
+import 'package:theydi/features/settings/screens/settings_screen.dart';
+
+final appRouterProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    initialLocation: AppRoutes.splash,
+    debugLogDiagnostics: true,
+    routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+ 
+      // ── Event detail ──
+      GoRoute(
+        path: '/event/:id',
+        builder: (context, state) {
+          final event = state.extra as EventModel;
+          return EventDetailScreen(event: event);
+        },
+      ),
+ 
+      // ── Payment ──
+      GoRoute(
+        path: AppRoutes.payment,
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return PaymentScreen(
+              event: extra['event'] as EventModel,
+              fromApproval: (extra['fromApproval'] as bool?) ?? false,
+            );
+          }
+          return PaymentScreen(event: extra as EventModel, fromApproval: false);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.paymentsuccess,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return PaymentSuccessScreen(
+            eventTitle: data['eventTitle'] as String,
+            amount: data['amount'] as double,
+            transactionId: data['transactionId'] as String,
+            dateTime: data['dateTime'] as DateTime,
+            venue: data['venue'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.paymenthistory,
+        builder: (context, state) => const PaymentHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.privacySafety,
+        builder: (context, state) => const PrivacySafetyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.helpSupport,
+        builder: (context, state) => const HelpSupportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.submitReview,
+        builder: (context, state) {
+          final event = state.extra as EventModel;
+          return SubmitReviewScreen(event: event);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.myReviews,
+        builder: (context, state) => const MyReviewsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.hostDashboard,
+        builder: (context, state) => const HostDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.circles,
+        builder: (context, state) => const CirclesListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.createCircle,
+        builder: (context, state) => const CreateCircleScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.circleChat,
+        builder: (context, state) {
+          final circle = state.extra as CircleModel?;
+          if (circle == null) {
+            return const Scaffold(
+              body: Center(child: Text('Circle not found')),
+            );
+          }
+          return CircleChatScreen(circle: circle);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.hostManage,
+        builder: (context, state) {
+          final eventId = state.extra as String;
+          return HostManageScreen(eventId: eventId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.eventAttendees,
+        builder: (context, state) {
+          final event = state.extra as EventModel;
+          return AttendeesScreen(event: event);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.friendRequests,
+        builder: (context, state) => const FriendRequestsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.dmChat,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return DmChatScreen(
+            otherUid: data['otherUid'] as String,
+            otherName: data['otherName'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.userProfile,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return UserProfileScreen(
+            uid: data['uid'] as String,
+            requestId: data['requestId'] as String?,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.circleInfo,
+        builder: (context, state) {
+          final circle = state.extra as CircleModel?;
+          if (circle == null) {
+            return const Scaffold(
+              body: Center(child: Text('Circle not found')),
+            );
+          }
+          return CircleInfoScreen(circle: circle);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.friendInfo,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return FriendInfoScreen(
+            uid: data['uid'] as String,
+            displayName: data['displayName'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.search,
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.friendsHub,
+        builder: (context, state) => const FriendsHubScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.circleDiscovery,
+        builder: (context, state) => const CircleDiscoveryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsScreen(),
+      ),
+ 
+      // ── Signup flow: 1 → otp → 2 → 3 → 4 → 5 ──────────────────────────────
+      GoRoute(
+        path: AppRoutes.signupStep1,
+        builder: (context, state) => const SignupStep1Screen(),
+      ),
+      GoRoute(
+        path: AppRoutes.signupOtp,                                          // ← NEW
+        builder: (context, state) => SignupOtpScreen(
+          signupData: state.extra as SignupData,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.signupStep2,
+        builder: (context, state) => SignupStep2Screen(
+          signupData: state.extra as SignupData,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.signupStep3,
+        builder: (context, state) => SignupStep3Screen(
+          signupData: state.extra as SignupData,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.signupStep4,                                        // ← now Face Verify
+        builder: (context, state) => SignupStep4Screen(
+          signupData: state.extra as SignupData,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.signupStep5,                                        // ← NEW: Review & Complete
+        builder: (context, state) => SignupStep5Screen(
+          signupData: state.extra as SignupData,
+        ),
+      ),
+ 
+      // ── Shell routes ────────────────────────────────────────────────────────
+      ShellRoute(
+        builder: (context, state, child) => MainShell(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.home,
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.explore,
+            builder: (context, state) => const ExploreScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.myEvents,
+            builder: (context, state) {
+              final args = state.extra as Map<String, dynamic>?;
+              return MyEventsScreen(
+                initialTab: args?['tab'] as int? ?? 0,
+                initialFilter: args?['filter'] as String? ?? 'All',
+              );
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.profile,
+            builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.editprofile,
+            builder: (context, state) =>
+                const EditProfileScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.createEvent,
+            builder: (context, state) => const CreateEventScreen(),
+          ),
+        ],
+      ),
+    ],
+  );
+});
