@@ -54,8 +54,12 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _controllers) c.dispose();
-    for (final f in _focusNodes) f.dispose();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -98,7 +102,9 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   }
 
   void _resendOtp() {
-    for (final c in _controllers) c.clear();
+    for (final c in _controllers) {
+      c.clear();
+    }
     _focusNodes[0].requestFocus();
     _sendOtp();
     _startTimer();
@@ -146,7 +152,9 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
       if (mounted) {
         setState(() => _isVerifying = false);
         // Shake and clear
-        for (final c in _controllers) c.clear();
+        for (final c in _controllers) {
+          c.clear();
+        }
         _focusNodes[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

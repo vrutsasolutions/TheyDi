@@ -39,7 +39,7 @@ class BookingModel {
     final data = doc.data() as Map<String, dynamic>;
     
     // Helper function to parse DateTime from either Timestamp or String
-    DateTime _parseDateTime(dynamic dateValue) {
+    DateTime parseDateTime(dynamic dateValue) {
       if (dateValue == null) return DateTime.now();
       
       if (dateValue is Timestamp) {
@@ -57,7 +57,7 @@ class BookingModel {
     }
     
     // Helper function to parse nullable DateTime
-    DateTime? _parseNullableDateTime(dynamic dateValue) {
+    DateTime? parseNullableDateTime(dynamic dateValue) {
       if (dateValue == null) return null;
       
       if (dateValue is Timestamp) {
@@ -90,8 +90,8 @@ class BookingModel {
       ),
       paymentMethod: data['paymentMethod'] ?? 'mock',
       transactionId: data['transactionId'],
-      createdAt: _parseDateTime(data['createdAt']),
-      confirmedAt: _parseNullableDateTime(data['confirmedAt']),
+      createdAt: parseDateTime(data['createdAt']),
+      confirmedAt: parseNullableDateTime(data['confirmedAt']),
     );
   }
 

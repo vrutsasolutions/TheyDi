@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '703233514575',
     projectId: 'theydi-cefdf',
     authDomain: 'theydi-cefdf.firebaseapp.com',
-    storageBucket: 'theydi-cefdf.firebasestorage.app',
+    storageBucket: 'theydi-cefdf.appspot.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     appId: '1:703233514575:android:1cd925f3dc51bebccf1e3a',
     messagingSenderId: '703233514575',
     projectId: 'theydi-cefdf',
-    storageBucket: 'theydi-cefdf.firebasestorage.app',
+    storageBucket: 'theydi-cefdf.appspot.com',
   );
 }

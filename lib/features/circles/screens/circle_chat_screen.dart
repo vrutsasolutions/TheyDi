@@ -167,7 +167,8 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     }
     final status = await Permission.microphone.request();
     if (status.isDenied || status.isPermanentlyDenied) {
-      if (mounted) showDialog(context: context, builder: (ctx) => AlertDialog(
+      if (mounted) {
+        showDialog(context: context, builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Microphone Access', style: TheyDiTextStyles.headlineMedium),
@@ -179,6 +180,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
               child: Text('Open Settings', style: TextStyle(color: TheyDiColors.primary))),
         ],
       ));
+      }
       return false;
     }
     return status.isGranted;
@@ -244,8 +246,10 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     try { await _recorder.stop(); } catch (_) {}
     if (!kIsWeb) HapticFeedback.heavyImpact();
     setState(() { _isRecording = false; _recordSeconds = 0; _dragOffset = 0; });
-    if (mounted) _showSnack('Recording cancelled', Colors.grey.shade700,
+    if (mounted) {
+      _showSnack('Recording cancelled', Colors.grey.shade700,
         duration: const Duration(seconds: 2));
+    }
   }
 
   Future<void> _uploadAndSendVoice(String filePath, int durationSecs) async {
@@ -599,8 +603,11 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
       onHorizontalDragUpdate: (d) =>
           setState(() => _dragOffset = math.max(0, _dragOffset - d.delta.dx)),
       onHorizontalDragEnd: (_) {
-        if (_dragOffset >= _cancelThreshold) _cancelRecording();
-        else setState(() => _dragOffset = 0);
+        if (_dragOffset >= _cancelThreshold) {
+          _cancelRecording();
+        } else {
+          setState(() => _dragOffset = 0);
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),

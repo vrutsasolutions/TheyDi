@@ -76,7 +76,10 @@ class ProfileScreen extends ConsumerWidget {
               final email = (data['email'] as String?) ?? authUser?.email ?? '';
               final city = (data['city'] as String?) ?? '';
               final bio = (data['bio'] as String?) ?? '';
-              final photoUrl = (data['photoUrl'] as String?) ?? '';
+              final photoUrl = (data['profileImageUrl'] as String?) ??
+                  (data['photoUrl'] as String?) ??
+                  '';
+
               final interests = List<String>.from(data['interests'] ?? []);
               final isVerified = (data['isVerified'] as bool?) ?? false;
               final age = data['age'];
@@ -318,7 +321,8 @@ class _ProfileContent extends ConsumerWidget {
                             children: [
                               Flexible(
                                 child: Text(displayName,
-                                    style: TheyDiTextStyles.headlineMedium.copyWith(
+                                    style: TheyDiTextStyles.headlineMedium
+                                        .copyWith(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w700,
                                       height: 1.15,
@@ -819,7 +823,8 @@ class _MenuItem extends StatelessWidget {
           side: BorderSide(color: TheyDiColors.divider),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(
             width: 38,
             height: 38,

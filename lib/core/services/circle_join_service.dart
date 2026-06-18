@@ -19,8 +19,7 @@ class CircleJoinService {
     if (uid == null) return;
 
     final userDoc = await _db.collection('users').doc(uid).get();
-    final userName =
-        (userDoc.data()?['displayName'] as String?) ?? 'Someone';
+    final userName = (userDoc.data()?['displayName'] as String?) ?? 'Someone';
 
     // Avoid duplicate requests
     final existing = await _db
@@ -64,8 +63,7 @@ class CircleJoinService {
     final batch = _db.batch();
 
     final circleRef = _db.collection('circles').doc(circleId);
-    final requestRef =
-        circleRef.collection('joinRequests').doc(requesterUid);
+    final requestRef = circleRef.collection('joinRequests').doc(requesterUid);
 
     // Add user to circle members
     batch.update(circleRef, {
@@ -197,11 +195,8 @@ class CircleJoinService {
     if (uid == null) return [];
 
     // Get current friends & sent requests to exclude
-    final friendsSnap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('friends')
-        .get();
+    final friendsSnap =
+        await _db.collection('users').doc(uid).collection('friends').get();
     final friendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
     final sentSnap = await _db
@@ -209,9 +204,8 @@ class CircleJoinService {
         .doc(uid)
         .collection('friendRequests')
         .get();
-    final sentUids = sentSnap.docs
-        .map((d) => (d.data()['fromUid'] ?? '') as String)
-        .toSet();
+    final sentUids =
+        sentSnap.docs.map((d) => (d.data()['fromUid'] ?? '') as String).toSet();
 
     final excluded = {uid, ...friendUids, ...sentUids};
 
@@ -229,8 +223,7 @@ class CircleJoinService {
 
     final candidateUids = <String>{};
     for (final doc in eventsSnap.docs) {
-      final attendees =
-          List<String>.from(doc.data()['attendeeUids'] ?? []);
+      final attendees = List<String>.from(doc.data()['attendeeUids'] ?? []);
       candidateUids.addAll(attendees);
     }
 
@@ -260,12 +253,10 @@ class CircleJoinService {
           .get();
       for (final doc in snap.docs) {
         final data = doc.data();
-        final theirInterests =
-            List<String>.from(data['interests'] ?? []);
+        final theirInterests = List<String>.from(data['interests'] ?? []);
         final sharedInterests =
             myInterests.where((i) => theirInterests.contains(i)).length;
-        final sameCity =
-            myCity.isNotEmpty && (data['city'] ?? '') == myCity;
+        final sameCity = myCity.isNotEmpty && (data['city'] ?? '') == myCity;
 
         final score = sharedInterests * 2 + (sameCity ? 1 : 0);
 
@@ -273,7 +264,7 @@ class CircleJoinService {
           'uid': doc.id,
           'displayName': data['displayName'] ?? 'User',
           'city': data['city'] ?? '',
-          'photoUrl': data['photoUrl'] ?? '',
+          'photoUrl': data['profileImageUrl'] ?? data['photoUrl'] ?? '',
           'interests': theirInterests,
           'bio': data['bio'] ?? '',
           'score': score,
@@ -288,7 +279,8 @@ class CircleJoinService {
   static List<List<T>> _chunkList<T>(List<T> list, int size) {
     final chunks = <List<T>>[];
     for (var i = 0; i < list.length; i += size) {
-      chunks.add(list.sublist(i, i + size > list.length ? list.length : i + size));
+      chunks.add(
+          list.sublist(i, i + size > list.length ? list.length : i + size));
     }
     return chunks;
   }

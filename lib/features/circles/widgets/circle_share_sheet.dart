@@ -386,8 +386,11 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
                   final isSelected = _selected.contains(c['id']);
                   return GestureDetector(
                     onTap: () => setState(() {
-                      if (isSelected) _selected.remove(c['id']);
-                      else _selected.add(c['id']);
+                      if (isSelected) {
+                        _selected.remove(c['id']);
+                      } else {
+                        _selected.add(c['id']);
+                      }
                     }),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),

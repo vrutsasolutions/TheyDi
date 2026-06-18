@@ -34,7 +34,8 @@ class FriendRequestsScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
                       onPressed: () {
                         if (GoRouter.of(context).canPop()) {
                           context.pop();
@@ -79,8 +80,8 @@ class FriendRequestsScreen extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text(
                               'Connect with attendees at events to grow your network',
-                              style: TheyDiTextStyles.bodySmall.copyWith(
-                                  color: TheyDiColors.textSecondary),
+                              style: TheyDiTextStyles.bodySmall
+                                  .copyWith(color: TheyDiColors.textSecondary),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -103,8 +104,7 @@ class FriendRequestsScreen extends StatelessWidget {
                           fromName: fromName,
                           myUid: myUid,
                         )
-                            .animate(
-                                delay: Duration(milliseconds: 60 * index))
+                            .animate(delay: Duration(milliseconds: 60 * index))
                             .fade(duration: 300.ms)
                             .slideY(begin: 0.1, end: 0);
                       },
@@ -174,7 +174,7 @@ class _RequestCardState extends State<_RequestCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Friend request from ${widget.fromName} declined.'),
-            backgroundColor: Colors.orange,   
+            backgroundColor: Colors.orange,
           ),
         );
       }
@@ -193,14 +193,12 @@ class _RequestCardState extends State<_RequestCard> {
           .doc(widget.fromUid)
           .get(),
       builder: (context, snapshot) {
-        final data =
-            snapshot.data?.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
-        final initial = widget.fromName.isNotEmpty
-            ? widget.fromName[0].toUpperCase()
-            : '?';
+        final initial =
+            widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';
 
         return GestureDetector(
           // ── Tap anywhere on card → open Friend Info Screen ──
@@ -241,8 +239,7 @@ class _RequestCardState extends State<_RequestCard> {
                                 errorBuilder: (_, __, ___) => Center(
                                       child: Text(initial,
                                           style: TheyDiTextStyles.labelLarge
-                                              .copyWith(
-                                                  color: Colors.white)),
+                                              .copyWith(color: Colors.white)),
                                     ))
                             : Center(
                                 child: Text(initial,
@@ -264,11 +261,9 @@ class _RequestCardState extends State<_RequestCard> {
                             Row(
                               children: [
                                 Icon(Icons.location_on_outlined,
-                                    size: 11,
-                                    color: TheyDiColors.textMuted),
+                                    size: 11, color: TheyDiColors.textMuted),
                                 const SizedBox(width: 3),
-                                Text(city,
-                                    style: TheyDiTextStyles.caption),
+                                Text(city, style: TheyDiTextStyles.caption),
                               ],
                             ),
                         ],
@@ -319,12 +314,11 @@ class _RequestCardState extends State<_RequestCard> {
                           side: BorderSide(color: TheyDiColors.divider),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10)),
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         child: Text('Decline',
-                            style: TheyDiTextStyles.labelMedium.copyWith(
-                                color: TheyDiColors.textSecondary)),
+                            style: TheyDiTextStyles.labelMedium
+                                .copyWith(color: TheyDiColors.textSecondary)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -342,16 +336,14 @@ class _RequestCardState extends State<_RequestCard> {
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           child: _processing
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white),
+                                      strokeWidth: 2, color: Colors.white),
                                 )
                               : Text('Accept',
                                   style: TheyDiTextStyles.labelMedium

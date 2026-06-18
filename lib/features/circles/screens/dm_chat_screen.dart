@@ -260,7 +260,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     }
     final status = await Permission.microphone.request();
     if (status.isDenied || status.isPermanentlyDenied) {
-      if (mounted)
+      if (mounted) {
         showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
@@ -286,6 +286,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                             style: TextStyle(color: TheyDiColors.primary))),
                   ],
                 ));
+      }
       return false;
     }
     return status.isGranted;
@@ -341,8 +342,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       if (duration < 1) return;
 
       if (path == null || path.isEmpty) {
-        if (mounted)
+        if (mounted) {
           _showSnack('Recording failed — no audio captured', Colors.red);
+        }
         return;
       }
       await _uploadAndSendVoice(path, duration);
@@ -367,9 +369,10 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       _recordSeconds = 0;
       _dragOffset = 0;
     });
-    if (mounted)
+    if (mounted) {
       _showSnack('Recording cancelled', Colors.grey.shade700,
           duration: const Duration(seconds: 2));
+    }
   }
 
   Future<void> _uploadAndSendVoice(String filePath, int durationSecs) async {
@@ -397,8 +400,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       }
 
       if (bytes.isEmpty) {
-        if (mounted)
+        if (mounted) {
           _showSnack('Audio capture failed — please try again', Colors.red);
+        }
         setState(() => _isUploading = false);
         return;
       }
@@ -937,9 +941,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                   } else if (lastSeen != null) {
                                     final diff = DateTime.now()
                                         .difference(lastSeen.toDate());
-                                    if (diff.inMinutes < 5)
+                                    if (diff.inMinutes < 5) {
                                       label = 'Last seen just now';
-                                    else if (diff.inHours < 1)
+                                    } else if (diff.inHours < 1)
                                       label =
                                           'Last seen ${diff.inMinutes}m ago';
                                     else if (diff.inDays < 1)
@@ -1169,10 +1173,11 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       onHorizontalDragUpdate: (d) =>
           setState(() => _dragOffset = math.max(0, _dragOffset - d.delta.dx)),
       onHorizontalDragEnd: (_) {
-        if (_dragOffset >= _cancelThreshold)
+        if (_dragOffset >= _cancelThreshold) {
           _cancelRecording();
-        else
+        } else {
           setState(() => _dragOffset = 0);
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),

@@ -10,12 +10,13 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/event_circle_service.dart';
 import '../models/circle_model.dart';
@@ -95,35 +96,49 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     });
 
     await _refresh();
-    if (mounted) setState(() { _editing = false; _saving = false; });
+    if (mounted)
+      setState(() {
+        _editing = false;
+        _saving = false;
+      });
   }
 
   Future<void> _pickGroupPhoto() async {
     final picker = ImagePicker();
+
     final picked = await picker.pickImage(
-        source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+    );
+
     if (picked == null) return;
 
     try {
       final bytes = await picked.readAsBytes();
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('circle_images')
-          .child('${_circle.id}.jpg');
-      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-      final url = await ref.getDownloadURL();
+
+      final url = await CloudflareUpload.uploadBytes(
+        bytes,
+        '${_circle.id}.jpg',
+      );
+
+      if (url == null) {
+        throw Exception('Cloudflare upload failed');
+      }
 
       await FirebaseFirestore.instance
           .collection('circles')
           .doc(_circle.id)
           .update({'profileImageUrl': url});
+
       await _refresh();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Failed to upload: $e'),
-              backgroundColor: Colors.red),
+            content: Text('Failed to upload: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -144,9 +159,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('$name removed'),
-            backgroundColor: Colors.grey),
+        SnackBar(content: Text('$name removed'), backgroundColor: Colors.grey),
       );
     }
   }
@@ -167,8 +180,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('You left the circle'),
-            backgroundColor: Colors.grey),
+            content: Text('You left the circle'), backgroundColor: Colors.grey),
       );
       context.pop();
       context.pop();
@@ -178,7 +190,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
   Future<void> _deleteGroup() async {
     final confirmed = await _confirmDialog(
       title: 'Delete Circle?',
-      body: 'This will permanently delete "${_circle.name}" and all its messages.',
+      body:
+          'This will permanently delete "${_circle.name}" and all its messages.',
       confirm: 'Delete',
       confirmColor: Colors.red,
     );
@@ -213,7 +226,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
   Future<void> _clearChat() async {
     final confirmed = await _confirmDialog(
       title: 'Clear Chat?',
-      body: 'This clears all messages from your view only. Other members will still see the conversation.',
+      body:
+          'This clears all messages from your view only. Other members will still see the conversation.',
       confirm: 'Clear',
       confirmColor: Colors.orange,
     );
@@ -247,8 +261,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
         builder: (ctx, setModalState) => Container(
           decoration: BoxDecoration(
             color: TheyDiColors.card,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             border: Border.all(color: TheyDiColors.divider),
           ),
           padding: const EdgeInsets.all(24),
@@ -292,8 +305,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                       .copyWith(color: TheyDiColors.textSecondary)),
               const SizedBox(height: 16),
               ..._kCircleReportReasons.map((reason) => GestureDetector(
-                    onTap: () =>
-                        setModalState(() => selectedReason = reason),
+                    onTap: () => setModalState(() => selectedReason = reason),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(
@@ -384,8 +396,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              'Report submitted. Thank you for helping keep TieIn safe.'),
+          content:
+              Text('Report submitted. Thank you for helping keep TieIn safe.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -395,7 +407,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
   Future<void> _blockCircle() async {
     final confirmed = await _confirmDialog(
       title: 'Block Circle?',
-      body: 'You will leave "${_circle.name}" and it will be hidden from you. This cannot be undone.',
+      body:
+          'You will leave "${_circle.name}" and it will be hidden from you. This cannot be undone.',
       confirm: 'Block',
       confirmColor: Colors.red,
     );
@@ -405,10 +418,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     await EventCircleService.removeMemberFromCircle(
         circleId: _circle.id, userUid: _myUid, userName: myName);
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_myUid)
-        .update({
+    await FirebaseFirestore.instance.collection('users').doc(_myUid).update({
       'blockedCircleIds': FieldValue.arrayUnion([_circle.id]),
     });
 
@@ -448,8 +458,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(title, style: TheyDiTextStyles.headlineMedium),
         content: Text(body,
             style: TheyDiTextStyles.bodyMedium
@@ -464,8 +473,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(confirm,
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: confirmColor)),
+                style:
+                    TheyDiTextStyles.labelMedium.copyWith(color: confirmColor)),
           ),
         ],
       ),
@@ -493,13 +502,11 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.share_outlined,
-                size: 14, color: TheyDiColors.primary),
+            Icon(Icons.share_outlined, size: 14, color: TheyDiColors.primary),
             const SizedBox(width: 5),
             Text('Share',
                 style: TheyDiTextStyles.caption.copyWith(
-                    color: TheyDiColors.primary,
-                    fontWeight: FontWeight.w600)),
+                    color: TheyDiColors.primary, fontWeight: FontWeight.w600)),
           ],
         ),
       )
@@ -543,11 +550,11 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
-                    Text('Circle Info',
-                        style: TheyDiTextStyles.displayMedium),
+                    Text('Circle Info', style: TheyDiTextStyles.displayMedium),
                     const Spacer(),
 
                     // ── NEW: Share button (all members) ──
@@ -558,10 +565,11 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                     if (_isHost)
                       GestureDetector(
                         onTap: () {
-                          if (_editing)
+                          if (_editing) {
                             _saveEdits();
-                          else
+                          } else {
                             setState(() => _editing = true);
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -575,10 +583,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   width: 14,
                                   height: 14,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white))
-                              : Text(
-                                  _editing ? 'Save' : 'Edit',
+                                      strokeWidth: 2, color: Colors.white))
+                              : Text(_editing ? 'Save' : 'Edit',
                                   style: TheyDiTextStyles.caption.copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w600)),
@@ -588,8 +594,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                     // Cancel editing button
                     if (_editing)
                       IconButton(
-                        icon:
-                            const Icon(Icons.close, color: Colors.white),
+                        icon: const Icon(Icons.close, color: Colors.white),
                         onPressed: () {
                           setState(() {
                             _editing = false;
@@ -627,23 +632,17 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                 borderRadius: BorderRadius.circular(26),
                                 child: _circle.profileImageUrl != null &&
                                         _circle.profileImageUrl!.isNotEmpty
-                                    ? Image.network(
-                                        _circle.profileImageUrl!,
+                                    ? Image.network(_circle.profileImageUrl!,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            Center(
-                                                child: Text(
-                                                    initial,
-                                                    style: TheyDiTextStyles
-                                                        .displayLarge
-                                                        .copyWith(
-                                                            fontSize: 40,
-                                                            color: Colors
-                                                                .white))))
+                                        errorBuilder: (_, __, ___) => Center(
+                                            child: Text(initial,
+                                                style: TheyDiTextStyles.displayLarge
+                                                    .copyWith(
+                                                        fontSize: 40,
+                                                        color: Colors.white))))
                                     : Center(
                                         child: Text(initial,
-                                            style: TheyDiTextStyles
-                                                .displayLarge
+                                            style: TheyDiTextStyles.displayLarge
                                                 .copyWith(
                                                     fontSize: 40,
                                                     color: Colors.white))),
@@ -670,8 +669,9 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                           ],
                         ),
                       ),
-                    ).animate().scale(
-                        duration: 400.ms, curve: Curves.elasticOut),
+                    )
+                        .animate()
+                        .scale(duration: 400.ms, curve: Curves.elasticOut),
 
                     const SizedBox(height: 16),
 
@@ -690,15 +690,14 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   borderSide: BorderSide.none),
                               enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: TheyDiColors.divider)),
+                                  borderSide:
+                                      BorderSide(color: TheyDiColors.divider)),
                               focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: const BorderSide(
                                       color: TheyDiColors.primary)),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
                             ),
                           )
                         : Center(
@@ -706,26 +705,22 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(_circle.name,
-                                    style:
-                                        TheyDiTextStyles.displayMedium),
+                                    style: TheyDiTextStyles.displayMedium),
                                 if (_circle.isEventCircle) ...[
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: Colors.orange
-                                          .withValues(alpha: 0.15),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
+                                      color:
+                                          Colors.orange.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text('Event',
                                         style: TheyDiTextStyles.caption
                                             .copyWith(
                                                 color: Colors.orange,
-                                                fontWeight:
-                                                    FontWeight.w600)),
+                                                fontWeight: FontWeight.w600)),
                                   ),
                                 ],
                               ],
@@ -744,8 +739,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                             decoration: InputDecoration(
                               hintText: 'Add a description...',
                               hintStyle: TheyDiTextStyles.bodySmall
-                                  .copyWith(
-                                      color: TheyDiColors.textMuted),
+                                  .copyWith(color: TheyDiColors.textMuted),
                               filled: true,
                               fillColor: TheyDiColors.card,
                               border: OutlineInputBorder(
@@ -753,15 +747,14 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   borderSide: BorderSide.none),
                               enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: TheyDiColors.divider)),
+                                  borderSide:
+                                      BorderSide(color: TheyDiColors.divider)),
                               focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: const BorderSide(
                                       color: TheyDiColors.primary)),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
                             ),
                           )
                         : Center(
@@ -769,8 +762,8 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               _circle.description.isNotEmpty
                                   ? _circle.description
                                   : 'No description',
-                              style: TheyDiTextStyles.bodySmall.copyWith(
-                                  color: TheyDiColors.textSecondary),
+                              style: TheyDiTextStyles.bodySmall
+                                  .copyWith(color: TheyDiColors.textSecondary),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -790,8 +783,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                       children: [
                         Text('Members',
                             style: TheyDiTextStyles.labelLarge
-                                .copyWith(
-                                    color: TheyDiColors.textSecondary)),
+                                .copyWith(color: TheyDiColors.textSecondary)),
                         const Spacer(),
                         if (_isHost)
                           GestureDetector(
@@ -806,17 +798,13 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                      Icons.person_add_outlined,
-                                      size: 14,
-                                      color: Colors.white),
+                                  const Icon(Icons.person_add_outlined,
+                                      size: 14, color: Colors.white),
                                   const SizedBox(width: 4),
                                   Text('Add',
-                                      style: TheyDiTextStyles.caption
-                                          .copyWith(
-                                              color: Colors.white,
-                                              fontWeight:
-                                                  FontWeight.w600)),
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ),
@@ -839,8 +827,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                         decoration: BoxDecoration(
                           color: TheyDiColors.card,
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: TheyDiColors.divider),
+                          border: Border.all(color: TheyDiColors.divider),
                         ),
                         child: Row(
                           children: [
@@ -853,9 +840,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  name.isNotEmpty
-                                      ? name[0].toUpperCase()
-                                      : '?',
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
                                   style: TheyDiTextStyles.labelLarge
                                       .copyWith(color: Colors.white),
                                 ),
@@ -866,15 +851,13 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               child: Row(
                                 children: [
                                   Text(name,
-                                      style:
-                                          TheyDiTextStyles.labelMedium),
+                                      style: TheyDiTextStyles.labelMedium),
                                   if (isMe) ...[
                                     const SizedBox(width: 6),
                                     Text('(You)',
                                         style: TheyDiTextStyles.caption
                                             .copyWith(
-                                                color: TheyDiColors
-                                                    .textMuted)),
+                                                color: TheyDiColors.textMuted)),
                                   ],
                                   const SizedBox(width: 6),
                                   _OnlineDot(uid: uid),
@@ -888,8 +871,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                 color: isCreator
                                     ? TheyDiColors.primary
                                         .withValues(alpha: 0.15)
-                                    : Colors.green
-                                        .withValues(alpha: 0.12),
+                                    : Colors.green.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -906,21 +888,16 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                             if (_isHost && !isMe && !isCreator) ...[
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: () =>
-                                    _removeMember(uid, name),
+                                onTap: () => _removeMember(uid, name),
                                 child: Container(
                                   width: 30,
                                   height: 30,
                                   decoration: BoxDecoration(
-                                    color: Colors.red
-                                        .withValues(alpha: 0.12),
-                                    borderRadius:
-                                        BorderRadius.circular(8),
+                                    color: Colors.red.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Icon(
-                                      Icons.remove_circle_outline,
-                                      size: 16,
-                                      color: Colors.red),
+                                  child: const Icon(Icons.remove_circle_outline,
+                                      size: 16, color: Colors.red),
                                 ),
                               ),
                             ],
@@ -944,13 +921,10 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   color: Colors.orange,
                                   fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                                color: Colors.orange),
+                            side: const BorderSide(color: Colors.orange),
                             shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 14),
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                         ),
                       ),
@@ -967,13 +941,10 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   color: Colors.red,
                                   fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
-                            side:
-                                const BorderSide(color: Colors.red),
+                            side: const BorderSide(color: Colors.red),
                             shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 14),
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                         ),
                       ),
@@ -993,8 +964,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                     _CircleActionTile(
                       icon: Icons.flag_outlined,
                       label: 'Report Circle',
-                      subtitle:
-                          'Report inappropriate content or behavior',
+                      subtitle: 'Report inappropriate content or behavior',
                       color: Colors.amber,
                       onTap: _reportCircle,
                     ),
@@ -1003,8 +973,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                     _CircleActionTile(
                       icon: Icons.block_outlined,
                       label: 'Block Circle',
-                      subtitle:
-                          'Leave and hide this circle permanently',
+                      subtitle: 'Leave and hide this circle permanently',
                       color: Colors.red,
                       onTap: _blockCircle,
                     ),
@@ -1042,8 +1011,7 @@ class _CircleActionTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12),
@@ -1058,8 +1026,8 @@ class _CircleActionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: TheyDiTextStyles.labelMedium
-                          .copyWith(color: color)),
+                      style:
+                          TheyDiTextStyles.labelMedium.copyWith(color: color)),
                   Text(subtitle,
                       style: TheyDiTextStyles.caption
                           .copyWith(color: TheyDiColors.textMuted)),
@@ -1083,14 +1051,11 @@ class _OnlineDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
       builder: (context, snap) {
         final isOnline =
-            (snap.data?.data() as Map<String, dynamic>?)?['isOnline'] ==
-                true;
+            (snap.data?.data() as Map<String, dynamic>?)?['isOnline'] == true;
         return Container(
           width: 8,
           height: 8,
@@ -1111,8 +1076,7 @@ class _AddMembersSheet extends StatefulWidget {
   final CircleModel circle;
   final VoidCallback onMembersAdded;
 
-  const _AddMembersSheet(
-      {required this.circle, required this.onMembersAdded});
+  const _AddMembersSheet({required this.circle, required this.onMembersAdded});
 
   @override
   State<_AddMembersSheet> createState() => _AddMembersSheetState();
@@ -1175,12 +1139,12 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
   void _onSearch() {
     final q = _searchController.text.toLowerCase().trim();
     setState(() {
-        _filtered = q.isEmpty
+      _filtered = q.isEmpty
           ? _allCandidates
           : _allCandidates.where((c) {
-            return (c['name'] ?? '').toLowerCase().contains(q) ||
-              (c['username'] ?? '').toLowerCase().contains(q);
-          }).toList();
+              return (c['name'] ?? '').toLowerCase().contains(q) ||
+                  (c['username'] ?? '').toLowerCase().contains(q);
+            }).toList();
     });
   }
 
@@ -1188,14 +1152,11 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
     if (_selectedUids.isEmpty) return;
     setState(() => _adding = true);
 
-    final myName =
-        FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+    final myName = FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
 
     for (final uid in _selectedUids) {
-      final candidate = _allCandidates.firstWhere(
-        (c) => c['uid'] == uid,
-        orElse: () =>
-          {'uid': uid, 'name': 'Member', 'username': ''});
+      final candidate = _allCandidates.firstWhere((c) => c['uid'] == uid,
+          orElse: () => {'uid': uid, 'name': 'Member', 'username': ''});
 
       await EventCircleService.addMemberToCircle(
         circleId: widget.circle.id,
@@ -1245,8 +1206,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
             child: Row(
               children: [
-                Text('Add Members',
-                    style: TheyDiTextStyles.headlineMedium),
+                Text('Add Members', style: TheyDiTextStyles.headlineMedium),
                 const Spacer(),
                 if (_selectedUids.isNotEmpty)
                   GestureDetector(
@@ -1263,8 +1223,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                               width: 14,
                               height: 14,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white))
+                                  strokeWidth: 2, color: Colors.white))
                           : Text('Add (${_selectedUids.length})',
                               style: TheyDiTextStyles.labelMedium
                                   .copyWith(color: Colors.white)),
@@ -1291,8 +1250,8 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                   prefixIcon: Icon(Icons.search,
                       color: TheyDiColors.textMuted, size: 20),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
               ),
             ),
@@ -1300,8 +1259,8 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
           Expanded(
             child: _loading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                        color: TheyDiColors.primary))
+                    child:
+                        CircularProgressIndicator(color: TheyDiColors.primary))
                 : _filtered.isEmpty
                     ? Center(
                         child: Padding(
@@ -1310,16 +1269,15 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                             _searchController.text.isEmpty
                                 ? 'No friends available to add'
                                 : 'No users found',
-                            style: TheyDiTextStyles.bodySmall.copyWith(
-                                color: TheyDiColors.textSecondary),
+                            style: TheyDiTextStyles.bodySmall
+                                .copyWith(color: TheyDiColors.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                         ),
                       )
                     : ListView(
                         controller: scrollCtrl,
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         children: _filtered.map((candidate) {
                           final isSelected =
                               _selectedUids.contains(candidate['uid']);
@@ -1330,16 +1288,15 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                           return GestureDetector(
                             onTap: () {
                               setState(() {
-                                if (isSelected)
-                                  _selectedUids
-                                      .remove(candidate['uid']);
-                                else
+                                if (isSelected) {
+                                  _selectedUids.remove(candidate['uid']);
+                                } else {
                                   _selectedUids.add(candidate['uid']!);
+                                }
                               });
                             },
                             child: Container(
-                              margin:
-                                  const EdgeInsets.only(bottom: 8),
+                              margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 10),
                               decoration: BoxDecoration(
@@ -1347,8 +1304,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                                     ? TheyDiColors.primary
                                         .withValues(alpha: 0.12)
                                     : TheyDiColors.card,
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isSelected
                                       ? TheyDiColors.primary
@@ -1362,20 +1318,16 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                                     width: 40,
                                     height: 40,
                                     decoration: BoxDecoration(
-                                      gradient:
-                                          TheyDiColors.gradientPrimary,
-                                      borderRadius:
-                                          BorderRadius.circular(12),
+                                      gradient: TheyDiColors.gradientPrimary,
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Center(
                                       child: Text(
                                         name.isNotEmpty
                                             ? name[0].toUpperCase()
                                             : '?',
-                                        style: TheyDiTextStyles
-                                            .labelLarge
-                                            .copyWith(
-                                                color: Colors.white),
+                                        style: TheyDiTextStyles.labelLarge
+                                            .copyWith(color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -1386,16 +1338,13 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(name,
-                                            style: TheyDiTextStyles
-                                                .labelMedium),
+                                            style:
+                                                TheyDiTextStyles.labelMedium),
                                         if (city.isNotEmpty ||
-                                          username.isNotEmpty)
+                                            username.isNotEmpty)
                                           Text(
-                                            city.isNotEmpty
-                                              ? city
-                                              : username,
-                                            style: TheyDiTextStyles
-                                              .caption),
+                                              city.isNotEmpty ? city : username,
+                                              style: TheyDiTextStyles.caption),
                                       ],
                                     ),
                                   ),
@@ -1407,8 +1356,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                                           shape: BoxShape.circle,
                                           color: TheyDiColors.primary),
                                       child: const Icon(Icons.check,
-                                          size: 14,
-                                          color: Colors.white),
+                                          size: 14, color: Colors.white),
                                     )
                                   else
                                     Container(
@@ -1417,8 +1365,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                                       decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                              color:
-                                                  TheyDiColors.divider)),
+                                              color: TheyDiColors.divider)),
                                     ),
                                 ],
                               ),

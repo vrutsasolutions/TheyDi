@@ -21,32 +21,32 @@ ThemeData _pickerTheme(BuildContext context) => ThemeData(
         backgroundColor: Colors.white,
         headerBackgroundColor: const Color(0xFF10B981),
         headerForegroundColor: Colors.white,
-        dayForegroundColor: MaterialStateColor.resolveWith((states) =>
-            states.contains(MaterialState.selected)
+        dayForegroundColor: WidgetStateColor.resolveWith((states) =>
+            states.contains(WidgetState.selected)
                 ? Colors.white
                 : const Color(0xFF111827)),
-        dayBackgroundColor: MaterialStateColor.resolveWith((states) =>
-            states.contains(MaterialState.selected)
+        dayBackgroundColor: WidgetStateColor.resolveWith((states) =>
+            states.contains(WidgetState.selected)
                 ? const Color(0xFF10B981)
                 : Colors.transparent),
-        todayForegroundColor: MaterialStateColor.resolveWith((states) =>
-            states.contains(MaterialState.selected)
+        todayForegroundColor: WidgetStateColor.resolveWith((states) =>
+            states.contains(WidgetState.selected)
                 ? Colors.white
                 : const Color(0xFF10B981)),
-        todayBackgroundColor: MaterialStateColor.resolveWith((states) =>
-            states.contains(MaterialState.selected)
+        todayBackgroundColor: WidgetStateColor.resolveWith((states) =>
+            states.contains(WidgetState.selected)
                 ? const Color(0xFF10B981)
                 : Colors.transparent),
         todayBorder: const BorderSide(color: Color(0xFF10B981), width: 1),
         weekdayStyle: const TextStyle(
             color: Color(0xFF4B5563), fontWeight: FontWeight.w600),
         dayStyle: const TextStyle(color: Color(0xFF111827)),
-        yearForegroundColor: MaterialStateColor.resolveWith((states) =>
-            states.contains(MaterialState.selected)
+        yearForegroundColor: WidgetStateColor.resolveWith((states) =>
+            states.contains(WidgetState.selected)
                 ? Colors.white
                 : const Color(0xFF111827)),
-        yearBackgroundColor: MaterialStateColor.resolveWith((states) =>
-            states.contains(MaterialState.selected)
+        yearBackgroundColor: WidgetStateColor.resolveWith((states) =>
+            states.contains(WidgetState.selected)
                 ? const Color(0xFF10B981)
                 : Colors.transparent),
       ),

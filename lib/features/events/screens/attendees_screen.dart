@@ -38,8 +38,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
   // ── NEW: tracks whether current user just left ──
   bool _hasLeft = false;
 
-  String get _myUid =>
-      FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   // True if current user is in the attendee list and NOT the host
   bool get _isAttendee {
@@ -51,14 +50,12 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
   Future<void> _createEventCircle() async {
     final event = widget.event;
 
-    final existing =
-        await EventCircleService.getExistingEventCircle(event.id);
+    final existing = await EventCircleService.getExistingEventCircle(event.id);
     if (existing != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('Event circle already exists! Opening it...'),
+            content: Text('Event circle already exists! Opening it...'),
             backgroundColor: Colors.blue,
           ),
         );
@@ -71,8 +68,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Create Event Circle?',
             style: TheyDiTextStyles.headlineMedium),
         content: Text(
@@ -110,8 +106,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
               .collection('users')
               .doc(uid)
               .get();
-          attendeeNames
-              .add(userDoc.data()?['displayName'] ?? 'Member');
+          attendeeNames.add(userDoc.data()?['displayName'] ?? 'Member');
         } catch (_) {
           attendeeNames.add('Member');
         }
@@ -135,9 +130,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Failed: $e'),
-              backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -160,8 +153,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
   @override
   Widget build(BuildContext context) {
     final canCreateCircle = widget.event.currentAttendees >= 2;
-    final eventStarted =
-        widget.event.isOngoing || widget.event.isCompleted;
+    final eventStarted = widget.event.isOngoing || widget.event.isCompleted;
 
     return Scaffold(
       body: Container(
@@ -178,8 +170,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
             children: [
               // ── App Bar ──
               Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(8, 8, 12, 0),
+                padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
                 child: Row(
                   children: [
                     IconButton(
@@ -190,19 +181,15 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Attendees',
-                              style:
-                                  TheyDiTextStyles.displayMedium),
+                              style: TheyDiTextStyles.displayMedium),
                           Text(
                             '${widget.event.currentAttendees} going to '
                             '"${widget.event.title}"',
                             style: TheyDiTextStyles.caption
-                                .copyWith(
-                                    color: TheyDiColors
-                                        .textSecondary),
+                                .copyWith(color: TheyDiColors.textSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -218,13 +205,10 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 7),
                           decoration: BoxDecoration(
-                            color: Colors.red
-                                .withValues(alpha: 0.12),
-                            borderRadius:
-                                BorderRadius.circular(10),
+                            color: Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: Colors.red
-                                  .withValues(alpha: 0.4),
+                              color: Colors.red.withValues(alpha: 0.4),
                               width: 1,
                             ),
                           ),
@@ -235,11 +219,9 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                                   size: 14, color: Colors.red),
                               const SizedBox(width: 5),
                               Text('Leave',
-                                  style: TheyDiTextStyles.caption
-                                      .copyWith(
-                                          color: Colors.red,
-                                          fontWeight:
-                                              FontWeight.w600)),
+                                  style: TheyDiTextStyles.caption.copyWith(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -249,8 +231,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                     if (!_isAttendee &&
                         !_hasLeft &&
                         eventStarted &&
-                        widget.event.attendeeUids
-                            .contains(_myUid) &&
+                        widget.event.attendeeUids.contains(_myUid) &&
                         _myUid != widget.event.creatorUid)
                       Tooltip(
                         message: 'Event has started',
@@ -259,24 +240,18 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                               horizontal: 10, vertical: 7),
                           decoration: BoxDecoration(
                             color: TheyDiColors.card,
-                            borderRadius:
-                                BorderRadius.circular(10),
-                            border: Border.all(
-                                color: TheyDiColors.divider),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: TheyDiColors.divider),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.exit_to_app,
-                                  size: 14,
-                                  color:
-                                      TheyDiColors.textMuted),
+                                  size: 14, color: TheyDiColors.textMuted),
                               const SizedBox(width: 5),
                               Text('Leave',
                                   style: TheyDiTextStyles.caption
-                                      .copyWith(
-                                          color: TheyDiColors
-                                              .textMuted)),
+                                      .copyWith(color: TheyDiColors.textMuted)),
                             ],
                           ),
                         ),
@@ -288,8 +263,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
               // ── Create Event Circle Button ──
               if (canCreateCircle)
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   child: SizedBox(
                     width: double.infinity,
                     child: DecoratedBox(
@@ -298,38 +272,29 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ElevatedButton.icon(
-                        onPressed: _creatingCircle
-                            ? null
-                            : _createEventCircle,
+                        onPressed: _creatingCircle ? null : _createEventCircle,
                         icon: _creatingCircle
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child:
-                                    CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
-                            : const Icon(
-                                Icons.group_add_outlined,
-                                color: Colors.white,
-                                size: 18),
+                            : const Icon(Icons.group_add_outlined,
+                                color: Colors.white, size: 18),
                         label: Text(
                           _creatingCircle
                               ? 'Creating...'
                               : 'Create Event Circle',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600),
+                              color: Colors.white, fontWeight: FontWeight.w600),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 12),
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
@@ -341,30 +306,24 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
               // ── Attendees List ──
               Expanded(
                 child: widget.event.attendeeUids.isEmpty ||
-                        _hasLeft &&
-                            widget.event.attendeeUids.length == 1
+                        _hasLeft && widget.event.attendeeUids.length == 1
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.people_outline,
-                                size: 64,
-                                color: Colors.grey[700]),
+                                size: 64, color: Colors.grey[700]),
                             const SizedBox(height: 16),
                             Text('No attendees yet',
-                                style: TheyDiTextStyles
-                                    .headlineMedium),
+                                style: TheyDiTextStyles.headlineMedium),
                           ],
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20),
-                        itemCount:
-                            widget.event.attendeeUids.length,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: widget.event.attendeeUids.length,
                         itemBuilder: (context, index) {
-                          final uid =
-                              widget.event.attendeeUids[index];
+                          final uid = widget.event.attendeeUids[index];
                           // Hide the current user's card after leaving
                           if (_hasLeft && uid == _myUid) {
                             return const SizedBox.shrink();
@@ -372,12 +331,10 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                           return _AttendeeCard(
                             uid: uid,
                             myUid: _myUid,
-                            isHost:
-                                uid == widget.event.creatorUid,
+                            isHost: uid == widget.event.creatorUid,
                           )
                               .animate(
-                                  delay: Duration(
-                                      milliseconds: 60 * index))
+                                  delay: Duration(milliseconds: 60 * index))
                               .fade(duration: 300.ms)
                               .slideY(begin: 0.1, end: 0);
                         },
@@ -433,11 +390,12 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         .doc(widget.uid)
         .get();
     if (friendDoc.exists) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.friends;
           _loading = false;
         });
+      }
       return;
     }
 
@@ -449,11 +407,12 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         .where('status', isEqualTo: 'pending')
         .get();
     if (sentSnap.docs.isNotEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.requestSent;
           _loading = false;
         });
+      }
       return;
     }
 
@@ -465,26 +424,27 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         .where('status', isEqualTo: 'pending')
         .get();
     if (receivedSnap.docs.isNotEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.requestReceived;
           _requestId = receivedSnap.docs.first.id;
           _loading = false;
         });
+      }
       return;
     }
 
-    if (mounted)
+    if (mounted) {
       setState(() {
         _status = FriendStatus.none;
         _loading = false;
       });
+    }
   }
 
   Future<void> _sendRequest(String toName) async {
     setState(() => _sending = true);
-    await FriendsService.sendFriendRequest(
-        toUid: widget.uid, toName: toName);
+    await FriendsService.sendFriendRequest(toUid: widget.uid, toName: toName);
     if (mounted) {
       setState(() {
         _status = FriendStatus.requestSent;
@@ -503,8 +463,7 @@ class _AttendeeCardState extends State<_AttendeeCard> {
       context: context,
       backgroundColor: TheyDiColors.card,
       shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(20))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -518,17 +477,14 @@ class _AttendeeCardState extends State<_AttendeeCard> {
                     borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                  '$fromName wants to connect with you',
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text('$fromName wants to connect with you',
                   style: TheyDiTextStyles.labelLarge,
                   textAlign: TextAlign.center),
             ),
             const SizedBox(height: 20),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 width: double.infinity,
                 child: DecoratedBox(
@@ -543,67 +499,53 @@ class _AttendeeCardState extends State<_AttendeeCard> {
                           fromUid: widget.uid,
                           fromName: fromName);
                       if (mounted) {
-                        setState(
-                            () => _status = FriendStatus.friends);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'You and $fromName are now friends! 🎉'),
-                                backgroundColor: Colors.green));
+                        setState(() => _status = FriendStatus.friends);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content:
+                                Text('You and $fromName are now friends! 🎉'),
+                            backgroundColor: Colors.green));
                       }
                     },
-                    icon: const Icon(Icons.check,
-                        color: Colors.white),
+                    icon: const Icon(Icons.check, color: Colors.white),
                     label: const Text('Accept',
                         style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600)),
+                            color: Colors.white, fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 14)),
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 10),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     Navigator.pop(ctx);
                     await FriendsService.declineFriendRequest(
-                        requestId: _requestId,
-                        myUid: widget.myUid);
+                        requestId: _requestId, myUid: widget.myUid);
                     if (mounted) {
                       setState(() => _status = FriendStatus.none);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Request declined'),
-                              backgroundColor: Colors.grey));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Request declined'),
+                          backgroundColor: Colors.grey));
                     }
                   },
-                  icon: const Icon(Icons.close,
-                      color: Colors.red),
+                  icon: const Icon(Icons.close, color: Colors.red),
                   label: const Text('Decline',
                       style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600)),
+                          color: Colors.red, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
-                      side:
-                          const BorderSide(color: Colors.red),
+                      side: const BorderSide(color: Colors.red),
                       shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14)),
+                          borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14)),
                 ),
               ),
             ),
@@ -617,30 +559,23 @@ class _AttendeeCardState extends State<_AttendeeCard> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.uid)
-          .get(),
+      future:
+          FirebaseFirestore.instance.collection('users').doc(widget.uid).get(),
       builder: (context, snapshot) {
-        final data = snapshot.data?.data()
-                as Map<String, dynamic>? ??
-            {};
+        final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final name = data['displayName'] ?? 'User';
         final city = data['city'] ?? '';
-        final photoUrl = data['photoUrl'] ?? '';
-        final initial =
-            name.isNotEmpty ? name[0].toUpperCase() : '?';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
         return GestureDetector(
           onTap: widget.uid != widget.myUid
-              ? () => context.push(AppRoutes.userProfile,
-                      extra: {
-                        'uid': widget.uid,
-                        'requestId':
-                            _status == FriendStatus.requestReceived
-                                ? _requestId
-                                : null,
-                      })
+              ? () => context.push(AppRoutes.userProfile, extra: {
+                    'uid': widget.uid,
+                    'requestId': _status == FriendStatus.requestReceived
+                        ? _requestId
+                        : null,
+                  })
               : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -665,54 +600,41 @@ class _AttendeeCardState extends State<_AttendeeCard> {
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Center(
                                 child: Text(initial,
-                                    style: TheyDiTextStyles
-                                        .labelLarge
-                                        .copyWith(
-                                            color: Colors.white))))
+                                    style: TheyDiTextStyles.labelLarge
+                                        .copyWith(color: Colors.white))))
                         : Center(
                             child: Text(initial,
                                 style: TheyDiTextStyles.labelLarge
-                                    .copyWith(
-                                        color: Colors.white))),
+                                    .copyWith(color: Colors.white))),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        Text(name,
-                            style:
-                                TheyDiTextStyles.labelMedium),
+                        Text(name, style: TheyDiTextStyles.labelMedium),
                         if (widget.isHost) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                                gradient:
-                                    TheyDiColors.gradientPrimary,
-                                borderRadius:
-                                    BorderRadius.circular(6)),
+                                gradient: TheyDiColors.gradientPrimary,
+                                borderRadius: BorderRadius.circular(6)),
                             child: Text('Host',
-                                style: TheyDiTextStyles.caption
-                                    .copyWith(
-                                        color: Colors.white,
-                                        fontSize: 10)),
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: Colors.white, fontSize: 10)),
                           ),
                         ],
                       ]),
                       if (city.isNotEmpty)
                         Row(children: [
                           Icon(Icons.location_on_outlined,
-                              size: 11,
-                              color: TheyDiColors.textMuted),
+                              size: 11, color: TheyDiColors.textMuted),
                           const SizedBox(width: 3),
-                          Text(city,
-                              style: TheyDiTextStyles.caption),
+                          Text(city, style: TheyDiTextStyles.caption),
                         ]),
                     ],
                   ),
@@ -723,8 +645,7 @@ class _AttendeeCardState extends State<_AttendeeCard> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: TheyDiColors.primary))
+                              strokeWidth: 2, color: TheyDiColors.primary))
                       : GestureDetector(
                           onTap: () {},
                           behavior: HitTestBehavior.opaque,
@@ -742,8 +663,7 @@ class _AttendeeCardState extends State<_AttendeeCard> {
     switch (_status) {
       case FriendStatus.friends:
         return Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
               color: Colors.green.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10)),
@@ -752,14 +672,12 @@ class _AttendeeCardState extends State<_AttendeeCard> {
             const SizedBox(width: 4),
             Text('Connected',
                 style: TheyDiTextStyles.caption.copyWith(
-                    color: Colors.green,
-                    fontWeight: FontWeight.w600)),
+                    color: Colors.green, fontWeight: FontWeight.w600)),
           ]),
         );
       case FriendStatus.requestSent:
         return Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
               color: TheyDiColors.card,
               borderRadius: BorderRadius.circular(10),
@@ -772,21 +690,17 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         return GestureDetector(
           onTap: () => _showRespondSheet(context, name),
           child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
                 color: Colors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: Colors.blue.withValues(alpha: 0.4))),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.4))),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.people_outline,
-                  size: 14, color: Colors.blue),
+              const Icon(Icons.people_outline, size: 14, color: Colors.blue),
               const SizedBox(width: 4),
               Text('Respond',
                   style: TheyDiTextStyles.caption.copyWith(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w600)),
+                      color: Colors.blue, fontWeight: FontWeight.w600)),
             ]),
           ),
         );
@@ -796,32 +710,26 @@ class _AttendeeCardState extends State<_AttendeeCard> {
           onTap: _sending ? null : () => _sendRequest(name),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              gradient:
-                  _sending ? null : TheyDiColors.gradientPrimary,
+              gradient: _sending ? null : TheyDiColors.gradientPrimary,
               color: _sending ? TheyDiColors.card : null,
               borderRadius: BorderRadius.circular(10),
-              border: _sending
-                  ? Border.all(color: TheyDiColors.divider)
-                  : null,
+              border: _sending ? Border.all(color: TheyDiColors.divider) : null,
             ),
             child: _sending
                 ? const SizedBox(
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: TheyDiColors.primary))
+                        strokeWidth: 2, color: TheyDiColors.primary))
                 : Row(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.person_add_outlined,
                         size: 14, color: Colors.white),
                     const SizedBox(width: 4),
                     Text('Connect',
                         style: TheyDiTextStyles.caption.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600)),
+                            color: Colors.white, fontWeight: FontWeight.w600)),
                   ]),
           ),
         );

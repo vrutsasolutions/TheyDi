@@ -50,8 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // ── Step 2 ──
   final List<TextEditingController> _otpControllers =
       List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _otpFocusNodes =
-      List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   String _generatedOtp = '';
   int _secondsLeft = 30;
   bool _canResend = false;
@@ -62,17 +61,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   // ── Step 3 ──
   final _pwFormKey = GlobalKey<FormState>();
-  final _newPwController      = TextEditingController();
-  final _confirmPwController  = TextEditingController();
-  bool _obscureNew     = true;
+  final _newPwController = TextEditingController();
+  final _confirmPwController = TextEditingController();
+  bool _obscureNew = true;
   bool _obscureConfirm = true;
-  bool _updatingPw     = false;
+  bool _updatingPw = false;
 
   @override
   void dispose() {
     _emailController.dispose();
-    for (final c in _otpControllers) c.dispose();
-    for (final f in _otpFocusNodes) f.dispose();
+    for (final c in _otpControllers) {
+      c.dispose();
+    }
+    for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
     _newPwController.dispose();
     _confirmPwController.dispose();
     _timer?.cancel();
@@ -146,8 +149,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
 
       // Auto-focus first OTP box
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _otpFocusNodes[0].requestFocus());
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _otpFocusNodes[0].requestFocus());
     } catch (e) {
       _showSnack('Something went wrong. Please try again.');
       setState(() => _sendingOtp = false);
@@ -160,10 +163,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _startTimer() {
     _secondsLeft = 30;
-    _canResend   = false;
+    _canResend = false;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       setState(() {
         if (_secondsLeft > 0) {
           _secondsLeft--;
@@ -176,7 +182,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _resendOtp() {
-    for (final c in _otpControllers) c.clear();
+    for (final c in _otpControllers) {
+      c.clear();
+    }
     _otpFocusNodes[0].requestFocus();
     _generatedOtp = (100000 + Random().nextInt(900000)).toString();
     _attempts = 0;
@@ -200,8 +208,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (entered.length == 6) _verifyOtp();
   }
 
-  String get _enteredOtp =>
-      _otpControllers.map((c) => c.text).join();
+  String get _enteredOtp => _otpControllers.map((c) => c.text).join();
 
   Future<void> _verifyOtp() async {
     if (_enteredOtp.length < 6) {
@@ -220,12 +227,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     if (_enteredOtp == _generatedOtp) {
       if (mounted) {
-        setState(() { _verifying = false; _step = _FpStep.resetPassword; });
+        setState(() {
+          _verifying = false;
+          _step = _FpStep.resetPassword;
+        });
         WidgetsBinding.instance.addPostFrameCallback(
             (_) => FocusScope.of(context).requestFocus(FocusNode()));
       }
     } else {
-      for (final c in _otpControllers) c.clear();
+      for (final c in _otpControllers) {
+        c.clear();
+      }
       _otpFocusNodes[0].requestFocus();
       final remaining = _maxAttempts - _attempts;
       _showSnack(remaining > 0
@@ -256,7 +268,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       // In production, call your own backend API here to set the password
       // directly using the verified OTP as a proof token.
 
-      if (mounted) setState(() { _updatingPw = false; _step = _FpStep.success; });
+      if (mounted) {
+        setState(() {
+          _updatingPw = false;
+          _step = _FpStep.success;
+        });
+      }
     } on FirebaseAuthException catch (e) {
       _showSnack(e.message ?? 'Failed to reset password. Please try again.');
       setState(() => _updatingPw = false);
@@ -292,7 +309,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     icon: const Icon(Icons.arrow_back_ios_new,
                         size: 20, color: TheyDiColors.textPrimary),
                     onPressed: () {
-                      if (_step == _FpStep.enterEmail || _step == _FpStep.success) {
+                      if (_step == _FpStep.enterEmail ||
+                          _step == _FpStep.success) {
                         context.pop();
                       } else {
                         setState(() {
@@ -307,8 +325,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(3, (i) {
-                        final active = i <= _step.index &&
-                            _step != _FpStep.success;
+                        final active =
+                            i <= _step.index && _step != _FpStep.success;
                         final done = i < _step.index;
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
@@ -316,12 +334,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           width: done || (active && _step.index == i) ? 28 : 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            gradient: active
-                                ? TheyDiColors.gradientPrimary
-                                : null,
-                            color: active
-                                ? null
-                                : TheyDiColors.divider,
+                            gradient:
+                                active ? TheyDiColors.gradientPrimary : null,
+                            color: active ? null : TheyDiColors.divider,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         );
@@ -339,8 +354,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     position: Tween(
                       begin: const Offset(0.08, 0),
                       end: Offset.zero,
-                    ).animate(CurvedAnimation(
-                        parent: anim, curve: Curves.easeOut)),
+                    ).animate(
+                        CurvedAnimation(parent: anim, curve: Curves.easeOut)),
                     child: FadeTransition(opacity: anim, child: child),
                   ),
                   child: KeyedSubtree(
@@ -358,10 +373,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Widget _buildStep() {
     switch (_step) {
-      case _FpStep.enterEmail:   return _buildEnterEmail();
-      case _FpStep.verifyOtp:    return _buildVerifyOtp();
-      case _FpStep.resetPassword:return _buildResetPassword();
-      case _FpStep.success:      return _buildSuccess();
+      case _FpStep.enterEmail:
+        return _buildEnterEmail();
+      case _FpStep.verifyOtp:
+        return _buildVerifyOtp();
+      case _FpStep.resetPassword:
+        return _buildResetPassword();
+      case _FpStep.success:
+        return _buildSuccess();
     }
   }
 
@@ -376,7 +395,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Icon
           Container(
-            width: 64, height: 64,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               borderRadius: BorderRadius.circular(18),
@@ -387,8 +407,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           const SizedBox(height: 28),
 
-          Text('Forgot Password',
-                  style: TheyDiTextStyles.displayMedium)
+          Text('Forgot Password', style: TheyDiTextStyles.displayMedium)
               .animate(delay: 80.ms)
               .fade(duration: 300.ms),
           const SizedBox(height: 8),
@@ -425,8 +444,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           SizedBox(
             width: double.infinity,
             child: _sendingOtp
-                ? const Center(child: CircularProgressIndicator(
-                    color: TheyDiColors.primary))
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(color: TheyDiColors.primary))
                 : GradientButton(
                     label: 'Send OTP →',
                     onPressed: _sendOtp,
@@ -457,7 +477,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         // Icon
         Container(
-          width: 72, height: 72,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
             gradient: TheyDiColors.gradientPrimary,
             shape: BoxShape.circle,
@@ -477,8 +498,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         RichText(
           textAlign: TextAlign.center,
           text: TextSpan(
-            style: TheyDiTextStyles.bodySmall.copyWith(
-                color: TheyDiColors.textSecondary, height: 1.5),
+            style: TheyDiTextStyles.bodySmall
+                .copyWith(color: TheyDiColors.textSecondary, height: 1.5),
             children: [
               const TextSpan(text: 'Enter the 6-digit code sent to\n'),
               TextSpan(
@@ -498,7 +519,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           children: List.generate(6, (i) {
             final filled = _otpControllers[i].text.isNotEmpty;
             return Container(
-              width: 46, height: 58,
+              width: 46,
+              height: 58,
               margin: const EdgeInsets.symmetric(horizontal: 5),
               decoration: BoxDecoration(
                 color: TheyDiColors.inputFill,
@@ -555,8 +577,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         SizedBox(
           width: double.infinity,
           child: _verifying
-              ? const Center(child: CircularProgressIndicator(
-                  color: TheyDiColors.primary))
+              ? const Center(
+                  child: CircularProgressIndicator(color: TheyDiColors.primary))
               : GradientButton(
                   label: 'Verify →',
                   onPressed: _enteredOtp.length == 6 ? _verifyOtp : () {},
@@ -582,8 +604,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           const SizedBox(height: 6),
           TextButton(
-            onPressed: () =>
-                setState(() { _step = _FpStep.enterEmail; _timer?.cancel(); }),
+            onPressed: () => setState(() {
+              _step = _FpStep.enterEmail;
+              _timer?.cancel();
+            }),
             child: Text('Change email address',
                 style: TheyDiTextStyles.caption
                     .copyWith(color: TheyDiColors.textSecondary)),
@@ -604,18 +628,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Icon
           Container(
-            width: 64, height: 64,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(Icons.lock_outline, color: Colors.white, size: 30),
+            child:
+                const Icon(Icons.lock_outline, color: Colors.white, size: 30),
           ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
 
           const SizedBox(height: 28),
 
-          Text('Reset Password',
-                  style: TheyDiTextStyles.displayMedium)
+          Text('Reset Password', style: TheyDiTextStyles.displayMedium)
               .animate(delay: 80.ms)
               .fade(duration: 300.ms),
           const SizedBox(height: 8),
@@ -640,8 +665,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 icon: Icon(_obscureNew
                     ? Icons.visibility_off_outlined
                     : Icons.visibility_outlined),
-                onPressed: () =>
-                    setState(() => _obscureNew = !_obscureNew),
+                onPressed: () => setState(() => _obscureNew = !_obscureNew),
               ),
             ),
             validator: (v) {
@@ -690,8 +714,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           SizedBox(
             width: double.infinity,
             child: _updatingPw
-                ? const Center(child: CircularProgressIndicator(
-                    color: TheyDiColors.primary))
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(color: TheyDiColors.primary))
                 : GradientButton(
                     label: 'Update Password ✓',
                     onPressed: _updatePassword,
@@ -713,7 +738,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         children: [
           // Success circle
           Container(
-            width: 100, height: 100,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
               color: Colors.green.withValues(alpha: 0.12),
               shape: BoxShape.circle,
@@ -722,9 +748,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             child: const Icon(Icons.check_circle_outline_rounded,
                 color: Colors.green, size: 54),
-          )
-              .animate()
-              .scale(duration: 500.ms, curve: Curves.elasticOut),
+          ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
 
           const SizedBox(height: 32),
 
@@ -739,8 +763,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Text(
             'Your password has been reset successfully.\n'
             'A confirmation link has also been sent to\n${_maskedEmail(_email)}.',
-            style: TheyDiTextStyles.bodySmall.copyWith(
-                color: TheyDiColors.textSecondary, height: 1.6),
+            style: TheyDiTextStyles.bodySmall
+                .copyWith(color: TheyDiColors.textSecondary, height: 1.6),
             textAlign: TextAlign.center,
           ).animate(delay: 160.ms).fade(duration: 300.ms),
 
@@ -759,8 +783,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   decoration: BoxDecoration(
                     color: Colors.green.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.2)),
+                    border:
+                        Border.all(color: Colors.green.withValues(alpha: 0.2)),
                   ),
                   child: Text(e.value,
                       style: TheyDiTextStyles.bodySmall
@@ -796,7 +820,7 @@ class _PasswordStrengthHint extends StatelessWidget {
   _Strength get _strength {
     if (password.length < 6) return _Strength.weak;
     int score = 0;
-    if (password.length >= 8)  score++;
+    if (password.length >= 8) score++;
     if (RegExp(r'[A-Z]').hasMatch(password)) score++;
     if (RegExp(r'[0-9]').hasMatch(password)) score++;
     if (RegExp(r'[!@#\$&*~_\-]').hasMatch(password)) score++;
@@ -815,30 +839,44 @@ class _PasswordStrengthHint extends StatelessWidget {
     final int filled;
     switch (s) {
       case _Strength.weak:
-        color = Colors.red; label = 'Weak'; filled = 1; break;
+        color = Colors.red;
+        label = 'Weak';
+        filled = 1;
+        break;
       case _Strength.fair:
-        color = Colors.orange; label = 'Fair'; filled = 2; break;
+        color = Colors.orange;
+        label = 'Fair';
+        filled = 2;
+        break;
       case _Strength.good:
-        color = Colors.amber; label = 'Good'; filled = 3; break;
+        color = Colors.amber;
+        label = 'Good';
+        filled = 3;
+        break;
       case _Strength.strong:
-        color = Colors.green; label = 'Strong'; filled = 4; break;
+        color = Colors.green;
+        label = 'Strong';
+        filled = 4;
+        break;
     }
 
     return Row(children: [
-      ...List.generate(4, (i) => Expanded(
-        child: Container(
-          height: 4,
-          margin: const EdgeInsets.only(right: 4),
-          decoration: BoxDecoration(
-            color: i < filled ? color : TheyDiColors.divider,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      )),
+      ...List.generate(
+          4,
+          (i) => Expanded(
+                child: Container(
+                  height: 4,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    color: i < filled ? color : TheyDiColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              )),
       const SizedBox(width: 8),
       Text(label,
-          style: TheyDiTextStyles.caption.copyWith(color: color,
-              fontWeight: FontWeight.w600)),
+          style: TheyDiTextStyles.caption
+              .copyWith(color: color, fontWeight: FontWeight.w600)),
     ]);
   }
 }

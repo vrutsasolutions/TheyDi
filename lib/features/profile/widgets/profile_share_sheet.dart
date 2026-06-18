@@ -510,10 +510,11 @@ class _InAppProfileShareSheetState
                   final isSelected = _selected.contains(c['id']);
                   return GestureDetector(
                     onTap: () => setState(() {
-                      if (isSelected)
+                      if (isSelected) {
                         _selected.remove(c['id']);
-                      else
+                      } else {
                         _selected.add(c['id']);
+                      }
                     }),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),

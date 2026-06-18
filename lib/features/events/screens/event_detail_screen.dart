@@ -105,8 +105,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         if (userDoc.exists) {
           final dob = userDoc.data()?['dob'];
           DateTime? birthDate;
-          if (dob is Timestamp) birthDate = dob.toDate();
-          else if (dob is String && dob.isNotEmpty) birthDate = DateTime.tryParse(dob);
+          if (dob is Timestamp) {
+            birthDate = dob.toDate();
+          } else if (dob is String && dob.isNotEmpty) birthDate = DateTime.tryParse(dob);
           if (birthDate != null) {
             final today = DateTime.now();
             int age = today.year - birthDate.year;
@@ -163,24 +164,28 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     // 18+ check for Adult Party
     if (_event.category == 'Adult Party' || _minAge >= 18) {
       if (_userAge < 18) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🔞 This event is for 18+ only. You must be 18 or older to join.'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 4),
           ),
         );
+        }
         return;
       }
       // DOB not set
       if (_userAge == 99) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🔞 Please update your date of birth in your profile to join this 18+ event.'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 4),
           ),
         );
+        }
         return;
       }
     }
@@ -203,8 +208,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             .update({'eventsAttended': FieldValue.increment(1)});
         await NotificationService.notifyFreeEventJoined(
             userUid: uid, eventTitle: _event.title, eventId: _event.id);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('You\'re in! 🎉'), backgroundColor: Colors.green));
+        }
 
       } else if (isFree && isHostApproval) {
         // Free + Host Approval → request
@@ -212,8 +219,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         await NotificationService.notifyJoinRequest(
             hostUid: _event.creatorUid, requesterName: userName,
             eventTitle: _event.title, eventId: _event.id);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Request sent! The host will review it 📩'), backgroundColor: Colors.green));
+        }
 
       } else if (!isFree && !isHostApproval) {
         // Paid + First Come → straight to payment
@@ -225,12 +234,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         await NotificationService.notifyJoinRequest(
             hostUid: _event.creatorUid, requesterName: userName,
             eventTitle: _event.title, eventId: _event.id);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Request sent! You\'ll be notified to pay after approval 📩'), backgroundColor: Colors.green));
+        }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context)
+      if (mounted) {
+        ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
     if (mounted) setState(() => _isProcessing = false);
   }
@@ -244,11 +257,15 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     try {
       await FirebaseFirestore.instance.collection('events').doc(_event.id)
           .update({'pendingUids': FieldValue.arrayRemove([uid])});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Request cancelled'), backgroundColor: Colors.grey));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context)
+      if (mounted) {
+        ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
     if (mounted) setState(() => _isProcessing = false);
   }
@@ -291,7 +308,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.4),
+          color: Colors.black.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
@@ -428,7 +445,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               child: Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.4),
+                    color: Colors.white.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(10)),
                 child: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
               ),
@@ -716,7 +733,7 @@ class _ImageCarousel extends StatelessWidget {
       Positioned(bottom: 16, right: 16, child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-            color: event.isFree ? Colors.green : Colors.black.withOpacity(0.7),
+            color: event.isFree ? Colors.green : Colors.black.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20)),
         child: Text(event.isFree ? 'FREE' : '₹${event.price.toInt()}',
             style: TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
@@ -757,11 +774,11 @@ class _GradientBanner extends StatelessWidget {
       decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary),
       child: Stack(children: [
         Center(child: Text(event.category, style: TheyDiTextStyles.displayLarge
-            .copyWith(color: Colors.white.withOpacity(0.2), fontSize: 64))),
+            .copyWith(color: Colors.white.withValues(alpha: 0.2), fontSize: 64))),
         Positioned(bottom: 16, right: 16, child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-              color: event.isFree ? Colors.green : Colors.black.withOpacity(0.6),
+              color: event.isFree ? Colors.green : Colors.black.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(20)),
           child: Text(event.isFree ? 'FREE' : '₹${event.price.toInt()}',
               style: TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),

@@ -70,8 +70,10 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
             .update({'eventsAttended': FieldValue.increment(1)});
         await NotificationService.notifyRequestApproved(
             userUid: userUid, eventTitle: event.title, hostName: hostName, eventId: widget.eventId);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('$userName approved! ✅'), backgroundColor: Colors.green));
+        }
       } else {
         await eventRef.update({
           'pendingUids': FieldValue.arrayRemove([userUid]),
@@ -83,8 +85,10 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
           body: '$hostName approved your request for "${event.title}". Tap to pay and confirm your spot!',
           type: 'booking', eventId: widget.eventId,
         );
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('$userName approved! They must complete payment to join.'), backgroundColor: Colors.green));
+        }
       }
 
       // ── NEW: clean up pendingMeta doc ──
@@ -93,8 +97,10 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
           .collection('pendingMeta').doc(userUid).delete();
 
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
     if (mounted) setState(() => _isProcessing = false);
   }
@@ -122,11 +128,15 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
           .collection('events').doc(widget.eventId)
           .collection('pendingMeta').doc(userUid).delete();
 
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$userName\'s request declined'), backgroundColor: Colors.grey));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
     if (mounted) setState(() => _isProcessing = false);
   }
@@ -165,8 +175,10 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
     if (mounted) setState(() => _isProcessing = false);
   }
@@ -217,8 +229,10 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
         context.push(AppRoutes.circleChat, extra: circle);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
     if (mounted) setState(() => _isProcessing = false);
   }

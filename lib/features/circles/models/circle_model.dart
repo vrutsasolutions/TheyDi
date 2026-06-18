@@ -12,7 +12,7 @@ class CircleModel {
   final String? lastMessageSender;
   final DateTime? lastMessageAt;
   final DateTime createdAt;
-  final String type;        // 'event' | 'custom'
+  final String type; // 'event' | 'custom'
   final String? eventId;
   final String? profileImageUrl;
 

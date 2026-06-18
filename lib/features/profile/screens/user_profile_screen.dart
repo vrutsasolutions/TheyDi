@@ -70,11 +70,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (userDoc.exists) _userData = userDoc.data()!;
 
     if (_isOwnProfile) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.self;
           _loading = false;
         });
+      }
       return;
     }
 
@@ -85,11 +86,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         .doc(widget.uid)
         .get();
     if (friendDoc.exists) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.friends;
           _loading = false;
         });
+      }
       return;
     }
 
@@ -101,11 +103,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         .where('status', isEqualTo: 'pending')
         .get();
     if (sentSnap.docs.isNotEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.requestSent;
           _loading = false;
         });
+      }
       return;
     }
 
@@ -118,19 +121,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         .get();
     if (receivedSnap.docs.isNotEmpty) {
       _requestId = receivedSnap.docs.first.id;
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.requestReceived;
           _loading = false;
         });
+      }
       return;
     }
 
-    if (mounted)
+    if (mounted) {
       setState(() {
         _status = FriendStatus.none;
         _loading = false;
       });
+    }
   }
 
   // ── Friend actions ──────────────────────────────────────────────────────────
@@ -405,7 +410,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final name = (_userData['displayName'] as String?) ?? 'User';
     final bio = (_userData['bio'] as String?) ?? '';
     final city = (_userData['city'] as String?) ?? '';
-    final photoUrl = (_userData['photoUrl'] as String?) ?? '';
+    final photoUrl = (_userData['profileImageUrl'] as String?) ??
+        (_userData['photoUrl'] as String?) ??
+        '';
+
     final interests = List<String>.from(_userData['interests'] ?? []);
 
     final bool showPrivateRestricted =

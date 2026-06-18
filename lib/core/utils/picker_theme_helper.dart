@@ -38,17 +38,14 @@ class PickerTheme {
     return Theme.of(ctx).copyWith(
       // ── Color scheme: light, white surface, emerald selections ──────────────
       colorScheme: const ColorScheme.light(
-        primary: TheyDiColors.primary,          // selected circle / clock hand
-        onPrimary: Colors.white,               // text on selected circle
-        surface: Colors.white,                 // dialog background
-        onSurface: Colors.black,               // all unselected text/numbers
+        primary: TheyDiColors.primary, // selected circle / clock hand
+        onPrimary: Colors.white, // text on selected circle
+        surface: Colors.white, // dialog background
+        onSurface: Colors.black, // all unselected text/numbers
         secondary: TheyDiColors.primary,
         onSecondary: Colors.white,
-        outline: Color(0xFFE5E7EB),            // divider / border
+        outline: Color(0xFFE5E7EB), // divider / border
       ),
-
-      // ── Dialog itself ───────────────────────────────────────────────────────
-      dialogBackgroundColor: Colors.white,
 
       // ── Date picker theming ─────────────────────────────────────────────────
       datePickerTheme: DatePickerThemeData(
@@ -66,7 +63,7 @@ class PickerTheme {
         ),
         // Weekday labels (Mon, Tue …)
         weekdayStyle: const TextStyle(
-          color: Color(0xFF4B5563),       // dark grey — clearly visible
+          color: Color(0xFF4B5563), // dark grey — clearly visible
           fontWeight: FontWeight.w600,
           fontSize: 12,
         ),
@@ -76,35 +73,35 @@ class PickerTheme {
           fontSize: 13,
         ),
         // Selected day circle
-        dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return TheyDiColors.primary;
           }
-          if (states.contains(MaterialState.pressed)) {
-            return TheyDiColors.primary.withOpacity(0.12);
+          if (states.contains(WidgetState.pressed)) {
+            return TheyDiColors.primary.withValues(alpha: 0.12);
           }
           return null;
         }),
         // Foreground (text) on day cells
-        dayForegroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.disabled)) {
-            return const Color(0xFF9CA3AF);   // greyed-out past dates
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return const Color(0xFF9CA3AF); // greyed-out past dates
           }
-          if (states.contains(MaterialState.selected)) {
-            return Colors.white;               // white on green circle
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white; // white on green circle
           }
-          return Colors.black;                 // black for all others
+          return Colors.black; // black for all others
         }),
         // "Today" ring
-        todayBackgroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        todayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return TheyDiColors.primary;
           }
           return Colors.transparent;
         }),
-        todayForegroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) return Colors.white;
-          return TheyDiColors.primary;          // emerald today-ring text
+        todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return TheyDiColors.primary; // emerald today-ring text
         }),
         todayBorder: const BorderSide(
           color: TheyDiColors.primary,
@@ -112,17 +109,20 @@ class PickerTheme {
         ),
         // Year/month picker
         yearStyle: const TextStyle(color: Colors.black, fontSize: 13),
-        yearForegroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) return Colors.white;
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
           return Colors.black;
         }),
-        yearBackgroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) return TheyDiColors.primary;
+        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return TheyDiColors.primary;
+          }
           return null;
         }),
         // Range highlight (if ever used)
         rangePickerBackgroundColor: Colors.white,
-        rangeSelectionBackgroundColor: TheyDiColors.primary.withOpacity(0.12),
+        rangeSelectionBackgroundColor:
+            TheyDiColors.primary.withValues(alpha: 0.12),
         // Shape
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
@@ -134,19 +134,19 @@ class PickerTheme {
         // Clock dial
         dialBackgroundColor: const Color(0xFFF3F4F6),
         dialHandColor: TheyDiColors.primary,
-        dialTextColor: MaterialStateColor.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) return Colors.white;
+        dialTextColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
           return Colors.black;
         }),
         // Hour / minute boxes
-        hourMinuteColor: MaterialStateColor.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        hourMinuteColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return TheyDiColors.primary;
           }
           return const Color(0xFFF3F4F6);
         }),
-        hourMinuteTextColor: MaterialStateColor.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) return Colors.white;
+        hourMinuteTextColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
           return Colors.black;
         }),
         hourMinuteTextStyle: const TextStyle(
@@ -155,14 +155,14 @@ class PickerTheme {
           color: Colors.black,
         ),
         // AM/PM toggle
-        dayPeriodColor: MaterialStateColor.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        dayPeriodColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return TheyDiColors.primary;
           }
           return const Color(0xFFF3F4F6);
         }),
-        dayPeriodTextColor: MaterialStateColor.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) return Colors.white;
+        dayPeriodTextColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
           return Colors.black;
         }),
         dayPeriodBorderSide: const BorderSide(
@@ -195,6 +195,7 @@ class PickerTheme {
           ),
         ),
       ),
+      dialogTheme: DialogThemeData(backgroundColor: Colors.white),
     );
   }
 }

@@ -19,7 +19,7 @@ class ProfileShareService {
     required String bio,
   }) {
     final buffer = StringBuffer();
-    buffer.writeln('👤 Check out ${displayName}\'s profile on TheyDi!');
+    buffer.writeln('👤 Check out $displayName\'s profile on TheyDi!');
     if (city.isNotEmpty) buffer.writeln('📍 $city');
     if (bio.isNotEmpty) buffer.writeln('💬 $bio');
     buffer.writeln();

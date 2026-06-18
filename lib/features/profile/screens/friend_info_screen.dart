@@ -59,7 +59,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
 
     if (!mounted) return;
     setState(() {
-      _userData = (results[0] as DocumentSnapshot).data() as Map<String, dynamic>?;
+      _userData =
+          (results[0] as DocumentSnapshot).data() as Map<String, dynamic>?;
       _friendStatus = results[1] as FriendStatus;
       _mutualCircles = results[2] as List<Map<String, String>>;
       _loading = false;
@@ -88,7 +89,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
             body: 'Remove ${widget.displayName} from your friends?',
             confirm: 'Remove',
           );
-          if (confirmed) await FriendsService.removeFriend(otherUid: widget.uid);
+          if (confirmed)
+            await FriendsService.removeFriend(otherUid: widget.uid);
           break;
         case FriendStatus.requestSent:
         case FriendStatus.self:
@@ -103,7 +105,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
   Future<void> _blockUser() async {
     final confirmed = await _confirmDialog(
       title: 'Block ${widget.displayName}?',
-      body: 'They won\'t be able to send friend requests or see your profile. This also removes the friendship.',
+      body:
+          'They won\'t be able to send friend requests or see your profile. This also removes the friendship.',
       confirm: 'Block',
       confirmColor: Colors.red,
     );
@@ -113,7 +116,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
     await FriendsService.blockUser(otherUid: widget.uid);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${widget.displayName} blocked'),
+        SnackBar(
+            content: Text('${widget.displayName} blocked'),
             backgroundColor: Colors.red),
       );
       context.pop();
@@ -124,7 +128,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
   Future<void> _clearChat() async {
     final confirmed = await _confirmDialog(
       title: 'Clear Chat?',
-      body: 'This will clear all messages from your view. ${widget.displayName} will still see the conversation.',
+      body:
+          'This will clear all messages from your view. ${widget.displayName} will still see the conversation.',
       confirm: 'Clear',
       confirmColor: Colors.orange,
     );
@@ -132,8 +137,10 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
 
     final chatId = _generateChatId(_myUid, widget.uid);
     await FirebaseFirestore.instance
-        .collection('chats').doc(chatId)
-        .collection('clearedBy').doc(_myUid)
+        .collection('chats')
+        .doc(chatId)
+        .collection('clearedBy')
+        .doc(_myUid)
         .set({'clearedAt': Timestamp.now()});
 
     if (mounted) {
@@ -168,7 +175,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                       color: TheyDiColors.divider,
                       borderRadius: BorderRadius.circular(2)),
@@ -183,7 +191,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                       color: Colors.red.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.flag_outlined, color: Colors.red, size: 20),
+                    child: const Icon(Icons.flag_outlined,
+                        color: Colors.red, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Text('Report ${widget.displayName}',
@@ -224,10 +233,11 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                 : TheyDiColors.textMuted,
                           ),
                           const SizedBox(width: 12),
-                          Text(reason, style: TheyDiTextStyles.bodySmall
-                              .copyWith(color: selectedReason == reason
-                                  ? Colors.red
-                                  : TheyDiColors.textSecondary)),
+                          Text(reason,
+                              style: TheyDiTextStyles.bodySmall.copyWith(
+                                  color: selectedReason == reason
+                                      ? Colors.red
+                                      : TheyDiColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -284,7 +294,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Report submitted. Thank you for helping keep TieIn safe.'),
+          content:
+              Text('Report submitted. Thank you for helping keep TieIn safe.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -316,7 +327,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(confirm,
-                style: TheyDiTextStyles.labelMedium.copyWith(color: confirmColor)),
+                style:
+                    TheyDiTextStyles.labelMedium.copyWith(color: confirmColor)),
           ),
         ],
       ),
@@ -329,7 +341,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
     final name = _userData?['displayName'] ?? widget.displayName;
     final city = _userData?['city'] ?? '';
     final bio = _userData?['bio'] ?? '';
-    final photoUrl = _userData?['photoUrl'] ?? '';
+    final photoUrl =
+        _userData?['profileImageUrl'] ?? _userData?['photoUrl'] ?? '';
     final interests = List<String>.from(_userData?['interests'] ?? []);
     final isVerified = (_userData?['isVerified'] as bool?) ?? false;
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
@@ -355,10 +368,12 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                       child: Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                            icon: const Icon(Icons.arrow_back,
+                                color: TheyDiColors.textPrimary),
                             onPressed: () => context.pop(),
                           ),
-                          Text('Profile', style: TheyDiTextStyles.displayMedium),
+                          Text('Profile',
+                              style: TheyDiTextStyles.displayMedium),
                         ],
                       ),
                     ).animate().fade(duration: 300.ms),
@@ -372,12 +387,14 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                             child: Stack(
                               children: [
                                 Container(
-                                  width: 96, height: 96,
+                                  width: 96,
+                                  height: 96,
                                   decoration: BoxDecoration(
                                     gradient: TheyDiColors.gradientPrimary,
                                     borderRadius: BorderRadius.circular(28),
                                     border: Border.all(
-                                        color: TheyDiColors.primary.withValues(alpha: 0.4),
+                                        color: TheyDiColors.primary
+                                            .withValues(alpha: 0.4),
                                         width: 2),
                                   ),
                                   child: ClipRRect(
@@ -385,31 +402,48 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                     child: photoUrl.isNotEmpty
                                         ? Image.network(photoUrl,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Center(
-                                                child: Text(initial,
-                                                    style: TheyDiTextStyles.displayLarge
-                                                        .copyWith(fontSize: 40, color: Colors.white))))
+                                            errorBuilder: (_, __, ___) =>
+                                                Center(
+                                                    child: Text(initial,
+                                                        style: TheyDiTextStyles
+                                                            .displayLarge
+                                                            .copyWith(
+                                                                fontSize: 40,
+                                                                color: Colors
+                                                                    .white))))
                                         : Center(
                                             child: Text(initial,
-                                                style: TheyDiTextStyles.displayLarge
-                                                    .copyWith(fontSize: 40, color: Colors.white))),
+                                                style: TheyDiTextStyles
+                                                    .displayLarge
+                                                    .copyWith(
+                                                        fontSize: 40,
+                                                        color: Colors.white))),
                                   ),
                                 ),
                                 Positioned(
-                                  bottom: 4, right: 4,
+                                  bottom: 4,
+                                  right: 4,
                                   child: StreamBuilder<DocumentSnapshot>(
                                     stream: FirebaseFirestore.instance
-                                        .collection('users').doc(widget.uid).snapshots(),
+                                        .collection('users')
+                                        .doc(widget.uid)
+                                        .snapshots(),
                                     builder: (context, snap) {
                                       final isOnline = (snap.data?.data()
-                                          as Map<String, dynamic>?)?['isOnline'] == true;
+                                                  as Map<String, dynamic>?)?[
+                                              'isOnline'] ==
+                                          true;
                                       return Container(
-                                        width: 16, height: 16,
+                                        width: 16,
+                                        height: 16,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: isOnline ? Colors.greenAccent : Colors.grey[600],
+                                          color: isOnline
+                                              ? Colors.greenAccent
+                                              : Colors.grey[600],
                                           border: Border.all(
-                                              color: const Color(0xFF0D0D14), width: 2),
+                                              color: const Color(0xFF0D0D14),
+                                              width: 2),
                                         ),
                                       );
                                     },
@@ -417,7 +451,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                 ),
                               ],
                             ),
-                          ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+                          ).animate().scale(
+                              duration: 400.ms, curve: Curves.elasticOut),
 
                           const SizedBox(height: 14),
 
@@ -425,29 +460,45 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                           Center(
                             child: StreamBuilder<DocumentSnapshot>(
                               stream: FirebaseFirestore.instance
-                                  .collection('users').doc(widget.uid).snapshots(),
+                                  .collection('users')
+                                  .doc(widget.uid)
+                                  .snapshots(),
                               builder: (context, snap) {
-                                final data = snap.data?.data() as Map<String, dynamic>?;
+                                final data =
+                                    snap.data?.data() as Map<String, dynamic>?;
                                 final isOnline = data?['isOnline'] == true;
                                 final lastSeen = data?['lastSeen'] != null
-                                    ? (data!['lastSeen'] as Timestamp).toDate() : null;
+                                    ? (data!['lastSeen'] as Timestamp).toDate()
+                                    : null;
 
                                 String statusLabel;
-                                if (isOnline) statusLabel = 'Online';
-                                else if (lastSeen != null) {
-                                  final diff = DateTime.now().difference(lastSeen);
-                                  if (diff.inMinutes < 5) statusLabel = 'Last seen just now';
-                                  else if (diff.inHours < 1) statusLabel = 'Last seen ${diff.inMinutes}m ago';
-                                  else if (diff.inDays < 1) statusLabel = 'Last seen ${diff.inHours}h ago';
-                                  else statusLabel = 'Last seen ${diff.inDays}d ago';
-                                } else statusLabel = 'Offline';
+                                if (isOnline) {
+                                  statusLabel = 'Online';
+                                } else if (lastSeen != null) {
+                                  final diff =
+                                      DateTime.now().difference(lastSeen);
+                                  if (diff.inMinutes < 5) {
+                                    statusLabel = 'Last seen just now';
+                                  } else if (diff.inHours < 1)
+                                    statusLabel =
+                                        'Last seen ${diff.inMinutes}m ago';
+                                  else if (diff.inDays < 1)
+                                    statusLabel =
+                                        'Last seen ${diff.inHours}h ago';
+                                  else
+                                    statusLabel =
+                                        'Last seen ${diff.inDays}d ago';
+                                } else
+                                  statusLabel = 'Offline';
 
                                 return Column(
                                   children: [
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Text(name, style: TheyDiTextStyles.displayMedium),
+                                        Text(name,
+                                            style:
+                                                TheyDiTextStyles.displayMedium),
                                         if (isVerified) ...[
                                           const SizedBox(width: 6),
                                           Container(
@@ -466,16 +517,23 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Container(
-                                          width: 8, height: 8,
+                                          width: 8,
+                                          height: 8,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: isOnline ? Colors.greenAccent : Colors.grey[600],
+                                            color: isOnline
+                                                ? Colors.greenAccent
+                                                : Colors.grey[600],
                                           ),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(statusLabel,
-                                            style: TheyDiTextStyles.caption.copyWith(
-                                                color: isOnline ? Colors.greenAccent : TheyDiColors.textMuted)),
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: isOnline
+                                                        ? Colors.greenAccent
+                                                        : TheyDiColors
+                                                            .textMuted)),
                                       ],
                                     ),
                                   ],
@@ -496,7 +554,9 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                   const SizedBox(width: 4),
                                   Text(city,
                                       style: TheyDiTextStyles.bodySmall
-                                          .copyWith(color: TheyDiColors.textSecondary)),
+                                          .copyWith(
+                                              color:
+                                                  TheyDiColors.textSecondary)),
                                 ],
                               ),
                             ),
@@ -505,8 +565,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                             const SizedBox(height: 8),
                             Center(
                               child: Text(bio,
-                                  style: TheyDiTextStyles.bodySmall
-                                      .copyWith(color: TheyDiColors.textSecondary),
+                                  style: TheyDiTextStyles.bodySmall.copyWith(
+                                      color: TheyDiColors.textSecondary),
                                   textAlign: TextAlign.center),
                             ),
                           ],
@@ -519,18 +579,24 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                               alignment: WrapAlignment.center,
                               spacing: 8,
                               runSpacing: 8,
-                              children: interests.map((i) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: TheyDiColors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(i,
-                                        style: TheyDiTextStyles.caption.copyWith(
-                                            color: TheyDiColors.primary,
-                                            fontWeight: FontWeight.w600)),
-                                  )).toList(),
+                              children: interests
+                                  .map((i) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: TheyDiColors.primary
+                                              .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(i,
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: TheyDiColors.primary,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                      ))
+                                  .toList(),
                             ),
                             const SizedBox(height: 24),
                           ],
@@ -569,15 +635,18 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                               width: double.infinity,
                               child: OutlinedButton.icon(
                                 onPressed: _actionLoading ? null : _blockUser,
-                                icon: const Icon(Icons.block, color: Colors.red, size: 18),
+                                icon: const Icon(Icons.block,
+                                    color: Colors.red, size: 18),
                                 label: const Text('Block User',
                                     style: TextStyle(
-                                        color: Colors.red, fontWeight: FontWeight.w600)),
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w600)),
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: Colors.red),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
                                 ),
                               ),
                             ),
@@ -588,13 +657,14 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                           // ── Mutual Circles ──
                           if (_mutualCircles.isNotEmpty) ...[
                             Text('Mutual Circles (${_mutualCircles.length})',
-                                style: TheyDiTextStyles.labelLarge
-                                    .copyWith(color: TheyDiColors.textSecondary)),
+                                style: TheyDiTextStyles.labelLarge.copyWith(
+                                    color: TheyDiColors.textSecondary)),
                             const SizedBox(height: 12),
                             ..._mutualCircles.map((circle) {
                               final cName = circle['name'] ?? 'Circle';
-                              final cInitial =
-                                  cName.isNotEmpty ? cName[0].toUpperCase() : '?';
+                              final cInitial = cName.isNotEmpty
+                                  ? cName[0].toUpperCase()
+                                  : '?';
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.symmetric(
@@ -602,12 +672,14 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                 decoration: BoxDecoration(
                                   color: TheyDiColors.card,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: TheyDiColors.divider),
+                                  border:
+                                      Border.all(color: TheyDiColors.divider),
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
-                                      width: 40, height: 40,
+                                      width: 40,
+                                      height: 40,
                                       decoration: BoxDecoration(
                                         gradient: TheyDiColors.gradientPrimary,
                                         borderRadius: BorderRadius.circular(12),
@@ -619,7 +691,8 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(cName, style: TheyDiTextStyles.labelMedium),
+                                    Text(cName,
+                                        style: TheyDiTextStyles.labelMedium),
                                   ],
                                 ),
                               );
@@ -674,14 +747,16 @@ class _ActionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: TheyDiTextStyles.labelMedium.copyWith(color: color)),
+                      style:
+                          TheyDiTextStyles.labelMedium.copyWith(color: color)),
                   Text(subtitle,
                       style: TheyDiTextStyles.caption
                           .copyWith(color: TheyDiColors.textMuted)),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 14, color: color.withValues(alpha: 0.6)),
+            Icon(Icons.arrow_forward_ios,
+                size: 14, color: color.withValues(alpha: 0.6)),
           ],
         ),
       ),
@@ -734,11 +809,13 @@ class _FriendActionButton extends StatelessWidget {
       return SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: (loading || status == FriendStatus.requestSent) ? null : onTap,
+          onPressed:
+              (loading || status == FriendStatus.requestSent) ? null : onTap,
           icon: Icon(icon, size: 18, color: TheyDiColors.textSecondary),
           label: loading
               ? const SizedBox(
-                  width: 16, height: 16,
+                  width: 16,
+                  height: 16,
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white))
               : Text(label,
@@ -746,7 +823,8 @@ class _FriendActionButton extends StatelessWidget {
                       .copyWith(color: TheyDiColors.textSecondary)),
           style: OutlinedButton.styleFrom(
             side: BorderSide(color: TheyDiColors.divider),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
         ),
@@ -764,15 +842,19 @@ class _FriendActionButton extends StatelessWidget {
           onPressed: loading ? null : onTap,
           icon: loading
               ? const SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
               : Icon(icon, size: 18, color: Colors.white),
           label: Text(label,
-              style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)),
+              style:
+                  TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
         ),

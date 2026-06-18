@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,33 +11,68 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
-import 'dart:typed_data';
 
+import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../../core/utils/picker_theme_helper.dart';
 
 const _kCategories = [
-  'Music', 'Tech', 'Sports', 'Art', 'Food', 'Networking',
-  'Gaming', 'Fitness', 'Comedy', 'Workshop', 'Party', 'Social',
-  'Adult Party', 'Other',
+  'Music',
+  'Tech',
+  'Sports',
+  'Art',
+  'Food',
+  'Networking',
+  'Gaming',
+  'Fitness',
+  'Comedy',
+  'Workshop',
+  'Party',
+  'Social',
+  'Adult Party',
+  'Other',
 ];
 
 const _kAdultAgeGroups = [
-  'Young Adults (18â€“25)', 'Adults (26â€“40)', 'Middle Age (41â€“60)', 'Seniors (60+)',
+  'Young Adults (18â€“25)',
+  'Adults (26â€“40)',
+  'Middle Age (41â€“60)',
+  'Seniors (60+)',
 ];
 
 const _kCities = [
-  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-  'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow',
-  'Kochi', 'Goa', 'Surat', 'Chandigarh', 'Indore',
-  'Bhopal', 'Nagpur', 'Visakhapatnam', 'Coimbatore', 'Vadodara',
+  'Mumbai',
+  'Delhi',
+  'Bangalore',
+  'Hyderabad',
+  'Chennai',
+  'Kolkata',
+  'Pune',
+  'Ahmedabad',
+  'Jaipur',
+  'Lucknow',
+  'Kochi',
+  'Goa',
+  'Surat',
+  'Chandigarh',
+  'Indore',
+  'Bhopal',
+  'Nagpur',
+  'Visakhapatnam',
+  'Coimbatore',
+  'Vadodara',
 ];
 
 const _kAgeGroups = [
-  'All Ages', 'Kids (0â€“12)', 'Teens (13â€“17)', 'Young Adults (18â€“25)',
-  'Adults (26â€“40)', 'Middle Age (41â€“60)', 'Seniors (60+)',
+  'All Ages',
+  'Kids (0â€“12)',
+  'Teens (13â€“17)',
+  'Young Adults (18â€“25)',
+  'Adults (26â€“40)',
+  'Middle Age (41â€“60)',
+  'Seniors (60+)',
 ];
 
 const _kDefaultAmenities = [
@@ -50,7 +85,11 @@ const _kDefaultAmenities = [
 ];
 
 const _kImageSuggestions = {
-  'Indoor': ['House / room setup', 'Living room / hall interior', 'Decorated space'],
+  'Indoor': [
+    'House / room setup',
+    'Living room / hall interior',
+    'Decorated space'
+  ],
   'Outdoor': ['Park / open space', 'Outdoor area', 'Garden / rooftop'],
   'Venue': ['Club / hall interior', 'Rooftop venue', 'Stage / event space'],
 };
@@ -60,7 +99,8 @@ class _GeoResult {
   final double lat;
   final double lng;
   final String displayAddress;
-  const _GeoResult({required this.lat, required this.lng, required this.displayAddress});
+  const _GeoResult(
+      {required this.lat, required this.lng, required this.displayAddress});
 }
 
 class CreateEventScreen extends StatefulWidget {
@@ -89,7 +129,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   String? _pinnedAddress;
   bool _isGeocoding = false;
   bool _showMapPreview = false;
-  List<_GeoResult> _geoResults = [];   // multiple results
+  List<_GeoResult> _geoResults = []; // multiple results
   bool _showResultPicker = false;
 
   String? _selectedCategory;
@@ -151,16 +191,24 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   Future<void> _geocodeVenue(String query) async {
     // Append city for better accuracy
-    final fullQuery = _selectedCity != null ? '$query, $_selectedCity, India' : '$query, India';
+    final fullQuery = _selectedCity != null
+        ? '$query, $_selectedCity, India'
+        : '$query, India';
 
-    setState(() { _isGeocoding = true; _showResultPicker = false; _geoResults = []; });
+    setState(() {
+      _isGeocoding = true;
+      _showResultPicker = false;
+      _geoResults = [];
+    });
 
     try {
       final results = await locationFromAddress(fullQuery);
       if (!mounted) return;
 
       if (results.isEmpty) {
-        setState(() { _isGeocoding = false; });
+        setState(() {
+          _isGeocoding = false;
+        });
         return;
       }
 
@@ -169,7 +217,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       for (final r in results.take(5)) {
         // Reverse geocode each for a friendly address
         try {
-          final placemarks = await placemarkFromCoordinates(r.latitude, r.longitude);
+          final placemarks =
+              await placemarkFromCoordinates(r.latitude, r.longitude);
           final p = placemarks.isNotEmpty ? placemarks.first : null;
           final addr = [
             p?.name,
@@ -177,9 +226,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             p?.locality,
             p?.administrativeArea,
           ].where((s) => s != null && s.isNotEmpty).join(', ');
-          geoList.add(_GeoResult(lat: r.latitude, lng: r.longitude, displayAddress: addr.isNotEmpty ? addr : fullQuery));
+          geoList.add(_GeoResult(
+              lat: r.latitude,
+              lng: r.longitude,
+              displayAddress: addr.isNotEmpty ? addr : fullQuery));
         } catch (_) {
-          geoList.add(_GeoResult(lat: r.latitude, lng: r.longitude, displayAddress: fullQuery));
+          geoList.add(_GeoResult(
+              lat: r.latitude, lng: r.longitude, displayAddress: fullQuery));
         }
       }
 
@@ -188,11 +241,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _applyGeoResult(geoList.first);
       } else {
         // Multiple â†’ show picker
-        setState(() { _geoResults = geoList; _showResultPicker = true; _isGeocoding = false; });
+        setState(() {
+          _geoResults = geoList;
+          _showResultPicker = true;
+          _isGeocoding = false;
+        });
       }
     } catch (e) {
       if (mounted) {
-        setState(() { _isGeocoding = false; });
+        setState(() {
+          _isGeocoding = false;
+        });
         // Don't show error â€” user may still be typing
       }
     }
@@ -225,7 +284,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
         final addr = [p.name, p.subLocality, p.locality, p.administrativeArea]
-            .where((s) => s != null && s.isNotEmpty).join(', ');
+            .where((s) => s != null && s.isNotEmpty)
+            .join(', ');
         setState(() => _pinnedAddress = addr);
       }
     } catch (_) {}
@@ -237,7 +297,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     try {
       final position = await LocationService.getCurrentPosition();
       if (position == null) {
-        if (mounted) { setState(() => _isGeocoding = false); _showError('Could not get GPS location. Enable location permissions.'); }
+        if (mounted) {
+          setState(() => _isGeocoding = false);
+          _showError(
+              'Could not get GPS location. Enable location permissions.');
+        }
         return;
       }
       await _reverseGeocode(position.latitude, position.longitude);
@@ -248,11 +312,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _isGeocoding = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        try { _mapController.move(LatLng(position.latitude, position.longitude), 15.0); } catch (_) {}
+        try {
+          _mapController.move(
+              LatLng(position.latitude, position.longitude), 15.0);
+        } catch (_) {}
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ðŸ“ Location detected from GPS'), backgroundColor: Colors.green));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('ðŸ“ Location detected from GPS'),
+            backgroundColor: Colors.green));
+      }
     } catch (e) {
-      if (mounted) { setState(() => _isGeocoding = false); _showError('Location error: $e'); }
+      if (mounted) {
+        setState(() => _isGeocoding = false);
+        _showError('Location error: $e');
+      }
     }
   }
 
@@ -272,23 +346,29 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists) {
         final data = doc.data()!;
         final dob = data['dob'];
         DateTime? birthDate;
         if (dob is Timestamp) {
           birthDate = dob.toDate();
-        } else if (dob is String && dob.isNotEmpty) birthDate = DateTime.tryParse(dob);
+        } else if (dob is String && dob.isNotEmpty)
+          birthDate = DateTime.tryParse(dob);
         if (birthDate != null && mounted) {
           final today = DateTime.now();
           int age = today.year - birthDate.year;
-          if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) age--;
-          setState(() { _userAge = age; });
-        } else if (mounted) { }
+          if (today.month < birthDate.month ||
+              (today.month == birthDate.month && today.day < birthDate.day)) {
+            age--;
+          }
+          setState(() {
+            _userAge = age;
+          });
+        } else if (mounted) {}
       }
-    } catch (_) {
-      }
+    } catch (_) {}
   }
 
   bool get _isAdultParty => _selectedCategory == 'Adult Party';
@@ -300,77 +380,147 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: PickerTheme.wrap,   // ← replaces the old dark Theme block
+      builder: PickerTheme.wrap, // ← replaces the old dark Theme block
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
-
 
   // ── Time picker (FIXED) ──────────────────────────────────────────────────
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      builder: PickerTheme.wrap,   // ← replaces ColorScheme.dark
+      builder: PickerTheme.wrap, // ← replaces ColorScheme.dark
     );
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _pickImage(ImageSource source) async {
-    if (_eventImages.length >= _maxImages) { _showError('Maximum $_maxImages images allowed'); return; }
+    if (_eventImages.length >= _maxImages) {
+      _showError('Maximum $_maxImages images allowed');
+      return;
+    }
     setState(() => _isUploadingImage = true);
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, maxWidth: 1080, maxHeight: 1080, imageQuality: 85);
-      if (picked == null) { setState(() => _isUploadingImage = false); return; }
+      final picked = await picker.pickImage(
+          source: source, maxWidth: 1080, maxHeight: 1080, imageQuality: 85);
+      if (picked == null) {
+        setState(() => _isUploadingImage = false);
+        return;
+      }
 
       final bytes = await picked.readAsBytes();
       final tempId = DateTime.now().millisecondsSinceEpoch.toString();
 
-      setState(() => _eventImages.add(_UploadedImage(id: tempId, bytes: bytes, url: null, isUploading: true)));
+      setState(() => _eventImages.add(_UploadedImage(
+          id: tempId, bytes: bytes, url: null, isUploading: true)));
 
-      final ref = FirebaseStorage.instance.ref().child('event_images').child('temp_$tempId.jpg');
-      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-      final url = await ref.getDownloadURL();
+      final imageUrl =
+          await CloudflareUpload.uploadBytes(bytes, "temp_$tempId.jpg");
+
+      if (imageUrl == null) {
+        throw Exception("Cloudflare upload failed");
+      }
+
+      if (mounted) {
+        setState(() {
+          final idx = _eventImages.indexWhere(
+            (img) => img.id == tempId,
+          );
+
+          if (idx != -1) {
+            _eventImages[idx] = _UploadedImage(
+              id: tempId,
+              bytes: bytes,
+              url: imageUrl,
+              isUploading: false,
+            );
+          }
+        });
+      }
 
       if (mounted) {
         setState(() {
           final idx = _eventImages.indexWhere((img) => img.id == tempId);
-          if (idx != -1) _eventImages[idx] = _UploadedImage(id: tempId, bytes: bytes, url: url, isUploading: false);
+          if (idx != -1) {
+            _eventImages[idx] = _UploadedImage(
+                id: tempId, bytes: bytes, url: imageUrl, isUploading: false);
+          }
         });
       }
     } catch (e) {
-      if (mounted) { setState(() => _eventImages.removeWhere((img) => img.isUploading)); _showError('Failed to upload image: $e'); }
+      if (mounted) {
+        setState(() => _eventImages.removeWhere((img) => img.isUploading));
+        _showError('Failed to upload image: $e');
+      }
     } finally {
       if (mounted) setState(() => _isUploadingImage = false);
     }
   }
 
-  void _removeImage(String id) => setState(() => _eventImages.removeWhere((img) => img.id == id));
+  void _removeImage(String id) =>
+      setState(() => _eventImages.removeWhere((img) => img.id == id));
 
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
       backgroundColor: TheyDiColors.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: TheyDiColors.divider, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: TheyDiColors.divider,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Text('Add Photo', style: TheyDiTextStyles.headlineMedium),
             const SizedBox(height: 16),
             Row(children: [
-              Expanded(child: GestureDetector(
-                onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); },
-                child: Container(padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)), child: Column(children: [const Icon(Icons.photo_library_outlined, color: TheyDiColors.primary, size: 28), const SizedBox(height: 8), Text('Gallery', style: TheyDiTextStyles.labelMedium)])),
+              Expanded(
+                  child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+                child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                        color: TheyDiColors.inputFill,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: TheyDiColors.divider)),
+                    child: Column(children: [
+                      const Icon(Icons.photo_library_outlined,
+                          color: TheyDiColors.primary, size: 28),
+                      const SizedBox(height: 8),
+                      Text('Gallery', style: TheyDiTextStyles.labelMedium)
+                    ])),
               )),
               const SizedBox(width: 12),
-              Expanded(child: GestureDetector(
-                onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.camera); },
-                child: Container(padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)), child: Column(children: [const Icon(Icons.camera_alt_outlined, color: TheyDiColors.primary, size: 28), const SizedBox(height: 8), Text('Camera', style: TheyDiTextStyles.labelMedium)])),
+              Expanded(
+                  child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+                child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                        color: TheyDiColors.inputFill,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: TheyDiColors.divider)),
+                    child: Column(children: [
+                      const Icon(Icons.camera_alt_outlined,
+                          color: TheyDiColors.primary, size: 28),
+                      const SizedBox(height: 8),
+                      Text('Camera', style: TheyDiTextStyles.labelMedium)
+                    ])),
               )),
             ]),
             const SizedBox(height: 8),
@@ -381,7 +531,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: TheyDiColors.error, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), margin: const EdgeInsets.all(16)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: TheyDiColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16)));
   }
 
   void _onCategoryChanged(String? cat) {
@@ -399,34 +554,68 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   void _addCustomAmenity() {
     final val = _customAmenityController.text.trim();
     if (val.isEmpty) return;
-    if (_customAmenities.contains(val) || _kDefaultAmenities.any((a) => a['label'] == val)) return;
-    setState(() { _customAmenities.add(val); _selectedAmenities.add(val); _customAmenityController.clear(); });
+    if (_customAmenities.contains(val) ||
+        _kDefaultAmenities.any((a) => a['label'] == val)) {
+      return;
+    }
+    setState(() {
+      _customAmenities.add(val);
+      _selectedAmenities.add(val);
+      _customAmenityController.clear();
+    });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedDate == null) { _showError('Please pick a date'); return; }
-    if (_selectedTime == null) { _showError('Please pick a time'); return; }
-    if (_pinnedLat == null || _pinnedLng == null) { _showError('Please set a location for your event'); return; }
-    if (_eventImages.any((img) => img.isUploading)) { _showError('Please wait for images to finish uploading'); return; }
+    if (_selectedDate == null) {
+      _showError('Please pick a date');
+      return;
+    }
+    if (_selectedTime == null) {
+      _showError('Please pick a time');
+      return;
+    }
+    if (_pinnedLat == null || _pinnedLng == null) {
+      _showError('Please set a location for your event');
+      return;
+    }
+    if (_eventImages.any((img) => img.isUploading)) {
+      _showError('Please wait for images to finish uploading');
+      return;
+    }
 
     if (_selectedCategory == 'Adult Party') {
-      if (_eventType == 'Outdoor') { _showError('Adult Party events must be Indoor'); return; }
-      if (!_kAdultAgeGroups.contains(_ageGroup)) { _showError('Adult Party requires an 18+ age group'); return; }
+      if (_eventType == 'Outdoor') {
+        _showError('Adult Party events must be Indoor');
+        return;
+      }
+      if (!_kAdultAgeGroups.contains(_ageGroup)) {
+        _showError('Adult Party requires an 18+ age group');
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
-      final dateTime = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedTime!.hour, _selectedTime!.minute);
+      final dateTime = DateTime(_selectedDate!.year, _selectedDate!.month,
+          _selectedDate!.day, _selectedTime!.hour, _selectedTime!.minute);
 
       String creatorName = user.displayName ?? 'Anonymous';
       try {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (userDoc.exists) creatorName = userDoc.data()?['displayName'] ?? creatorName;
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          creatorName = userDoc.data()?['displayName'] ?? creatorName;
+        }
       } catch (_) {}
 
-      final imageUrls = _eventImages.where((img) => img.url != null).map((img) => img.url!).toList();
+      final imageUrls = _eventImages
+          .where((img) => img.url != null)
+          .map((img) => img.url!)
+          .toList();
 
       final eventData = {
         'title': _titleController.text.trim(),
@@ -443,7 +632,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         'attendeeUids': <String>[],
         'pendingUids': <String>[],
         'isFree': _isFree,
-        'price': _isFree ? 0.0 : (double.tryParse(_priceController.text) ?? 0.0),
+        'price':
+            _isFree ? 0.0 : (double.tryParse(_priceController.text) ?? 0.0),
         'createdAt': FieldValue.serverTimestamp(),
         'latitude': _pinnedLat!,
         'longitude': _pinnedLng!,
@@ -452,7 +642,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         'eventType': _eventType,
         'durationHours': _durationHours,
         'genderBalance': _genderBalance,
-        'genderRatio': _genderBalance == 'Ratio' ? {'male': _malePercent, 'female': _femalePercent, 'other': _otherPercent} : null,
+        'genderRatio': _genderBalance == 'Ratio'
+            ? {
+                'male': _malePercent,
+                'female': _femalePercent,
+                'other': _otherPercent
+              }
+            : null,
         'ageGroup': _ageGroup,
         'minAge': _isAdultParty ? 18 : 0,
         'approvalType': _approvalType,
@@ -460,10 +656,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       };
 
       await FirebaseFirestore.instance.collection('events').add(eventData);
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'eventsCreated': FieldValue.increment(1)});
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'eventsCreated': FieldValue.increment(1)});
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Event created! ðŸŽ‰'), backgroundColor: TheyDiColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), margin: const EdgeInsets.all(16)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Event created! ðŸŽ‰'),
+            backgroundColor: TheyDiColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16)));
         context.pop();
       }
     } catch (e) {
@@ -475,502 +680,1178 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = _kImageSuggestions[_eventType] ?? _kImageSuggestions['Indoor']!;
+    final suggestions =
+        _kImageSuggestions[_eventType] ?? _kImageSuggestions['Indoor']!;
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFFFFFFF), Color(0xFFF3F4F6)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+        decoration: const BoxDecoration(
+            gradient: LinearGradient(
+                colors: [Color(0xFFFFFFFF), Color(0xFFF3F4F6)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter)),
         child: SafeArea(
           child: Column(children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
               child: Row(children: [
-                IconButton(icon: const Icon(Icons.arrow_back_ios_new, size: 20), color: TheyDiColors.textPrimary, onPressed: () => context.pop()),
-                Expanded(child: Text('Create Event', style: TheyDiTextStyles.headlineMedium, textAlign: TextAlign.center)),
+                IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    color: TheyDiColors.textPrimary,
+                    onPressed: () => context.pop()),
+                Expanded(
+                    child: Text('Create Event',
+                        style: TheyDiTextStyles.headlineMedium,
+                        textAlign: TextAlign.center)),
                 const SizedBox(width: 40),
               ]),
             ),
-
-            Expanded(child: SingleChildScrollView(
+            Expanded(
+                child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
               child: Form(
                 key: _formKey,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // â•â• Title â•â•
+                      const _Label('Event Title *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                              controller: _titleController,
+                              style: TheyDiTextStyles.bodyMedium,
+                              textCapitalization: TextCapitalization.words,
+                              decoration: const InputDecoration(
+                                  hintText: 'e.g. Rooftop Mixer',
+                                  prefixIcon: Icon(Icons.title_outlined)),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Title is required'
+                                  : null)
+                          .animate(delay: 60.ms)
+                          .fade(duration: 300.ms),
 
-                  // â•â• Title â•â•
-                  const _Label('Event Title *'),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _titleController, style: TheyDiTextStyles.bodyMedium, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(hintText: 'e.g. Rooftop Mixer', prefixIcon: Icon(Icons.title_outlined)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required' : null).animate(delay: 60.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 16),
 
-                  const SizedBox(height: 16),
+                      // â•â• Description â•â•
+                      const _Label('Description *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                              controller: _descController,
+                              style: TheyDiTextStyles.bodyMedium,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                  hintText:
+                                      'Tell people what this event is about...',
+                                  alignLabelWithHint: true),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Description is required'
+                                  : null)
+                          .animate(delay: 80.ms)
+                          .fade(duration: 300.ms),
 
-                  // â•â• Description â•â•
-                  const _Label('Description *'),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _descController, style: TheyDiTextStyles.bodyMedium, maxLines: 3, decoration: const InputDecoration(hintText: 'Tell people what this event is about...', alignLabelWithHint: true), validator: (v) => (v == null || v.trim().isEmpty) ? 'Description is required' : null).animate(delay: 80.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 16),
 
-                  const SizedBox(height: 16),
+                      // â•â• Category â•â•
+                      const _Label('Category'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                              hint: 'Select category',
+                              value: _selectedCategory,
+                              items: _kCategories
+                                  .where((c) =>
+                                      c != 'Adult Party' || _userAge >= 18)
+                                  .map((c) => DropdownMenuItem(
+                                      value: c,
+                                      child: Row(children: [
+                                        Text(c,
+                                            style: TheyDiTextStyles.bodyMedium),
+                                        if (c == 'Adult Party') ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                  color: Colors.red
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6)),
+                                              child: Text('ðŸ”ž 18+',
+                                                  style: TheyDiTextStyles
+                                                      .caption
+                                                      .copyWith(
+                                                          color: Colors.red,
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight
+                                                              .w600))),
+                                        ],
+                                      ])))
+                                  .toList(),
+                              onChanged: _onCategoryChanged,
+                              icon: Icons.category_outlined)
+                          .animate(delay: 100.ms)
+                          .fade(duration: 300.ms),
 
-                  // â•â• Category â•â•
-                  const _Label('Category'),
-                  const SizedBox(height: 8),
-                  _DropdownField<String>(hint: 'Select category', value: _selectedCategory, items: _kCategories
-                    .where((c) => c != 'Adult Party' || _userAge >= 18)
-                    .map((c) => DropdownMenuItem(value: c, child: Row(children: [
-                      Text(c, style: TheyDiTextStyles.bodyMedium),
-                      if (c == 'Adult Party') ...[
-                        const SizedBox(width: 6),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)), child: Text('ðŸ”ž 18+', style: TheyDiTextStyles.caption.copyWith(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w600))),
-                      ],
-                    ]))).toList(), onChanged: _onCategoryChanged, icon: Icons.category_outlined).animate(delay: 100.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 16),
 
-                  const SizedBox(height: 16),
+                      // â•â• Event Type â•â•
+                      const _Label('Event Type'),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        _PillButton(
+                            label: 'Indoor',
+                            icon: Icons.home_outlined,
+                            isSelected: _eventType == 'Indoor',
+                            onTap: () => setState(() => _eventType = 'Indoor')),
+                        const SizedBox(width: 10),
+                        _PillButton(
+                            label: 'Outdoor',
+                            icon: Icons.park_outlined,
+                            isSelected: _eventType == 'Outdoor',
+                            onTap: _isAdultParty
+                                ? null
+                                : () => setState(() => _eventType = 'Outdoor'),
+                            disabled: _isAdultParty),
+                      ]).animate(delay: 110.ms).fade(duration: 300.ms),
 
-                  // â•â• Event Type â•â•
-                  const _Label('Event Type'),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _PillButton(label: 'Indoor', icon: Icons.home_outlined, isSelected: _eventType == 'Indoor', onTap: () => setState(() => _eventType = 'Indoor')),
-                    const SizedBox(width: 10),
-                    _PillButton(label: 'Outdoor', icon: Icons.park_outlined, isSelected: _eventType == 'Outdoor', onTap: _isAdultParty ? null : () => setState(() => _eventType = 'Outdoor'), disabled: _isAdultParty),
-                  ]).animate(delay: 110.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 16),
 
-                  const SizedBox(height: 16),
+                      // â•â• City â•â•
+                      const _Label('City'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                              hint: 'Select city',
+                              value: _selectedCity,
+                              items: _kCities
+                                  .map((c) => DropdownMenuItem(
+                                      value: c,
+                                      child: Text(c,
+                                          style: TheyDiTextStyles.bodyMedium)))
+                                  .toList(),
+                              onChanged: (v) {
+                                setState(() => _selectedCity = v);
+                                if (_venueController.text.trim().isNotEmpty) {
+                                  _geocodeVenue(_venueController.text.trim());
+                                }
+                              },
+                              icon: Icons.location_city_outlined)
+                          .animate(delay: 120.ms)
+                          .fade(duration: 300.ms),
 
-                  // â•â• City â•â•
-                  const _Label('City'),
-                  const SizedBox(height: 8),
-                  _DropdownField<String>(hint: 'Select city', value: _selectedCity, items: _kCities.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TheyDiTextStyles.bodyMedium))).toList(), onChanged: (v) { setState(() => _selectedCity = v); if (_venueController.text.trim().isNotEmpty) _geocodeVenue(_venueController.text.trim()); }, icon: Icons.location_city_outlined).animate(delay: 120.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 16),
 
-                  const SizedBox(height: 16),
+                      // â•â• Venue â•â•
+                      const _Label('Venue *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _venueController,
+                        style: TheyDiTextStyles.bodyMedium,
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Sky Lounge, MG Road',
+                          prefixIcon: const Icon(Icons.place_outlined),
+                          suffixIcon: _isGeocoding
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: TheyDiColors.primary)))
+                              : _pinnedLat != null
+                                  ? const Icon(Icons.check_circle,
+                                      color: Colors.green, size: 20)
+                                  : null,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Venue is required'
+                            : null,
+                      ).animate(delay: 140.ms).fade(duration: 300.ms),
 
-                  // â•â• Venue â•â•
-                  const _Label('Venue *'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _venueController,
-                    style: TheyDiTextStyles.bodyMedium,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Sky Lounge, MG Road',
-                      prefixIcon: const Icon(Icons.place_outlined),
-                      suffixIcon: _isGeocoding
-                          ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: TheyDiColors.primary)))
-                          : _pinnedLat != null
-                              ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
-                              : null,
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Venue is required' : null,
-                  ).animate(delay: 140.ms).fade(duration: 300.ms),
-
-                  // â•â• Multiple results picker â•â•
-                  if (_showResultPicker && _geoResults.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: TheyDiColors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-                            child: Row(children: [
-                              const Icon(Icons.location_on_outlined, size: 14, color: TheyDiColors.primary),
-                              const SizedBox(width: 6),
-                              Text('Select matching location', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontWeight: FontWeight.w600)),
-                            ]),
+                      // â•â• Multiple results picker â•â•
+                      if (_showResultPicker && _geoResults.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: TheyDiColors.primary
+                                    .withValues(alpha: 0.4)),
                           ),
-                          const Divider(height: 1, color: TheyDiColors.divider),
-                          ..._geoResults.asMap().entries.map((entry) {
-                            final i = entry.key;
-                            final r = entry.value;
-                            return GestureDetector(
-                              onTap: () => _applyGeoResult(r),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  border: i < _geoResults.length - 1 ? const Border(bottom: BorderSide(color: TheyDiColors.divider)) : null,
-                                ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(14, 10, 14, 4),
                                 child: Row(children: [
-                                  Container(
-                                    width: 28, height: 28,
-                                    decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
-                                    child: Center(child: Text('${i + 1}', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontWeight: FontWeight.w700))),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: Text(r.displayAddress, style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary))),
-                                  const Icon(Icons.chevron_right, size: 16, color: TheyDiColors.textMuted),
+                                  const Icon(Icons.location_on_outlined,
+                                      size: 14, color: TheyDiColors.primary),
+                                  const SizedBox(width: 6),
+                                  Text('Select matching location',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: TheyDiColors.primary,
+                                          fontWeight: FontWeight.w600)),
                                 ]),
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 12),
-
-                  // â•â• Location Section â•â•
-                  const _Label('Pin Location *'),
-                  const SizedBox(height: 8),
-
-                  // Status bar
-                  if (_pinnedLat != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('ðŸ“ Location detected', style: TheyDiTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.w600)),
-                          if (_pinnedAddress != null) Text(_pinnedAddress!, style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          Text('${_pinnedLat!.toStringAsFixed(5)}, ${_pinnedLng!.toStringAsFixed(5)}', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted, fontSize: 10)),
-                        ])),
-                        GestureDetector(
-                          onTap: _clearLocation,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(color: TheyDiColors.card, shape: BoxShape.circle, border: Border.all(color: TheyDiColors.divider)),
-                            child: const Icon(Icons.close, size: 14, color: TheyDiColors.textMuted),
-                          ),
-                        ),
-                      ]),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // GPS fallback button (shown when no location set)
-                  if (_pinnedLat == null)
-                    GestureDetector(
-                      onTap: _isGeocoding ? null : _useCurrentLocation,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: TheyDiColors.inputFill,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: TheyDiColors.divider),
-                        ),
-                        child: Row(children: [
-                          if (_isGeocoding)
-                            const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: TheyDiColors.primary, strokeWidth: 2))
-                          else
-                            const Icon(Icons.my_location_outlined, size: 18, color: TheyDiColors.primary),
-                          const SizedBox(width: 10),
-                          Text('Use GPS instead', style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary)),
-                          const Spacer(),
-                          Text('Optional', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted)),
-                        ]),
-                      ),
-                    ),
-
-                  // â•â• MAP PREVIEW â•â•
-                  if (_showMapPreview && _pinnedLat != null && _pinnedLng != null) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        height: 220,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.3)),
-                        ),
-                        child: Stack(children: [
-                          FlutterMap(
-                            mapController: _mapController,
-                            options: MapOptions(
-                              initialCenter: LatLng(_pinnedLat!, _pinnedLng!),
-                              initialZoom: 15.0,
-                              onTap: (tapPos, point) {
-                                // Tap to move pin (adjust pin)
-                                setState(() {
-                                  _pinnedLat = point.latitude;
-                                  _pinnedLng = point.longitude;
-                                });
-                                _reverseGeocode(point.latitude, point.longitude);
-                              },
-                            ),
-                            children: [
-                              TileLayer(
-                                urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                subdomains: const ['a', 'b', 'c'],
-                                userAgentPackageName: 'com.tiein.app',
-                              ),
-                              MarkerLayer(markers: [
-                                Marker(
-                                  point: LatLng(_pinnedLat!, _pinnedLng!),
-                                  width: 48,
-                                  height: 48,
-                                  child: Column(children: [
-                                    Container(
-                                      width: 36, height: 36,
-                                      decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: TheyDiColors.primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 2)]),
-                                      child: const Icon(Icons.place, color: Colors.white, size: 18),
+                              const Divider(
+                                  height: 1, color: TheyDiColors.divider),
+                              ..._geoResults.asMap().entries.map((entry) {
+                                final i = entry.key;
+                                final r = entry.value;
+                                return GestureDetector(
+                                  onTap: () => _applyGeoResult(r),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      border: i < _geoResults.length - 1
+                                          ? const Border(
+                                              bottom: BorderSide(
+                                                  color: TheyDiColors.divider))
+                                          : null,
                                     ),
-                                    // Pin tail
-                                    Container(width: 2, height: 8, color: TheyDiColors.primary),
-                                  ]),
-                                ),
-                              ]),
+                                    child: Row(children: [
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                            color: TheyDiColors.primary
+                                                .withValues(alpha: 0.12),
+                                            shape: BoxShape.circle),
+                                        child: Center(
+                                            child: Text('${i + 1}',
+                                                style: TheyDiTextStyles.caption
+                                                    .copyWith(
+                                                        color: TheyDiColors
+                                                            .primary,
+                                                        fontWeight:
+                                                            FontWeight.w700))),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                          child: Text(r.displayAddress,
+                                              style: TheyDiTextStyles.bodySmall
+                                                  .copyWith(
+                                                      color: TheyDiColors
+                                                          .textSecondary))),
+                                      const Icon(Icons.chevron_right,
+                                          size: 16,
+                                          color: TheyDiColors.textMuted),
+                                    ]),
+                                  ),
+                                );
+                              }),
                             ],
                           ),
+                        ),
+                      ],
 
-                          // "Tap to adjust" overlay label
-                          Positioned(
-                            bottom: 10,
-                            left: 0,
-                            right: 0,
-                            child: Center(
+                      const SizedBox(height: 12),
+
+                      // â•â• Location Section â•â•
+                      const _Label('Pin Location *'),
+                      const SizedBox(height: 8),
+
+                      // Status bar
+                      if (_pinnedLat != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.green.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.check_circle,
+                                color: Colors.green, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text('ðŸ“ Location detected',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600)),
+                                  if (_pinnedAddress != null)
+                                    Text(_pinnedAddress!,
+                                        style: TheyDiTextStyles.caption
+                                            .copyWith(
+                                                color:
+                                                    TheyDiColors.textSecondary),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis),
+                                  Text(
+                                      '${_pinnedLat!.toStringAsFixed(5)}, ${_pinnedLng!.toStringAsFixed(5)}',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: TheyDiColors.textMuted,
+                                          fontSize: 10)),
+                                ])),
+                            GestureDetector(
+                              onTap: _clearLocation,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.65),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                  const Icon(Icons.touch_app_outlined, size: 13, color: Colors.white),
-                                  const SizedBox(width: 5),
-                                  Text('Tap map to adjust pin', style: TheyDiTextStyles.caption.copyWith(color: Colors.white, fontSize: 11)),
-                                ]),
+                                    color: TheyDiColors.card,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: TheyDiColors.divider)),
+                                child: const Icon(Icons.close,
+                                    size: 14, color: TheyDiColors.textMuted),
                               ),
                             ),
-                          ),
+                          ]),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
 
-                          // Zoom in/out controls
-                          Positioned(
-                            top: 8, right: 8,
-                            child: Column(children: [
-                              _MapButton(icon: Icons.add, onTap: () { try { _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1); } catch (_) {} }),
-                              const SizedBox(height: 4),
-                              _MapButton(icon: Icons.remove, onTap: () { try { _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1); } catch (_) {} }),
+                      // GPS fallback button (shown when no location set)
+                      if (_pinnedLat == null)
+                        GestureDetector(
+                          onTap: _isGeocoding ? null : _useCurrentLocation,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: TheyDiColors.inputFill,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: TheyDiColors.divider),
+                            ),
+                            child: Row(children: [
+                              if (_isGeocoding)
+                                const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        color: TheyDiColors.primary,
+                                        strokeWidth: 2))
+                              else
+                                const Icon(Icons.my_location_outlined,
+                                    size: 18, color: TheyDiColors.primary),
+                              const SizedBox(width: 10),
+                              Text('Use GPS instead',
+                                  style: TheyDiTextStyles.bodySmall.copyWith(
+                                      color: TheyDiColors.textSecondary)),
+                              const Spacer(),
+                              Text('Optional',
+                                  style: TheyDiTextStyles.caption
+                                      .copyWith(color: TheyDiColors.textMuted)),
                             ]),
                           ),
+                        ),
+
+                      // â•â• MAP PREVIEW â•â•
+                      if (_showMapPreview &&
+                          _pinnedLat != null &&
+                          _pinnedLng != null) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            height: 220,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.3)),
+                            ),
+                            child: Stack(children: [
+                              FlutterMap(
+                                mapController: _mapController,
+                                options: MapOptions(
+                                  initialCenter:
+                                      LatLng(_pinnedLat!, _pinnedLng!),
+                                  initialZoom: 15.0,
+                                  onTap: (tapPos, point) {
+                                    // Tap to move pin (adjust pin)
+                                    setState(() {
+                                      _pinnedLat = point.latitude;
+                                      _pinnedLng = point.longitude;
+                                    });
+                                    _reverseGeocode(
+                                        point.latitude, point.longitude);
+                                  },
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate:
+                                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    subdomains: const ['a', 'b', 'c'],
+                                    userAgentPackageName: 'com.tiein.app',
+                                  ),
+                                  MarkerLayer(markers: [
+                                    Marker(
+                                      point: LatLng(_pinnedLat!, _pinnedLng!),
+                                      width: 48,
+                                      height: 48,
+                                      child: Column(children: [
+                                        Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                              gradient:
+                                                  TheyDiColors.gradientPrimary,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                  color: Colors.white,
+                                                  width: 2),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                    color: TheyDiColors.primary
+                                                        .withValues(alpha: 0.5),
+                                                    blurRadius: 8,
+                                                    spreadRadius: 2)
+                                              ]),
+                                          child: const Icon(Icons.place,
+                                              color: Colors.white, size: 18),
+                                        ),
+                                        // Pin tail
+                                        Container(
+                                            width: 2,
+                                            height: 8,
+                                            color: TheyDiColors.primary),
+                                      ]),
+                                    ),
+                                  ]),
+                                ],
+                              ),
+
+                              // "Tap to adjust" overlay label
+                              Positioned(
+                                bottom: 10,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.65),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.touch_app_outlined,
+                                              size: 13, color: Colors.white),
+                                          const SizedBox(width: 5),
+                                          Text('Tap map to adjust pin',
+                                              style: TheyDiTextStyles.caption
+                                                  .copyWith(
+                                                      color: Colors.white,
+                                                      fontSize: 11)),
+                                        ]),
+                                  ),
+                                ),
+                              ),
+
+                              // Zoom in/out controls
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Column(children: [
+                                  _MapButton(
+                                      icon: Icons.add,
+                                      onTap: () {
+                                        try {
+                                          _mapController.move(
+                                              _mapController.camera.center,
+                                              _mapController.camera.zoom + 1);
+                                        } catch (_) {}
+                                      }),
+                                  const SizedBox(height: 4),
+                                  _MapButton(
+                                      icon: Icons.remove,
+                                      onTap: () {
+                                        try {
+                                          _mapController.move(
+                                              _mapController.camera.center,
+                                              _mapController.camera.zoom - 1);
+                                        } catch (_) {}
+                                      }),
+                                ]),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // â•â• Date & Time â•â•
+                      Row(children: [
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              const _Label('Date'),
+                              const SizedBox(height: 8),
+                              _PickerTile(
+                                  icon: Icons.calendar_today_outlined,
+                                  label: _selectedDate != null
+                                      ? DateFormat('d MMM yyyy')
+                                          .format(_selectedDate!)
+                                      : 'Pick date',
+                                  onTap: _pickDate)
+                            ])),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              const _Label('Time'),
+                              const SizedBox(height: 8),
+                              _PickerTile(
+                                  icon: Icons.access_time_outlined,
+                                  label: _selectedTime != null
+                                      ? _selectedTime!.format(context)
+                                      : 'Pick time',
+                                  onTap: _pickTime)
+                            ])),
+                      ]).animate(delay: 160.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // â•â• Duration â•â•
+                      const _Label('Duration (hours)'),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.inputFill,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: TheyDiColors.divider)),
+                        child: Row(children: [
+                          const Icon(Icons.timer_outlined,
+                              size: 18, color: TheyDiColors.textMuted),
+                          const SizedBox(width: 10),
+                          Text(
+                              '$_durationHours hr${_durationHours > 1 ? 's' : ''}',
+                              style: TheyDiTextStyles.bodyMedium),
+                          const Spacer(),
+                          GestureDetector(
+                              onTap: _durationHours > 1
+                                  ? () => setState(() => _durationHours--)
+                                  : null,
+                              child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                      color: _durationHours > 1
+                                          ? TheyDiColors.primary
+                                              .withValues(alpha: 0.2)
+                                          : TheyDiColors.card,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: _durationHours > 1
+                                              ? TheyDiColors.primary
+                                              : TheyDiColors.divider)),
+                                  child: Icon(Icons.remove,
+                                      size: 18,
+                                      color: _durationHours > 1
+                                          ? TheyDiColors.primary
+                                          : TheyDiColors.textMuted))),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                              onTap: _durationHours < 24
+                                  ? () => setState(() => _durationHours++)
+                                  : null,
+                              child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                      color: TheyDiColors.primary
+                                          .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: TheyDiColors.primary)),
+                                  child: const Icon(Icons.add,
+                                      size: 18, color: TheyDiColors.primary))),
+                        ]),
+                      ).animate(delay: 165.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // â•â• Max Attendees â•â•
+                      const _Label('Max Attendees'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                              controller: _maxAttendeesController,
+                              style: TheyDiTextStyles.bodyMedium,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                              decoration: const InputDecoration(
+                                  hintText: '50',
+                                  prefixIcon: Icon(Icons.group_outlined)))
+                          .animate(delay: 180.ms)
+                          .fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // â•â• Gender Balance â•â•
+                      const _Label('Gender Balance (Optional)'),
+                      const SizedBox(height: 8),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        _PillButton(
+                            label: 'Open',
+                            icon: Icons.people_outline,
+                            isSelected: _genderBalance == 'Open',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Open')),
+                        _PillButton(
+                            label: 'Ratio',
+                            icon: Icons.tune,
+                            isSelected: _genderBalance == 'Ratio',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Ratio')),
+                        _PillButton(
+                            label: 'Female Only',
+                            icon: Icons.female,
+                            isSelected: _genderBalance == 'Female Only',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Female Only')),
+                        _PillButton(
+                            label: 'Male Only',
+                            icon: Icons.male,
+                            isSelected: _genderBalance == 'Male Only',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Male Only')),
+                      ]).animate(delay: 190.ms).fade(duration: 300.ms),
+
+                      if (_genderBalance == 'Ratio') ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                              color: TheyDiColors.card,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: TheyDiColors.divider)),
+                          child: Column(children: [
+                            _RatioSlider(
+                                label: 'Male',
+                                value: _malePercent,
+                                color: Colors.blue,
+                                onChanged: (v) => setState(() {
+                                      _malePercent = v;
+                                      _updateGenderRatio();
+                                    })),
+                            const SizedBox(height: 10),
+                            _RatioSlider(
+                                label: 'Female',
+                                value: _femalePercent,
+                                color: Colors.pink,
+                                onChanged: (v) => setState(() {
+                                      _femalePercent = v;
+                                      _updateGenderRatio();
+                                    })),
+                            const SizedBox(height: 10),
+                            Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Other',
+                                      style: TheyDiTextStyles.caption),
+                                  Text('${_otherPercent.round()}%',
+                                      style: TheyDiTextStyles.labelMedium
+                                          .copyWith(color: Colors.green))
+                                ]),
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Row(children: [
+                                  Expanded(
+                                      flex: _malePercent.round().clamp(1, 100),
+                                      child: Container(
+                                          height: 8, color: Colors.blue)),
+                                  Expanded(
+                                      flex:
+                                          _femalePercent.round().clamp(1, 100),
+                                      child: Container(
+                                          height: 8, color: Colors.pink)),
+                                  if (_otherPercent > 0)
+                                    Expanded(
+                                        flex:
+                                            _otherPercent.round().clamp(1, 100),
+                                        child: Container(
+                                            height: 8, color: Colors.green)),
+                                ])),
+                          ]),
+                        ).animate(delay: 200.ms).fade(duration: 300.ms),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // â•â• Age Group â•â•
+                      const _Label('Age Group'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                              hint: 'Select age group',
+                              value: _ageGroup,
+                              items: (_isAdultParty
+                                      ? _kAdultAgeGroups
+                                      : _kAgeGroups)
+                                  .map((a) => DropdownMenuItem(
+                                      value: a,
+                                      child: Text(a,
+                                          style: TheyDiTextStyles.bodyMedium)))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _ageGroup = v ??
+                                  (_isAdultParty
+                                      ? 'Young Adults (18–25)'
+                                      : 'All Ages')),
+                              icon: Icons.people_alt_outlined)
+                          .animate(delay: 205.ms)
+                          .fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // â•â• Approval Type â•â•
+                      const _Label('Approval Type'),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(
+                            child: _PillButton(
+                                label: 'Host Approval',
+                                icon: Icons.verified_user_outlined,
+                                isSelected: _approvalType == 'Host Approval',
+                                onTap: () => setState(
+                                    () => _approvalType = 'Host Approval'))),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: _PillButton(
+                                label: 'First Come',
+                                icon: Icons.flash_on_outlined,
+                                isSelected:
+                                    _approvalType == 'First Come First Serve',
+                                onTap: () => setState(() =>
+                                    _approvalType = 'First Come First Serve'))),
+                      ]).animate(delay: 210.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 20),
+
+                      // â•â• Free / Paid â•â•
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: TheyDiColors.divider)),
+                        child: Column(children: [
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(children: [
+                                  const Icon(Icons.confirmation_number_outlined,
+                                      size: 18,
+                                      color: TheyDiColors.textSecondary),
+                                  const SizedBox(width: 8),
+                                  Text('Free Event',
+                                      style: TheyDiTextStyles.bodyMedium)
+                                ]),
+                                Switch(
+                                    value: _isFree,
+                                    activeThumbColor: TheyDiColors.primary,
+                                    onChanged: (v) =>
+                                        setState(() => _isFree = v)),
+                              ]),
+                          if (!_isFree) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                                controller: _priceController,
+                                style: TheyDiTextStyles.bodyMedium,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: const InputDecoration(
+                                    hintText: '299',
+                                    prefixIcon:
+                                        Icon(Icons.currency_rupee_outlined),
+                                    labelText: 'Price (â‚¹)'),
+                                validator: (v) {
+                                  if (!_isFree && (v == null || v.isEmpty)) {
+                                    return 'Enter a price';
+                                  }
+                                  return null;
+                                }),
+                          ],
+                        ]),
+                      ).animate(delay: 220.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 20),
+
+                      // â•â• Amenities â•â•
+                      const _Label('Amenities (Optional)'),
+                      const SizedBox(height: 4),
+                      Text('Let attendees know what\'s available at your event',
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: TheyDiColors.textSecondary)),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: TheyDiColors.divider)),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(spacing: 8, runSpacing: 8, children: [
+                                ..._kDefaultAmenities.map((amenity) {
+                                  final label = amenity['label'] as String;
+                                  final icon = amenity['icon'] as IconData;
+                                  final isSelected =
+                                      _selectedAmenities.contains(label);
+                                  return GestureDetector(
+                                    onTap: () => setState(() {
+                                      if (isSelected) {
+                                        _selectedAmenities.remove(label);
+                                      } else {
+                                        _selectedAmenities.add(label);
+                                      }
+                                    }),
+                                    child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? TheyDiColors.primary
+                                                    .withValues(alpha: 0.18)
+                                                : TheyDiColors.inputFill,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: isSelected
+                                                    ? TheyDiColors.primary
+                                                    : TheyDiColors.divider)),
+                                        child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(icon,
+                                                  size: 15,
+                                                  color: isSelected
+                                                      ? TheyDiColors.primary
+                                                      : TheyDiColors
+                                                          .textSecondary),
+                                              const SizedBox(width: 6),
+                                              Text(label,
+                                                  style: TheyDiTextStyles
+                                                      .caption
+                                                      .copyWith(
+                                                          color: isSelected
+                                                              ? TheyDiColors
+                                                                  .primary
+                                                              : TheyDiColors
+                                                                  .textSecondary,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w600
+                                                              : FontWeight
+                                                                  .normal))
+                                            ])),
+                                  );
+                                }),
+                                ..._customAmenities.map((label) {
+                                  final isSelected =
+                                      _selectedAmenities.contains(label);
+                                  return GestureDetector(
+                                    onTap: () => setState(() {
+                                      if (isSelected) {
+                                        _selectedAmenities.remove(label);
+                                      } else {
+                                        _selectedAmenities.add(label);
+                                      }
+                                    }),
+                                    child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? TheyDiColors.primary
+                                                    .withValues(alpha: 0.18)
+                                                : TheyDiColors.inputFill,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: isSelected
+                                                    ? TheyDiColors.primary
+                                                    : TheyDiColors.divider)),
+                                        child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                  Icons.add_circle_outline,
+                                                  size: 14,
+                                                  color: TheyDiColors.primary),
+                                              const SizedBox(width: 5),
+                                              Text(label,
+                                                  style: TheyDiTextStyles
+                                                      .caption
+                                                      .copyWith(
+                                                          color: isSelected
+                                                              ? TheyDiColors
+                                                                  .primary
+                                                              : TheyDiColors
+                                                                  .textSecondary,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w600
+                                                              : FontWeight
+                                                                  .normal)),
+                                              const SizedBox(width: 4),
+                                              GestureDetector(
+                                                  onTap: () => setState(() {
+                                                        _customAmenities
+                                                            .remove(label);
+                                                        _selectedAmenities
+                                                            .remove(label);
+                                                      }),
+                                                  child: const Icon(Icons.close,
+                                                      size: 13,
+                                                      color: TheyDiColors
+                                                          .textMuted))
+                                            ])),
+                                  );
+                                }),
+                              ]),
+                              const SizedBox(height: 14),
+                              const Divider(color: TheyDiColors.divider),
+                              const SizedBox(height: 10),
+                              Row(children: [
+                                Expanded(
+                                    child: TextFormField(
+                                        controller: _customAmenityController,
+                                        style: TheyDiTextStyles.bodySmall,
+                                        textCapitalization:
+                                            TextCapitalization.words,
+                                        decoration: InputDecoration(
+                                            hintText: 'Add custom amenity...',
+                                            hintStyle: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color:
+                                                        TheyDiColors.textMuted),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 10),
+                                            border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                borderSide: const BorderSide(
+                                                    color:
+                                                        TheyDiColors.divider)),
+                                            enabledBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                borderSide: const BorderSide(
+                                                    color: TheyDiColors.divider)),
+                                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.primary)),
+                                            filled: true,
+                                            fillColor: TheyDiColors.inputFill),
+                                        onFieldSubmitted: (_) => _addCustomAmenity())),
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                    onTap: _addCustomAmenity,
+                                    child: Container(
+                                        width: 42,
+                                        height: 42,
+                                        decoration: BoxDecoration(
+                                            gradient:
+                                                TheyDiColors.gradientPrimary,
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        child: const Icon(Icons.add,
+                                            color: Colors.white, size: 20))),
+                              ]),
+                            ]),
+                      ).animate(delay: 228.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 24),
+
+                      // â•â• Event Images â•â•
+                      const _Label('Event Images'),
+                      const SizedBox(height: 4),
+                      Text(
+                          'Add up to $_maxImages photos to showcase your event',
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: TheyDiColors.textSecondary)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: TheyDiColors.primary
+                                    .withValues(alpha: 0.2))),
+                        child: Row(children: [
+                          const Icon(Icons.lightbulb_outline,
+                              size: 14, color: TheyDiColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: Text(
+                                  'Suggestions for $_eventType: ${suggestions.join(' Â· ')}',
+                                  style: TheyDiTextStyles.caption.copyWith(
+                                      color: TheyDiColors.primary,
+                                      fontSize: 11))),
                         ]),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 110,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            if (_eventImages.length < _maxImages)
+                              GestureDetector(
+                                onTap: _isUploadingImage
+                                    ? null
+                                    : _showImageSourceSheet,
+                                child: Container(
+                                  width: 90,
+                                  height: 90,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                      color: TheyDiColors.inputFill,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                          color: TheyDiColors.primary
+                                              .withValues(alpha: 0.4),
+                                          width: 1.5)),
+                                  child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: const BoxDecoration(
+                                                gradient: TheyDiColors
+                                                    .gradientPrimary,
+                                                shape: BoxShape.circle),
+                                            child: const Icon(
+                                                Icons
+                                                    .add_photo_alternate_outlined,
+                                                color: Colors.white,
+                                                size: 18)),
+                                        const SizedBox(height: 6),
+                                        Text('Add Photo',
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: TheyDiColors.primary,
+                                                    fontSize: 10)),
+                                      ]),
+                                ),
+                              ),
+                            ..._eventImages.map((img) => Container(
+                                  width: 90,
+                                  height: 90,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  child: Stack(children: [
+                                    ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Image.memory(
+                                            Uint8List.fromList(img.bytes),
+                                            width: 90,
+                                            height: 90,
+                                            fit: BoxFit.cover)),
+                                    if (img.isUploading)
+                                      Container(
+                                          width: 90,
+                                          height: 90,
+                                          decoration: BoxDecoration(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.5),
+                                              borderRadius:
+                                                  BorderRadius.circular(14)),
+                                          child: const Center(
+                                              child: SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                          strokeWidth: 2)))),
+                                    if (!img.isUploading)
+                                      Positioned(
+                                          top: 4,
+                                          right: 4,
+                                          child: GestureDetector(
+                                              onTap: () => _removeImage(img.id),
+                                              child: Container(
+                                                  width: 22,
+                                                  height: 22,
+                                                  decoration: BoxDecoration(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                              alpha: 0.7),
+                                                      shape: BoxShape.circle),
+                                                  child: const Icon(Icons.close,
+                                                      size: 12,
+                                                      color: Colors.white)))),
+                                    if (_eventImages.first.id == img.id &&
+                                        !img.isUploading)
+                                      Positioned(
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 3),
+                                              decoration: BoxDecoration(
+                                                  color: TheyDiColors.primary
+                                                      .withValues(alpha: 0.8),
+                                                  borderRadius: const BorderRadius.vertical(
+                                                      bottom:
+                                                          Radius.circular(14))),
+                                              child: Text('Cover',
+                                                  style: TheyDiTextStyles.caption
+                                                      .copyWith(
+                                                          color: Colors.white,
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.w600),
+                                                  textAlign: TextAlign.center))),
+                                  ]),
+                                )),
+                          ],
+                        ),
+                      ),
+                      Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                              '${_eventImages.length} / $_maxImages photos',
+                              style: TheyDiTextStyles.caption.copyWith(
+                                  color: TheyDiColors.textMuted,
+                                  fontSize: 11))),
 
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 32),
 
-                  // â•â• Date & Time â•â•
-                  Row(children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const _Label('Date'), const SizedBox(height: 8), _PickerTile(icon: Icons.calendar_today_outlined, label: _selectedDate != null ? DateFormat('d MMM yyyy').format(_selectedDate!) : 'Pick date', onTap: _pickDate)])),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const _Label('Time'), const SizedBox(height: 8), _PickerTile(icon: Icons.access_time_outlined, label: _selectedTime != null ? _selectedTime!.format(context) : 'Pick time', onTap: _pickTime)])),
-                  ]).animate(delay: 160.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 16),
-
-                  // â•â• Duration â•â•
-                  const _Label('Duration (hours)'),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                    child: Row(children: [
-                      const Icon(Icons.timer_outlined, size: 18, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 10),
-                      Text('$_durationHours hr${_durationHours > 1 ? 's' : ''}', style: TheyDiTextStyles.bodyMedium),
-                      const Spacer(),
-                      GestureDetector(onTap: _durationHours > 1 ? () => setState(() => _durationHours--) : null, child: Container(width: 36, height: 36, decoration: BoxDecoration(color: _durationHours > 1 ? TheyDiColors.primary.withValues(alpha: 0.2) : TheyDiColors.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: _durationHours > 1 ? TheyDiColors.primary : TheyDiColors.divider)), child: Icon(Icons.remove, size: 18, color: _durationHours > 1 ? TheyDiColors.primary : TheyDiColors.textMuted))),
-                      const SizedBox(width: 8),
-                      GestureDetector(onTap: _durationHours < 24 ? () => setState(() => _durationHours++) : null, child: Container(width: 36, height: 36, decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10), border: Border.all(color: TheyDiColors.primary)), child: const Icon(Icons.add, size: 18, color: TheyDiColors.primary))),
+                      if (_isLoading)
+                        const Center(
+                            child: CircularProgressIndicator(
+                                color: TheyDiColors.primary))
+                      else
+                        GradientButton(
+                                label: 'Create Event ðŸš€', onPressed: _submit)
+                            .animate(delay: 250.ms)
+                            .fade(duration: 300.ms),
                     ]),
-                  ).animate(delay: 165.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 16),
-
-                  // â•â• Max Attendees â•â•
-                  const _Label('Max Attendees'),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _maxAttendeesController, style: TheyDiTextStyles.bodyMedium, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(hintText: '50', prefixIcon: Icon(Icons.group_outlined))).animate(delay: 180.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 16),
-
-                  // â•â• Gender Balance â•â•
-                  const _Label('Gender Balance (Optional)'),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    _PillButton(label: 'Open', icon: Icons.people_outline, isSelected: _genderBalance == 'Open', onTap: () => setState(() => _genderBalance = 'Open')),
-                    _PillButton(label: 'Ratio', icon: Icons.tune, isSelected: _genderBalance == 'Ratio', onTap: () => setState(() => _genderBalance = 'Ratio')),
-                    _PillButton(label: 'Female Only', icon: Icons.female, isSelected: _genderBalance == 'Female Only', onTap: () => setState(() => _genderBalance = 'Female Only')),
-                    _PillButton(label: 'Male Only', icon: Icons.male, isSelected: _genderBalance == 'Male Only', onTap: () => setState(() => _genderBalance = 'Male Only')),
-                  ]).animate(delay: 190.ms).fade(duration: 300.ms),
-
-                  if (_genderBalance == 'Ratio') ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: TheyDiColors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                      child: Column(children: [
-                        _RatioSlider(label: 'Male', value: _malePercent, color: Colors.blue, onChanged: (v) => setState(() { _malePercent = v; _updateGenderRatio(); })),
-                        const SizedBox(height: 10),
-                        _RatioSlider(label: 'Female', value: _femalePercent, color: Colors.pink, onChanged: (v) => setState(() { _femalePercent = v; _updateGenderRatio(); })),
-                        const SizedBox(height: 10),
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Other', style: TheyDiTextStyles.caption), Text('${_otherPercent.round()}%', style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.green))]),
-                        const SizedBox(height: 8),
-                        ClipRRect(borderRadius: BorderRadius.circular(6), child: Row(children: [
-                          Expanded(flex: _malePercent.round().clamp(1, 100), child: Container(height: 8, color: Colors.blue)),
-                          Expanded(flex: _femalePercent.round().clamp(1, 100), child: Container(height: 8, color: Colors.pink)),
-                          if (_otherPercent > 0) Expanded(flex: _otherPercent.round().clamp(1, 100), child: Container(height: 8, color: Colors.green)),
-                        ])),
-                      ]),
-                    ).animate(delay: 200.ms).fade(duration: 300.ms),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  // â•â• Age Group â•â•
-                  const _Label('Age Group'),
-                  const SizedBox(height: 8),
-                  _DropdownField<String>(hint: 'Select age group', value: _ageGroup, items: (_isAdultParty ? _kAdultAgeGroups : _kAgeGroups).map((a) => DropdownMenuItem(value: a, child: Text(a, style: TheyDiTextStyles.bodyMedium))).toList(), onChanged: (v) => setState(() => _ageGroup = v ?? (_isAdultParty ? 'Young Adults (18–25)' : 'All Ages')), icon: Icons.people_alt_outlined).animate(delay: 205.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 16),
-
-                  // â•â• Approval Type â•â•
-                  const _Label('Approval Type'),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(child: _PillButton(label: 'Host Approval', icon: Icons.verified_user_outlined, isSelected: _approvalType == 'Host Approval', onTap: () => setState(() => _approvalType = 'Host Approval'))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _PillButton(label: 'First Come', icon: Icons.flash_on_outlined, isSelected: _approvalType == 'First Come First Serve', onTap: () => setState(() => _approvalType = 'First Come First Serve'))),
-                  ]).animate(delay: 210.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 20),
-
-                  // â•â• Free / Paid â•â•
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: TheyDiColors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                    child: Column(children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Row(children: [const Icon(Icons.confirmation_number_outlined, size: 18, color: TheyDiColors.textSecondary), const SizedBox(width: 8), Text('Free Event', style: TheyDiTextStyles.bodyMedium)]),
-                        Switch(value: _isFree, activeThumbColor: TheyDiColors.primary, onChanged: (v) => setState(() => _isFree = v)),
-                      ]),
-                      if (!_isFree) ...[
-                        const SizedBox(height: 12),
-                        TextFormField(controller: _priceController, style: TheyDiTextStyles.bodyMedium, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '299', prefixIcon: Icon(Icons.currency_rupee_outlined), labelText: 'Price (â‚¹)'), validator: (v) { if (!_isFree && (v == null || v.isEmpty)) return 'Enter a price'; return null; }),
-                      ],
-                    ]),
-                  ).animate(delay: 220.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 20),
-
-                  // â•â• Amenities â•â•
-                  const _Label('Amenities (Optional)'),
-                  const SizedBox(height: 4),
-                  Text('Let attendees know what\'s available at your event', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary)),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: TheyDiColors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        ..._kDefaultAmenities.map((amenity) {
-                          final label = amenity['label'] as String;
-                          final icon = amenity['icon'] as IconData;
-                          final isSelected = _selectedAmenities.contains(label);
-                          return GestureDetector(
-                            onTap: () => setState(() { if (isSelected) {
-                              _selectedAmenities.remove(label);
-                            } else {
-                              _selectedAmenities.add(label);
-                            } }),
-                            child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: isSelected ? TheyDiColors.primary.withValues(alpha: 0.18) : TheyDiColors.inputFill, borderRadius: BorderRadius.circular(20), border: Border.all(color: isSelected ? TheyDiColors.primary : TheyDiColors.divider)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15, color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary), const SizedBox(width: 6), Text(label, style: TheyDiTextStyles.caption.copyWith(color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal))])),
-                          );
-                        }),
-                        ..._customAmenities.map((label) {
-                          final isSelected = _selectedAmenities.contains(label);
-                          return GestureDetector(
-                            onTap: () => setState(() { if (isSelected) {
-                              _selectedAmenities.remove(label);
-                            } else {
-                              _selectedAmenities.add(label);
-                            } }),
-                            child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: isSelected ? TheyDiColors.primary.withValues(alpha: 0.18) : TheyDiColors.inputFill, borderRadius: BorderRadius.circular(20), border: Border.all(color: isSelected ? TheyDiColors.primary : TheyDiColors.divider)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.add_circle_outline, size: 14, color: TheyDiColors.primary), const SizedBox(width: 5), Text(label, style: TheyDiTextStyles.caption.copyWith(color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)), const SizedBox(width: 4), GestureDetector(onTap: () => setState(() { _customAmenities.remove(label); _selectedAmenities.remove(label); }), child: const Icon(Icons.close, size: 13, color: TheyDiColors.textMuted))])),
-                          );
-                        }),
-                      ]),
-                      const SizedBox(height: 14),
-                      const Divider(color: TheyDiColors.divider),
-                      const SizedBox(height: 10),
-                      Row(children: [
-                        Expanded(child: TextFormField(controller: _customAmenityController, style: TheyDiTextStyles.bodySmall, textCapitalization: TextCapitalization.words, decoration: InputDecoration(hintText: 'Add custom amenity...', hintStyle: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.divider)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.divider)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.primary)), filled: true, fillColor: TheyDiColors.inputFill), onFieldSubmitted: (_) => _addCustomAmenity())),
-                        const SizedBox(width: 10),
-                        GestureDetector(onTap: _addCustomAmenity, child: Container(width: 42, height: 42, decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add, color: Colors.white, size: 20))),
-                      ]),
-                    ]),
-                  ).animate(delay: 228.ms).fade(duration: 300.ms),
-
-                  const SizedBox(height: 24),
-
-                  // â•â• Event Images â•â•
-                  const _Label('Event Images'),
-                  const SizedBox(height: 4),
-                  Text('Add up to $_maxImages photos to showcase your event', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.2))),
-                    child: Row(children: [
-                      const Icon(Icons.lightbulb_outline, size: 14, color: TheyDiColors.primary),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('Suggestions for $_eventType: ${suggestions.join(' Â· ')}', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontSize: 11))),
-                    ]),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 110,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        if (_eventImages.length < _maxImages)
-                          GestureDetector(
-                            onTap: _isUploadingImage ? null : _showImageSourceSheet,
-                            child: Container(
-                              width: 90, height: 90,
-                              margin: const EdgeInsets.only(right: 10),
-                              decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.4), width: 1.5)),
-                              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Container(width: 32, height: 32, decoration: const BoxDecoration(gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle), child: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white, size: 18)),
-                                const SizedBox(height: 6),
-                                Text('Add Photo', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontSize: 10)),
-                              ]),
-                            ),
-                          ),
-                        ..._eventImages.map((img) => Container(
-                          width: 90, height: 90,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
-                          child: Stack(children: [
-                            ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.memory(Uint8List.fromList(img.bytes), width: 90, height: 90, fit: BoxFit.cover)),
-                            if (img.isUploading)
-                              Container(width: 90, height: 90, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(14)), child: const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))),
-                            if (!img.isUploading)
-                              Positioned(top: 4, right: 4, child: GestureDetector(onTap: () => _removeImage(img.id), child: Container(width: 22, height: 22, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), shape: BoxShape.circle), child: const Icon(Icons.close, size: 12, color: Colors.white)))),
-                            if (_eventImages.first.id == img.id && !img.isUploading)
-                              Positioned(bottom: 0, left: 0, right: 0, child: Container(padding: const EdgeInsets.symmetric(vertical: 3), decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.8), borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14))), child: Text('Cover', style: TheyDiTextStyles.caption.copyWith(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600), textAlign: TextAlign.center))),
-                          ]),
-                        )),
-                      ],
-                    ),
-                  ),
-                  Align(alignment: Alignment.centerRight, child: Text('${_eventImages.length} / $_maxImages photos', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted, fontSize: 11))),
-
-                  const SizedBox(height: 32),
-
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator(color: TheyDiColors.primary))
-                  else
-                    GradientButton(label: 'Create Event ðŸš€', onPressed: _submit).animate(delay: 250.ms).fade(duration: 300.ms),
-                ]),
               ),
             )),
           ]),
@@ -991,7 +1872,8 @@ class _MapButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 32, height: 32,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(8),
@@ -1009,7 +1891,11 @@ class _UploadedImage {
   final List<int> bytes;
   final String? url;
   final bool isUploading;
-  const _UploadedImage({required this.id, required this.bytes, required this.url, required this.isUploading});
+  const _UploadedImage(
+      {required this.id,
+      required this.bytes,
+      required this.url,
+      required this.isUploading});
 }
 
 // â”€â”€ Helper widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1018,7 +1904,9 @@ class _Label extends StatelessWidget {
   final String text;
   const _Label(this.text);
   @override
-  Widget build(BuildContext context) => Text(text, style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.textSecondary));
+  Widget build(BuildContext context) => Text(text,
+      style: TheyDiTextStyles.labelMedium
+          .copyWith(color: TheyDiColors.textSecondary));
 }
 
 class _DropdownField<T> extends StatelessWidget {
@@ -1027,14 +1915,37 @@ class _DropdownField<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?> onChanged;
   final IconData icon;
-  const _DropdownField({required this.hint, required this.value, required this.items, required this.onChanged, required this.icon});
+  const _DropdownField(
+      {required this.hint,
+      required this.value,
+      required this.items,
+      required this.onChanged,
+      required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-      child: DropdownButtonHideUnderline(child: DropdownButton<T>(value: value, hint: Row(children: [Icon(icon, size: 18, color: TheyDiColors.textMuted), const SizedBox(width: 10), Text(hint, style: TheyDiTextStyles.bodyMedium.copyWith(color: TheyDiColors.textMuted))]), dropdownColor: TheyDiColors.card, isExpanded: true, icon: const Icon(Icons.keyboard_arrow_down, color: TheyDiColors.textMuted), items: items, onChanged: onChanged)),
+      decoration: BoxDecoration(
+          color: TheyDiColors.inputFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: TheyDiColors.divider)),
+      child: DropdownButtonHideUnderline(
+          child: DropdownButton<T>(
+              value: value,
+              hint: Row(children: [
+                Icon(icon, size: 18, color: TheyDiColors.textMuted),
+                const SizedBox(width: 10),
+                Text(hint,
+                    style: TheyDiTextStyles.bodyMedium
+                        .copyWith(color: TheyDiColors.textMuted))
+              ]),
+              dropdownColor: TheyDiColors.card,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down,
+                  color: TheyDiColors.textMuted),
+              items: items,
+              onChanged: onChanged)),
     );
   }
 }
@@ -1043,13 +1954,28 @@ class _PickerTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _PickerTile({required this.icon, required this.label, required this.onTap});
+  const _PickerTile(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14), decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)), child: Row(children: [Icon(icon, size: 16, color: TheyDiColors.textMuted), const SizedBox(width: 8), Expanded(child: Text(label, style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textPrimary), overflow: TextOverflow.ellipsis))])),
+      child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+              color: TheyDiColors.inputFill,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: TheyDiColors.divider)),
+          child: Row(children: [
+            Icon(icon, size: 16, color: TheyDiColors.textMuted),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(label,
+                    style: TheyDiTextStyles.bodySmall
+                        .copyWith(color: TheyDiColors.textPrimary),
+                    overflow: TextOverflow.ellipsis))
+          ])),
     );
   }
 }
@@ -1060,24 +1986,58 @@ class _PillButton extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
   final bool disabled;
-  const _PillButton({required this.label, required this.icon, required this.isSelected, required this.onTap, this.disabled = false});
+  const _PillButton(
+      {required this.label,
+      required this.icon,
+      required this.isSelected,
+      required this.onTap,
+      this.disabled = false});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: disabled ? TheyDiColors.card.withValues(alpha: 0.5) : isSelected ? TheyDiColors.primary.withValues(alpha: 0.2) : TheyDiColors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: disabled ? TheyDiColors.divider.withValues(alpha: 0.4) : isSelected ? TheyDiColors.primary : TheyDiColors.divider),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 16, color: disabled ? TheyDiColors.textMuted : isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary),
-          const SizedBox(width: 6),
-          Text(label, style: TheyDiTextStyles.caption.copyWith(color: disabled ? TheyDiColors.textMuted : isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
-          if (disabled) ...[const SizedBox(width: 4), const Icon(Icons.lock_outline, size: 11, color: TheyDiColors.textMuted)],
-        ])),
+      child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: disabled
+                ? TheyDiColors.card.withValues(alpha: 0.5)
+                : isSelected
+                    ? TheyDiColors.primary.withValues(alpha: 0.2)
+                    : TheyDiColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: disabled
+                    ? TheyDiColors.divider.withValues(alpha: 0.4)
+                    : isSelected
+                        ? TheyDiColors.primary
+                        : TheyDiColors.divider),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon,
+                size: 16,
+                color: disabled
+                    ? TheyDiColors.textMuted
+                    : isSelected
+                        ? TheyDiColors.primary
+                        : TheyDiColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TheyDiTextStyles.caption.copyWith(
+                    color: disabled
+                        ? TheyDiColors.textMuted
+                        : isSelected
+                            ? TheyDiColors.primary
+                            : TheyDiColors.textSecondary,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal)),
+            if (disabled) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.lock_outline,
+                  size: 11, color: TheyDiColors.textMuted)
+            ],
+          ])),
     );
   }
 }
@@ -1087,14 +2047,36 @@ class _RatioSlider extends StatelessWidget {
   final double value;
   final Color color;
   final ValueChanged<double> onChanged;
-  const _RatioSlider({required this.label, required this.value, required this.color, required this.onChanged});
+  const _RatioSlider(
+      {required this.label,
+      required this.value,
+      required this.color,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     return Row(children: [
       SizedBox(width: 55, child: Text(label, style: TheyDiTextStyles.caption)),
-      Expanded(child: SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: color, inactiveTrackColor: color.withValues(alpha: 0.2), thumbColor: color, trackHeight: 4, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7)), child: Slider(value: value, min: 0, max: 100, divisions: 20, onChanged: onChanged))),
-      SizedBox(width: 40, child: Text('${value.round()}%', style: TheyDiTextStyles.labelMedium.copyWith(color: color), textAlign: TextAlign.right)),
+      Expanded(
+          child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: color,
+                  inactiveTrackColor: color.withValues(alpha: 0.2),
+                  thumbColor: color,
+                  trackHeight: 4,
+                  thumbShape:
+                      const RoundSliderThumbShape(enabledThumbRadius: 7)),
+              child: Slider(
+                  value: value,
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  onChanged: onChanged))),
+      SizedBox(
+          width: 40,
+          child: Text('${value.round()}%',
+              style: TheyDiTextStyles.labelMedium.copyWith(color: color),
+              textAlign: TextAlign.right)),
     ]);
   }
 }

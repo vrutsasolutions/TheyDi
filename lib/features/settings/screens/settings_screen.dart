@@ -240,7 +240,7 @@ class _ToggleTile extends StatelessWidget {
         trailing: Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: TheyDiColors.primary,
+          activeThumbColor: TheyDiColors.primary,
           activeTrackColor: TheyDiColors.primary.withValues(alpha: 0.3),
           inactiveThumbColor: TheyDiColors.textMuted,
           inactiveTrackColor: TheyDiColors.divider,

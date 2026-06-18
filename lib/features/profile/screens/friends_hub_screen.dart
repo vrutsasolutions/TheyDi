@@ -92,7 +92,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   @override
   Widget build(BuildContext context) {
     final pendingAsync = ref.watch(_pendingRequestsProvider);
-    final pendingCount = pendingAsync.asData?.value?.length ?? 0;
+    final pendingCount = pendingAsync.asData?.value.length ?? 0;
 
     return Scaffold(
       body: Container(
@@ -112,7 +112,8 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
                     const SizedBox(width: 4),
@@ -187,8 +188,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                               width: 18,
                               height: 18,
                               decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle),
+                                  color: Colors.red, shape: BoxShape.circle),
                               child: Center(
                                 child: Text('$pendingCount',
                                     style: const TextStyle(
@@ -236,10 +236,10 @@ class _ConnectedTab extends ConsumerWidget {
     final friendsAsync = ref.watch(_connectedFriendsProvider);
 
     return friendsAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
-      error: (e, _) => Center(
-          child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      error: (e, _) =>
+          Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
       data: (friends) {
         if (friends.isEmpty) {
           return _EmptyState(
@@ -278,10 +278,10 @@ class _PendingTab extends ConsumerWidget {
     final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return requestsAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
-      error: (e, _) => Center(
-          child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      error: (e, _) =>
+          Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
       data: (requests) {
         if (requests.isEmpty) {
           return _EmptyState(
@@ -321,16 +321,17 @@ class _SuggestedFriendsTab extends ConsumerWidget {
     final suggestedAsync = ref.watch(_suggestedFriendsProvider);
 
     return suggestedAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
-      error: (e, _) => Center(
-          child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      error: (e, _) =>
+          Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
       data: (suggestions) {
         if (suggestions.isEmpty) {
           return _EmptyState(
             icon: Icons.person_search_outlined,
             title: 'No suggestions yet',
-            subtitle: 'Attend more events to discover people with similar interests',
+            subtitle:
+                'Attend more events to discover people with similar interests',
           );
         }
         return ListView.builder(
@@ -374,7 +375,7 @@ class _ConnectedFriendCard extends StatelessWidget {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
         final isOnline = data['isOnline'] == true;
 
         return GestureDetector(
@@ -459,8 +460,8 @@ class _ConnectedFriendCard extends StatelessWidget {
                   onTap: () => context.push(AppRoutes.dmChat,
                       extra: {'otherUid': uid, 'otherName': displayName}),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
                       gradient: TheyDiColors.gradientPrimary,
                       borderRadius: BorderRadius.circular(10),
@@ -556,7 +557,7 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
 
         return Container(
@@ -565,18 +566,17 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
           decoration: BoxDecoration(
             color: TheyDiColors.card,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: TheyDiColors.primary.withValues(alpha: 0.3)),
+            border:
+                Border.all(color: TheyDiColors.primary.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
-                onTap: () => context.push(AppRoutes.userProfile,
-                    extra: {
-                      'uid': widget.fromUid,
-                      'requestId': widget.requestId
-                    }),
+                onTap: () => context.push(AppRoutes.userProfile, extra: {
+                  'uid': widget.fromUid,
+                  'requestId': widget.requestId
+                }),
                 child: Row(
                   children: [
                     Container(
@@ -634,7 +634,8 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: TheyDiColors.primary.withValues(alpha: 0.12),
+                              color:
+                                  TheyDiColors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(i,
@@ -682,8 +683,8 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         child: Text('Decline',
-                            style: TheyDiTextStyles.labelMedium.copyWith(
-                                color: TheyDiColors.textSecondary)),
+                            style: TheyDiTextStyles.labelMedium
+                                .copyWith(color: TheyDiColors.textSecondary)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -753,14 +754,20 @@ class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
 
   Future<void> _sendRequest() async {
     setState(() => _loading = true);
-    await FriendsService.sendFriendRequest(toUid: widget.uid, toName: widget.displayName);
-    if (mounted) setState(() {_loading = false; _sent = true;});
+    await FriendsService.sendFriendRequest(
+        toUid: widget.uid, toName: widget.displayName);
+    if (mounted)
+      setState(() {
+        _loading = false;
+        _sent = true;
+      });
   }
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        widget.displayName.isNotEmpty ? widget.displayName[0].toUpperCase() : '?';
+    final initial = widget.displayName.isNotEmpty
+        ? widget.displayName[0].toUpperCase()
+        : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -818,8 +825,8 @@ class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
                         ]),
                       if (widget.bio.isNotEmpty)
                         Text(widget.bio,
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: TheyDiColors.textSecondary),
+                            style: TheyDiTextStyles.caption
+                                .copyWith(color: TheyDiColors.textSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                     ],

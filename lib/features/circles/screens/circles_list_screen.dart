@@ -12,8 +12,7 @@ import '../models/circle_model.dart';
 
 // ── Providers ──
 
-final _myCirclesProvider =
-    StreamProvider.autoDispose<List<CircleModel>>((ref) {
+final _myCirclesProvider = StreamProvider.autoDispose<List<CircleModel>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value([]);
   return FirebaseFirestore.instance
@@ -63,8 +62,7 @@ class CirclesListScreen extends ConsumerStatefulWidget {
   const CirclesListScreen({super.key});
 
   @override
-  ConsumerState<CirclesListScreen> createState() =>
-      _CirclesListScreenState();
+  ConsumerState<CirclesListScreen> createState() => _CirclesListScreenState();
 }
 
 class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
@@ -86,7 +84,7 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
   @override
   Widget build(BuildContext context) {
     final requestsAsync = ref.watch(_requestsProvider);
-    final pendingCount = requestsAsync.asData?.value?.length ?? 0;
+    final pendingCount = requestsAsync.asData?.value.length ?? 0;
 
     return Scaffold(
       body: Container(
@@ -107,7 +105,8 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
                     const SizedBox(width: 4),
@@ -126,7 +125,8 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.add, color: Colors.white, size: 16),
+                            const Icon(Icons.add,
+                                color: Colors.white, size: 16),
                             const SizedBox(width: 4),
                             Text('New',
                                 style: TheyDiTextStyles.labelMedium
@@ -163,7 +163,8 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                           if (pendingCount > 0) ...[
                             const SizedBox(width: 6),
                             Container(
-                              width: 18, height: 18,
+                              width: 18,
+                              height: 18,
                               decoration: const BoxDecoration(
                                 color: Colors.red,
                                 shape: BoxShape.circle,
@@ -435,17 +436,15 @@ class _FriendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
 
     return FutureBuilder<DocumentSnapshot>(
-      future:
-          FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
       builder: (context, snapshot) {
-        final data =
-            snapshot.data?.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['photoUrl'] ?? '';
+
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
 
         return GestureDetector(
           onTap: () => context.push(
@@ -453,94 +452,96 @@ class _FriendCard extends StatelessWidget {
             extra: {'uid': uid, 'requestId': null},
           ),
           child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: TheyDiColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: TheyDiColors.divider),
-          ),
-          child: Row(
-            children: [
-              // Avatar
-              Container(
-                width: 48, height: 48,
-                decoration: BoxDecoration(
-                  gradient: TheyDiColors.gradientPrimary,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(13),
-                  child: photoUrl.isNotEmpty
-                      ? Image.network(photoUrl, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: TheyDiColors.divider),
+            ),
+            child: Row(
+              children: [
+                // Avatar
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: TheyDiColors.gradientPrimary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: photoUrl.isNotEmpty
+                        ? Image.network(photoUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                                  child: Text(initial,
+                                      style: TheyDiTextStyles.labelLarge
+                                          .copyWith(color: Colors.white)),
+                                ))
+                        : Center(
                             child: Text(initial,
                                 style: TheyDiTextStyles.labelLarge
                                     .copyWith(color: Colors.white)),
-                          ))
-                      : Center(
-                          child: Text(initial,
-                              style: TheyDiTextStyles.labelLarge
-                                  .copyWith(color: Colors.white)),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(displayName, style: TheyDiTextStyles.labelMedium),
-                    if (city.isNotEmpty)
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_outlined,
-                              size: 11, color: TheyDiColors.textMuted),
-                          const SizedBox(width: 3),
-                          Text(city, style: TheyDiTextStyles.caption),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // ── Message Button ──
-              GestureDetector(
-                onTap: () => context.push(
-                  AppRoutes.dmChat,
-                  extra: {
-                    'otherUid': uid,
-                    'otherName': displayName,
-                  },
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    gradient: TheyDiColors.gradientPrimary,
-                    borderRadius: BorderRadius.circular(10),
+                          ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                ),
+                const SizedBox(width: 12),
+
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.chat_bubble_outline,
-                          size: 14, color: Colors.white),
-                      const SizedBox(width: 5),
-                      Text('Message',
-                          style: TheyDiTextStyles.caption.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600)),
+                      Text(displayName, style: TheyDiTextStyles.labelMedium),
+                      if (city.isNotEmpty)
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 11, color: TheyDiColors.textMuted),
+                            const SizedBox(width: 3),
+                            Text(city, style: TheyDiTextStyles.caption),
+                          ],
+                        ),
                     ],
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(width: 8),
+
+                // ── Message Button ──
+                GestureDetector(
+                  onTap: () => context.push(
+                    AppRoutes.dmChat,
+                    extra: {
+                      'otherUid': uid,
+                      'otherName': displayName,
+                    },
+                  ),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      gradient: TheyDiColors.gradientPrimary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.chat_bubble_outline,
+                            size: 14, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text('Message',
+                            style: TheyDiTextStyles.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         );
       },
     );
@@ -569,7 +570,8 @@ class _CircleCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 52, height: 52,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 gradient: TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(14),
@@ -668,7 +670,11 @@ class _RequestCardState extends State<_RequestCard> {
       fromName: widget.fromName,
     );
     if (mounted) {
-      setState(() { _processing = false; _responded = true; _responseLabel = 'Accepted'; });
+      setState(() {
+        _processing = false;
+        _responded = true;
+        _responseLabel = 'Accepted';
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('You and ${widget.fromName} are now friends! 🎉'),
@@ -685,10 +691,14 @@ class _RequestCardState extends State<_RequestCard> {
       myUid: widget.myUid,
     );
     if (mounted) {
-      setState(() { _processing = false; _responded = true; _responseLabel = 'Declined'; });
+      setState(() {
+        _processing = false;
+        _responded = true;
+        _responseLabel = 'Declined';
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request declined'),
-            backgroundColor: Colors.grey),
+        const SnackBar(
+            content: Text('Request declined'), backgroundColor: Colors.grey),
       );
     }
   }
@@ -697,14 +707,16 @@ class _RequestCardState extends State<_RequestCard> {
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
-          .collection('users').doc(widget.fromUid).get(),
+          .collection('users')
+          .doc(widget.fromUid)
+          .get(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
-        final initial = widget.fromName.isNotEmpty
-            ? widget.fromName[0].toUpperCase() : '?';
+        final initial =
+            widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -712,8 +724,8 @@ class _RequestCardState extends State<_RequestCard> {
           decoration: BoxDecoration(
             color: TheyDiColors.card,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: TheyDiColors.primary.withValues(alpha: 0.3)),
+            border:
+                Border.all(color: TheyDiColors.primary.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -729,7 +741,8 @@ class _RequestCardState extends State<_RequestCard> {
                 child: Row(
                   children: [
                     Container(
-                      width: 52, height: 52,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         gradient: TheyDiColors.gradientPrimary,
                         borderRadius: BorderRadius.circular(14),
@@ -737,12 +750,13 @@ class _RequestCardState extends State<_RequestCard> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(13),
                         child: photoUrl.isNotEmpty
-                            ? Image.network(photoUrl, fit: BoxFit.cover,
+                            ? Image.network(photoUrl,
+                                fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Center(
-                                  child: Text(initial,
-                                      style: TheyDiTextStyles.labelLarge
-                                          .copyWith(color: Colors.white)),
-                                ))
+                                      child: Text(initial,
+                                          style: TheyDiTextStyles.labelLarge
+                                              .copyWith(color: Colors.white)),
+                                    ))
                             : Center(
                                 child: Text(initial,
                                     style: TheyDiTextStyles.labelLarge
@@ -755,7 +769,8 @@ class _RequestCardState extends State<_RequestCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(widget.fromName, style: TheyDiTextStyles.labelLarge),
+                          Text(widget.fromName,
+                              style: TheyDiTextStyles.labelLarge),
                           if (city.isNotEmpty)
                             Row(children: [
                               Icon(Icons.location_on_outlined,
@@ -772,18 +787,23 @@ class _RequestCardState extends State<_RequestCard> {
               if (interests.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Wrap(
-                  spacing: 6, runSpacing: 6,
-                  children: interests.take(4).map((i) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: TheyDiColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(i,
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: TheyDiColors.primary, fontSize: 10)),
-                      )).toList(),
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: interests
+                      .take(4)
+                      .map((i) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color:
+                                  TheyDiColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(i,
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: TheyDiColors.primary, fontSize: 10)),
+                          ))
+                      .toList(),
                 ),
               ],
               const SizedBox(height: 14),
@@ -846,7 +866,8 @@ class _RequestCardState extends State<_RequestCard> {
                           ),
                           child: _processing
                               ? const SizedBox(
-                                  width: 16, height: 16,
+                                  width: 16,
+                                  height: 16,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
                               : Text('Accept',
@@ -902,8 +923,8 @@ class _EmptyState extends StatelessWidget {
               GestureDetector(
                 onTap: () => onAction!(context),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: TheyDiColors.gradientPrimary,
                     borderRadius: BorderRadius.circular(24),
