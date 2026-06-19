@@ -38,20 +38,43 @@ class EventCardCompact extends StatelessWidget {
         child: Row(
           children: [
             // Category icon
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: TheyDiColors.gradientPrimary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  event.category.isNotEmpty ? event.category[0] : 'E',
-                  style: TheyDiTextStyles.displayMedium
-                      .copyWith(color: Colors.white, fontSize: 20),
-                ),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: event.allImages.isNotEmpty
+                  ? Image.network(
+                      event.allImages.first,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 56,
+                        height: 56,
+                        decoration: const BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                        ),
+                        child: Center(
+                          child: Text(
+                            event.category.isNotEmpty ? event.category[0] : 'E',
+                            style: TheyDiTextStyles.displayMedium
+                                .copyWith(color: Colors.white, fontSize: 20),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      width: 56,
+                      height: 56,
+                      decoration: const BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                      ),
+                      child: Center(
+                        child: Text(
+                          event.category.isNotEmpty ? event.category[0] : 'E',
+                          style: TheyDiTextStyles.displayMedium
+                              .copyWith(color: Colors.white, fontSize: 20),
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
 
@@ -168,12 +191,27 @@ class EventCardLarge extends StatelessWidget {
             // Image area with badges
             Stack(
               children: [
-                Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    gradient: TheyDiColors.gradientPrimary,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: event.allImages.isNotEmpty
+                      ? Image.network(
+                          event.allImages.first,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 120,
+                            decoration: const BoxDecoration(
+                              gradient: TheyDiColors.gradientPrimary,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          height: 120,
+                          decoration: const BoxDecoration(
+                            gradient: TheyDiColors.gradientPrimary,
+                          ),
+                        ),
                 ),
 
                 // Price badge — top-right

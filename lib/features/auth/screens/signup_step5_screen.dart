@@ -152,16 +152,17 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
     final sd = widget.signupData;
     final displayName = sd.displayName.isNotEmpty ? sd.displayName : sd.name;
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        child: SafeArea(
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
           child: Column(
             children: [
               // Top bar

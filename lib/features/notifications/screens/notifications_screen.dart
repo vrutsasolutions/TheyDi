@@ -466,6 +466,47 @@ class _NotificationCardState extends State<_NotificationCard> {
   bool _responded = false;
   bool _processing = false;
   bool _pressed = false;
+  bool _loadingStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRequestStatus();
+  }
+
+  @override
+  void didUpdateWidget(_NotificationCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.notification.id != widget.notification.id ||
+        oldWidget.notification.fromUid != widget.notification.fromUid) {
+      _checkRequestStatus();
+    }
+  }
+
+  Future<void> _checkRequestStatus() async {
+    final notif = widget.notification;
+    final isFriendRequest = notif.type == 'social' &&
+        notif.title.toLowerCase().contains('friend request') &&
+        !notif.title.toLowerCase().contains('accepted');
+
+    if (isFriendRequest && notif.fromUid != null) {
+      setState(() => _loadingStatus = true);
+      final requestId = await _findRequestId(notif.fromUid!);
+      if (mounted) {
+        setState(() {
+          _responded = (requestId == null);
+          _loadingStatus = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _loadingStatus = false;
+        });
+      }
+    }
+  }
+
 
   String _timeAgo(DateTime dateTime) {
     final diff = DateTime.now().difference(dateTime);
@@ -619,7 +660,7 @@ class _NotificationCardState extends State<_NotificationCard> {
               ),
 
               // ── Friend request inline action buttons ──
-              if (isFriendRequest && notif.fromUid != null && !_responded) ...[
+              if (isFriendRequest && notif.fromUid != null && !_loadingStatus && !_responded) ...[
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(
@@ -659,7 +700,7 @@ class _NotificationCardState extends State<_NotificationCard> {
                 ]),
               ],
 
-              if (isFriendRequest && _responded)
+              if (isFriendRequest && !_loadingStatus && _responded)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text('Responded',

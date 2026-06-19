@@ -299,13 +299,13 @@ class _EventPreviewCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D0D14).withValues(alpha: 0.95),
+          color: TheyDiColors.cardLight,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: TheyDiColors.primary.withValues(alpha: 0.3), width: 1.5),
+              color: TheyDiColors.divider, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),

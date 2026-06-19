@@ -739,6 +739,60 @@ class _ImageCarousel extends StatelessWidget {
             style: TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
       )),
       if (images.length > 1) ...[
+        // Left arrow button
+        if (currentIndex > 0)
+          Positioned(
+            left: 12,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  pageController.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new,
+                      color: Colors.white, size: 16),
+                ),
+              ),
+            ),
+          ),
+
+        // Right arrow button
+        if (currentIndex < images.length - 1)
+          Positioned(
+            right: 12,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_forward_ios,
+                      color: Colors.white, size: 16),
+                ),
+              ),
+            ),
+          ),
+
         Positioned(bottom: 16, left: 0, right: 0, child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(images.length, (i) => AnimatedContainer(

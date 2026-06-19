@@ -21,6 +21,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _keepMeSignedIn = true;
 
   @override
   void dispose() {
@@ -59,6 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authNotifierProvider.notifier).signInWithEmail(
             email: _emailController.text.trim(),
             password: _passwordController.text,
+            keepMeSignedIn: _keepMeSignedIn,
           );
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
@@ -73,16 +75,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        child: SafeArea(
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: Form(
@@ -166,21 +169,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                   ).animate(delay: 200.ms).fade(duration: 400.ms),
 
-                  // ── Forgot password link ── (WIRED)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () =>
-                          context.push(AppRoutes.forgotPassword), // ← WIRED
-                      child: Text(
-                        'Forgot password?',
-                        style: TheyDiTextStyles.labelMedium
-                            .copyWith(color: TheyDiColors.primary),
+                  const SizedBox(height: 12),
+
+                  // ── Keep me signed in ──
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24, 
+                        child: Checkbox(
+                          value: _keepMeSignedIn,
+                          activeColor: TheyDiColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          onChanged: (v) =>
+                              setState(() => _keepMeSignedIn = v ?? true),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _keepMeSignedIn = !_keepMeSignedIn),
+                        child: Text(
+                          'Keep me signed in',
+                          style: TheyDiTextStyles.bodySmall.copyWith(
+                            color: TheyDiColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // ── Forgot password link ── (WIRED)
+                      TextButton(
+                        onPressed: () =>
+                            context.push(AppRoutes.forgotPassword), // ← WIRED
+                        child: Text(
+                          'Forgot password?',
+                          style: TheyDiTextStyles.labelMedium
+                              .copyWith(color: TheyDiColors.primary),
+                        ),
+                      ),
+                    ],
                   ).animate(delay: 250.ms).fade(duration: 300.ms),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
 
                   GradientButton(
                     label: _isLoading ? 'Signing in...' : 'Sign In',
