@@ -49,6 +49,17 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     // Auto-focus first box
     WidgetsBinding.instance.addPostFrameCallback(
         (_) => _focusNodes[0].requestFocus());
+
+    // Listen to focus changes
+    for (final f in _focusNodes) {
+      f.addListener(_onFocusChange);
+    }
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -169,16 +180,17 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        child: SafeArea(
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
           child: Column(
             children: [
               // Top bar
@@ -260,10 +272,12 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                               color: TheyDiColors.inputFill,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _controllers[i].text.isNotEmpty
+                                color: _focusNodes[i].hasFocus ||
+                                        _controllers[i].text.isNotEmpty
                                     ? TheyDiColors.primary
                                     : TheyDiColors.divider,
-                                width: _controllers[i].text.isNotEmpty
+                                width: _focusNodes[i].hasFocus ||
+                                        _controllers[i].text.isNotEmpty
                                     ? 2
                                     : 1,
                               ),
@@ -282,6 +296,10 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                               decoration: const InputDecoration(
                                 counterText: '',
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                fillColor: Colors.transparent,
+                                filled: false,
                                 contentPadding: EdgeInsets.zero,
                               ),
                               onChanged: (v) => _onDigitChanged(v, i),

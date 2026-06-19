@@ -163,10 +163,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
             data: (allEvents) {
               final filtered = _applyQuickFilter(allEvents);
-              final trending = _getTrending(allEvents);
-              final popular = _getMostPopular(allEvents);
-              final parties = _getHouseParties(allEvents);
-              final newEvents = _getNewlyAdded(allEvents);
+              final trending = _getTrending(filtered);
+              final popular = _getMostPopular(filtered);
+              final parties = _getHouseParties(filtered);
+              final newEvents = _getNewlyAdded(filtered);
 
               return CustomScrollView(
                 slivers: [
@@ -688,13 +688,28 @@ class _HorizontalEventCard extends StatelessWidget {
             // Banner
             Stack(
               children: [
-                Container(
-                  height: 90,
-                  decoration: BoxDecoration(
-                    gradient: TheyDiColors.gradientPrimary,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16)),
-                  ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16)),
+                  child: event.allImages.isNotEmpty
+                      ? Image.network(
+                          event.allImages.first,
+                          height: 90,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 90,
+                            decoration: const BoxDecoration(
+                              gradient: TheyDiColors.gradientPrimary,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          height: 90,
+                          decoration: const BoxDecoration(
+                            gradient: TheyDiColors.gradientPrimary,
+                          ),
+                        ),
                 ),
                 Positioned(
                   top: 8,
@@ -874,22 +889,47 @@ class _ExploreEventCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Left color block
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: TheyDiColors.gradientPrimary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  event.category.isNotEmpty ? event.category[0] : 'E',
-                  style: TheyDiTextStyles.displayMedium.copyWith(
-                    color: Colors.white,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: event.allImages.isNotEmpty
+                  ? Image.network(
+                      event.allImages.first,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 56,
+                        height: 56,
+                        decoration: const BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                        ),
+                        child: Center(
+                          child: Text(
+                            event.category.isNotEmpty ? event.category[0] : 'E',
+                            style: TheyDiTextStyles.displayMedium.copyWith(
+                              color: Colors.white,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      width: 56,
+                      height: 56,
+                      decoration: const BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                      ),
+                      child: Center(
+                        child: Text(
+                          event.category.isNotEmpty ? event.category[0] : 'E',
+                          style: TheyDiTextStyles.displayMedium.copyWith(
+                            color: Colors.white,
+                            fontSize: 20,
+                          ),
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
 

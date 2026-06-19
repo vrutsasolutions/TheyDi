@@ -1,12 +1,12 @@
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // CHANGES vs original home_screen.dart
 //
 //  1. Added imports for ReviewTriggerService and ReviewPopup
 //  2. initState: added _checkPendingReview() call after _loadUserLocation
-//  3. Added _checkPendingReview() method â€” fetches pending event, shows popup
+//  3. Added _checkPendingReview() method — fetches pending event, shows popup
 //     after a 1.5s delay (gives screen time to settle)
 //  4. Everything else 100% unchanged
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,7 +24,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../events/models/event_model.dart';
 import '../../map/events_map_screen.dart';
 
-// â”€â”€ NEW imports â”€â”€
+// ── NEW imports ──
 import '../../reviews/services/review_trigger_service.dart';
 import '../../reviews/widgets/review_popup.dart';
 
@@ -86,11 +86,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserLocation();
-    // â”€â”€ NEW: check for post-event review popup â”€â”€
+    // ── NEW: check for post-event review popup ──
     _checkPendingReview();
   }
 
-  // â”€â”€ NEW: shows review popup if user has a completed unreviewed event â”€â”€
+  // ── NEW: shows review popup if user has a completed unreviewed event ──
   Future<void> _checkPendingReview() async {
     // Wait for screen to settle before showing popup
     await Future.delayed(const Duration(milliseconds: 1500));
@@ -341,7 +341,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // â”€â”€ TOP BAR â”€â”€
+                      // ── TOP BAR ──
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -440,7 +440,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Search bar â€” no tune icon inside
+                      // Search bar — no tune icon inside
                       Row(children: [
                         Expanded(
                           child: GestureDetector(
@@ -470,8 +470,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const SizedBox(width: 8),
                         eventsAsync.maybeWhen(
                           data: (events) => GestureDetector(
-                            onTap: () => _openMapView(
-                                _filterAndSortEvents(events, userCity)),
+                            onTap: () => _openMapView(events),
                             child: Container(
                               width: 48,
                               height: 48,
@@ -926,11 +925,28 @@ class _EventCard extends StatelessWidget {
         Stack(children: [
           GestureDetector(
             onTap: () => context.push('/event/${event.id}', extra: event),
-            child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                    gradient: TheyDiColors.gradientPrimary,
-                    borderRadius: BorderRadius.circular(16))),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: event.allImages.isNotEmpty
+                  ? Image.network(
+                      event.allImages.first,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 120,
+                        decoration: const BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      height: 120,
+                      decoration: const BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                      ),
+                    ),
+            ),
           ),
           if (event.isOngoing)
             Positioned(

@@ -180,6 +180,19 @@ class FriendsService {
     await batch.commit();
   }
 
+  /// Unblock a user — removes them from the blocked list
+  static Future<void> unblockUser({required String otherUid}) async {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
+
+    await _db
+        .collection('users')
+        .doc(myUid)
+        .collection('blocked')
+        .doc(otherUid)
+        .delete();
+  }
+
   /// Check if a user is blocked by current user
   static Future<bool> isBlocked(String otherUid) async {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
