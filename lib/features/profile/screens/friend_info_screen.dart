@@ -89,8 +89,9 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
             body: 'Remove ${widget.displayName} from your friends?',
             confirm: 'Remove',
           );
-          if (confirmed)
+          if (confirmed) {
             await FriendsService.removeFriend(otherUid: widget.uid);
+          }
           break;
         case FriendStatus.requestSent:
         case FriendStatus.self:
@@ -342,7 +343,7 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
     final city = _userData?['city'] ?? '';
     final bio = _userData?['bio'] ?? '';
     final photoUrl =
-        _userData?['profileImageUrl'] ?? _userData?['photoUrl'] ?? '';
+        _userData?['profileImageUrl'] ?? '';
     final interests = List<String>.from(_userData?['interests'] ?? []);
     final isVerified = (_userData?['isVerified'] as bool?) ?? false;
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';

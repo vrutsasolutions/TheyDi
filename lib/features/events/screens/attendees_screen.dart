@@ -565,7 +565,7 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final name = data['displayName'] ?? 'User';
         final city = data['city'] ?? '';
-        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? '';
         final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
         return GestureDetector(

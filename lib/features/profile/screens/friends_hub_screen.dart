@@ -375,7 +375,7 @@ class _ConnectedFriendCard extends StatelessWidget {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? '';
         final isOnline = data['isOnline'] == true;
 
         return GestureDetector(
@@ -557,7 +557,7 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
 
         return Container(
@@ -756,11 +756,12 @@ class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
     setState(() => _loading = true);
     await FriendsService.sendFriendRequest(
         toUid: widget.uid, toName: widget.displayName);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _loading = false;
         _sent = true;
       });
+    }
   }
 
   @override
