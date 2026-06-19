@@ -444,7 +444,7 @@ class _FriendCard extends StatelessWidget {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
 
-        final photoUrl = data['profileImageUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
 
         return GestureDetector(
           onTap: () => context.push(
@@ -713,7 +713,7 @@ class _RequestCardState extends State<_RequestCard> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['profileImageUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
         final initial =
             widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';

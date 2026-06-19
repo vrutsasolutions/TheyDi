@@ -116,7 +116,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final city = data['city'] as String? ?? '';
         if (city.isNotEmpty && _cities.contains(city)) _selectedCity = city;
 
-        _existingPhotoUrl = (data['profileImageUrl'] as String?) ?? '';
+        _existingPhotoUrl = (data['profileImageUrl'] as String?) ??
+            (data['photoUrl'] as String?) ??
+            '';
 
         final interests = List<String>.from(data['interests'] ?? []);
         _selectedInterests.addAll(interests);
@@ -236,6 +238,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'bio': _bioController.text.trim(),
         'city': _selectedCity,
         'interests': _selectedInterests.toList(),
+        'photoUrl': photoUrl,
         'profileImageUrl': photoUrl,
         'gender': _selectedGender,
         if (age != null) 'age': age,

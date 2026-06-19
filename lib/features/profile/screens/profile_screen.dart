@@ -76,7 +76,9 @@ class ProfileScreen extends ConsumerWidget {
               final email = (data['email'] as String?) ?? authUser?.email ?? '';
               final city = (data['city'] as String?) ?? '';
               final bio = (data['bio'] as String?) ?? '';
-              final photoUrl = (data['profileImageUrl'] as String?) ?? '';
+              final photoUrl = (data['profileImageUrl'] as String?) ??
+                  (data['photoUrl'] as String?) ??
+                  '';
 
               final interests = List<String>.from(data['interests'] ?? []);
               final isVerified = (data['isVerified'] as bool?) ?? false;

@@ -264,7 +264,7 @@ class CircleJoinService {
           'uid': doc.id,
           'displayName': data['displayName'] ?? 'User',
           'city': data['city'] ?? '',
-          'photoUrl': data['profileImageUrl'] ?? '',
+          'photoUrl': data['profileImageUrl'] ?? data['photoUrl'] ?? '',
           'interests': theirInterests,
           'bio': data['bio'] ?? '',
           'score': score,

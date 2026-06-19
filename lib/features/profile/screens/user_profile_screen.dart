@@ -410,7 +410,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final name = (_userData['displayName'] as String?) ?? 'User';
     final bio = (_userData['bio'] as String?) ?? '';
     final city = (_userData['city'] as String?) ?? '';
-    final photoUrl = (_userData['profileImageUrl'] as String?) ?? '';
+    final photoUrl = (_userData['profileImageUrl'] as String?) ??
+        (_userData['photoUrl'] as String?) ??
+        '';
 
     final interests = List<String>.from(_userData['interests'] ?? []);
 
