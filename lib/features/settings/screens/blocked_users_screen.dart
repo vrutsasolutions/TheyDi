@@ -8,8 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/theme/app_theme.dart';
 
-final _blockedUsersProvider =
-    StreamProvider.autoDispose<List<String>>((ref) {
+final _blockedUsersProvider = StreamProvider.autoDispose<List<String>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value([]);
   return FirebaseFirestore.instance
@@ -65,7 +64,8 @@ class BlockedUsersScreen extends ConsumerWidget {
               Expanded(
                 child: blockedUidsAsync.when(
                   loading: () => const Center(
-                    child: CircularProgressIndicator(color: TheyDiColors.primary),
+                    child:
+                        CircularProgressIndicator(color: TheyDiColors.primary),
                   ),
                   error: (e, _) => Center(
                     child: Text('Failed to load: $e',
@@ -81,8 +81,8 @@ class BlockedUsersScreen extends ConsumerWidget {
                                 size: 64, color: TheyDiColors.textMuted),
                             const SizedBox(height: 16),
                             Text('No blocked users',
-                                style: TheyDiTextStyles.bodyMedium
-                                    .copyWith(color: TheyDiColors.textSecondary)),
+                                style: TheyDiTextStyles.bodyMedium.copyWith(
+                                    color: TheyDiColors.textSecondary)),
                           ],
                         ),
                       );
@@ -123,7 +123,7 @@ class _BlockedUserTile extends StatelessWidget {
         }
         final data = snapshot.data!.data() as Map<String, dynamic>?;
         final name = data?['displayName'] ?? data?['name'] ?? 'Unknown User';
-        final photoUrl = data?['photoUrl'] ?? '';
+        final photoUrl = data?['profileImageUrl'] ?? '';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -138,11 +138,11 @@ class _BlockedUserTile extends StatelessWidget {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: TheyDiColors.cardLight,
-                backgroundImage: photoUrl.isNotEmpty
-                    ? NetworkImage(photoUrl)
-                    : null,
+                backgroundImage:
+                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                 child: photoUrl.isEmpty
-                    ? const Icon(Icons.person, color: TheyDiColors.textSecondary)
+                    ? const Icon(Icons.person,
+                        color: TheyDiColors.textSecondary)
                     : null,
               ),
               const SizedBox(width: 12),
