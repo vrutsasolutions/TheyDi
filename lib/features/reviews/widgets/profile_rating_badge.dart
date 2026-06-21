@@ -69,10 +69,10 @@ class ProfileRatingBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.15),
+        color: Colors.amber.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.amber.withValues(alpha: 0.4),
+          color: Colors.amber.withOpacity(0.4),
           width: 1,
         ),
       ),
@@ -94,7 +94,7 @@ class ProfileRatingBadge extends StatelessWidget {
             Text(
               '($totalReviews)',
               style: TheyDiTextStyles.caption.copyWith(
-                color: Colors.amber.withValues(alpha: 0.8),
+                color: Colors.amber.withOpacity(0.8),
                 fontSize: 10,
               ),
             ),

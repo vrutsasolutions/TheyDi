@@ -20,9 +20,11 @@ import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/event_circle_service.dart';
 import '../models/circle_model.dart';
+import '../../../core/router/app_routes.dart';
 
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
+
 
 const _kCircleReportReasons = [
   'Spam or unwanted content',
@@ -284,7 +286,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.12),
+                      color: Colors.red.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.flag_outlined,
@@ -312,12 +314,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: selectedReason == reason
-                            ? Colors.red.withValues(alpha: 0.1)
+                            ? Colors.red.withOpacity(0.1)
                             : TheyDiColors.dark,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selectedReason == reason
-                              ? Colors.red.withValues(alpha: 0.5)
+                              ? Colors.red.withOpacity(0.5)
                               : TheyDiColors.divider,
                         ),
                       ),
@@ -494,10 +496,10 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: TheyDiColors.primary.withValues(alpha: 0.15),
+          color: TheyDiColors.primary.withOpacity(0.15),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: TheyDiColors.primary.withValues(alpha: 0.35), width: 1),
+              color: TheyDiColors.primary.withOpacity(0.35), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -625,7 +627,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                 borderRadius: BorderRadius.circular(28),
                                 border: Border.all(
                                     color: TheyDiColors.primary
-                                        .withValues(alpha: 0.4),
+                                        .withOpacity(0.4),
                                     width: 2),
                               ),
                               child: ClipRRect(
@@ -709,12 +711,23 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                 if (_circle.isEventCircle) ...[
                                   const SizedBox(width: 8),
                                   Container(
+<<<<<<< HEAD
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
                                       color:
                                           Colors.orange.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(8),
+=======
+                                    padding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3), 
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange
+                                          .withOpacity(0.15),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+>>>>>>> d9f7621 (Updated Explore filters and chat attachment UI)
                                     ),
                                     child: Text('Event',
                                         style: TheyDiTextStyles.caption
@@ -820,6 +833,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                       final isCreator = uid == _circle.creatorUid;
                       final isMe = uid == _myUid;
 
+<<<<<<< HEAD
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(
@@ -858,11 +872,66 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                         style: TheyDiTextStyles.caption
                                             .copyWith(
                                                 color: TheyDiColors.textMuted)),
-                                  ],
-                                  const SizedBox(width: 6),
-                                  _OnlineDot(uid: uid),
-                                ],
+=======
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          context.push(
+                            AppRoutes.userProfile,
+                            extra: {'uid': uid, 'requestId': null},
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: TheyDiColors.divider),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: TheyDiColors.gradientPrimary,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : '?',
+                                    style: TheyDiTextStyles.labelLarge
+                                        .copyWith(color: Colors.white),
+                                  ),
+                                ),
                               ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Text(name,
+                                        style: TheyDiTextStyles
+                                            .labelMedium),
+                                    if (isMe) ...[
+                                      const SizedBox(width: 6),
+                                      Text('(You)',
+                                          style: TheyDiTextStyles
+                                              .caption
+                                              .copyWith(
+                                                  color: TheyDiColors
+                                                      .textMuted)),
+                                    ],
+                                    const SizedBox(width: 6),
+                                    _OnlineDot(uid: uid),
+>>>>>>> d9f7621 (Updated Explore filters and chat attachment UI)
+                                  ],
+                                ),
+                              ),
+<<<<<<< HEAD
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -877,12 +946,20 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               child: Text(
                                 isCreator ? 'Admin' : 'Member',
                                 style: TheyDiTextStyles.caption.copyWith(
+=======
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+>>>>>>> d9f7621 (Updated Explore filters and chat attachment UI)
                                   color: isCreator
                                       ? TheyDiColors.primary
-                                      : Colors.green,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
+                                          .withOpacity(0.15)
+                                      : Colors.green
+                                          .withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
+<<<<<<< HEAD
                               ),
                             ),
                             if (_isHost && !isMe && !isCreator) ...[
@@ -898,13 +975,44 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   ),
                                   child: const Icon(Icons.remove_circle_outline,
                                       size: 16, color: Colors.red),
+=======
+                                child: Text(
+                                  isCreator ? 'Admin' : 'Member',
+                                  style: TheyDiTextStyles.caption.copyWith(
+                                    color: isCreator
+                                        ? TheyDiColors.primary
+                                        : Colors.green,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                  ),
+>>>>>>> d9f7621 (Updated Explore filters and chat attachment UI)
                                 ),
                               ),
+                              if (_isHost && !isMe && !isCreator) ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => _removeMember(uid, name),
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red
+                                          .withOpacity(0.12),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                        Icons.remove_circle_outline,
+                                        size: 16,
+                                        color: Colors.red),
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       );
-                    }),
+                    }).toList(),
 
                     const SizedBox(height: 28),
 
@@ -1013,9 +1121,9 @@ class _CircleActionTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
+          color: color.withOpacity(0.06),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
+          border: Border.all(color: color.withOpacity(0.25)),
         ),
         child: Row(
           children: [
@@ -1035,7 +1143,7 @@ class _CircleActionTile extends StatelessWidget {
               ),
             ),
             Icon(Icons.arrow_forward_ios,
-                size: 14, color: color.withValues(alpha: 0.6)),
+                size: 14, color: color.withOpacity(0.6)),
           ],
         ),
       ),
@@ -1302,7 +1410,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? TheyDiColors.primary
-                                        .withValues(alpha: 0.12)
+                                        .withOpacity(0.12)
                                     : TheyDiColors.card,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(

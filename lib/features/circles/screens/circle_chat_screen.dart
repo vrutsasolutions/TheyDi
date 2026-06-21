@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show File;
+import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart' as ap;
@@ -6,12 +8,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 
 import '../../../core/router/app_routes.dart';
@@ -46,6 +51,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   late CircleModel _circle;
   bool _isMember = true;
   bool _showEmojiPicker = false;
+  bool _showAttachmentMenu = false;
   DateTime? _clearedAt;
 
   // ── Voice ──────────────────────────────────────────────────────────────────
@@ -128,7 +134,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || _isSending || !_isMember) return;
-    setState(() { _isSending = true; _showEmojiPicker = false; });
+    setState(() { _isSending = true; _showEmojiPicker = false; _showAttachmentMenu = false; });
     _messageController.clear();
     try {
       final user = FirebaseAuth.instance.currentUser!;
@@ -365,33 +371,140 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     ));
   }
 
-  void _showMediaSheet() {
-    setState(() => _showEmojiPicker = false);
-    showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(color: TheyDiColors.card,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border.all(color: TheyDiColors.divider)),
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 40, height: 4, decoration: BoxDecoration(
-              color: TheyDiColors.divider, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Text('Share Media', style: TheyDiTextStyles.headlineMedium),
-          const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _MediaOption(icon: Icons.camera_alt_outlined, label: 'Camera',
-                color: TheyDiColors.primary,
-                onTap: () { Navigator.pop(ctx); _showSnack('Camera coming soon 🚀', TheyDiColors.primary); }),
-            _MediaOption(icon: Icons.videocam_outlined, label: 'Video', color: Colors.red,
-                onTap: () { Navigator.pop(ctx); _showSnack('Video coming soon 🚀', TheyDiColors.primary); }),
-            _MediaOption(icon: Icons.photo_library_outlined, label: 'Gallery', color: Colors.green,
-                onTap: () { Navigator.pop(ctx); _showSnack('Gallery coming soon 🚀', TheyDiColors.primary); }),
-          ]),
-          const SizedBox(height: 16),
-        ]),
+  // ── Media Attachment Logic ────────────────────────────────────────────────
+  Future<void> _handleMediaAction(String action) async {
+    setState(() { _showEmojiPicker = false; _showAttachmentMenu = false; });
+    final picker = ImagePicker();
+    XFile? file;
+    String type = 'image';
+    String? fileName;
+
+    try {
+      if (action == 'camera') {
+        file = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      } else if (action == 'video') {
+        file = await picker.pickVideo(source: ImageSource.camera, maxDuration: const Duration(minutes: 5));
+        type = 'video';
+      } else if (action == 'gallery') {
+        file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      } else if (action == 'document') {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip'],
+          withData: kIsWeb,
+        );
+        if (result != null && result.files.isNotEmpty) {
+          final pickedFile = result.files.single;
+          String? path = pickedFile.path;
+          
+          if (kIsWeb && pickedFile.bytes != null && path == null) {
+            // On web, path is null. We create a blob URL from bytes for compatibility with preview and storage.
+            path = XFile.fromData(pickedFile.bytes!).path;
+          }
+          
+          if (path != null) {
+            type = 'file';
+            fileName = pickedFile.name;
+            _confirmAndSendMedia(path, type, fileName!);
+          }
+        }
+        return;
+      }
+
+      if (file != null) {
+        _confirmAndSendMedia(file.path, type, file.name);
+      }
+    } catch (e) {
+      _showSnack('Error picking media: $e', Colors.red);
+    }
+  }
+
+  Future<void> _confirmAndSendMedia(String path, String type, String fileName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TheyDiColors.card,
+        title: Text('Send $type?', style: TheyDiTextStyles.headlineMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (type == 'image')
+              kIsWeb
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(path, height: 200, fit: BoxFit.cover))
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(File(path), height: 200, fit: BoxFit.cover),
+                    )
+            else
+              Icon(type == 'video' ? Icons.videocam : Icons.description, size: 48, color: TheyDiColors.primary),
+            const SizedBox(height: 12),
+            Text(fileName, style: TheyDiTextStyles.bodySmall, textAlign: TextAlign.center),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Send', style: TextStyle(color: TheyDiColors.primary))),
+        ],
       ),
     );
+
+    if (confirmed == true) {
+      _uploadAndSendMedia(path, type, fileName);
+    }
+  }
+
+  Future<void> _uploadAndSendMedia(String filePath, String type, String fileName) async {
+    setState(() => _isUploading = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      final List<int> bytes;
+      final String ext;
+
+      if (kIsWeb) {
+        bytes = await getBlobBytes(filePath);
+        ext = fileName.contains('.') ? fileName.split('.').last : (type == 'image' ? 'jpg' : type == 'video' ? 'mp4' : 'bin');
+      } else {
+        bytes = await getFileBytes(filePath);
+        ext = filePath.split('.').last;
+      }
+
+      final storagePath = 'media/circles/${_circle.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final storageRef = FirebaseStorage.instance.ref().child(storagePath);
+      
+      await storageRef.putData(Uint8List.fromList(bytes));
+      final url = await storageRef.getDownloadURL();
+
+      final senderName = user.displayName ?? 'User';
+      final msgText = type == 'image' ? '📷 Photo' : type == 'video' ? '🎥 Video' : '📄 $fileName';
+
+      await FirebaseFirestore.instance
+          .collection('circles').doc(_circle.id)
+          .collection('messages').add({
+        'senderUid': user.uid,
+        'senderName': senderName,
+        'type': type,
+        'mediaUrl': url,
+        'fileName': fileName,
+        'text': msgText,
+        'circleId': _circle.id,
+        'createdAt': FieldValue.serverTimestamp(),
+        'readBy': [user.uid],
+        'seenBy': [user.uid],
+      });
+
+      await FirebaseFirestore.instance.collection('circles').doc(_circle.id).update({
+        'lastMessage': msgText,
+        'lastMessageSender': senderName,
+        'lastMessageAt': FieldValue.serverTimestamp(),
+      });
+      _scrollToBottom();
+    } catch (e) {
+      _showSnack('Upload failed: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
   }
 
   void _toggleEmojiPicker() {
@@ -451,7 +564,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
           ),
 
           Expanded(child: GestureDetector(
-            onTap: () => setState(() => _showEmojiPicker = false),
+            onTap: () => setState(() { _showEmojiPicker = false; _showAttachmentMenu = false; }),
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('circles').doc(_circle.id)
@@ -577,6 +690,12 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
               )),
             ])),
 
+          if (_showAttachmentMenu && !_isRecording && _isMember)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _buildAttachmentMenu(),
+            ),
+
           if (!_isMember)
             Container(padding: const EdgeInsets.all(16), color: TheyDiColors.card,
               child: Text('You are no longer a member of this circle',
@@ -593,6 +712,31 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                   : _buildNormalBar(hasText),
             ),
         ])),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentMenu() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TheyDiColors.divider),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _MediaOption(icon: Icons.camera_alt, label: 'Camera', color: Colors.blue, 
+              onTap: () => _handleMediaAction('camera')),
+          _MediaOption(icon: Icons.videocam, label: 'Video', color: Colors.red, 
+              onTap: () => _handleMediaAction('video')),
+          _MediaOption(icon: Icons.photo_library, label: 'Gallery', color: Colors.purple, 
+              onTap: () => _handleMediaAction('gallery')),
+          _MediaOption(icon: Icons.description, label: 'Document', color: Colors.orange, 
+              onTap: () => _handleMediaAction('document')),
+        ],
       ),
     );
   }
@@ -614,11 +758,11 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         height: 54, padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: isCancelling
-              ? Colors.red.withValues(alpha: 0.12) : TheyDiColors.card,
+              ? Colors.red.withOpacity(0.12) : TheyDiColors.card,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: isCancelling
-              ? Colors.red.withValues(alpha: 0.5)
-              : Colors.red.withValues(alpha: 0.4))),
+              ? Colors.red.withOpacity(0.5)
+              : Colors.red.withOpacity(0.4))),
         child: Row(children: [
           _PulsingMic(),
           const SizedBox(width: 10),
@@ -632,7 +776,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                 Text('Slide to cancel',
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textMuted)),
-              ])),
+              ])), 
           if (isCancelling)
             Text('Release to cancel',
                 style: TheyDiTextStyles.caption
@@ -643,7 +787,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
             child: Container(width: 44, height: 44,
                 decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle,
                     boxShadow: [BoxShadow(
-                        color: Colors.red.withValues(alpha: 0.45),
+                        color: Colors.red.withOpacity(0.45),
                         blurRadius: 12, spreadRadius: 2)]),
                 child: const Icon(Icons.mic, color: Colors.white, size: 22)),
           ),
@@ -654,14 +798,14 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
 
   Widget _buildNormalBar(bool hasText) {
     return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      GestureDetector(onTap: _showMediaSheet,
-        child: Container(width: 40, height: 40,
-            margin: const EdgeInsets.only(bottom: 3),
-            decoration: BoxDecoration(color: TheyDiColors.card, shape: BoxShape.circle,
-                border: Border.all(color: TheyDiColors.divider)),
-            child: const Icon(Icons.camera_alt_outlined,
-                color: TheyDiColors.textSecondary, size: 18))),
-      const SizedBox(width: 8),
+      _AttachmentIcon(
+        icon: _showAttachmentMenu ? Icons.close : Icons.add, 
+        onTap: () => setState(() {
+          _showAttachmentMenu = !_showAttachmentMenu;
+          _showEmojiPicker = false;
+        }),
+      ),
+      const SizedBox(width: 10),
       Expanded(child: Container(
         decoration: BoxDecoration(color: TheyDiColors.card,
             borderRadius: BorderRadius.circular(24),
@@ -679,7 +823,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
               contentPadding: const EdgeInsets.fromLTRB(16, 10, 4, 10)),
           )),
           GestureDetector(onTap: _toggleEmojiPicker,
-            child: Padding(padding: const EdgeInsets.only(right: 10, bottom: 10),
+            child: Padding(padding: const EdgeInsets.only(right: 12, bottom: 10),
               child: Text(_showEmojiPicker ? '⌨️' : '😊',
                   style: const TextStyle(fontSize: 20)))),
         ]),
@@ -704,6 +848,22 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   }
 }
 
+class _AttachmentIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _AttachmentIcon({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(onTap: onTap,
+      child: Container(width: 38, height: 38,
+          margin: const EdgeInsets.only(bottom: 3),
+          decoration: BoxDecoration(color: TheyDiColors.card, shape: BoxShape.circle,
+              border: Border.all(color: TheyDiColors.divider)),
+          child: Icon(icon, color: TheyDiColors.textSecondary, size: 18)));
+  }
+}
+
 // ── Widgets ────────────────────────────────────────────────────────────────────
 class _PulsingMic extends StatefulWidget {
   @override State<_PulsingMic> createState() => _PulsingMicState();
@@ -721,7 +881,7 @@ class _PulsingMicState extends State<_PulsingMic>
   @override Widget build(BuildContext context) => AnimatedBuilder(animation: _anim,
     builder: (_, __) => Container(width: 32, height: 32,
       decoration: BoxDecoration(shape: BoxShape.circle,
-          color: Colors.red.withValues(alpha: _anim.value * 0.25)),
+          color: Colors.red.withOpacity(_anim.value * 0.25)),
       child: Center(child: Container(width: 20, height: 20,
           decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red),
           child: const Icon(Icons.mic, color: Colors.white, size: 12)))));
@@ -793,17 +953,15 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
               constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
               padding: const EdgeInsets.fromLTRB(10, 10, 12, 8),
               decoration: BoxDecoration(
-                color: widget.isMine
-                    ? TheyDiColors.primary.withValues(alpha: 0.2)
-                    : TheyDiColors.card,
+                color: widget.isMine ? Colors.white : Colors.white,
                 borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
                     bottomLeft: Radius.circular(widget.isMine ? 16 : 4),
                     bottomRight: Radius.circular(widget.isMine ? 4 : 16)),
                 border: Border.all(color: widget.isMine
-                    ? TheyDiColors.primary.withValues(alpha: 0.3)
-                    : TheyDiColors.divider)),
+                    ? const Color(0xFFE0E0E0)
+                    : const Color(0xFFD0D5DD))), // Specific received border color
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   GestureDetector(onTap: _togglePlay,
@@ -816,14 +974,16 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _WaveformBars(progress: _progress, isMine: widget.isMine),
                     const SizedBox(height: 4),
-                    Text(_fmt(displaySecs), style: TheyDiTextStyles.caption
-                        .copyWith(color: TheyDiColors.textMuted, fontSize: 10)),
+                    Text(_fmt(displaySecs), style: TheyDiTextStyles.caption.copyWith(
+                        color: widget.isMine ? Colors.black : const Color(0xFF6B7280),
+                        fontSize: 10)),
                   ])),
                 ]),
                 const SizedBox(height: 4),
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Text(widget.timeLabel, style: TheyDiTextStyles.caption
-                      .copyWith(color: TheyDiColors.textMuted, fontSize: 10)),
+                  Text(widget.timeLabel, style: TheyDiTextStyles.caption.copyWith(
+                      color: widget.isMine ? Colors.black54 : const Color(0xFF6B7280),
+                      fontSize: 10)),
                   if (widget.isMine) ...[
                     const SizedBox(width: 4), _ReadReceipt(seen: widget.seen)],
                 ]),
@@ -848,9 +1008,10 @@ class _WaveformBars extends StatelessWidget {
       children: List.generate(_h.length, (i) => Container(
         width: 3, height: _h[i], margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
-          color: i < played ? TheyDiColors.primary
-              : (isMine ? Colors.white.withValues(alpha: 0.3)
-                  : TheyDiColors.textMuted.withValues(alpha: 0.4)),
+          color: i < played 
+              ? (isMine ? Colors.white : TheyDiColors.primary) // Played bars are white for sent, primary for received
+              : (isMine ? Colors.white.withOpacity(0.3)
+                  : Colors.grey.shade400), // Unplayed bars are light grey for received
           borderRadius: BorderRadius.circular(2))))));
   }
 }
@@ -875,25 +1036,24 @@ class _CircleBubble extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isMine
-                  ? TheyDiColors.primary.withValues(alpha: 0.2)
-                  : TheyDiColors.card,
+              color: isMine ? Colors.white : Colors.white,
               borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
                   bottomLeft: Radius.circular(isMine ? 16 : 4),
                   bottomRight: Radius.circular(isMine ? 4 : 16)),
               border: Border.all(color: isMine
-                  ? TheyDiColors.primary.withValues(alpha: 0.3)
-                  : TheyDiColors.divider)),
+                  ? const Color(0xFFE0E0E0)
+                  : const Color(0xFFD0D5DD))), // Specific received border color
             child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(text, style: TheyDiTextStyles.bodySmall.copyWith(
-                  color: isMine ? Colors.white : TheyDiColors.textSecondary,
+                  color: isMine ? Colors.black : const Color(0xFF111827),
                   height: 1.4)),
               const SizedBox(height: 4),
               Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(timeLabel, style: TheyDiTextStyles.caption
-                    .copyWith(color: TheyDiColors.textMuted, fontSize: 10)),
+                Text(timeLabel, style: TheyDiTextStyles.caption.copyWith(
+                    color: isMine ? Colors.black54 : const Color(0xFF6B7280),
+                    fontSize: 10)),
                 if (isMine) ...[
                   const SizedBox(width: 4), _ReadReceipt(seen: seen)],
               ]),
@@ -905,15 +1065,29 @@ class _CircleBubble extends StatelessWidget {
 
 class _ReadReceipt extends StatelessWidget {
   final bool seen; const _ReadReceipt({required this.seen});
-  @override Widget build(BuildContext context) =>
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.check, size: 11,
-            color: seen ? Colors.blue : TheyDiColors.textMuted),
-        const SizedBox(width: 1),
-        Icon(Icons.check, size: 11,
-            color: seen ? Colors.blue : TheyDiColors.textMuted),
-      ]);
+
+  @override
+  Widget build(BuildContext context) {
+    // UI-only change: adjust tick icon color + tighten spacing between the two checks.
+    // Replace the existing tick rendering below (keep sizes/positions unchanged).
+    // Map tick colors per existing message model semantics:
+    // - single grey tick: sent/offline/not delivered (seen==false AND message not read)
+    // - double grey ticks: delivered but not seen
+    // - double blue ticks: seen
+    // NOTE: This widget currently only receives `seen` boolean, so we preserve existing
+    // behavior: when `seen` is true we show blue ticks; otherwise show grey ticks.
+    final tickColor = seen ? Colors.blue : Colors.grey;
+    return SizedBox(
+      width: 15,
+      height: 11,
+      child: Stack(children: [
+        Icon(Icons.check, size: 11, color: tickColor),
+        Positioned(left: 3, child: Icon(Icons.check, size: 11, color: tickColor)),
+      ]),
+    );
+  }
 }
+
 
 class _DateSeparator extends StatelessWidget {
   final DateTime date; const _DateSeparator({required this.date});
@@ -948,9 +1122,9 @@ class _MediaOption extends StatelessWidget {
   @override Widget build(BuildContext context) => GestureDetector(onTap: onTap,
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 64, height: 64,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12),
+          decoration: BoxDecoration(color: color.withOpacity(0.12),
               shape: BoxShape.circle,
-              border: Border.all(color: color.withValues(alpha: 0.3))),
+              border: Border.all(color: color.withOpacity(0.3))),
           child: Icon(icon, color: color, size: 28)),
       const SizedBox(height: 8),
       Text(label, style: TheyDiTextStyles.caption

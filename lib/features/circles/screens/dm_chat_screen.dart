@@ -1,17 +1,21 @@
 import 'dart:async';
+import 'dart:io' show File;
+import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 
 import '../../../core/router/app_routes.dart';
@@ -111,6 +115,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   String? _chatId;
   bool _chatLoading = true;
   bool _showEmojiPicker = false;
+  bool _showAttachmentMenu = false;
   bool _notificationsMuted = false;
   DateTime? _clearedAt;
 
@@ -205,6 +210,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     setState(() {
       _isSending = true;
       _showEmojiPicker = false;
+      _showAttachmentMenu = false;
     });
     _messageController.clear();
     try {
@@ -613,7 +619,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.12),
+                    color: Colors.red.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.flag_outlined,
@@ -636,12 +642,12 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: selectedReason == reason
-                            ? Colors.red.withValues(alpha: 0.1)
+                            ? Colors.red.withOpacity(0.1)
                             : TheyDiColors.card,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selectedReason == reason
-                              ? Colors.red.withValues(alpha: 0.5)
+                              ? Colors.red.withOpacity(0.5)
                               : TheyDiColors.divider,
                         ),
                       ),
@@ -778,57 +784,153 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     ));
   }
 
-  void _showMediaSheet() {
-    setState(() => _showEmojiPicker = false);
-    showModalBottomSheet(
+  // ── Media Attachment Logic ────────────────────────────────────────────────
+  Future<void> _handleMediaAction(String action) async {
+    setState(() { _showEmojiPicker = false; _showAttachmentMenu = false; });
+    final picker = ImagePicker();
+    XFile? file;
+    String type = 'image';
+    String? fileName;
+
+    try {
+      if (action == 'camera') {
+        file = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      } else if (action == 'video') {
+        file = await picker.pickVideo(source: ImageSource.camera, maxDuration: const Duration(minutes: 5));
+        type = 'video';
+      } else if (action == 'gallery') {
+        file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      } else if (action == 'document') {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip'],
+          withData: kIsWeb,
+        );
+        if (result != null && result.files.isNotEmpty) {
+          final pickedFile = result.files.single;
+          String? path = pickedFile.path;
+          
+          if (kIsWeb && pickedFile.bytes != null && path == null) {
+            // On web, path is null. We create a blob URL from bytes for compatibility with preview and storage.
+            path = XFile.fromData(pickedFile.bytes!).path;
+          }
+          
+          if (path != null) {
+            type = 'file';
+            fileName = pickedFile.name;
+            _confirmAndSendMedia(path, type, fileName!);
+          }
+        }
+        return;
+      }
+
+      if (file != null) {
+        _confirmAndSendMedia(file.path, type, file.name);
+      }
+    } catch (e) {
+      _showSnack('Error picking media: $e', Colors.red);
+    }
+  }
+
+  Future<void> _confirmAndSendMedia(String path, String type, String fileName) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-            color: TheyDiColors.card,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border.all(color: TheyDiColors.divider)),
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: TheyDiColors.divider,
-                  borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Text('Share Media', style: TheyDiTextStyles.headlineMedium),
-          const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _MediaOption(
-                icon: Icons.camera_alt_outlined,
-                label: 'Camera',
-                color: TheyDiColors.primary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showSnack('Camera coming soon 🚀', TheyDiColors.primary);
-                }),
-            _MediaOption(
-                icon: Icons.videocam_outlined,
-                label: 'Video',
-                color: Colors.red,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showSnack('Video coming soon 🚀', TheyDiColors.primary);
-                }),
-            _MediaOption(
-                icon: Icons.photo_library_outlined,
-                label: 'Gallery',
-                color: Colors.green,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showSnack('Gallery coming soon 🚀', TheyDiColors.primary);
-                }),
-          ]),
-          const SizedBox(height: 16),
-        ]),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TheyDiColors.card,
+        title: Text('Send $type?', style: TheyDiTextStyles.headlineMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (type == 'image')
+              kIsWeb
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(path, height: 200, fit: BoxFit.cover))
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(File(path), height: 200, fit: BoxFit.cover),
+                    )
+            else
+              Icon(type == 'video' ? Icons.videocam : Icons.description, size: 48, color: TheyDiColors.primary),
+            const SizedBox(height: 12),
+            Text(fileName, style: TheyDiTextStyles.bodySmall, textAlign: TextAlign.center),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Send', style: TextStyle(color: TheyDiColors.primary))),
+        ],
       ),
     );
+
+    if (confirmed == true) {
+      _uploadAndSendMedia(path, type, fileName);
+    }
+  }
+
+  Future<void> _uploadAndSendMedia(String filePath, String type, String fileName) async {
+    if (_chatId == null) return;
+    setState(() => _isUploading = true);
+    try {
+      final myUid = FirebaseAuth.instance.currentUser!.uid;
+      final List<int> bytes;
+      final String ext;
+
+      if (kIsWeb) {
+        bytes = await getBlobBytes(filePath);
+        ext = fileName.contains('.') ? fileName.split('.').last : (type == 'image' ? 'jpg' : type == 'video' ? 'mp4' : 'bin');
+      } else {
+        bytes = await getFileBytes(filePath);
+        ext = filePath.split('.').last;
+      }
+
+      final storagePath = 'media/${_chatId!}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final storageRef = FirebaseStorage.instance.ref().child(storagePath);
+      
+      await storageRef.putData(Uint8List.fromList(bytes));
+      final url = await storageRef.getDownloadURL();
+
+      String myName = FirebaseAuth.instance.currentUser?.displayName ?? 'Me';
+      final msgText = type == 'image' ? '📷 Photo' : type == 'video' ? '🎥 Video' : '📄 $fileName';
+
+      final now = Timestamp.now();
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(_chatId)
+          .collection('messages')
+          .add({
+        'senderId': myUid,
+        'senderName': myName,
+        'type': type,
+        'mediaUrl': url,
+        'fileName': fileName,
+        'text': msgText,
+        'timestamp': now,
+        'seen': false,
+        'readBy': [myUid],
+      });
+
+      await FirebaseFirestore.instance.collection('chats').doc(_chatId).update({
+        'lastMessage': msgText,
+        'lastMessageSenderId': myUid,
+        'updatedAt': now,
+        'deletedFor': FieldValue.arrayRemove([myUid, widget.otherUid]),
+      });
+
+      await NotificationService.send(
+        toUid: widget.otherUid,
+        title: 'New $type from $myName',
+        body: msgText,
+        type: 'social',
+        fromUid: myUid,
+        chatId: _chatId,
+      );
+      _scrollToBottom();
+    } catch (e) {
+      _showSnack('Upload failed: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
   }
 
   void _toggleEmojiPicker() {
@@ -994,7 +1096,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                       child: CircularProgressIndicator(
                           color: TheyDiColors.primary))
                   : GestureDetector(
-                      onTap: () => setState(() => _showEmojiPicker = false),
+                      onTap: () => setState(() { _showEmojiPicker = false; _showAttachmentMenu = false; }),
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('chats')
@@ -1152,6 +1254,12 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                   )),
                 ])),
 
+          if (_showAttachmentMenu && !_isRecording)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _buildAttachmentMenu(),
+            ),
+
           // ── Input Bar ──
           Container(
             padding: const EdgeInsets.fromLTRB(8, 10, 8, 16),
@@ -1162,6 +1270,31 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                 _isRecording ? _buildRecordingBar() : _buildNormalBar(hasText),
           ),
         ])),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentMenu() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TheyDiColors.divider),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _MediaOption(icon: Icons.camera_alt, label: 'Camera', color: Colors.blue, 
+              onTap: () => _handleMediaAction('camera')),
+          _MediaOption(icon: Icons.videocam, label: 'Video', color: Colors.red, 
+              onTap: () => _handleMediaAction('video')),
+          _MediaOption(icon: Icons.photo_library, label: 'Gallery', color: Colors.purple, 
+              onTap: () => _handleMediaAction('gallery')),
+          _MediaOption(icon: Icons.description, label: 'Document', color: Colors.orange, 
+              onTap: () => _handleMediaAction('document')),
+        ],
       ),
     );
   }
@@ -1185,13 +1318,13 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
             color: isCancelling
-                ? Colors.red.withValues(alpha: 0.12)
+                ? Colors.red.withOpacity(0.12)
                 : TheyDiColors.card,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
                 color: isCancelling
-                    ? Colors.red.withValues(alpha: 0.5)
-                    : Colors.red.withValues(alpha: 0.4))),
+                    ? Colors.red.withOpacity(0.5)
+                    : Colors.red.withOpacity(0.4))),
         child: Row(children: [
           _PulsingMic(),
           const SizedBox(width: 10),
@@ -1223,7 +1356,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.red.withValues(alpha: 0.45),
+                          color: Colors.red.withOpacity(0.45),
                           blurRadius: 12,
                           spreadRadius: 2)
                     ]),
@@ -1237,19 +1370,14 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   // ── Normal input bar ───────────────────────────────────────────────────────
   Widget _buildNormalBar(bool hasText) {
     return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      GestureDetector(
-          onTap: _showMediaSheet,
-          child: Container(
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(bottom: 3),
-              decoration: BoxDecoration(
-                  color: TheyDiColors.card,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: TheyDiColors.divider)),
-              child: const Icon(Icons.camera_alt_outlined,
-                  color: TheyDiColors.textSecondary, size: 18))),
-      const SizedBox(width: 8),
+      _AttachmentIcon(
+        icon: _showAttachmentMenu ? Icons.close : Icons.add, 
+        onTap: () => setState(() {
+          _showAttachmentMenu = !_showAttachmentMenu;
+          _showEmojiPicker = false;
+        }),
+      ),
+      const SizedBox(width: 10),
       Expanded(
           child: Container(
         decoration: BoxDecoration(
@@ -1276,7 +1404,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
           GestureDetector(
               onTap: _toggleEmojiPicker,
               child: Padding(
-                  padding: const EdgeInsets.only(right: 10, bottom: 10),
+                  padding: const EdgeInsets.only(right: 12, bottom: 10),
                   child: Text(_showEmojiPicker ? '⌨️' : '😊',
                       style: const TextStyle(fontSize: 20)))),
         ]),
@@ -1305,6 +1433,22 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                   child: const Icon(Icons.mic_none,
                       color: TheyDiColors.textSecondary, size: 20))),
     ]);
+  }
+}
+
+class _AttachmentIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _AttachmentIcon({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(onTap: onTap,
+      child: Container(width: 38, height: 38,
+          margin: const EdgeInsets.only(bottom: 3),
+          decoration: BoxDecoration(color: TheyDiColors.card, shape: BoxShape.circle,
+              border: Border.all(color: TheyDiColors.divider)),
+          child: Icon(icon, color: TheyDiColors.textSecondary, size: 18)));
   }
 }
 
@@ -1431,7 +1575,7 @@ class _PulsingMicState extends State<_PulsingMic>
           height: 32,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.red.withValues(alpha: _anim.value * 0.25)),
+              color: Colors.red.withOpacity(_anim.value * 0.25)),
           child: Center(
               child: Container(
                   width: 20,
@@ -1527,17 +1671,15 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
               constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
               padding: const EdgeInsets.fromLTRB(10, 10, 12, 8),
               decoration: BoxDecoration(
-                  color: widget.isMine
-                      ? TheyDiColors.primary.withValues(alpha: 0.2)
-                      : TheyDiColors.card,
+                  color: widget.isMine ? Colors.white : TheyDiColors.card,
                   borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
                       bottomLeft: Radius.circular(widget.isMine ? 16 : 4),
                       bottomRight: Radius.circular(widget.isMine ? 4 : 16)),
                   border: Border.all(
-                      color: widget.isMine
-                          ? TheyDiColors.primary.withValues(alpha: 0.3)
+                      color: widget.isMine 
+                          ? const Color(0xFFE0E0E0)
                           : TheyDiColors.divider)),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1563,17 +1705,16 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                             _WaveformBars(
                                 progress: _progress, isMine: widget.isMine),
                             const SizedBox(height: 4),
-                            Text(_fmt(displaySecs),
-                                style: TheyDiTextStyles.caption.copyWith(
-                                    color: TheyDiColors.textMuted,
-                                    fontSize: 10)),
+                            Text(_fmt(displaySecs), style: TheyDiTextStyles.caption.copyWith(
+                                color: widget.isMine ? Colors.black : TheyDiColors.textMuted,
+                                fontSize: 10)),
                           ])),
                     ]),
                     const SizedBox(height: 4),
                     Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                      Text(widget.timeLabel,
-                          style: TheyDiTextStyles.caption.copyWith(
-                              color: TheyDiColors.textMuted, fontSize: 10)),
+                      Text(widget.timeLabel, style: TheyDiTextStyles.caption.copyWith(
+                          color: widget.isMine ? Colors.black54 : TheyDiColors.textMuted,
+                          fontSize: 10)),
                       if (widget.isMine) ...[
                         const SizedBox(width: 4),
                         _ReadReceipt(seen: widget.seen)
@@ -1636,11 +1777,11 @@ class _WaveformBars extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 1),
                     decoration: BoxDecoration(
                         color: i < played
-                            ? TheyDiColors.primary
+                            ? (isMine ? Colors.white : TheyDiColors.primary) // Sent played bars are white
                             : (isMine
-                                ? Colors.white.withValues(alpha: 0.3)
+                                ? Colors.white.withOpacity(0.5) // Sent unplayed bars are lighter white
                                 : TheyDiColors.textMuted
-                                    .withValues(alpha: 0.4)),
+                                    .withOpacity(0.4)),
                         borderRadius: BorderRadius.circular(2))))));
   }
 }
@@ -1664,9 +1805,9 @@ class _MediaOption extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: color.withOpacity(0.12),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withValues(alpha: 0.3))),
+                border: Border.all(color: color.withOpacity(0.3))),
             child: Icon(icon, color: color, size: 28)),
         const SizedBox(height: 8),
         Text(label,
@@ -1694,29 +1835,25 @@ class _DmBubble extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-                color: isMine
-                    ? TheyDiColors.primary.withValues(alpha: 0.2)
-                    : TheyDiColors.card,
+                color: isMine ? Colors.white : TheyDiColors.card,
                 borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
                     bottomLeft: Radius.circular(isMine ? 16 : 4),
                     bottomRight: Radius.circular(isMine ? 4 : 16)),
                 border: Border.all(
-                    color: isMine
-                        ? TheyDiColors.primary.withValues(alpha: 0.3)
-                        : TheyDiColors.divider)),
+                    color: isMine ? const Color(0xFFE0E0E0) : TheyDiColors.divider)),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(text,
                   style: TheyDiTextStyles.bodySmall.copyWith(
-                      color: isMine ? Colors.white : TheyDiColors.textSecondary,
+                      color: isMine ? Colors.black : TheyDiColors.textSecondary,
                       height: 1.4)),
               const SizedBox(height: 4),
               Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(timeLabel,
-                    style: TheyDiTextStyles.caption
-                        .copyWith(color: TheyDiColors.textMuted, fontSize: 10)),
+                Text(timeLabel, style: TheyDiTextStyles.caption.copyWith(
+                    color: isMine ? Colors.black54 : TheyDiColors.textMuted,
+                    fontSize: 10)),
                 if (isMine) ...[
                   const SizedBox(width: 4),
                   _ReadReceipt(seen: seen)
@@ -1730,14 +1867,22 @@ class _ReadReceipt extends StatelessWidget {
   final bool seen;
   const _ReadReceipt({required this.seen});
   @override
-  Widget build(BuildContext context) =>
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.check,
-            size: 11, color: seen ? Colors.blue : TheyDiColors.textMuted),
-        const SizedBox(width: 1),
-        Icon(Icons.check,
-            size: 11, color: seen ? Colors.blue : TheyDiColors.textMuted),
-      ]);
+  Widget build(BuildContext context) {
+    // UI-only change: adjust tick icon color + tighten spacing between the two checks.
+    // Map tick colors per existing message model semantics:
+    // - single grey tick: sent/offline/not delivered (seen==false AND message not read)
+    // - double grey ticks: delivered but not seen
+    // - double blue ticks: seen
+    final tickColor = seen ? Colors.blue : Colors.grey;
+    return SizedBox(
+      width: 15, // Adjusted width to accommodate closer ticks
+      height: 11,
+      child: Stack(children: [
+        Icon(Icons.check, size: 11, color: tickColor),
+        Positioned(left: 3, child: Icon(Icons.check, size: 11, color: tickColor)),
+      ]),
+    );
+  }
 }
 
 class _DateSeparator extends StatelessWidget {
