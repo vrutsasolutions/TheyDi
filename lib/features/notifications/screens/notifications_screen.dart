@@ -106,8 +106,38 @@ final _notificationsProvider =
           .toList());
 });
 
-class NotificationsScreen extends ConsumerWidget {
+/// Real-time stream of unread notification count for the current user.
+final unreadNotificationsCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value(0);
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('notifications')
+      .where('isRead', isEqualTo: false)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+});
+
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Automatically mark all as read when the screen is viewed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        _markAllRead(uid);
+      }
+    });
+  }
 
   Future<void> _markAllRead(String uid) async {
     final batch = FirebaseFirestore.instance.batch();
@@ -146,7 +176,7 @@ class NotificationsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final notificationsAsync = ref.watch(_notificationsProvider);
 
@@ -772,6 +802,52 @@ class _NavHint extends StatelessWidget {
         Text(_hint, style: TheyDiTextStyles.caption.copyWith(
             color: TheyDiColors.primary, fontSize: 10, fontWeight: FontWeight.w600)),
       ]),
+    );
+  }
+}
+
+/// Reusable badge for the Home screen notification bell.
+/// Wrap your notification icon with this widget.
+class NotificationBadge extends ConsumerWidget {
+  final Widget child;
+  const NotificationBadge({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countAsync = ref.watch(unreadNotificationsCountProvider);
+    
+    return countAsync.maybeWhen(
+      data: (count) {
+        if (count == 0) return child;
+        final label = count > 99 ? '99+' : '$count';
+        
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child,
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: TheyDiColors.card, width: 1.5),
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      orElse: () => child,
     );
   }
 }

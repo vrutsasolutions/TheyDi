@@ -440,12 +440,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                           borderRadius: BorderRadius.circular(16),
                           gradient: _isSubmitting
                               ? null
-                              : const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFF4466),
-                                    Color(0xFFAA44FF)
-                                  ],
-                                ),
+                              : TheyDiColors.gradientPrimary,
                           color: _isSubmitting
                               ? Colors.grey[800]
                               : null,

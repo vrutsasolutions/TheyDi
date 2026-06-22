@@ -148,9 +148,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF4466), Color(0xFFAA44FF)],
-                      ),
+                      gradient: TheyDiColors.gradientPrimary,
                     ),
                     child: ElevatedButton(
                       onPressed: () => context.go(AppRoutes.myEvents),

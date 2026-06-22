@@ -11,10 +11,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/screens/image_cropper_screen.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../../core/utils/picker_theme_helper.dart';
 
@@ -110,6 +113,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final _maxAttendeesController = TextEditingController(text: '50');
   final _priceController = TextEditingController(text: '0');
   final _customAmenityController = TextEditingController();
+  final _additionalAddressController = TextEditingController();
 
   // Map
   final MapController _mapController = MapController();
@@ -167,6 +171,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _maxAttendeesController.dispose();
     _priceController.dispose();
     _customAmenityController.dispose();
+    _additionalAddressController.dispose();
     super.dispose();
   }
 
@@ -194,51 +199,86 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
 
     try {
-      final results = await locationFromAddress(fullQuery);
+      final encodedQuery = Uri.encodeComponent(fullQuery);
+      // Photon is a free, fast search autocomplete API for OpenStreetMap
+      final url = Uri.parse(
+          'https://photon.komoot.io/api/?q=$encodedQuery&limit=5');
+
+      final response = await http.get(url);
+
       if (!mounted) return;
 
-      if (results.isEmpty) {
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        final List<dynamic> features = data['features'] ?? [];
+
+        if (features.isEmpty) {
+          setState(() {
+            _isGeocoding = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not find location coordinates. Try adjusting the pin manually.'),
+              backgroundColor: Colors.amber,
+            ),
+          );
+          return;
+        }
+
+        final geoList = <_GeoResult>[];
+        for (final feature in features) {
+          final geometry = feature['geometry'] ?? {};
+          final List<dynamic> coords = geometry['coordinates'] ?? [];
+          final properties = feature['properties'] ?? {};
+
+          if (coords.length >= 2) {
+            // GeoJSON coordinates are [longitude, latitude]
+            final lng = (coords[0] as num).toDouble();
+            final lat = (coords[1] as num).toDouble();
+
+            final name = properties['name'] ?? '';
+            final street = properties['street'] ?? '';
+            final city = properties['city'] ?? '';
+            final state = properties['state'] ?? '';
+
+            final parts = [name, street, city, state]
+                .where((s) => s != null && s.toString().trim().isNotEmpty)
+                .join(', ');
+
+            geoList.add(_GeoResult(
+              lat: lat,
+              lng: lng,
+              displayAddress: parts.isNotEmpty ? parts : fullQuery,
+            ));
+          }
+        }
+
+        if (geoList.isEmpty) {
+          setState(() {
+            _isGeocoding = false;
+          });
+          return;
+        }
+
+        if (geoList.length == 1) {
+          _applyGeoResult(geoList.first);
+        } else {
+          setState(() {
+            _geoResults = geoList;
+            _showResultPicker = true;
+            _isGeocoding = false;
+          });
+        }
+      } else {
         setState(() {
           _isGeocoding = false;
         });
-        return;
       }
-
-      // Build result list
-      final geoList = <_GeoResult>[];
-      for (final r in results.take(5)) {
-        // Reverse geocode each for a friendly address
-        try {
-          final placemarks =
-              await placemarkFromCoordinates(r.latitude, r.longitude);
-          final p = placemarks.isNotEmpty ? placemarks.first : null;
-          final addr = [
-            p?.name,
-            p?.subLocality,
-            p?.locality,
-            p?.administrativeArea,
-          ].where((s) => s != null && s.isNotEmpty).join(', ');
-          geoList.add(_GeoResult(
-              lat: r.latitude,
-              lng: r.longitude,
-              displayAddress: addr.isNotEmpty ? addr : fullQuery));
-        } catch (_) {
-          geoList.add(_GeoResult(
-              lat: r.latitude, lng: r.longitude, displayAddress: fullQuery));
-        }
-      }
-
-      if (geoList.length == 1) {
-        // Single result → auto-pin
-        _applyGeoResult(geoList.first);
-      } else {
-        // Multiple → show picker
-        setState(() { _geoResults = geoList; _showResultPicker = true; _isGeocoding = false; });
-      }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        setState(() { _isGeocoding = false; });
-        // Don't show error — user may still be typing
+        setState(() {
+          _isGeocoding = false;
+        });
       }
     }
   }
@@ -248,6 +288,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       _pinnedLat = result.lat;
       _pinnedLng = result.lng;
       _pinnedAddress = result.displayAddress;
+      _venueController.text = result.displayAddress;
       _showMapPreview = true;
       _showResultPicker = false;
       _geoResults = [];
@@ -272,7 +313,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         final addr = [p.name, p.subLocality, p.locality, p.administrativeArea]
             .where((s) => s != null && s.isNotEmpty)
             .join(', ');
-        setState(() => _pinnedAddress = addr);
+        setState(() {
+          _pinnedAddress = addr;
+          _venueController.text = addr;
+        });
       }
     } catch (_) {}
   }
@@ -392,7 +436,24 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         return;
       }
 
-      final bytes = await picked.readAsBytes();
+      final initialBytes = await picked.readAsBytes();
+      if (!mounted) return;
+      final bytes = await Navigator.push<Uint8List>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCropperScreen(
+            imageBytes: initialBytes,
+            aspectRatio: 16 / 9,
+            title: 'Crop Event Cover Photo',
+          ),
+        ),
+      );
+
+      if (bytes == null) {
+        setState(() => _isUploadingImage = false);
+        return;
+      }
+
       final tempId = DateTime.now().millisecondsSinceEpoch.toString();
 
       setState(() => _eventImages.add(_UploadedImage(
@@ -604,6 +665,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         'category': _selectedCategory ?? 'Other',
         'city': _selectedCity ?? '',
         'venue': _venueController.text.trim(),
+        'additionalAddress': _additionalAddressController.text.trim(),
         'dateTime': Timestamp.fromDate(dateTime),
         'creatorUid': user.uid,
         'creatorName': creatorName,
@@ -728,10 +790,52 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                  // ── City ──
-                  const _Label('City'),
-                  const SizedBox(height: 8),
-                  _DropdownField<String>(hint: 'Select city', value: _selectedCity, items: _kCities.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TheyDiTextStyles.bodyMedium))).toList(), onChanged: (v) { setState(() => _selectedCity = v); if (_venueController.text.trim().isNotEmpty) _geocodeVenue(_venueController.text.trim()); }, icon: Icons.location_city_outlined).animate(delay: 120.ms).fade(duration: 300.ms),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _Label('House/Room/Floor/Additional'),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _additionalAddressController,
+                              style: TheyDiTextStyles.bodyMedium,
+                              decoration: const InputDecoration(
+                                hintText: 'e.g. Room 4B, 3rd Floor',
+                                prefixIcon: Icon(Icons.info_outline),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _Label('City'),
+                            const SizedBox(height: 8),
+                            _DropdownField<String>(
+                              hint: 'Select city',
+                              value: _selectedCity,
+                              items: _kCities.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TheyDiTextStyles.bodyMedium))).toList(),
+                              onChanged: (v) {
+                                setState(() => _selectedCity = v);
+                                if (_venueController.text.trim().isNotEmpty) {
+                                  _geocodeVenue(_venueController.text.trim());
+                                }
+                              },
+                              icon: Icons.location_city_outlined,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ).animate(delay: 120.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
@@ -1311,28 +1415,38 @@ class _DropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-          color: TheyDiColors.inputFill,
+    return InputDecorator(
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, size: 18, color: TheyDiColors.textMuted),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13.5),
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TheyDiColors.divider)),
+          borderSide: const BorderSide(color: TheyDiColors.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: TheyDiColors.divider),
+        ),
+        fillColor: TheyDiColors.inputFill,
+        filled: true,
+      ),
       child: DropdownButtonHideUnderline(
-          child: DropdownButton<T>(
-              value: value,
-              hint: Row(children: [
-                Icon(icon, size: 18, color: TheyDiColors.textMuted),
-                const SizedBox(width: 10),
-                Text(hint,
-                    style: TheyDiTextStyles.bodyMedium
-                        .copyWith(color: TheyDiColors.textMuted))
-              ]),
-              dropdownColor: TheyDiColors.card,
-              isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  color: TheyDiColors.textMuted),
-              items: items,
-              onChanged: onChanged)),
+        child: DropdownButton<T>(
+          value: value,
+          isDense: true,
+          hint: Text(
+            hint,
+            style: TheyDiTextStyles.bodyMedium
+                .copyWith(color: TheyDiColors.textMuted),
+          ),
+          dropdownColor: TheyDiColors.card,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down,
+              color: TheyDiColors.textMuted),
+          items: items,
+          onChanged: onChanged,
+        ),
+      ),
     );
   }
 }

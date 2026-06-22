@@ -35,107 +35,135 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   final List<String> _filters = ['All', 'Today', 'Free', 'This Week'];
 
   List<EventModel> _applyQuickFilter(List<EventModel> events) {
-    var filtered = events;
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime weekLater = today.add(const Duration(days: 7));
 
-    switch (_selectedFilter) {
-      case 'Today':
-        final now = DateTime.now();
-        filtered = filtered
-            .where((e) =>
-                e.dateTime.day == now.day &&
-                e.dateTime.month == now.month &&
-                e.dateTime.year == now.year)
-            .toList();
-        break;
-      case 'Free':
-        filtered = filtered.where((e) => e.isFree).toList();
-        break;
-      case 'This Week':
-        final weekLater = DateTime.now().add(const Duration(days: 7));
-        filtered =
-            filtered.where((e) => e.dateTime.isBefore(weekLater)).toList();
-        break;
-    }
+    debugPrint('EXPLORE_DEBUG: _applyQuickFilter called. Filter: $_selectedFilter. Events count: ${events.length}');
+    
+    // Create a copy to reorder without mutating the source list
+    final sorted = List<EventModel>.from(events);
 
-    // Advanced filters
-    if (_advancedFilters.category != null) {
-      filtered = filtered
-          .where((e) => e.category == _advancedFilters.category)
-          .toList();
-    }
-    if (_advancedFilters.city != null) {
-      filtered = filtered
-          .where((e) =>
-              e.city.toLowerCase() ==
-              _advancedFilters.city!.toLowerCase())
-          .toList();
-    }
-    if (_advancedFilters.freeOnly == true) {
-      filtered = filtered.where((e) => e.isFree).toList();
-    }
-    if (_advancedFilters.maxPrice != null) {
-      filtered = filtered
-          .where((e) => e.isFree || e.price <= _advancedFilters.maxPrice!)
-          .toList();
-    }
-    if (_advancedFilters.dateFrom != null) {
-      filtered = filtered
-          .where((e) => e.dateTime.isAfter(_advancedFilters.dateFrom!))
-          .toList();
-    }
-    if (_advancedFilters.dateTo != null) {
-      final endOfDay = _advancedFilters.dateTo!
-          .add(const Duration(hours: 23, minutes: 59));
-      filtered =
-          filtered.where((e) => e.dateTime.isBefore(endOfDay)).toList();
-    }
-
-    return filtered;
-  }
-
-  // Trending = upcoming events with most attendees
-  List<EventModel> _getTrending(List<EventModel> events) {
-    final upcoming =
-        events.where((e) => e.dateTime.isAfter(DateTime.now())).toList();
-    upcoming.sort((a, b) => b.currentAttendees.compareTo(a.currentAttendees));
-    return upcoming.take(6).toList();
-  }
-
-  // Most Popular = highest attendees + not full
-  List<EventModel> _getMostPopular(List<EventModel> events) {
-    final popular = events
-        .where((e) => e.dateTime.isAfter(DateTime.now()) && !e.isFull)
-        .toList();
-    popular.sort((a, b) => b.currentAttendees.compareTo(a.currentAttendees));
-    return popular.take(6).toList();
-  }
-
-  // House Parties = category is Party or Social
-  List<EventModel> _getHouseParties(List<EventModel> events) {
-    return events
-        .where((e) =>
-            e.dateTime.isAfter(DateTime.now()) &&
-            (e.category.toLowerCase() == 'party' ||
-                e.category.toLowerCase() == 'social' ||
-                e.title.toLowerCase().contains('party') ||
-                e.description.toLowerCase().contains('party') ||
-                e.title.toLowerCase().contains('house') ||
-                e.description.toLowerCase().contains('house')))
-        .take(6)
-        .toList();
-  }
-
-  // Newly Added = sorted by createdAt descending
-  List<EventModel> _getNewlyAdded(List<EventModel> events) {
-    final sorted = events
-        .where((e) => e.dateTime.isAfter(DateTime.now()))
-        .toList();
     sorted.sort((a, b) {
+      // 1. Quick Filter Priority (Chips)
+      bool aMatchesQuick = false;
+      bool bMatchesQuick = false;
+
+      if (_selectedFilter == 'Today') {
+        aMatchesQuick = a.dateTime.year == today.year && a.dateTime.month == today.month && a.dateTime.day == today.day;
+        bMatchesQuick = b.dateTime.year == today.year && b.dateTime.month == today.month && b.dateTime.day == today.day;
+      } else if (_selectedFilter == 'Free') {
+        aMatchesQuick = a.isFree;
+        bMatchesQuick = b.isFree;
+      } else if (_selectedFilter == 'This Week') {
+        aMatchesQuick = a.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) && a.dateTime.isBefore(weekLater);
+        bMatchesQuick = b.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) && b.dateTime.isBefore(weekLater);
+      }
+
+      if (aMatchesQuick != bMatchesQuick) return aMatchesQuick ? -1 : 1;
+
+      // 2. Advanced Filters Priority
+      // Scoring based on how many criteria are met
+      int aScore = 0;
+      int bScore = 0;
+
+      if (_advancedFilters.category != null) {
+        if (a.category == _advancedFilters.category) aScore++;
+        if (b.category == _advancedFilters.category) bScore++;
+      }
+      if (_advancedFilters.city != null) {
+        if (a.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) aScore++;
+        if (b.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) bScore++;
+      }
+      if (_advancedFilters.freeOnly == true) {
+        if (a.isFree) aScore++;
+        if (b.isFree) bScore++;
+      }
+      if (_advancedFilters.maxPrice != null) {
+        if (a.isFree || a.price <= _advancedFilters.maxPrice!) aScore++;
+        if (b.isFree || b.price <= _advancedFilters.maxPrice!) bScore++;
+      }
+      if (_advancedFilters.dateFrom != null) {
+        if (a.dateTime.isAfter(_advancedFilters.dateFrom!)) aScore++;
+        if (b.dateTime.isAfter(_advancedFilters.dateFrom!)) bScore++;
+      }
+      if (_advancedFilters.dateTo != null) {
+        final endOfDay = _advancedFilters.dateTo!.add(const Duration(hours: 23, minutes: 59));
+        if (a.dateTime.isBefore(endOfDay)) aScore++;
+        if (b.dateTime.isBefore(endOfDay)) bScore++;
+      }
+
+      if (aScore != bScore) return bScore.compareTo(aScore);
+
+      // 3. Fallback: Chronological Order
+      return a.dateTime.compareTo(b.dateTime);
+    });
+
+    debugPrint('EXPLORE_DEBUG: Sort finished. Top 3 titles: ${sorted.take(3).map((e) => e.title).toList()}');
+    return sorted;
+  }
+
+  // Shared logic to ensure segments also respect the Quick Filter reordering/prioritization
+  List<EventModel> _sortSegment(List<EventModel> events, int Function(EventModel a, EventModel b) secondaryComparator) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekLater = today.add(const Duration(days: 7));
+
+    // Start with all upcoming events
+    final list = events.where((e) => e.dateTime.isAfter(now)).toList();
+
+    list.sort((a, b) {
+      bool aMatchesQuick = false;
+      bool bMatchesQuick = false;
+
+      if (_selectedFilter == 'Today') {
+        aMatchesQuick = a.dateTime.year == today.year && a.dateTime.month == today.month && a.dateTime.day == today.day;
+        bMatchesQuick = b.dateTime.year == today.year && b.dateTime.month == today.month && b.dateTime.day == today.day;
+      } else if (_selectedFilter == 'Free') {
+        aMatchesQuick = a.isFree;
+        bMatchesQuick = b.isFree;
+      } else if (_selectedFilter == 'This Week') {
+        aMatchesQuick = a.dateTime.isBefore(weekLater);
+        bMatchesQuick = b.dateTime.isBefore(weekLater);
+      }
+
+      // If one matches the priority filter and other doesn't, priority wins
+      if (aMatchesQuick != bMatchesQuick) return aMatchesQuick ? -1 : 1;
+
+      // If both (or neither) match, use the secondary criteria (e.g. attendees for Trending)
+      return secondaryComparator(a, b);
+    });
+
+    return list.take(6).toList();
+  }
+
+  List<EventModel> _getTrending(List<EventModel> events) {
+    return _sortSegment(events, (a, b) => b.currentAttendees.compareTo(a.currentAttendees));
+  }
+
+  List<EventModel> _getMostPopular(List<EventModel> events) {
+    final popularCandidates = events.where((e) => !e.isFull).toList();
+    return _sortSegment(popularCandidates, (a, b) => b.currentAttendees.compareTo(a.currentAttendees));
+  }
+
+  List<EventModel> _getHouseParties(List<EventModel> events) {
+    final partyCandidates = events.where((e) =>
+        e.category.toLowerCase() == 'party' ||
+        e.category.toLowerCase() == 'social' ||
+        e.title.toLowerCase().contains('party') ||
+        e.description.toLowerCase().contains('party') ||
+        e.title.toLowerCase().contains('house') ||
+        e.description.toLowerCase().contains('house')).toList();
+
+    return _sortSegment(partyCandidates, (a, b) => a.dateTime.compareTo(b.dateTime));
+  }
+
+  List<EventModel> _getNewlyAdded(List<EventModel> events) {
+    return _sortSegment(events, (a, b) {
       final aDate = a.createdAt ?? DateTime(2000);
       final bDate = b.createdAt ?? DateTime(2000);
       return bDate.compareTo(aDate);
     });
-    return sorted.take(6).toList();
   }
 
   @override
@@ -190,6 +218,23 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               const SizedBox(width: 4),
                               Icon(Icons.public,
                                   size: 16, color: TheyDiColors.primary),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () =>
+                                    context.push(AppRoutes.notifications),
+                                child: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: TheyDiColors.divider)),
+                                    child: const Icon(
+                                        Icons.notifications_outlined,
+                                        color: TheyDiColors.textSecondary,
+                                        size: 20)),
+                              ),
                             ],
                           ).animate().fade(duration: 400.ms),
 
@@ -259,8 +304,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                       final isSelected =
                                           filter == _selectedFilter;
                                       return GestureDetector(
-                                        onTap: () => setState(() =>
-                                            _selectedFilter = filter),
+                                        onTap: () {
+                                          debugPrint('EXPLORE_UI: Selected filter chip: $filter');
+                                          setState(() =>
+                                            _selectedFilter = filter);
+                                        },
                                         child: AnimatedContainer(
                                           duration: const Duration(
                                               milliseconds: 200),

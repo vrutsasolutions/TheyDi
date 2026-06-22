@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/services/cloudflare_upload.dart';
+import '../../../shared/screens/image_cropper_screen.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -206,7 +207,20 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
       );
       if (picked == null) return;
 
-      final bytes = await picked.readAsBytes();
+      final initialBytes = await picked.readAsBytes();
+      if (!mounted) return;
+      final bytes = await Navigator.push<Uint8List>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCropperScreen(
+            imageBytes: initialBytes,
+            aspectRatio: 1.0,
+            title: 'Crop Profile Photo',
+          ),
+        ),
+      );
+
+      if (bytes == null) return;
 
       // Validate size (5MB max)
       if (bytes.lengthInBytes > 5 * 1024 * 1024) {

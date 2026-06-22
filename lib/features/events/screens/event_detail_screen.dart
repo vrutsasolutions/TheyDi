@@ -330,7 +330,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           child: DecoratedBox(
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(colors: [Color(0xFFFF4466), Color(0xFFAA44FF)])),
+                gradient: TheyDiColors.gradientPrimary),
             child: ElevatedButton.icon(
               onPressed: () => context.push(AppRoutes.submitReview, extra: widget.event),
               icon: const Icon(Icons.star_rounded, color: Colors.white, size: 20),
@@ -358,6 +358,28 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         );
       }
       return const SizedBox.shrink();
+    }
+
+    // Active event
+    if (_isHost) {
+      return SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: TheyDiColors.gradientPrimary),
+          child: ElevatedButton.icon(
+            onPressed: () => context.push(AppRoutes.hostManage, extra: _event.id),
+            icon: const Icon(Icons.stars_outlined, color: Colors.white, size: 20),
+            label: const Text('Your Event',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          ),
+        ),
+      );
     }
 
     // Active event — derive label and style
