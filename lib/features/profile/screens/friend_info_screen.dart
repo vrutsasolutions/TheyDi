@@ -89,8 +89,9 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
             body: 'Remove ${widget.displayName} from your friends?',
             confirm: 'Remove',
           );
-          if (confirmed)
+          if (confirmed) {
             await FriendsService.removeFriend(otherUid: widget.uid);
+          }
           break;
         case FriendStatus.requestSent:
         case FriendStatus.self:
