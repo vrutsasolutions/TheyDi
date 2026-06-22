@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -47,9 +48,42 @@ import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Routes that require the user to be signed in
+  const protectedRoutes = [
+    AppRoutes.home,
+    AppRoutes.explore,
+    AppRoutes.myEvents,
+    AppRoutes.profile,
+    AppRoutes.createEvent,
+    AppRoutes.hostDashboard,
+    AppRoutes.circles,
+  ];
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    redirect: (context, state) {
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoggedIn = user != null;
+      final path = state.matchedLocation;
+
+      // Auth-only pages (exact match — '/' would break startsWith)
+      final isOnAuthPage = path == AppRoutes.splash ||
+          path == AppRoutes.login ||
+          path.startsWith('/signup');
+
+      // If logged in and on an auth-only page, go home
+      if (isLoggedIn && isOnAuthPage) {
+        return AppRoutes.home;
+      }
+
+      // If not logged in and trying to access a protected page, go to login
+      if (!isLoggedIn && protectedRoutes.any((r) => path.startsWith(r))) {
+        return AppRoutes.login;
+      }
+
+      return null; // no redirect needed
+    },
     routes: [
       GoRoute(
         path: AppRoutes.splash,

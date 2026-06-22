@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,9 +23,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _navigate() async {
+    // Show splash for at least 2 seconds
     await Future.delayed(AppConstants.splashDuration);
     if (!mounted) return;
-    context.go(AppRoutes.login);
+
+    // Check if user is already logged in
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Already authenticated — go straight to home
+      context.go(AppRoutes.home);
+    } else {
+      // Not authenticated — go to login
+      context.go(AppRoutes.login);
+    }
   }
 
   @override

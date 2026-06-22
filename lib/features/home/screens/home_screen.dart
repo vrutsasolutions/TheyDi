@@ -349,43 +349,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: TheyDiColors.card,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border:
-                                      Border.all(color: TheyDiColors.divider),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 34,
-                                      height: 34,
-                                      decoration: BoxDecoration(
-                                        color: TheyDiColors.primary,
-                                        borderRadius: BorderRadius.circular(12),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: TheyDiColors.card,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border:
+                                        Border.all(color: TheyDiColors.divider),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 34,
+                                        height: 34,
+                                        decoration: BoxDecoration(
+                                          color: TheyDiColors.primary,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Center(
+                                          child: Text('T',
+                                              style: TheyDiTextStyles
+                                                  .headlineSmall
+                                                  .copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w900)),
+                                        ),
                                       ),
-                                      child: Center(
-                                        child: Text('T',
-                                            style: TheyDiTextStyles
-                                                .headlineSmall
-                                                .copyWith(
-                                                    color: Colors.white,
-                                                    fontWeight:
-                                                        FontWeight.w900)),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text('TheyDi',
-                                        style: TheyDiTextStyles.headlineSmall
-                                            .copyWith(
-                                                fontWeight: FontWeight.w700)),
-                                  ],
+                                      const SizedBox(width: 10),
+                                      Text('TheyDi',
+                                          style: TheyDiTextStyles.headlineSmall
+                                              .copyWith(
+                                                  fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              Row(children: [
+                              const SizedBox(width: 8),
+                              Row(mainAxisSize: MainAxisSize.min, children: [
                                 GestureDetector(
                                   onTap: () =>
                                       context.push(AppRoutes.notifications),
@@ -500,143 +504,154 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 16),
 
                       // Location + filter pills
-                      Row(children: [
-                        const Icon(Icons.location_on,
-                            color: TheyDiColors.primary, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                            userCity.isNotEmpty
-                                ? '$userCity, India'
-                                : 'All Cities',
-                            style: TheyDiTextStyles.labelMedium
-                                .copyWith(color: TheyDiColors.primary)),
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: _showRadiusSelector,
-                          child: Container(
-                            height: 34,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                                color: TheyDiColors.card,
-                                borderRadius: BorderRadius.circular(16),
-                                border:
-                                    Border.all(color: TheyDiColors.divider)),
-                            child:
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.radar,
-                                  size: 14, color: TheyDiColors.primary),
-                              const SizedBox(width: 6),
-                              Text(_radiusLabel,
-                                  style: TheyDiTextStyles.caption.copyWith(
-                                      color: TheyDiColors.primary,
-                                      fontWeight: FontWeight.w600)),
-                              const SizedBox(width: 6),
-                              const Icon(Icons.keyboard_arrow_down,
-                                  size: 14, color: TheyDiColors.primary),
-                            ]),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on,
+                              color: TheyDiColors.primary, size: 16),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                                userCity.isNotEmpty
+                                    ? '$userCity, India'
+                                    : 'All Cities',
+                                style: TheyDiTextStyles.labelMedium
+                                    .copyWith(color: TheyDiColors.primary),
+                                overflow: TextOverflow.ellipsis),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedSort = 'Date'),
-                          child: Container(
-                            height: 34,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: _selectedSort == 'Date'
-                                  ? TheyDiColors.primary.withValues(alpha: 0.2)
-                                  : TheyDiColors.card,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: _selectedSort == 'Date'
-                                      ? TheyDiColors.primary
-                                      : TheyDiColors.divider),
-                            ),
-                            child:
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.schedule,
-                                  size: 14,
-                                  color: _selectedSort == 'Date'
-                                      ? TheyDiColors.primary
-                                      : TheyDiColors.textSecondary),
-                              const SizedBox(width: 6),
-                              Text('Date',
-                                  style: TheyDiTextStyles.caption.copyWith(
-                                      color: _selectedSort == 'Date'
-                                          ? TheyDiColors.primary
-                                          : TheyDiColors.textSecondary,
-                                      fontWeight: _selectedSort == 'Date'
-                                          ? FontWeight.w600
-                                          : FontWeight.normal)),
-                            ]),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (_selectedSort == 'Price ₹') {
-                                _priceAscending = !_priceAscending;
-                              }
-                              _selectedSort = 'Price ₹';
-                            });
-                          },
-                          child: Container(
-                            height: 34,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: _selectedSort == 'Price ₹'
-                                  ? TheyDiColors.primary.withValues(alpha: 0.2)
-                                  : TheyDiColors.card,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: _selectedSort == 'Price ₹'
-                                      ? TheyDiColors.primary
-                                      : TheyDiColors.divider),
-                            ),
-                            child:
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.currency_rupee,
-                                  size: 14,
-                                  color: _selectedSort == 'Price ₹'
-                                      ? TheyDiColors.primary
-                                      : TheyDiColors.textSecondary),
-                              const SizedBox(width: 6),
-                              Text(
-                                  _selectedSort == 'Price ₹'
-                                      ? (_priceAscending
-                                          ? 'Price ↑'
-                                          : 'Price ↓')
-                                      : 'Price',
-                                  style: TheyDiTextStyles.caption.copyWith(
-                                      color: _selectedSort == 'Price ₹'
-                                          ? TheyDiColors.primary
-                                          : TheyDiColors.textSecondary,
-                                      fontWeight: _selectedSort == 'Price ₹'
-                                          ? FontWeight.w600
-                                          : FontWeight.normal)),
-                            ]),
-                          ),
-                        ),
-                        const Spacer(),
-                        if (_locationLoading)
-                          const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  color: TheyDiColors.primary, strokeWidth: 2))
-                        else if (_userLat != null)
-                          const Icon(Icons.gps_fixed,
-                              size: 14, color: Colors.green)
-                        else
+                          const SizedBox(width: 8),
+                          if (_locationLoading)
+                            const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                    color: TheyDiColors.primary, strokeWidth: 2))
+                          else if (_userLat != null)
+                            const Icon(Icons.gps_fixed,
+                                size: 14, color: Colors.green)
+                          else
+                            GestureDetector(
+                                onTap: _loadUserLocation,
+                                child: const Icon(Icons.gps_off,
+                                    size: 14, color: TheyDiColors.textMuted)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      // Scrollable filter chips row
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
                           GestureDetector(
-                              onTap: _loadUserLocation,
-                              child: const Icon(Icons.gps_off,
-                                  size: 14, color: TheyDiColors.textMuted)),
-                      ]).animate(delay: 150.ms).fade(duration: 400.ms),
+                            onTap: _showRadiusSelector,
+                            child: Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                  color: TheyDiColors.card,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border:
+                                      Border.all(color: TheyDiColors.divider)),
+                              child:
+                                  Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.radar,
+                                    size: 14, color: TheyDiColors.primary),
+                                const SizedBox(width: 6),
+                                Text(_radiusLabel,
+                                    style: TheyDiTextStyles.caption.copyWith(
+                                        color: TheyDiColors.primary,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(width: 6),
+                                const Icon(Icons.keyboard_arrow_down,
+                                    size: 14, color: TheyDiColors.primary),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setState(() => _selectedSort = 'Date'),
+                            child: Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _selectedSort == 'Date'
+                                    ? TheyDiColors.primary.withValues(alpha: 0.2)
+                                    : TheyDiColors.card,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: _selectedSort == 'Date'
+                                        ? TheyDiColors.primary
+                                        : TheyDiColors.divider),
+                              ),
+                              child:
+                                  Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.schedule,
+                                    size: 14,
+                                    color: _selectedSort == 'Date'
+                                        ? TheyDiColors.primary
+                                        : TheyDiColors.textSecondary),
+                                const SizedBox(width: 6),
+                                Text('Date',
+                                    style: TheyDiTextStyles.caption.copyWith(
+                                        color: _selectedSort == 'Date'
+                                            ? TheyDiColors.primary
+                                            : TheyDiColors.textSecondary,
+                                        fontWeight: _selectedSort == 'Date'
+                                            ? FontWeight.w600
+                                            : FontWeight.normal)),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (_selectedSort == 'Price ₹') {
+                                  _priceAscending = !_priceAscending;
+                                }
+                                _selectedSort = 'Price ₹';
+                              });
+                            },
+                            child: Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _selectedSort == 'Price ₹'
+                                    ? TheyDiColors.primary.withValues(alpha: 0.2)
+                                    : TheyDiColors.card,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: _selectedSort == 'Price ₹'
+                                        ? TheyDiColors.primary
+                                        : TheyDiColors.divider),
+                              ),
+                              child:
+                                  Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.currency_rupee,
+                                    size: 14,
+                                    color: _selectedSort == 'Price ₹'
+                                        ? TheyDiColors.primary
+                                        : TheyDiColors.textSecondary),
+                                const SizedBox(width: 6),
+                                Text(
+                                    _selectedSort == 'Price ₹'
+                                        ? (_priceAscending
+                                            ? 'Price ↑'
+                                            : 'Price ↓')
+                                        : 'Price',
+                                    style: TheyDiTextStyles.caption.copyWith(
+                                        color: _selectedSort == 'Price ₹'
+                                            ? TheyDiColors.primary
+                                            : TheyDiColors.textSecondary,
+                                        fontWeight: _selectedSort == 'Price ₹'
+                                            ? FontWeight.w600
+                                            : FontWeight.normal)),
+                              ]),
+                            ),
+                          ),
+                        ]),
+                      ).animate(delay: 150.ms).fade(duration: 400.ms),
 
                       const SizedBox(height: 14),
 
@@ -744,14 +759,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     style: TheyDiTextStyles.labelLarge),
                                 const SizedBox(height: 16),
                                 SizedBox(
-                                  height: 380,
+                                  height: 420,
                                   child: LayoutBuilder(
                                     builder: (context, constraints) {
                                       final cardWidth = math
                                           .min(
                                               360,
                                               math.max(280,
-                                                  constraints.maxWidth * 0.78))
+                                                  constraints.maxWidth * 0.85))
                                           .toDouble();
                                       return ListView.separated(
                                         scrollDirection: Axis.horizontal,
