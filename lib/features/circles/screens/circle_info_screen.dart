@@ -101,11 +101,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     });
 
     await _refresh();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _editing = false;
         _saving = false;
       });
+    }
   }
 
   Future<void> _pickGroupPhoto() async {

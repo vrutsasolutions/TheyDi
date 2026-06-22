@@ -756,11 +756,12 @@ class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
     setState(() => _loading = true);
     await FriendsService.sendFriendRequest(
         toUid: widget.uid, toName: widget.displayName);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _loading = false;
         _sent = true;
       });
+    }
   }
 
   @override
