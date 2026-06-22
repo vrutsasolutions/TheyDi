@@ -39,6 +39,29 @@ final _eventsAttendedCountProvider = StreamProvider.autoDispose<int>((ref) {
           s.docs.where((d) => (d.data()['creatorUid'] ?? '') != uid).length);
 });
 
+// ── Live count: friends ──
+final _friendsCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value(0);
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('friends')
+      .snapshots()
+      .map((s) => s.docs.length);
+});
+
+// ── Live count: friend circles ──
+final _circlesCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value(0);
+  return FirebaseFirestore.instance
+      .collection('circles')
+      .where('memberUids', arrayContains: uid)
+      .snapshots()
+      .map((s) => s.docs.length);
+});
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -47,6 +70,8 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(_userProfileProvider);
     final createdAsync = ref.watch(_eventsCreatedCountProvider);
     final attendedAsync = ref.watch(_eventsAttendedCountProvider);
+    final friendsCountAsync = ref.watch(_friendsCountProvider);
+    final circlesCountAsync = ref.watch(_circlesCountProvider);
 
     return Scaffold(
       body: Container(
@@ -90,6 +115,10 @@ class ProfileScreen extends ConsumerWidget {
                   createdAsync.asData?.value.toString() ?? '…';
               final eventsAttended =
                   attendedAsync.asData?.value.toString() ?? '…';
+              final friendsCount =
+                  friendsCountAsync.asData?.value.toString() ?? '…';
+              final circlesCount =
+                  circlesCountAsync.asData?.value.toString() ?? '…';
 
               return _ProfileContent(
                 displayName: displayName,
@@ -100,6 +129,8 @@ class ProfileScreen extends ConsumerWidget {
                 interests: interests,
                 eventsCreated: eventsCreated,
                 eventsAttended: eventsAttended,
+                friendsCount: friendsCount,
+                circlesCount: circlesCount,
                 isVerified: isVerified,
                 age: age != null ? int.tryParse(age.toString()) : null,
                 gender: gender,
@@ -121,6 +152,8 @@ class _ProfileContent extends ConsumerWidget {
   final List<String> interests;
   final String eventsCreated;
   final String eventsAttended;
+  final String friendsCount;
+  final String circlesCount;
   final bool isVerified;
   final int? age;
   final String gender;
@@ -134,6 +167,8 @@ class _ProfileContent extends ConsumerWidget {
     required this.interests,
     required this.eventsCreated,
     required this.eventsAttended,
+    required this.friendsCount,
+    required this.circlesCount,
     required this.isVerified,
     required this.age,
     required this.gender,
@@ -444,6 +479,24 @@ class _ProfileContent extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              Column(
+                children: [
+                  _CompactCountBadge(
+                    label: 'Friends',
+                    value: friendsCount,
+                    icon: Icons.people_outline,
+                    onTap: () => context.push(AppRoutes.friendsHub),
+                  ),
+                  const SizedBox(height: 8),
+                  _CompactCountBadge(
+                    label: 'Circles',
+                    value: circlesCount,
+                    icon: Icons.group_outlined,
+                    onTap: () => context.push(AppRoutes.circles),
+                  ),
+                ],
+              ).animate(delay: 180.ms).fade(duration: 350.ms),
             ],
           ),
 
@@ -742,11 +795,15 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
+  final String actionLabel;
+  final IconData actionIcon;
 
   const _StatCard({
     required this.label,
     required this.value,
     required this.onTap,
+    this.actionLabel = 'View history',
+    this.actionIcon = Icons.history,
   });
 
   @override
@@ -781,9 +838,9 @@ class _StatCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.history, size: 10, color: TheyDiColors.primary),
+                  Icon(actionIcon, size: 10, color: TheyDiColors.primary),
                   const SizedBox(width: 3),
-                  Text('View history',
+                  Text(actionLabel,
                       style: TheyDiTextStyles.caption
                           .copyWith(color: TheyDiColors.primary, fontSize: 9)),
                 ],
@@ -851,6 +908,77 @@ class _MenuItem extends StatelessWidget {
           trailing: const Icon(Icons.arrow_forward_ios,
               size: 14, color: TheyDiColors.textMuted),
           onTap: onTap,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactCountBadge extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CompactCountBadge({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 68,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: TheyDiColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: TheyDiColors.primary.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: TheyDiColors.primary.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: TheyDiColors.primary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TheyDiTextStyles.labelMedium.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: TheyDiColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TheyDiTextStyles.caption.copyWith(
+                fontSize: 9,
+                color: TheyDiColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

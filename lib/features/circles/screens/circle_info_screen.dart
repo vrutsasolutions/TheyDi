@@ -8,6 +8,8 @@
 //  4. All existing logic (edit, save, delete, leave, report, block) unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -17,6 +19,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/services/cloudflare_upload.dart';
+import '../../../shared/screens/image_cropper_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/event_circle_service.dart';
 import '../models/circle_model.dart';
@@ -117,7 +120,21 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     if (picked == null) return;
 
     try {
-      final bytes = await picked.readAsBytes();
+      final initialBytes = await picked.readAsBytes();
+
+      if (!mounted) return;
+      final bytes = await Navigator.push<Uint8List>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCropperScreen(
+            imageBytes: initialBytes,
+            aspectRatio: 1.0,
+            title: 'Crop Group Photo',
+          ),
+        ),
+      );
+
+      if (bytes == null) return;
 
       final url = await CloudflareUpload.uploadBytes(
         bytes,

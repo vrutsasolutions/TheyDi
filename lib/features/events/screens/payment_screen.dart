@@ -525,10 +525,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       borderRadius: BorderRadius.circular(16),
                       gradient: _isProcessing
                           ? null
-                          : const LinearGradient(colors: [
-                              Color(0xFFFF4466),
-                              Color(0xFFAA44FF)
-                            ]),
+                          : TheyDiColors.gradientPrimary,
                       color:
                           _isProcessing ? Colors.grey[800] : null,
                     ),

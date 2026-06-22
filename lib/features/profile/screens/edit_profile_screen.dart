@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/cloudflare_upload.dart';
+import '../../../shared/screens/image_cropper_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -145,11 +146,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       imageQuality: 85,
     );
     if (picked != null && mounted) {
-      final bytes = await picked.readAsBytes();
-      setState(() {
-        _pickedImageFile = picked;
-        _pickedImageBytes = bytes;
-      });
+      final initialBytes = await picked.readAsBytes();
+      if (!mounted) return;
+      final croppedBytes = await Navigator.push<Uint8List>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCropperScreen(
+            imageBytes: initialBytes,
+            aspectRatio: 1.0,
+            title: 'Crop Profile Photo',
+          ),
+        ),
+      );
+
+      if (croppedBytes != null && mounted) {
+        setState(() {
+          _pickedImageFile = picked;
+          _pickedImageBytes = croppedBytes;
+        });
+      }
     }
   }
 
@@ -199,10 +214,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Future<String?> _uploadImage(XFile file) async {
+  Future<String?> _uploadImage(Uint8List bytes) async {
     try {
-      final bytes = await file.readAsBytes();
-
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
       final imageUrl = await CloudflareUpload.uploadBytes(
@@ -225,8 +238,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
       String photoUrl = _existingPhotoUrl;
-      if (_pickedImageFile != null) {
-        final uploaded = await _uploadImage(_pickedImageFile!);
+      if (_pickedImageBytes != null) {
+        final uploaded = await _uploadImage(_pickedImageBytes!);
         if (uploaded != null) photoUrl = uploaded;
       }
 

@@ -25,6 +25,7 @@ class EventModel {
   final int durationHours;
   final String ageGroup;
   final String status;
+  final String? additionalAddress;
 
   const EventModel({
     required this.id,
@@ -51,6 +52,7 @@ class EventModel {
     this.durationHours = 0,
     this.ageGroup = '',
     this.status = 'upcoming',
+    this.additionalAddress,
   });
 
   // ── Computed getters ────────────────────────────────────────────────────────
@@ -145,6 +147,7 @@ class EventModel {
       durationHours: data['durationHours'] ?? 0,
       ageGroup: data['ageGroup'] ?? '',
       status: data['status'] ?? 'upcoming',
+      additionalAddress: data['additionalAddress'],
     );
   }
 
@@ -168,6 +171,7 @@ class EventModel {
       'imageUrls': imageUrls,
       'tags': tags,
       'attendeeUids': attendeeUids,
+      'additionalAddress': additionalAddress,
       'pendingUids': pendingUids,
       'approvedPendingPaymentUids': approvedPendingPaymentUids,
       'isFree': isFree,

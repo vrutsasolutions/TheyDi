@@ -191,8 +191,7 @@ class _ReviewPopupState extends State<ReviewPopup> {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                gradient: const LinearGradient(
-                    colors: [Color(0xFFFF4466), Color(0xFFAA44FF)]),
+                gradient: TheyDiColors.gradientPrimary,
               ),
               child: ElevatedButton(
                 onPressed: _goToFullReview,

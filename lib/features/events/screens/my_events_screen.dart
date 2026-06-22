@@ -79,6 +79,21 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                         Text('My Events', style: TheyDiTextStyles.displayMedium)
                             .animate()
                             .fade(duration: 400.ms),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => context.push(AppRoutes.notifications),
+                          child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: TheyDiColors.divider)),
+                              child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: TheyDiColors.textSecondary,
+                                  size: 20)),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

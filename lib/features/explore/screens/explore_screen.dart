@@ -218,6 +218,23 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               const SizedBox(width: 4),
                               Icon(Icons.public,
                                   size: 16, color: TheyDiColors.primary),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () =>
+                                    context.push(AppRoutes.notifications),
+                                child: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: TheyDiColors.divider)),
+                                    child: const Icon(
+                                        Icons.notifications_outlined,
+                                        color: TheyDiColors.textSecondary,
+                                        size: 20)),
+                              ),
                             ],
                           ).animate().fade(duration: 400.ms),
 
