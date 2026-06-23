@@ -479,24 +479,6 @@ class _ProfileContent extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Column(
-                children: [
-                  _CompactCountBadge(
-                    label: 'Friends',
-                    value: friendsCount,
-                    icon: Icons.people_outline,
-                    onTap: () => context.push(AppRoutes.friendsHub),
-                  ),
-                  const SizedBox(height: 8),
-                  _CompactCountBadge(
-                    label: 'Circles',
-                    value: circlesCount,
-                    icon: Icons.group_outlined,
-                    onTap: () => context.push(AppRoutes.circles),
-                  ),
-                ],
-              ).animate(delay: 180.ms).fade(duration: 350.ms),
             ],
           ),
 
@@ -505,24 +487,48 @@ class _ProfileContent extends ConsumerWidget {
           // ══════════════════════════════════════
           // STAT CARDS — live counts, tappable
           // ══════════════════════════════════════
-          Row(
+          Column(
             children: [
-              _StatCard(
-                label: 'Events Created',
-                value: eventsCreated,
-                onTap: () => context.push(
-                  AppRoutes.myEvents,
-                  extra: {'tab': 2, 'filter': 'Hosted'},
-                ),
+              Row(
+                children: [
+                  _StatCard(
+                    label: 'Events Created',
+                    value: eventsCreated,
+                    onTap: () => context.push(
+                      AppRoutes.myEvents,
+                      extra: {'tab': 2, 'filter': 'Hosted'},
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _StatCard(
+                    label: 'Events Attended',
+                    value: eventsAttended,
+                    onTap: () => context.push(
+                      AppRoutes.myEvents,
+                      extra: {'tab': 2, 'filter': 'Attended'},
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              _StatCard(
-                label: 'Events Attended',
-                value: eventsAttended,
-                onTap: () => context.push(
-                  AppRoutes.myEvents,
-                  extra: {'tab': 2, 'filter': 'Attended'},
-                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _StatCard(
+                    label: 'Friends',
+                    value: friendsCount,
+                    actionLabel: 'View Friends',
+                    actionIcon: Icons.people_outline,
+                    onTap: () => context.push(AppRoutes.friendsHub),
+                  ),
+                  const SizedBox(width: 12),
+                  _StatCard(
+                    label: 'Friend Circles',
+                    value: circlesCount,
+                    actionLabel: 'View Circles',
+                    actionIcon: Icons.group_outlined,
+                    onTap: () => context.push(AppRoutes.circles),
+                  ),
+                ],
               ),
             ],
           ).animate(delay: 200.ms).fade(duration: 400.ms),

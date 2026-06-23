@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,12 +45,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String _getErrorMessage(String code) {
     switch (code) {
-      case 'user-not-found':    return 'No account found with this email.';
-      case 'wrong-password':    return 'Incorrect password. Please try again.';
-      case 'invalid-email':     return 'Please enter a valid email address.';
-      case 'user-disabled':     return 'This account has been disabled.';
-      case 'too-many-requests': return 'Too many attempts. Please try again later.';
-      default:                  return 'Sign in failed. Please try again.';
+      case 'user-not-found':      return 'No account found with this email.';
+      case 'wrong-password':      return 'Incorrect password. Please try again.';
+      case 'invalid-credential':  return 'Invalid email or password. Please try again.';
+      case 'invalid-email':       return 'Please enter a valid email address.';
+      case 'user-disabled':       return 'This account has been disabled.';
+      case 'too-many-requests':   return 'Too many attempts. Please try again later.';
+      default:                    return 'Sign in failed. Please try again.';
     }
   }
 
@@ -63,11 +65,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             keepMeSignedIn: _keepMeSignedIn,
           );
       if (mounted) context.go(AppRoutes.home);
+    } on FirebaseAuthException catch (e) {
+      final mappedMsg = _getErrorMessage(e.code);
+      if (mappedMsg != 'Sign in failed. Please try again.') {
+        _showError(mappedMsg);
+      } else {
+        _showError(e.message ?? 'Sign in failed: ${e.code}');
+      }
     } catch (e) {
-      final code = e.toString().contains('firebase_auth')
-          ? e.toString().split(']')[1].trim()
-          : 'unknown';
-      _showError(_getErrorMessage(code));
+      _showError(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -48,6 +48,7 @@ dependencies:
 
   http: ^1.2.0          # for API calls
   mime: ^2.0.0    
+  google_maps_flutter: ^2.17.1
 image_picker: ^1.0.7    # for detecting file types
 
 dependency_overrides:

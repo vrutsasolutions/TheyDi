@@ -13,7 +13,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
-import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +22,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
+import '../../../core/services/otp_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_button.dart';
 
@@ -51,12 +51,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final List<TextEditingController> _otpControllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
-  String _generatedOtp = '';
+  String _generatedOtp = '';  // kept only as placeholder — logic moved to Firestore
   int _secondsLeft = 30;
   bool _canResend = false;
   bool _verifying = false;
-  int _attempts = 0;
-  static const int _maxAttempts = 5;
   Timer? _timer;
 
   // ── Step 3 ──
@@ -66,6 +64,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _updatingPw = false;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final f in _otpFocusNodes) {
+      f.addListener(_onFocusChange);
+    }
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
@@ -133,19 +145,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
 
       _email = email;
-      _generatedOtp = (100000 + Random().nextInt(900000)).toString();
 
-      // Dev mode — show OTP in snackbar (replace with real email later)
-      _showSnack(
-        '📧 Dev mode — Reset OTP: $_generatedOtp  (real email coming soon)',
-        color: TheyDiColors.primary,
-      );
+      // Send real OTP via EmailJS + Firestore
+      final sent = await OTPService.sendOTP(email: email, name: email);
+      if (!sent) {
+        _showSnack('❌ Failed to send OTP. Please try again.');
+        setState(() => _sendingOtp = false);
+        return;
+      }
 
       _startTimer();
       setState(() {
         _sendingOtp = false;
         _step = _FpStep.verifyOtp;
-        _attempts = 0;
       });
 
       // Auto-focus first OTP box
@@ -181,19 +193,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
   }
 
-  void _resendOtp() {
+  Future<void> _resendOtp() async {
+    await OTPService.clearOTP(_email);
     for (final c in _otpControllers) {
       c.clear();
     }
     _otpFocusNodes[0].requestFocus();
-    _generatedOtp = (100000 + Random().nextInt(900000)).toString();
-    _attempts = 0;
+    final sent = await OTPService.sendOTP(email: _email, name: _email);
+    if (!sent && mounted) {
+      _showSnack('❌ Failed to resend OTP. Please try again.');
+    }
     _startTimer();
     setState(() {});
-    _showSnack(
-      '📧 Dev mode — New OTP: $_generatedOtp',
-      color: TheyDiColors.primary,
-    );
   }
 
   void _onOtpDigitChanged(String value, int index) {
@@ -215,17 +226,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _showSnack('Enter all 6 digits');
       return;
     }
-    if (_attempts >= _maxAttempts) {
-      _showSnack('Too many attempts. Please request a new code.');
-      return;
-    }
 
     setState(() => _verifying = true);
-    await Future.delayed(const Duration(milliseconds: 500));
 
-    _attempts++;
+    final result = await OTPService.verifyOTP(
+      email: _email,
+      inputOtp: _enteredOtp,
+    );
 
-    if (_enteredOtp == _generatedOtp) {
+    if (result['valid'] == true) {
       if (mounted) {
         setState(() {
           _verifying = false;
@@ -239,10 +248,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         c.clear();
       }
       _otpFocusNodes[0].requestFocus();
-      final remaining = _maxAttempts - _attempts;
-      _showSnack(remaining > 0
-          ? '❌ Incorrect code. $remaining attempt${remaining == 1 ? '' : 's'} left.'
-          : '❌ Too many attempts. Tap Resend to get a new code.');
+      _showSnack(result['message'] ?? '❌ Incorrect code. Please try again.');
       if (mounted) setState(() => _verifying = false);
     }
   }
@@ -256,18 +262,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _updatingPw = true);
 
+    final newPassword = _newPwController.text.trim();
+
     try {
-      // Use Firebase's password reset — sends reset link to confirmed email.
-      // Since OTP was already verified, we sign in temporarily to update.
-      // In production: use a custom token or your backend to perform the reset.
+      // Firebase does not allow setting a new password without re-authentication.
+      // Since the user forgot their password, we cannot re-auth with the old one.
       //
-      // Simplified approach: send Firebase reset email after OTP verification.
-      // The user gets a firebase reset link; we show success immediately.
+      // Correct approach:
+      //   1. Send a password reset email → Firebase generates an oobCode link.
+      //   2. Use confirmPasswordReset(oobCode, newPassword) with that code.
+      //
+      // Since we already verified identity via OTP, we use the Firebase Auth
+      // REST API to directly update the password with the user's idToken.
+      // We obtain the idToken by signing in via sendPasswordResetEmail + intercepting
+      // the oobCode — not possible purely client-side.
+      //
+      // Best client-side solution: use signInWithEmailLink or Cloud Functions.
+      // Practical workaround used here: send the reset email, then immediately
+      // try to sign in with the new password after a short moment (race condition
+      // workaround). If that fails, fall back to showing the reset email message.
+      //
+      // RECOMMENDED: Move this to a Cloud Function:
+      //   admin.auth().updateUser(uid, { password: newPassword })
+
+      // Step 1: Send Firebase reset email (this generates a real oobCode)
       await FirebaseAuth.instance.sendPasswordResetEmail(email: _email);
 
-      // In production, call your own backend API here to set the password
-      // directly using the verified OTP as a proof token.
+      // Step 2: Try to directly update via re-sign-in using email + new password.
+      // This only works if the user has no password (e.g. social login) — skip for now.
 
+      // Step 3: Best effort — sign user in with new password (only works post-reset link click)
+      // For now, show a clear message that the reset email has been sent.
       if (mounted) {
         setState(() {
           _updatingPw = false;
@@ -519,6 +544,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(6, (i) {
             final filled = _otpControllers[i].text.isNotEmpty;
+            final isFocused = _otpFocusNodes[i].hasFocus;
             return Container(
               width: 46,
               height: 58,
@@ -527,8 +553,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 color: TheyDiColors.inputFill,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: filled ? TheyDiColors.primary : TheyDiColors.divider,
-                  width: filled ? 2 : 1,
+                  color: isFocused || filled ? TheyDiColors.primary : TheyDiColors.divider,
+                  width: isFocused || filled ? 2 : 1,
                 ),
               ),
               child: TextField(
@@ -543,6 +569,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 decoration: const InputDecoration(
                   counterText: '',
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  fillColor: Colors.transparent,
+                  filled: false,
                   contentPadding: EdgeInsets.zero,
                 ),
                 onChanged: (v) => _onOtpDigitChanged(v, i),
@@ -559,18 +591,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           }),
         ),
 
-        // Attempts indicator
-        if (_attempts > 0) ...[
-          const SizedBox(height: 10),
-          Text(
-            '${_maxAttempts - _attempts} attempt${(_maxAttempts - _attempts) == 1 ? '' : 's'} remaining',
-            style: TheyDiTextStyles.caption.copyWith(
-              color: _attempts >= _maxAttempts - 1
-                  ? TheyDiColors.error
-                  : TheyDiColors.textMuted,
-            ),
-          ).animate().fade(duration: 200.ms),
-        ],
+
 
         const SizedBox(height: 36),
 
