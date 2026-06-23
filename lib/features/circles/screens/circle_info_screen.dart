@@ -28,7 +28,6 @@ import '../../../core/router/app_routes.dart';
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
 
-
 const _kCircleReportReasons = [
   'Spam or unwanted content',
   'Harassment or bullying',
@@ -101,11 +100,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     });
 
     await _refresh();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _editing = false;
         _saving = false;
       });
+    }
   }
 
   Future<void> _pickGroupPhoto() async {
@@ -303,7 +303,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.12),
+                      color: Colors.red.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.flag_outlined,
@@ -331,12 +331,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: selectedReason == reason
-                            ? Colors.red.withOpacity(0.1)
+                            ? Colors.red.withValues(alpha: 0.1)
                             : TheyDiColors.dark,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selectedReason == reason
-                              ? Colors.red.withOpacity(0.5)
+                              ? Colors.red.withValues(alpha: 0.5)
                               : TheyDiColors.divider,
                         ),
                       ),
@@ -513,10 +513,10 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: TheyDiColors.primary.withOpacity(0.15),
+          color: TheyDiColors.primary.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: TheyDiColors.primary.withOpacity(0.35), width: 1),
+              color: TheyDiColors.primary.withValues(alpha: 0.35), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -644,7 +644,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                 borderRadius: BorderRadius.circular(28),
                                 border: Border.all(
                                     color: TheyDiColors.primary
-                                        .withOpacity(0.4),
+                                        .withValues(alpha: 0.4),
                                     width: 2),
                               ),
                               child: ClipRRect(
@@ -1030,9 +1030,9 @@ class _CircleActionTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.06),
+          color: color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: color.withValues(alpha: 25)),
         ),
         child: Row(
           children: [
@@ -1052,7 +1052,7 @@ class _CircleActionTile extends StatelessWidget {
               ),
             ),
             Icon(Icons.arrow_forward_ios,
-                size: 14, color: color.withOpacity(0.6)),
+                size: 14, color: color.withValues(alpha: 0.6)),
           ],
         ),
       ),
@@ -1319,7 +1319,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? TheyDiColors.primary
-                                        .withOpacity(0.12)
+                                        .withValues(alpha: .12)
                                     : TheyDiColors.card,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(

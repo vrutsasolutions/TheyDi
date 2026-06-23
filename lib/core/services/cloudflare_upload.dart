@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-
 class CloudflareUpload {
   static const String workerUrl =
       'https://r2-upload-service.theydi-app.workers.dev/';
@@ -25,9 +24,7 @@ class CloudflareUpload {
       );
 
       final response = await request.send();
-
-      final responseBody =
-          await response.stream.bytesToString();
+      final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
         final data = jsonDecode(responseBody);

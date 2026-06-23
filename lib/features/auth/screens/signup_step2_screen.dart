@@ -8,11 +8,50 @@ import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
 
 const _kCities = [
-  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-  'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow',
-  'Kochi', 'Goa', 'Surat', 'Chandigarh', 'Indore',
-  'Bhopal', 'Nagpur', 'Visakhapatnam', 'Coimbatore', 'Vadodara',
+  'Mumbai',
+  'Delhi',
+  'Bangalore',
+  'Hyderabad',
+  'Chennai',
+  'Kolkata',
+  'Pune',
+  'Ahmedabad',
+  'Jaipur',
+  'Lucknow',
+  'Kochi',
+  'Goa',
+  'Surat',
+  'Chandigarh',
+  'Indore',
+  'Bhopal',
+  'Nagpur',
+  'Visakhapatnam',
+  'Coimbatore',
+  'Vadodara',
 ];
+
+const Map<String, String> _cityIcons = {
+  'Mumbai': 'assets/city_icons/mumbai.png',
+  'Delhi': 'assets/city_icons/delhi.png',
+  'Bangalore': 'assets/city_icons/bangalore.png',
+  'Hyderabad': 'assets/city_icons/hyderabad.png',
+  'Chennai': 'assets/city_icons/chennai.png',
+  'Kolkata': 'assets/city_icons/kolkata.png',
+  'Pune': 'assets/city_icons/pune.png',
+  'Ahmedabad': 'assets/city_icons/ahmedabad.png',
+  'Jaipur': 'assets/city_icons/jaipur.png',
+  'Lucknow': 'assets/city_icons/lucknow.png',
+  'Kochi': 'assets/city_icons/kochi.png',
+  'Goa': 'assets/city_icons/goa.png',
+  'Surat': 'assets/city_icons/surat.png',
+  'Chandigarh': 'assets/city_icons/chandigarh.png',
+  'Indore': 'assets/city_icons/indore.png',
+  'Bhopal': 'assets/city_icons/bhopal.png',
+  'Nagpur': 'assets/city_icons/nagpur.png',
+  'Visakhapatnam': 'assets/city_icons/visakhapatnam.png',
+  'Coimbatore': 'assets/city_icons/coimbatore.png',
+  'Vadodara': 'assets/city_icons/vadodara.png',
+};
 
 class SignupStep2Screen extends StatefulWidget {
   final SignupData signupData;
@@ -79,7 +118,6 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                   ],
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                 child: Column(
@@ -95,7 +133,6 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                         .animate(delay: 80.ms)
                         .fade(duration: 300.ms),
                     const SizedBox(height: 20),
-
                     TextField(
                       controller: _searchController,
                       onChanged: _onSearch,
@@ -125,9 +162,7 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
-
               Expanded(
                 child: _filtered.isEmpty
                     ? Center(
@@ -141,59 +176,64 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
-                          childAspectRatio: 2.6,
+                          childAspectRatio: 1.2,
                         ),
                         itemCount: _filtered.length,
                         itemBuilder: (context, index) {
                           final city = _filtered[index];
                           final isSelected = city == _selectedCity;
                           return GestureDetector(
-                            onTap: () => _onCityTap(city),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              decoration: BoxDecoration(
-                                gradient: isSelected
-                                    ? TheyDiColors.gradientPrimary
-                                    : null,
-                                color: isSelected ? null : TheyDiColors.card,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Colors.transparent
-                                      : TheyDiColors.divider,
+                              onTap: () => _onCityTap(city),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                decoration: BoxDecoration(
+                                  gradient: isSelected
+                                      ? TheyDiColors.gradientPrimary
+                                      : null,
+                                  color: isSelected ? null : TheyDiColors.card,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? Colors.transparent
+                                        : TheyDiColors.divider,
+                                  ),
                                 ),
-                              ),
-                              child: Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.location_city_outlined,
-                                        size: 14,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : TheyDiColors.textSecondary),
-                                    const SizedBox(width: 6),
-                                    Text(city,
-                                        style: TheyDiTextStyles.labelMedium
-                                            .copyWith(
-                                          color: isSelected
-                                              ? Colors.white
-                                              : TheyDiColors.textPrimary,
-                                          fontWeight: isSelected
-                                              ? FontWeight.w600
-                                              : FontWeight.w400,
-                                        )),
-                                  ],
+                                child: Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: Image.asset(
+                                            _cityIcons[city]!,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          city,
+                                          textAlign: TextAlign.center,
+                                          style: TheyDiTextStyles.labelMedium
+                                              .copyWith(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : Colors.black,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          )
-                              .animate(
-                                  delay: Duration(milliseconds: 20 * index))
-                              .fade(duration: 250.ms)
-                              .scale(
-                                  begin: const Offset(0.9, 0.9),
-                                  end: const Offset(1, 1));
+                              )
+                                  .animate(
+                                      delay: Duration(milliseconds: 20 * index))
+                                  .fade(duration: 250.ms)
+                                  .scale(
+                                      begin: const Offset(0.9, 0.9),
+                                      end: const Offset(1, 1)));
                         },
                       ),
               ),

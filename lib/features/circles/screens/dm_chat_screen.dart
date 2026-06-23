@@ -3,6 +3,8 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 import 'dart:math' as math;
 
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,8 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
+
 import 'package:record/record.dart';
 
 import '../../../core/router/app_routes.dart';
@@ -786,7 +787,10 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
   // ── Media Attachment Logic ────────────────────────────────────────────────
   Future<void> _handleMediaAction(String action) async {
-    setState(() { _showEmojiPicker = false; _showAttachmentMenu = false; });
+    setState(() {
+      _showEmojiPicker = false;
+      _showAttachmentMenu = false;
+    });
     final picker = ImagePicker();
     XFile? file;
     String type = 'image';
@@ -794,27 +798,41 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
     try {
       if (action == 'camera') {
-        file = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+        file = await picker.pickImage(
+            source: ImageSource.camera, imageQuality: 80);
       } else if (action == 'video') {
-        file = await picker.pickVideo(source: ImageSource.camera, maxDuration: const Duration(minutes: 5));
+        file = await picker.pickVideo(
+            source: ImageSource.camera,
+            maxDuration: const Duration(minutes: 5));
         type = 'video';
       } else if (action == 'gallery') {
-        file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+        file = await picker.pickImage(
+            source: ImageSource.gallery, imageQuality: 80);
       } else if (action == 'document') {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
-          allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip'],
+          allowedExtensions: [
+            'pdf',
+            'doc',
+            'docx',
+            'xls',
+            'xlsx',
+            'ppt',
+            'pptx',
+            'txt',
+            'zip'
+          ],
           withData: kIsWeb,
         );
         if (result != null && result.files.isNotEmpty) {
           final pickedFile = result.files.single;
           String? path = pickedFile.path;
-          
+
           if (kIsWeb && pickedFile.bytes != null && path == null) {
             // On web, path is null. We create a blob URL from bytes for compatibility with preview and storage.
             path = XFile.fromData(pickedFile.bytes!).path;
           }
-          
+
           if (path != null) {
             type = 'file';
             fileName = pickedFile.name;
@@ -832,7 +850,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     }
   }
 
-  Future<void> _confirmAndSendMedia(String path, String type, String fileName) async {
+  Future<void> _confirmAndSendMedia(
+      String path, String type, String fileName) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -845,20 +864,29 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
               kIsWeb
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(path, height: 200, fit: BoxFit.cover))
+                      child:
+                          Image.network(path, height: 200, fit: BoxFit.cover))
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(File(path), height: 200, fit: BoxFit.cover),
+                      child: Image.file(File(path),
+                          height: 200, fit: BoxFit.cover),
                     )
             else
-              Icon(type == 'video' ? Icons.videocam : Icons.description, size: 48, color: TheyDiColors.primary),
+              Icon(type == 'video' ? Icons.videocam : Icons.description,
+                  size: 48, color: TheyDiColors.primary),
             const SizedBox(height: 12),
-            Text(fileName, style: TheyDiTextStyles.bodySmall, textAlign: TextAlign.center),
+            Text(fileName,
+                style: TheyDiTextStyles.bodySmall, textAlign: TextAlign.center),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Send', style: TextStyle(color: TheyDiColors.primary))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child:
+                  Text('Send', style: TextStyle(color: TheyDiColors.primary))),
         ],
       ),
     );
@@ -868,7 +896,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     }
   }
 
-  Future<void> _uploadAndSendMedia(String filePath, String type, String fileName) async {
+  Future<void> _uploadAndSendMedia(
+      String filePath, String type, String fileName) async {
     if (_chatId == null) return;
     setState(() => _isUploading = true);
     try {
@@ -878,20 +907,31 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
       if (kIsWeb) {
         bytes = await getBlobBytes(filePath);
-        ext = fileName.contains('.') ? fileName.split('.').last : (type == 'image' ? 'jpg' : type == 'video' ? 'mp4' : 'bin');
+        ext = fileName.contains('.')
+            ? fileName.split('.').last
+            : (type == 'image'
+                ? 'jpg'
+                : type == 'video'
+                    ? 'mp4'
+                    : 'bin');
       } else {
         bytes = await getFileBytes(filePath);
         ext = filePath.split('.').last;
       }
 
-      final storagePath = 'media/${_chatId!}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final storagePath =
+          'media/${_chatId!}/${DateTime.now().millisecondsSinceEpoch}.$ext';
       final storageRef = FirebaseStorage.instance.ref().child(storagePath);
-      
+
       await storageRef.putData(Uint8List.fromList(bytes));
       final url = await storageRef.getDownloadURL();
 
       String myName = FirebaseAuth.instance.currentUser?.displayName ?? 'Me';
-      final msgText = type == 'image' ? '📷 Photo' : type == 'video' ? '🎥 Video' : '📄 $fileName';
+      final msgText = type == 'image'
+          ? '📷 Photo'
+          : type == 'video'
+              ? '🎥 Video'
+              : '📄 $fileName';
 
       final now = Timestamp.now();
       await FirebaseFirestore.instance
@@ -972,7 +1012,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                     Border(bottom: BorderSide(color: TheyDiColors.divider))),
             child: Row(children: [
               IconButton(
-                  icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                  icon: const Icon(Icons.arrow_back,
+                      color: TheyDiColors.textPrimary),
                   onPressed: () => context.pop()),
               const SizedBox(width: 4),
               Expanded(
@@ -1096,7 +1137,10 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                       child: CircularProgressIndicator(
                           color: TheyDiColors.primary))
                   : GestureDetector(
-                      onTap: () => setState(() { _showEmojiPicker = false; _showAttachmentMenu = false; }),
+                      onTap: () => setState(() {
+                        _showEmojiPicker = false;
+                        _showAttachmentMenu = false;
+                      }),
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('chats')
@@ -1286,13 +1330,25 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _MediaOption(icon: Icons.camera_alt, label: 'Camera', color: Colors.blue, 
+          _MediaOption(
+              icon: Icons.camera_alt,
+              label: 'Camera',
+              color: Colors.blue,
               onTap: () => _handleMediaAction('camera')),
-          _MediaOption(icon: Icons.videocam, label: 'Video', color: Colors.red, 
+          _MediaOption(
+              icon: Icons.videocam,
+              label: 'Video',
+              color: Colors.red,
               onTap: () => _handleMediaAction('video')),
-          _MediaOption(icon: Icons.photo_library, label: 'Gallery', color: Colors.purple, 
+          _MediaOption(
+              icon: Icons.photo_library,
+              label: 'Gallery',
+              color: Colors.purple,
               onTap: () => _handleMediaAction('gallery')),
-          _MediaOption(icon: Icons.description, label: 'Document', color: Colors.orange, 
+          _MediaOption(
+              icon: Icons.description,
+              label: 'Document',
+              color: Colors.orange,
               onTap: () => _handleMediaAction('document')),
         ],
       ),
@@ -1317,9 +1373,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-            color: isCancelling
-                ? Colors.red.withOpacity(0.12)
-                : TheyDiColors.card,
+            color:
+                isCancelling ? Colors.red.withOpacity(0.12) : TheyDiColors.card,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
                 color: isCancelling
@@ -1371,7 +1426,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   Widget _buildNormalBar(bool hasText) {
     return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
       _AttachmentIcon(
-        icon: _showAttachmentMenu ? Icons.close : Icons.add, 
+        icon: _showAttachmentMenu ? Icons.close : Icons.add,
         onTap: () => setState(() {
           _showAttachmentMenu = !_showAttachmentMenu;
           _showEmojiPicker = false;
@@ -1443,12 +1498,17 @@ class _AttachmentIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(onTap: onTap,
-      child: Container(width: 38, height: 38,
-          margin: const EdgeInsets.only(bottom: 3),
-          decoration: BoxDecoration(color: TheyDiColors.card, shape: BoxShape.circle,
-              border: Border.all(color: TheyDiColors.divider)),
-          child: Icon(icon, color: TheyDiColors.textSecondary, size: 18)));
+    return GestureDetector(
+        onTap: onTap,
+        child: Container(
+            width: 38,
+            height: 38,
+            margin: const EdgeInsets.only(bottom: 3),
+            decoration: BoxDecoration(
+                color: TheyDiColors.card,
+                shape: BoxShape.circle,
+                border: Border.all(color: TheyDiColors.divider)),
+            child: Icon(icon, color: TheyDiColors.textSecondary, size: 18)));
   }
 }
 
@@ -1678,7 +1738,7 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                       bottomLeft: Radius.circular(widget.isMine ? 16 : 4),
                       bottomRight: Radius.circular(widget.isMine ? 4 : 16)),
                   border: Border.all(
-                      color: widget.isMine 
+                      color: widget.isMine
                           ? const Color(0xFFE0E0E0)
                           : TheyDiColors.divider)),
               child: Column(
@@ -1705,16 +1765,22 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                             _WaveformBars(
                                 progress: _progress, isMine: widget.isMine),
                             const SizedBox(height: 4),
-                            Text(_fmt(displaySecs), style: TheyDiTextStyles.caption.copyWith(
-                                color: widget.isMine ? Colors.black : TheyDiColors.textMuted,
-                                fontSize: 10)),
+                            Text(_fmt(displaySecs),
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: widget.isMine
+                                        ? Colors.black
+                                        : TheyDiColors.textMuted,
+                                    fontSize: 10)),
                           ])),
                     ]),
                     const SizedBox(height: 4),
                     Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                      Text(widget.timeLabel, style: TheyDiTextStyles.caption.copyWith(
-                          color: widget.isMine ? Colors.black54 : TheyDiColors.textMuted,
-                          fontSize: 10)),
+                      Text(widget.timeLabel,
+                          style: TheyDiTextStyles.caption.copyWith(
+                              color: widget.isMine
+                                  ? Colors.black54
+                                  : TheyDiColors.textMuted,
+                              fontSize: 10)),
                       if (widget.isMine) ...[
                         const SizedBox(width: 4),
                         _ReadReceipt(seen: widget.seen)
@@ -1777,11 +1843,14 @@ class _WaveformBars extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 1),
                     decoration: BoxDecoration(
                         color: i < played
-                            ? (isMine ? Colors.white : TheyDiColors.primary) // Sent played bars are white
+                            ? (isMine
+                                ? Colors.white
+                                : TheyDiColors
+                                    .primary) // Sent played bars are white
                             : (isMine
-                                ? Colors.white.withOpacity(0.5) // Sent unplayed bars are lighter white
-                                : TheyDiColors.textMuted
-                                    .withOpacity(0.4)),
+                                ? Colors.white.withOpacity(
+                                    0.5) // Sent unplayed bars are lighter white
+                                : TheyDiColors.textMuted.withOpacity(0.4)),
                         borderRadius: BorderRadius.circular(2))))));
   }
 }
@@ -1842,7 +1911,9 @@ class _DmBubble extends StatelessWidget {
                     bottomLeft: Radius.circular(isMine ? 16 : 4),
                     bottomRight: Radius.circular(isMine ? 4 : 16)),
                 border: Border.all(
-                    color: isMine ? const Color(0xFFE0E0E0) : TheyDiColors.divider)),
+                    color: isMine
+                        ? const Color(0xFFE0E0E0)
+                        : TheyDiColors.divider)),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(text,
@@ -1851,9 +1922,10 @@ class _DmBubble extends StatelessWidget {
                       height: 1.4)),
               const SizedBox(height: 4),
               Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(timeLabel, style: TheyDiTextStyles.caption.copyWith(
-                    color: isMine ? Colors.black54 : TheyDiColors.textMuted,
-                    fontSize: 10)),
+                Text(timeLabel,
+                    style: TheyDiTextStyles.caption.copyWith(
+                        color: isMine ? Colors.black54 : TheyDiColors.textMuted,
+                        fontSize: 10)),
                 if (isMine) ...[
                   const SizedBox(width: 4),
                   _ReadReceipt(seen: seen)
@@ -1879,7 +1951,8 @@ class _ReadReceipt extends StatelessWidget {
       height: 11,
       child: Stack(children: [
         Icon(Icons.check, size: 11, color: tickColor),
-        Positioned(left: 3, child: Icon(Icons.check, size: 11, color: tickColor)),
+        Positioned(
+            left: 3, child: Icon(Icons.check, size: 11, color: tickColor)),
       ]),
     );
   }

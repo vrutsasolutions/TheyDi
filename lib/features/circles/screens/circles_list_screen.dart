@@ -236,6 +236,7 @@ class _AllTab extends ConsumerWidget {
                 ...friends.take(5).map((f) => _FriendCard(
                       uid: f['uid'] ?? '',
                       displayName: f['displayName'] ?? 'User',
+                      photoUrl: f['profileImageUrl'] ?? '',
                     )),
                 if (friends.length > 5)
                   Padding(
@@ -329,6 +330,7 @@ class _FriendsTab extends ConsumerWidget {
             return _FriendCard(
               uid: f['uid'] ?? '',
               displayName: f['displayName'] ?? 'User',
+              photoUrl: f['profileImageUrl'] ?? '',
             )
                 .animate(delay: Duration(milliseconds: 50 * index))
                 .fade(duration: 300.ms)
@@ -431,8 +433,10 @@ class _RequestsTab extends ConsumerWidget {
 class _FriendCard extends StatelessWidget {
   final String uid;
   final String displayName;
+  final String photoUrl;
 
-  const _FriendCard({required this.uid, required this.displayName});
+  const _FriendCard(
+      {required this.uid, required this.displayName, required this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +448,7 @@ class _FriendCard extends StatelessWidget {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
 
-        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? '';
 
         return GestureDetector(
           onTap: () => context.push(
@@ -551,7 +555,10 @@ class _FriendCard extends StatelessWidget {
 // ── Circle Card ──
 class _CircleCard extends StatelessWidget {
   final CircleModel circle;
-  const _CircleCard({required this.circle});
+  final String? profileImageUrl;
+  const _CircleCard({
+    required this.circle,
+  }) : profileImageUrl = null;
 
   @override
   Widget build(BuildContext context) {
@@ -576,11 +583,23 @@ class _CircleCard extends StatelessWidget {
                 gradient: TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Center(
-                child: Text(circle.initials,
-                    style: TheyDiTextStyles.displayMedium
-                        .copyWith(color: Colors.white, fontSize: 18)),
-              ),
+              child: circle.profileImageUrl != null && circle.profileImageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.network(
+                        circle.profileImageUrl!,
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        circle.initials,
+                        style: TheyDiTextStyles.displayMedium
+                            .copyWith(color: Colors.white, fontSize: 18),
+                      ),
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -713,7 +732,7 @@ class _RequestCardState extends State<_RequestCard> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final city = data['city'] ?? '';
-        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final photoUrl = data['profileImageUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
         final initial =
             widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';
