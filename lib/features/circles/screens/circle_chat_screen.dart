@@ -3,10 +3,10 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 import 'dart:math' as math;
 
+import 'package:image_picker/image_picker.dart';
+
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -17,13 +17,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 
-import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/circle_model.dart';
 import '../models/message_model.dart';
+import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/utils/platform_helper.dart';
 
 const _kEmojis = [
@@ -93,7 +94,6 @@ final _circleSharedPlayer = ap.AudioPlayer();
 
 class CircleChatScreen extends ConsumerStatefulWidget {
   final CircleModel circle;
-
   const CircleChatScreen({super.key, required this.circle});
 
   @override
@@ -102,7 +102,6 @@ class CircleChatScreen extends ConsumerStatefulWidget {
 
 class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     with WidgetsBindingObserver {
-  final ImagePicker _picker = ImagePicker();
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isSending = false;
@@ -116,7 +115,6 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   final AudioRecorder _recorder = AudioRecorder();
   bool _isRecording = false;
   bool _isUploading = false;
-  String _uploadingType = '';
   int _recordSeconds = 0;
   Timer? _recordTimer;
   double _dragOffset = 0;
@@ -207,53 +205,107 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     await batch.commit();
   }
 
-  Future<void> _sendMessage() async {
+  Future<void> _handleSelectedMedia(XFile file) async {
+    try {
+      final bytes = await file.readAsBytes();
+
+      final url = await CloudflareUpload.uploadBytes(
+        bytes,
+        file.name,
+      );
+
+      if (url == null) {
+        _showSnack('Upload failed', Colors.red);
+        return;
+      }
+
+      final path = file.name.toLowerCase();
+
+      final mediaType = path.endsWith('.mp4') ||
+              path.endsWith('.mov') ||
+              path.endsWith('.avi')
+          ? 'video'
+          : 'image';
+
+      await _sendMessage(
+        mediaUrl: url,
+        mediaType: mediaType,
+      );
+    } catch (e) {
+      _showSnack('Failed: $e', Colors.red);
+    }
+  }
+
+  Future<void> _sendMessage({
+    String? mediaUrl,
+    String? mediaType, // "image" | "video"
+  }) async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _isSending || !_isMember) return;
+
+    if ((text.isEmpty && mediaUrl == null) || _isSending || !_isMember) return;
+
     setState(() {
       _isSending = true;
       _showEmojiPicker = false;
-      _showAttachmentMenu = false;
     });
+
     _messageController.clear();
+
     try {
       final user = FirebaseAuth.instance.currentUser!;
       String senderName = user.displayName ?? user.email!.split('@').first;
+
       try {
         final d = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
-        if (d.exists) senderName = d.data()?['displayName'] ?? senderName;
+
+        if (d.exists) {
+          senderName = d.data()?['displayName'] ?? senderName;
+        }
       } catch (_) {}
+
       final message = MessageModel(
         id: '',
         circleId: _circle.id,
         senderUid: user.uid,
         senderName: senderName,
         text: text,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
         createdAt: DateTime.now(),
         readBy: [user.uid],
         seenBy: [user.uid],
       );
+
       await FirebaseFirestore.instance
           .collection('circles')
           .doc(_circle.id)
           .collection('messages')
           .add(message.toFirestoreMap());
+
       await FirebaseFirestore.instance
           .collection('circles')
           .doc(_circle.id)
           .update({
-        'lastMessage': text,
+        'lastMessage': mediaType == "image"
+            ? '📷 Photo'
+            : mediaType == "video"
+                ? '🎥 Video'
+                : text,
         'lastMessageSender': senderName,
         'lastMessageAt': Timestamp.now(),
       });
+
       _scrollToBottom();
     } catch (e) {
       if (mounted) _showSnack('Failed: $e', Colors.red);
     }
-    if (mounted) setState(() => _isSending = false);
+
+    if (mounted) {
+      setState(() => _isSending = false);
+    }
   }
 
   // ── Voice ──────────────────────────────────────────────────────────────────
@@ -344,8 +396,9 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
       });
       if (duration < 1) return;
       if (path == null || path.isEmpty) {
-        if (mounted)
+        if (mounted) {
           _showSnack('Recording failed — no audio captured', Colors.red);
+        }
         return;
       }
       await _uploadAndSendVoice(path, duration);
@@ -400,8 +453,9 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
       }
 
       if (bytes.isEmpty) {
-        if (mounted)
+        if (mounted) {
           _showSnack('Audio capture failed — please try again', Colors.red);
+        }
         setState(() => _isUploading = false);
         return;
       }
@@ -513,7 +567,8 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     try {
       if (action == 'camera') {
         file = await picker.pickImage(
-            source: ImageSource.camera, imageQuality: 80);
+          source: ImageSource.camera,
+        );
       } else if (action == 'video') {
         file = await picker.pickVideo(
             source: ImageSource.camera,
@@ -521,7 +576,8 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         type = 'video';
       } else if (action == 'gallery') {
         file = await picker.pickImage(
-            source: ImageSource.gallery, imageQuality: 80);
+          source: ImageSource.gallery,
+        );
       } else if (action == 'document') {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
@@ -549,15 +605,17 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
 
           if (path != null) {
             type = 'file';
-            fileName = pickedFile.name;
-            _confirmAndSendMedia(path, type, fileName!);
+
+            final xFile = XFile(path, name: pickedFile.name);
+
+            _confirmAndSendMedia(xFile, type);
           }
         }
         return;
       }
 
       if (file != null) {
-        _confirmAndSendMedia(file.path, type, file.name);
+        _confirmAndSendMedia(file, type);
       }
     } catch (e) {
       _showSnack('Error picking media: $e', Colors.red);
@@ -565,12 +623,17 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   }
 
   Future<void> _confirmAndSendMedia(
-      String path, String type, String fileName) async {
+    XFile file,
+    String type,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
-        title: Text('Send $type?', style: TheyDiTextStyles.headlineMedium),
+        title: Text(
+          'Send $type?',
+          style: TheyDiTextStyles.headlineMedium,
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -578,64 +641,147 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
               kIsWeb
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child:
-                          Image.network(path, height: 200, fit: BoxFit.cover))
+                      child: Image.network(
+                        file.path,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    )
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(File(path),
-                          height: 200, fit: BoxFit.cover),
+                      child: Image.file(
+                        File(file.path),
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
                     )
             else
-              Icon(type == 'video' ? Icons.videocam : Icons.description,
-                  size: 48, color: TheyDiColors.primary),
+              Icon(
+                type == 'video' ? Icons.videocam : Icons.description,
+                size: 48,
+                color: TheyDiColors.primary,
+              ),
             const SizedBox(height: 12),
-            Text(fileName,
-                style: TheyDiTextStyles.bodySmall, textAlign: TextAlign.center),
+            Text(
+              file.name,
+              style: TheyDiTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  Text('Send', style: TextStyle(color: TheyDiColors.primary))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Send',
+              style: TextStyle(color: TheyDiColors.primary),
+            ),
+          ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      _uploadAndSendMedia(path, type, fileName);
+      await _uploadAndSendMedia(file, type);
     }
   }
 
+  void _showMediaSheet() {
+    setState(() => _showEmojiPicker = false);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+            color: TheyDiColors.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: TheyDiColors.divider)),
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: TheyDiColors.divider,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          Text('Share Media', style: TheyDiTextStyles.headlineMedium),
+          const SizedBox(height: 20),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _MediaOption(
+                icon: Icons.camera_alt_outlined,
+                label: 'Camera',
+                color: TheyDiColors.primary,
+                onTap: () async {
+                  Navigator.pop(ctx);
+
+                  final XFile? image = await ImagePicker().pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 80,
+                  );
+
+                  if (image != null) {
+                    _handleSelectedMedia(image);
+                  }
+                }),
+            _MediaOption(
+                icon: Icons.videocam_outlined,
+                label: 'Video',
+                color: Colors.red,
+                onTap: () async {
+                  Navigator.pop(ctx);
+
+                  final XFile? video = await ImagePicker().pickVideo(
+                    source: ImageSource.gallery,
+                  );
+
+                  if (video != null) {
+                    _handleSelectedMedia(video);
+                  }
+                }),
+            _MediaOption(
+                icon: Icons.photo_library_outlined,
+                label: 'Gallery',
+                color: Colors.green,
+                onTap: () async {
+                  Navigator.pop(ctx);
+
+                  final ImagePicker picker = ImagePicker();
+                  final XFile? image = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 80,
+                  );
+
+                  if (image != null) {
+                    _handleSelectedMedia(image);
+                  }
+                }),
+          ]),
+          const SizedBox(height: 16),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _uploadAndSendMedia(
-      String filePath, String type, String fileName) async {
+    XFile file,
+    String type,
+  ) async {
     setState(() => _isUploading = true);
-    _uploadingType = type;
+
     try {
       final user = FirebaseAuth.instance.currentUser!;
-      final List<int> bytes;
-      final String ext;
 
-      if (kIsWeb) {
-        bytes = await getBlobBytes(filePath);
-        ext = fileName.contains('.')
-            ? fileName.split('.').last
-            : (type == 'image'
-                ? 'jpg'
-                : type == 'video'
-                    ? 'mp4'
-                    : 'bin');
-      } else {
-        bytes = await getFileBytes(filePath);
-        ext = filePath.split('.').last;
-      }
+      // Read original file bytes
+      final bytes = await file.readAsBytes();
 
       final url = await CloudflareUpload.uploadBytes(
         bytes,
-        fileName,
+        file.name,
       );
 
       if (url == null) {
@@ -643,11 +789,12 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
       }
 
       final senderName = user.displayName ?? 'User';
+
       final msgText = type == 'image'
           ? '📷 Photo'
           : type == 'video'
               ? '🎥 Video'
-              : '📄 $fileName';
+              : '📄 ${file.name}';
 
       await FirebaseFirestore.instance
           .collection('circles')
@@ -658,7 +805,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         'senderName': senderName,
         'type': type,
         'mediaUrl': url,
-        'fileName': fileName,
+        'fileName': file.name,
         'text': msgText,
         'circleId': _circle.id,
         'createdAt': FieldValue.serverTimestamp(),
@@ -674,15 +821,13 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         'lastMessageSender': senderName,
         'lastMessageAt': FieldValue.serverTimestamp(),
       });
+
       _scrollToBottom();
     } catch (e) {
       _showSnack('Upload failed: $e', Colors.red);
     } finally {
       if (mounted) {
-        setState(() {
-          _isUploading = false;
-          _uploadingType = '';
-        });
+        setState(() => _isUploading = false);
       }
     }
   }
@@ -730,18 +875,36 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                       onTap: _openInfo,
                       child: Row(children: [
                         Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                                gradient: TheyDiColors.gradientPrimary,
-                                borderRadius: BorderRadius.circular(12)),
-                            child: Center(
-                                child: Text(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            image: _circle.profileImageUrl != null &&
+                                    _circle.profileImageUrl!.isNotEmpty
+                                ? DecorationImage(
+                                    image:
+                                        NetworkImage(_circle.profileImageUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                            gradient: (_circle.profileImageUrl == null ||
+                                    _circle.profileImageUrl!.isEmpty)
+                                ? TheyDiColors.gradientPrimary
+                                : null,
+                          ),
+                          child: (_circle.profileImageUrl == null ||
+                                  _circle.profileImageUrl!.isEmpty)
+                              ? Center(
+                                  child: Text(
                                     _circle.name.isNotEmpty
                                         ? _circle.name[0].toUpperCase()
                                         : '?',
                                     style: TheyDiTextStyles.labelLarge
-                                        .copyWith(color: Colors.white)))),
+                                        .copyWith(color: Colors.white),
+                                  ),
+                                )
+                              : null,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                             child: Column(
@@ -765,10 +928,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
           ),
           Expanded(
               child: GestureDetector(
-            onTap: () => setState(() {
-              _showEmojiPicker = false;
-              _showAttachmentMenu = false;
-            }),
+            onTap: () => setState(() => _showEmojiPicker = false),
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('circles')
@@ -811,7 +971,8 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
                     final isMine = data['senderUid'] == myUid;
-                    final msgType = data['type'] ?? 'text';
+                    final mediaUrl = data['mediaUrl'];
+                    final msgType = data['mediaType'] ?? data['type'] ?? 'text';
                     final senderName = data['senderName'] ?? '';
                     final createdAt = data['createdAt'] as Timestamp?;
                     final seenBy = List<String>.from(data['seenBy'] ?? []);
@@ -840,13 +1001,30 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                           timeLabel: timeLabel,
                           seen: seen,
                         )
+                      else if (msgType == 'image')
+                        _CircleImageBubble(
+                          imageUrl: mediaUrl ?? '',
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        )
+                      else if (msgType == 'video')
+                        _CircleVideoBubble(
+                          videoUrl: mediaUrl ?? '',
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        )
                       else
                         _CircleBubble(
-                            text: data['text'] ?? '',
-                            isMine: isMine,
-                            senderName: senderName,
-                            timeLabel: timeLabel,
-                            seen: seen),
+                          text: data['text'] ?? '',
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        ),
                     ]);
                   },
                 );
@@ -864,7 +1042,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: TheyDiColors.primary)),
                 const SizedBox(width: 10),
-                Text('Sending voice message...',
+                Text('Uploading media...',
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary)),
               ]),
@@ -907,29 +1085,39 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                     ),
                   )),
                 ])),
-          if (_showAttachmentMenu && !_isRecording && _isMember)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _buildAttachmentMenu(),
-            ),
           if (!_isMember)
             Container(
-                padding: const EdgeInsets.all(16),
-                color: TheyDiColors.card,
-                child: Text('You are no longer a member of this circle',
-                    style: TheyDiTextStyles.bodySmall
-                        .copyWith(color: TheyDiColors.textMuted),
-                    textAlign: TextAlign.center))
-          else
+              padding: const EdgeInsets.all(16),
+              color: TheyDiColors.card,
+              child: Text(
+                'You are no longer a member of this circle',
+                style: TheyDiTextStyles.bodySmall.copyWith(
+                  color: TheyDiColors.textMuted,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else ...[
+            if (_showAttachmentMenu && !_isRecording)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _buildAttachmentMenu(),
+              ),
             Container(
               padding: const EdgeInsets.fromLTRB(8, 10, 8, 16),
               decoration: BoxDecoration(
-                  color: TheyDiColors.dark,
-                  border: Border(top: BorderSide(color: TheyDiColors.divider))),
+                color: TheyDiColors.dark,
+                border: Border(
+                  top: BorderSide(
+                    color: TheyDiColors.divider,
+                  ),
+                ),
+              ),
               child: _isRecording
                   ? _buildRecordingBar()
                   : _buildNormalBar(hasText),
             ),
+          ],
         ])),
       ),
     );
@@ -989,13 +1177,14 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-            color:
-                isCancelling ? Colors.red.withOpacity(0.12) : TheyDiColors.card,
+            color: isCancelling
+                ? Colors.red.withValues(alpha: 0.12)
+                : TheyDiColors.card,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
                 color: isCancelling
-                    ? Colors.red.withOpacity(0.5)
-                    : Colors.red.withOpacity(0.4))),
+                    ? Colors.red.withValues(alpha: 0.5)
+                    : Colors.red.withValues(alpha: 0.4))),
         child: Row(children: [
           _PulsingMic(),
           const SizedBox(width: 10),
@@ -1027,7 +1216,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.red.withOpacity(0.45),
+                          color: Colors.red.withValues(alpha: 0.45),
                           blurRadius: 12,
                           spreadRadius: 2)
                     ]),
@@ -1039,70 +1228,127 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   }
 
   Widget _buildNormalBar(bool hasText) {
-    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      _AttachmentIcon(
-        icon: _showAttachmentMenu ? Icons.close : Icons.add,
-        onTap: () => setState(() {
-          _showAttachmentMenu = !_showAttachmentMenu;
-          _showEmojiPicker = false;
-        }),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Attachment Button
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _showAttachmentMenu = !_showAttachmentMenu;
+              _showEmojiPicker = false;
+            });
+          },
           child: Container(
-        decoration: BoxDecoration(
-            color: TheyDiColors.card,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: TheyDiColors.divider)),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-              child: TextField(
-            controller: _messageController,
-            style: TheyDiTextStyles.bodyMedium,
-            maxLines: 4,
-            minLines: 1,
-            textInputAction: TextInputAction.send,
-            onTap: () => setState(() => _showEmojiPicker = false),
-            onSubmitted: (_) => _sendMessage(),
-            decoration: InputDecoration(
-                hintText: 'Message ${_circle.name}...',
-                hintStyle: TheyDiTextStyles.bodySmall
-                    .copyWith(color: TheyDiColors.textMuted),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.fromLTRB(16, 10, 4, 10)),
-          )),
-          GestureDetector(
-              onTap: _toggleEmojiPicker,
-              child: Padding(
-                  padding: const EdgeInsets.only(right: 12, bottom: 10),
-                  child: Text(_showEmojiPicker ? '⌨️' : '😊',
-                      style: const TextStyle(fontSize: 20)))),
-        ]),
-      )),
-      const SizedBox(width: 8),
-      hasText
-          ? GestureDetector(
-              onTap: _sendMessage,
-              child: Container(
+            width: 40,
+            height: 40,
+            margin: const EdgeInsets.only(bottom: 3),
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: TheyDiColors.divider,
+              ),
+            ),
+            child: Icon(
+              _showAttachmentMenu ? Icons.close : Icons.add,
+              color: TheyDiColors.textSecondary,
+              size: 20,
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: TheyDiColors.divider,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    style: TheyDiTextStyles.bodyMedium,
+                    maxLines: 4,
+                    minLines: 1,
+                    textInputAction: TextInputAction.send,
+                    onTap: () => setState(() {
+                      _showEmojiPicker = false;
+                    }),
+                    onSubmitted: (_) => _sendMessage(),
+                    decoration: InputDecoration(
+                      hintText: 'Message ${_circle.name}...',
+                      hintStyle: TheyDiTextStyles.bodySmall.copyWith(
+                        color: TheyDiColors.textMuted,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _toggleEmojiPicker,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 10, bottom: 10),
+                    child: Text(
+                      _showEmojiPicker ? '⌨️' : '😊',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        hasText
+            ? GestureDetector(
+                onTap: _sendMessage,
+                child: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                      gradient: TheyDiColors.gradientPrimary,
-                      shape: BoxShape.circle),
-                  child: const Icon(Icons.send, color: Colors.white, size: 20)))
-          : GestureDetector(
-              onLongPressStart: (_) => _startRecording(),
-              onLongPressEnd: (_) => _stopAndSendRecording(),
-              child: Container(
+                    gradient: TheyDiColors.gradientPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.send,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              )
+            : GestureDetector(
+                onLongPressStart: (_) => _startRecording(),
+                onLongPressEnd: (_) => _stopAndSendRecording(),
+                child: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                      color: TheyDiColors.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: TheyDiColors.divider)),
-                  child: const Icon(Icons.mic_none,
-                      color: TheyDiColors.textSecondary, size: 20))),
-    ]);
+                    color: TheyDiColors.card,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: TheyDiColors.divider,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.mic_none,
+                    color: TheyDiColors.textSecondary,
+                    size: 20,
+                  ),
+                ),
+              ),
+      ],
+    );
   }
 }
 
@@ -1160,7 +1406,7 @@ class _PulsingMicState extends State<_PulsingMic>
           height: 32,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.red.withOpacity(_anim.value * 0.25)),
+              color: Colors.red.withValues(alpha: _anim.value * 0.25)),
           child: Center(
               child: Container(
                   width: 20,
@@ -1187,6 +1433,133 @@ class _CircleVoiceBubble extends StatefulWidget {
       required this.seen});
   @override
   State<_CircleVoiceBubble> createState() => _CircleVoiceBubbleState();
+}
+
+class _CircleImageBubble extends StatelessWidget {
+  final String imageUrl;
+  final bool isMine;
+  final String senderName;
+  final String timeLabel;
+  final bool seen;
+
+  const _CircleImageBubble({
+    required this.imageUrl,
+    required this.isMine,
+    required this.senderName,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          crossAxisAlignment:
+              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.broken_image, size: 80),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$timeLabel ${isMine ? (seen ? "✓✓" : "✓") : ""}',
+              style: TheyDiTextStyles.caption,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleVideoBubble extends StatelessWidget {
+  final String videoUrl;
+  final bool isMine;
+  final String senderName;
+  final String timeLabel;
+  final bool seen;
+
+  const _CircleVideoBubble({
+    required this.videoUrl,
+    required this.isMine,
+    required this.senderName,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 3,
+        bottom: 3,
+        left: isMine ? 60 : 0,
+        right: isMine ? 0 : 60,
+      ),
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isMine
+                ? TheyDiColors.primary.withValues(alpha: 0.15)
+                : TheyDiColors.card,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Icon(
+                Icons.play_circle_fill,
+                size: 60,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Video',
+                style: TheyDiTextStyles.caption,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    timeLabel,
+                    style: TheyDiTextStyles.caption.copyWith(
+                      color: TheyDiColors.textMuted,
+                      fontSize: 10,
+                    ),
+                  ),
+                  if (isMine) ...[
+                    const SizedBox(width: 4),
+                    _ReadReceipt(seen: seen),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
@@ -1269,7 +1642,9 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                 constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
                 padding: const EdgeInsets.fromLTRB(10, 10, 12, 8),
                 decoration: BoxDecoration(
-                    color: widget.isMine ? Colors.white : Colors.white,
+                    color: widget.isMine
+                        ? TheyDiColors.primary.withValues(alpha: 0.2)
+                        : TheyDiColors.card,
                     borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
@@ -1277,9 +1652,8 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                         bottomRight: Radius.circular(widget.isMine ? 4 : 16)),
                     border: Border.all(
                         color: widget.isMine
-                            ? const Color(0xFFE0E0E0)
-                            : const Color(
-                                0xFFD0D5DD))), // Specific received border color
+                            ? TheyDiColors.primary.withValues(alpha: 0.3)
+                            : TheyDiColors.divider)),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1306,9 +1680,7 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                               const SizedBox(height: 4),
                               Text(_fmt(displaySecs),
                                   style: TheyDiTextStyles.caption.copyWith(
-                                      color: widget.isMine
-                                          ? Colors.black
-                                          : const Color(0xFF6B7280),
+                                      color: TheyDiColors.textMuted,
                                       fontSize: 10)),
                             ])),
                       ]),
@@ -1316,10 +1688,7 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                       Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                         Text(widget.timeLabel,
                             style: TheyDiTextStyles.caption.copyWith(
-                                color: widget.isMine
-                                    ? Colors.black54
-                                    : const Color(0xFF6B7280),
-                                fontSize: 10)),
+                                color: TheyDiColors.textMuted, fontSize: 10)),
                         if (widget.isMine) ...[
                           const SizedBox(width: 4),
                           _ReadReceipt(seen: widget.seen)
@@ -1369,30 +1738,33 @@ class _WaveformBars extends StatelessWidget {
     12.0,
     8.0
   ];
+
   @override
   Widget build(BuildContext context) {
     final played = (_h.length * progress).round();
+
     return SizedBox(
-        height: 20,
-        child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(
-                _h.length,
-                (i) => Container(
-                    width: 3,
-                    height: _h[i],
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: BoxDecoration(
-                        color: i < played
-                            ? (isMine
-                                ? Colors.white
-                                : TheyDiColors
-                                    .primary) // Played bars are white for sent, primary for received
-                            : (isMine
-                                ? Colors.white.withOpacity(0.3)
-                                : Colors.grey
-                                    .shade400), // Unplayed bars are light grey for received
-                        borderRadius: BorderRadius.circular(2))))));
+      height: 20,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(
+          _h.length,
+          (i) => Container(
+            width: 3,
+            height: _h[i],
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: i < played
+                  ? TheyDiColors.primary
+                  : (isMine
+                      ? Colors.white.withValues(alpha: 0.3)
+                      : TheyDiColors.textMuted.withValues(alpha: 0.4)),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1423,43 +1795,55 @@ class _CircleBubble extends StatelessWidget {
                             color: TheyDiColors.primary,
                             fontWeight: FontWeight.w600))),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                    color: isMine ? Colors.white : Colors.white,
-                    borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: Radius.circular(isMine ? 16 : 4),
-                        bottomRight: Radius.circular(isMine ? 4 : 16)),
-                    border: Border.all(
-                        color: isMine
-                            ? const Color(0xFFE0E0E0)
-                            : const Color(
-                                0xFFD0D5DD))), // Specific received border color
+                  color: isMine ? Colors.white : TheyDiColors.card,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(isMine ? 16 : 4),
+                    bottomRight: Radius.circular(isMine ? 4 : 16),
+                  ),
+                  border: Border.all(
+                    color:
+                        isMine ? const Color(0xFFE0E0E0) : TheyDiColors.divider,
+                  ),
+                ),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(text,
-                          style: TheyDiTextStyles.bodySmall.copyWith(
-                              color: isMine
-                                  ? Colors.black
-                                  : const Color(0xFF111827),
-                              height: 1.4)),
-                      const SizedBox(height: 4),
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(timeLabel,
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: isMine
-                                    ? Colors.black54
-                                    : const Color(0xFF6B7280),
-                                fontSize: 10)),
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      text,
+                      style: TheyDiTextStyles.bodySmall.copyWith(
+                        color:
+                            isMine ? Colors.black : TheyDiColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          timeLabel,
+                          style: TheyDiTextStyles.caption.copyWith(
+                            color: isMine
+                                ? Colors.black54
+                                : TheyDiColors.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
                         if (isMine) ...[
                           const SizedBox(width: 4),
-                          _ReadReceipt(seen: seen)
+                          _ReadReceipt(seen: seen),
                         ],
-                      ]),
-                    ]),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           )));

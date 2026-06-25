@@ -3,8 +3,6 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 import 'dart:math' as math;
 
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,14 +14,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
-
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/utils/platform_helper.dart';
+import '../../../core/services/cloudflare_upload.dart';
 
 const _kEmojis = [
   '😀',
@@ -204,27 +205,75 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     }
   }
 
+  Future<void> _handleSelectedMedia(XFile file) async {
+    try {
+      final bytes = await file.readAsBytes();
+
+      final url = await CloudflareUpload.uploadBytes(
+        bytes,
+        file.name,
+      );
+
+      if (url == null) {
+        _showSnack('Upload failed', Colors.red);
+        return;
+      }
+
+      final path = file.name.toLowerCase();
+
+      final mediaType = path.endsWith('.mp4') ||
+              path.endsWith('.mov') ||
+              path.endsWith('.avi')
+          ? 'video'
+          : 'image';
+
+      await _sendMessage(
+        mediaUrl: url,
+        mediaType: mediaType,
+      );
+    } catch (e) {
+      _showSnack('Failed: $e', Colors.red);
+    }
+  }
+
   // ── Text send ──────────────────────────────────────────────────────────────
-  Future<void> _sendMessage([String? override]) async {
-    final text = (override ?? _messageController.text).trim();
-    if (text.isEmpty || _isSending || _chatId == null) return;
+  Future<void> _sendMessage({
+    String? textOverride,
+    String? mediaUrl,
+    String? mediaType, // image | video
+  }) async {
+    final text = (textOverride ?? _messageController.text).trim();
+
+    if ((text.isEmpty && mediaUrl == null) || _isSending || _chatId == null) {
+      return;
+    }
+
     setState(() {
       _isSending = true;
       _showEmojiPicker = false;
       _showAttachmentMenu = false;
     });
+
     _messageController.clear();
+
     try {
       final myUid = FirebaseAuth.instance.currentUser!.uid;
+
       String myName = FirebaseAuth.instance.currentUser?.displayName ?? 'Me';
+
       try {
         final d = await FirebaseFirestore.instance
             .collection('users')
             .doc(myUid)
             .get();
-        if (d.exists) myName = d.data()?['displayName'] ?? myName;
+
+        if (d.exists) {
+          myName = d.data()?['displayName'] ?? myName;
+        }
       } catch (_) {}
+
       final now = Timestamp.now();
+
       await FirebaseFirestore.instance
           .collection('chats')
           .doc(_chatId)
@@ -232,31 +281,48 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
           .add({
         'senderId': myUid,
         'senderName': myName,
-        'type': 'text',
+        'type': mediaType ?? 'text',
         'text': text,
+        'mediaUrl': mediaUrl,
         'timestamp': now,
         'seen': false,
         'readBy': [myUid],
       });
+
       await FirebaseFirestore.instance.collection('chats').doc(_chatId).update({
-        'lastMessage': text,
+        'lastMessage': mediaType == 'image'
+            ? '📷 Photo'
+            : mediaType == 'video'
+                ? '🎥 Video'
+                : text,
         'lastMessageSenderId': myUid,
         'updatedAt': now,
         'deletedFor': FieldValue.arrayRemove([myUid, widget.otherUid]),
       });
+
       await NotificationService.send(
         toUid: widget.otherUid,
         title: 'New message from $myName 💬',
-        body: text.length > 50 ? '${text.substring(0, 50)}...' : text,
+        body: mediaType == 'image'
+            ? '📷 Sent a photo'
+            : mediaType == 'video'
+                ? '🎥 Sent a video'
+                : (text.length > 50 ? '${text.substring(0, 50)}...' : text),
         type: 'social',
         fromUid: myUid,
         chatId: _chatId,
       );
+
       _scrollToBottom();
     } catch (e) {
-      if (mounted) _showSnack('Failed: $e', Colors.red);
+      if (mounted) {
+        _showSnack('Failed: $e', Colors.red);
+      }
     }
-    if (mounted) setState(() => _isSending = false);
+
+    if (mounted) {
+      setState(() => _isSending = false);
+    }
   }
 
   // ── Voice recording ────────────────────────────────────────────────────────
@@ -620,7 +686,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.12),
+                    color: Colors.red.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.flag_outlined,
@@ -643,12 +709,12 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: selectedReason == reason
-                            ? Colors.red.withOpacity(0.1)
+                            ? Colors.red.withValues(alpha: 0.1)
                             : TheyDiColors.card,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selectedReason == reason
-                              ? Colors.red.withOpacity(0.5)
+                              ? Colors.red.withValues(alpha: 0.5)
                               : TheyDiColors.divider,
                         ),
                       ),
@@ -799,7 +865,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     try {
       if (action == 'camera') {
         file = await picker.pickImage(
-            source: ImageSource.camera, imageQuality: 80);
+          source: ImageSource.camera,
+        );
       } else if (action == 'video') {
         file = await picker.pickVideo(
             source: ImageSource.camera,
@@ -807,7 +874,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         type = 'video';
       } else if (action == 'gallery') {
         file = await picker.pickImage(
-            source: ImageSource.gallery, imageQuality: 80);
+          source: ImageSource.gallery,
+        );
       } else if (action == 'document') {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
@@ -835,15 +903,17 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
           if (path != null) {
             type = 'file';
-            fileName = pickedFile.name;
-            _confirmAndSendMedia(path, type, fileName!);
+
+            final xFile = XFile(path, name: pickedFile.name);
+
+            _confirmAndSendMedia(xFile, type);
           }
         }
         return;
       }
 
       if (file != null) {
-        _confirmAndSendMedia(file.path, type, file.name);
+        _confirmAndSendMedia(file, type);
       }
     } catch (e) {
       _showSnack('Error picking media: $e', Colors.red);
@@ -851,12 +921,17 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   }
 
   Future<void> _confirmAndSendMedia(
-      String path, String type, String fileName) async {
+    XFile file,
+    String type,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
-        title: Text('Send $type?', style: TheyDiTextStyles.headlineMedium),
+        title: Text(
+          'Send $type?',
+          style: TheyDiTextStyles.headlineMedium,
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -864,76 +939,87 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
               kIsWeb
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child:
-                          Image.network(path, height: 200, fit: BoxFit.cover))
+                      child: Image.network(
+                        file.path,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    )
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(File(path),
-                          height: 200, fit: BoxFit.cover),
+                      child: Image.file(
+                        File(file.path),
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
                     )
             else
-              Icon(type == 'video' ? Icons.videocam : Icons.description,
-                  size: 48, color: TheyDiColors.primary),
+              Icon(
+                type == 'video' ? Icons.videocam : Icons.description,
+                size: 48,
+                color: TheyDiColors.primary,
+              ),
             const SizedBox(height: 12),
-            Text(fileName,
-                style: TheyDiTextStyles.bodySmall, textAlign: TextAlign.center),
+            Text(
+              file.name,
+              style: TheyDiTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  Text('Send', style: TextStyle(color: TheyDiColors.primary))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Send',
+              style: TextStyle(color: TheyDiColors.primary),
+            ),
+          ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      _uploadAndSendMedia(path, type, fileName);
+      await _uploadAndSendMedia(file, type);
     }
   }
 
   Future<void> _uploadAndSendMedia(
-      String filePath, String type, String fileName) async {
+    XFile file,
+    String type,
+  ) async {
     if (_chatId == null) return;
+
     setState(() => _isUploading = true);
+
     try {
       final myUid = FirebaseAuth.instance.currentUser!.uid;
-      final List<int> bytes;
-      final String ext;
 
-      if (kIsWeb) {
-        bytes = await getBlobBytes(filePath);
-        ext = fileName.contains('.')
-            ? fileName.split('.').last
-            : (type == 'image'
-                ? 'jpg'
-                : type == 'video'
-                    ? 'mp4'
-                    : 'bin');
-      } else {
-        bytes = await getFileBytes(filePath);
-        ext = filePath.split('.').last;
+      final bytes = await file.readAsBytes();
+
+      final url = await CloudflareUpload.uploadBytes(
+        bytes,
+        file.name,
+      );
+
+      if (url == null) {
+        throw Exception('Cloudflare upload failed');
       }
 
-      final storagePath =
-          'media/${_chatId!}/${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final storageRef = FirebaseStorage.instance.ref().child(storagePath);
-
-      await storageRef.putData(Uint8List.fromList(bytes));
-      final url = await storageRef.getDownloadURL();
-
       String myName = FirebaseAuth.instance.currentUser?.displayName ?? 'Me';
+
       final msgText = type == 'image'
           ? '📷 Photo'
           : type == 'video'
               ? '🎥 Video'
-              : '📄 $fileName';
+              : '📄 ${file.name}';
 
       final now = Timestamp.now();
+
       await FirebaseFirestore.instance
           .collection('chats')
           .doc(_chatId)
@@ -943,7 +1029,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         'senderName': myName,
         'type': type,
         'mediaUrl': url,
-        'fileName': fileName,
+        'fileName': file.name,
         'text': msgText,
         'timestamp': now,
         'seen': false,
@@ -965,11 +1051,14 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         fromUid: myUid,
         chatId: _chatId,
       );
+
       _scrollToBottom();
     } catch (e) {
       _showSnack('Upload failed: $e', Colors.red);
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -1021,16 +1110,49 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                       onTap: _openFriendInfo,
                       child: Row(children: [
                         Stack(children: [
-                          Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                  gradient: TheyDiColors.gradientPrimary,
-                                  borderRadius: BorderRadius.circular(12)),
-                              child: Center(
-                                  child: Text(initial,
-                                      style: TheyDiTextStyles.labelLarge
-                                          .copyWith(color: Colors.white)))),
+                          StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.otherUid)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              final data = snapshot.data?.data()
+                                      as Map<String, dynamic>? ??
+                                  {};
+
+                              final photoUrl = data['profileImageUrl'] ??
+                                  data['photoUrl'] ??
+                                  '';
+
+                              return Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: photoUrl.isEmpty
+                                      ? TheyDiColors.gradientPrimary
+                                      : null,
+                                  image: photoUrl.isNotEmpty
+                                      ? DecorationImage(
+                                          image: NetworkImage(photoUrl),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                child: photoUrl.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          initial,
+                                          style: TheyDiTextStyles.labelLarge
+                                              .copyWith(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -1227,12 +1349,27 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                     timeLabel: timeLabel,
                                     seen: seen,
                                   )
+                                else if (msgType == 'image')
+                                  _DmImageBubble(
+                                    imageUrl: data['mediaUrl'] ?? '',
+                                    isMine: isMine,
+                                    timeLabel: timeLabel,
+                                    seen: seen,
+                                  )
+                                else if (msgType == 'video')
+                                  _DmVideoBubble(
+                                    videoUrl: data['mediaUrl'] ?? '',
+                                    isMine: isMine,
+                                    timeLabel: timeLabel,
+                                    seen: seen,
+                                  )
                                 else
                                   _DmBubble(
-                                      text: data['text'] ?? '',
-                                      isMine: isMine,
-                                      timeLabel: timeLabel,
-                                      seen: seen),
+                                    text: data['text'] ?? '',
+                                    isMine: isMine,
+                                    timeLabel: timeLabel,
+                                    seen: seen,
+                                  ),
                               ]);
                             },
                           );
@@ -1252,7 +1389,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: TheyDiColors.primary)),
                 const SizedBox(width: 10),
-                Text('Sending voice message...',
+                Text('uploading media...',
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary)),
               ]),
@@ -1373,13 +1510,14 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-            color:
-                isCancelling ? Colors.red.withOpacity(0.12) : TheyDiColors.card,
+            color: isCancelling
+                ? Colors.red.withValues(alpha: 0.12)
+                : TheyDiColors.card,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
                 color: isCancelling
-                    ? Colors.red.withOpacity(0.5)
-                    : Colors.red.withOpacity(0.4))),
+                    ? Colors.red.withValues(alpha: 0.5)
+                    : Colors.red.withValues(alpha: 0.4))),
         child: Row(children: [
           _PulsingMic(),
           const SizedBox(width: 10),
@@ -1411,7 +1549,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.red.withOpacity(0.45),
+                          color: Colors.red.withValues(alpha: 0.45),
                           blurRadius: 12,
                           spreadRadius: 2)
                     ]),
@@ -1635,7 +1773,7 @@ class _PulsingMicState extends State<_PulsingMic>
           height: 32,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.red.withOpacity(_anim.value * 0.25)),
+              color: Colors.red.withValues(alpha: _anim.value * 0.25)),
           child: Center(
               child: Container(
                   width: 20,
@@ -1848,9 +1986,11 @@ class _WaveformBars extends StatelessWidget {
                                 : TheyDiColors
                                     .primary) // Sent played bars are white
                             : (isMine
-                                ? Colors.white.withOpacity(
-                                    0.5) // Sent unplayed bars are lighter white
-                                : TheyDiColors.textMuted.withOpacity(0.4)),
+                                ? Colors.white.withValues(
+                                    alpha:
+                                        0.5) // Sent unplayed bars are lighter white
+                                : TheyDiColors.textMuted
+                                    .withValues(alpha: 0.4)),
                         borderRadius: BorderRadius.circular(2))))));
   }
 }
@@ -1874,9 +2014,9 @@ class _MediaOption extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: .12),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.3))),
+                border: Border.all(color: color.withValues(alpha: .3))),
             child: Icon(icon, color: color, size: 28)),
         const SizedBox(height: 8),
         Text(label,
@@ -1933,6 +2073,107 @@ class _DmBubble extends StatelessWidget {
               ]),
             ]),
           )));
+}
+
+class _DmImageBubble extends StatelessWidget {
+  final String imageUrl;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+
+  const _DmImageBubble({
+    required this.imageUrl,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          crossAxisAlignment:
+              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.broken_image, size: 80),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$timeLabel ${isMine ? (seen ? "✓✓" : "✓") : ""}',
+              style: TheyDiTextStyles.caption,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DmVideoBubble extends StatelessWidget {
+  final String videoUrl;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+
+  const _DmVideoBubble({
+    required this.videoUrl,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: 0.15)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.play_circle_fill,
+              size: 60,
+            ),
+            const SizedBox(height: 8),
+            const Text('Video'),
+            const SizedBox(height: 8),
+            Text(
+              '$timeLabel ${isMine ? (seen ? "✓✓" : "✓") : ""}',
+              style: TheyDiTextStyles.caption,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ReadReceipt extends StatelessWidget {
