@@ -27,7 +27,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_button.dart';
 
 // ── Step enum ─────────────────────────────────────────────────────────────────
-enum _FpStep { enterEmail, verifyOtp, resetPassword, success }
+enum _FpStep { enterEmail, success }
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -48,51 +48,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _sendingOtp = false;
 
   // ── Step 2 ──
-  final List<TextEditingController> _otpControllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
-  String _generatedOtp = '';  // kept only as placeholder — logic moved to Firestore
-  int _secondsLeft = 30;
-  bool _canResend = false;
-  bool _verifying = false;
-  Timer? _timer;
-
-  // ── Step 3 ──
-  final _pwFormKey = GlobalKey<FormState>();
-  final _newPwController = TextEditingController();
-  final _confirmPwController = TextEditingController();
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
-  bool _updatingPw = false;
-
-  @override
-  void initState() {
-    super.initState();
-    for (final f in _otpFocusNodes) {
-      f.addListener(_onFocusChange);
-    }
-  }
-
-  void _onFocusChange() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
-    for (final f in _otpFocusNodes) {
-      f.dispose();
-    }
-    _newPwController.dispose();
-    _confirmPwController.dispose();
-    _timer?.cancel();
-    super.dispose();
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers
@@ -118,196 +73,52 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return '${name[0]}${name[1]}***@$domain';
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Step 1 — Send OTP
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Future<void> _sendOtp() async {
+  Future<void> _sendResetLink() async {
     if (!_emailFormKey.currentState!.validate()) return;
+
     FocusScope.of(context).unfocus();
+
     setState(() => _sendingOtp = true);
 
-    final email = _emailController.text.trim().toLowerCase();
-
     try {
-      // Check if email exists in Firestore
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
+      final email = _emailController.text.trim();
 
-      if (snap.docs.isEmpty) {
-        _showSnack('No account found with this email.',
-            color: TheyDiColors.error);
-        setState(() => _sendingOtp = false);
-        return;
-      }
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email,
+      );
 
-      _email = email;
+      if (!mounted) return;
 
-      // Send real OTP via EmailJS + Firestore
-      final sent = await OTPService.sendOTP(email: email, name: email);
-      if (!sent) {
-        _showSnack('❌ Failed to send OTP. Please try again.');
-        setState(() => _sendingOtp = false);
-        return;
-      }
-
-      _startTimer();
       setState(() {
+        _email = email;
         _sendingOtp = false;
-        _step = _FpStep.verifyOtp;
+        _step = _FpStep.success;
       });
 
-      // Auto-focus first OTP box
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _otpFocusNodes[0].requestFocus());
-    } catch (e) {
-      _showSnack('Something went wrong. Please try again.');
-      setState(() => _sendingOtp = false);
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Step 2 — Verify OTP
-  // ─────────────────────────────────────────────────────────────────────────
-
-  void _startTimer() {
-    _secondsLeft = 30;
-    _canResend = false;
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      setState(() {
-        if (_secondsLeft > 0) {
-          _secondsLeft--;
-        } else {
-          _canResend = true;
-          t.cancel();
-        }
-      });
-    });
-  }
-
-  Future<void> _resendOtp() async {
-    await OTPService.clearOTP(_email);
-    for (final c in _otpControllers) {
-      c.clear();
-    }
-    _otpFocusNodes[0].requestFocus();
-    final sent = await OTPService.sendOTP(email: _email, name: _email);
-    if (!sent && mounted) {
-      _showSnack('❌ Failed to resend OTP. Please try again.');
-    }
-    _startTimer();
-    setState(() {});
-  }
-
-  void _onOtpDigitChanged(String value, int index) {
-    if (value.length == 1 && index < 5) {
-      _otpFocusNodes[index + 1].requestFocus();
-    }
-    if (value.isEmpty && index > 0) {
-      _otpFocusNodes[index - 1].requestFocus();
-    }
-    setState(() {});
-    final entered = _otpControllers.map((c) => c.text).join();
-    if (entered.length == 6) _verifyOtp();
-  }
-
-  String get _enteredOtp => _otpControllers.map((c) => c.text).join();
-
-  Future<void> _verifyOtp() async {
-    if (_enteredOtp.length < 6) {
-      _showSnack('Enter all 6 digits');
-      return;
-    }
-
-    setState(() => _verifying = true);
-
-    final result = await OTPService.verifyOTP(
-      email: _email,
-      inputOtp: _enteredOtp,
-    );
-
-    if (result['valid'] == true) {
-      if (mounted) {
-        setState(() {
-          _verifying = false;
-          _step = _FpStep.resetPassword;
-        });
-        WidgetsBinding.instance.addPostFrameCallback(
-            (_) => FocusScope.of(context).requestFocus(FocusNode()));
-      }
-    } else {
-      for (final c in _otpControllers) {
-        c.clear();
-      }
-      _otpFocusNodes[0].requestFocus();
-      _showSnack(result['message'] ?? '❌ Incorrect code. Please try again.');
-      if (mounted) setState(() => _verifying = false);
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Step 3 — Reset Password
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Future<void> _updatePassword() async {
-    if (!_pwFormKey.currentState!.validate()) return;
-    FocusScope.of(context).unfocus();
-    setState(() => _updatingPw = true);
-
-    final newPassword = _newPwController.text.trim();
-
-    try {
-      // Firebase does not allow setting a new password without re-authentication.
-      // Since the user forgot their password, we cannot re-auth with the old one.
-      //
-      // Correct approach:
-      //   1. Send a password reset email → Firebase generates an oobCode link.
-      //   2. Use confirmPasswordReset(oobCode, newPassword) with that code.
-      //
-      // Since we already verified identity via OTP, we use the Firebase Auth
-      // REST API to directly update the password with the user's idToken.
-      // We obtain the idToken by signing in via sendPasswordResetEmail + intercepting
-      // the oobCode — not possible purely client-side.
-      //
-      // Best client-side solution: use signInWithEmailLink or Cloud Functions.
-      // Practical workaround used here: send the reset email, then immediately
-      // try to sign in with the new password after a short moment (race condition
-      // workaround). If that fails, fall back to showing the reset email message.
-      //
-      // RECOMMENDED: Move this to a Cloud Function:
-      //   admin.auth().updateUser(uid, { password: newPassword })
-
-      // Step 1: Send Firebase reset email (this generates a real oobCode)
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: _email);
-
-      // Step 2: Try to directly update via re-sign-in using email + new password.
-      // This only works if the user has no password (e.g. social login) — skip for now.
-
-      // Step 3: Best effort — sign user in with new password (only works post-reset link click)
-      // For now, show a clear message that the reset email has been sent.
-      if (mounted) {
-        setState(() {
-          _updatingPw = false;
-          _step = _FpStep.success;
-        });
-      }
+      _showSnack(
+        'Password reset link sent successfully.',
+        color: TheyDiColors.success,
+      );
     } on FirebaseAuthException catch (e) {
-      _showSnack(e.message ?? 'Failed to reset password. Please try again.');
-      setState(() => _updatingPw = false);
-    } catch (_) {
-      _showSnack('Something went wrong. Please try again.');
-      setState(() => _updatingPw = false);
+      if (!mounted) return;
+
+      setState(() => _sendingOtp = false);
+
+      _showSnack(
+        e.message ?? 'Failed to send password reset email.',
+        color: TheyDiColors.error,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _sendingOtp = false);
+
+      _showSnack(
+        'Something went wrong. Please try again.',
+        color: TheyDiColors.error,
+      );
     }
   }
-
   // ─────────────────────────────────────────────────────────────────────────
   // Build
   // ─────────────────────────────────────────────────────────────────────────
@@ -317,7 +128,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -327,63 +141,69 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              // ── App bar ──
+              // ── App Bar ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
-                child: Row(children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        size: 20, color: TheyDiColors.textPrimary),
-                    onPressed: () {
-                      if (_step == _FpStep.enterEmail ||
-                          _step == _FpStep.success) {
-                        context.pop();
-                      } else {
-                        setState(() {
-                          _step = _FpStep.values[_step.index - 1];
-                          _timer?.cancel();
-                        });
-                      }
-                    },
-                  ),
-                  // Step dots
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (i) {
-                        final active =
-                            i <= _step.index && _step != _FpStep.success;
-                        final done = i < _step.index;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: done || (active && _step.index == i) ? 28 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            gradient:
-                                active ? TheyDiColors.gradientPrimary : null,
-                            color: active ? null : TheyDiColors.divider,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        );
-                      }),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 20,
+                        color: TheyDiColors.textPrimary,
+                      ),
+                      onPressed: () => context.pop(),
                     ),
-                  ),
-                  const SizedBox(width: 48), // balance back button
-                ]),
+
+                    // Progress Indicator (2 steps only)
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(2, (i) {
+                          final active =
+                              i <= _step.index && _step != _FpStep.success;
+
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: active ? 28 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              gradient:
+                                  active ? TheyDiColors.gradientPrimary : null,
+                              color: active ? null : TheyDiColors.divider,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+
+                    const SizedBox(width: 48),
+                  ],
+                ),
               ),
 
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 350),
-                  transitionBuilder: (child, anim) => SlideTransition(
-                    position: Tween(
-                      begin: const Offset(0.08, 0),
-                      end: Offset.zero,
-                    ).animate(
-                        CurvedAnimation(parent: anim, curve: Curves.easeOut)),
-                    child: FadeTransition(opacity: anim, child: child),
-                  ),
+                  transitionBuilder: (child, animation) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.08, 0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOut,
+                        ),
+                      ),
+                      child: FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      ),
+                    );
+                  },
                   child: KeyedSubtree(
                     key: ValueKey(_step),
                     child: _buildStep(),
@@ -401,10 +221,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     switch (_step) {
       case _FpStep.enterEmail:
         return _buildEnterEmail();
-      case _FpStep.verifyOtp:
-        return _buildVerifyOtp();
-      case _FpStep.resetPassword:
-        return _buildResetPassword();
+
       case _FpStep.success:
         return _buildSuccess();
     }
@@ -468,16 +285,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: 36),
 
           SizedBox(
-            width: double.infinity,
-            child: _sendingOtp
-                ? const Center(
-                    child:
-                        CircularProgressIndicator(color: TheyDiColors.primary))
-                : GradientButton(
-                    label: 'Send OTP →',
-                    onPressed: _sendOtp,
-                  ),
-          ).animate(delay: 240.ms).fade(duration: 300.ms),
+                  width: double.infinity,
+                  child: _sendingOtp
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: TheyDiColors.primary,
+                          ),
+                        )
+                      : GradientButton(
+                          label: 'Send Reset Link',
+                          onPressed: _sendResetLink,
+                        ))
+              .animate(delay: 240.ms)
+              .fade(duration: 300.ms),
 
           const SizedBox(height: 24),
 
@@ -497,257 +317,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   // Step 2 UI — Verify OTP
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildVerifyOtp() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        // Icon
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: TheyDiColors.gradientPrimary,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.mark_email_read_outlined,
-              color: Colors.white, size: 36),
-        ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
-
-        const SizedBox(height: 28),
-
-        Text('Verify Code',
-                style: TheyDiTextStyles.displayMedium,
-                textAlign: TextAlign.center)
-            .animate(delay: 80.ms)
-            .fade(duration: 300.ms),
-        const SizedBox(height: 8),
-        RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            style: TheyDiTextStyles.bodySmall
-                .copyWith(color: TheyDiColors.textSecondary, height: 1.5),
-            children: [
-              const TextSpan(text: 'Enter the 6-digit code sent to\n'),
-              TextSpan(
-                text: _maskedEmail(_email),
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: TheyDiColors.primary),
-              ),
-            ],
-          ),
-        ).animate(delay: 120.ms).fade(duration: 300.ms),
-
-        const SizedBox(height: 40),
-
-        // ── 6 OTP boxes ──
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(6, (i) {
-            final filled = _otpControllers[i].text.isNotEmpty;
-            final isFocused = _otpFocusNodes[i].hasFocus;
-            return Container(
-              width: 46,
-              height: 58,
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              decoration: BoxDecoration(
-                color: TheyDiColors.inputFill,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isFocused || filled ? TheyDiColors.primary : TheyDiColors.divider,
-                  width: isFocused || filled ? 2 : 1,
-                ),
-              ),
-              child: TextField(
-                controller: _otpControllers[i],
-                focusNode: _otpFocusNodes[i],
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                maxLength: 1,
-                style: TheyDiTextStyles.displayMedium
-                    .copyWith(color: TheyDiColors.primary),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  counterText: '',
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  errorBorder: InputBorder.none,
-                  focusedErrorBorder: InputBorder.none,
-                  fillColor: Colors.transparent,
-                  filled: false,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                onChanged: (v) => _onOtpDigitChanged(v, i),
-                onTap: () {
-                  _otpControllers[i].selection = TextSelection.fromPosition(
-                    TextPosition(offset: _otpControllers[i].text.length),
-                  );
-                },
-              ),
-            )
-                .animate(delay: Duration(milliseconds: 180 + i * 50))
-                .fade(duration: 250.ms)
-                .slideY(begin: 0.3, end: 0);
-          }),
-        ),
-
-
-
-        const SizedBox(height: 36),
-
-        // Verify button
-        SizedBox(
-          width: double.infinity,
-          child: _verifying
-              ? const Center(
-                  child: CircularProgressIndicator(color: TheyDiColors.primary))
-              : GradientButton(
-                  label: 'Verify →',
-                  onPressed: _enteredOtp.length == 6 ? _verifyOtp : () {},
-                ),
-        ).animate(delay: 480.ms).fade(duration: 300.ms),
-
-        const SizedBox(height: 28),
-
-        // Resend + change email
-        Column(children: [
-          if (!_canResend)
-            Text(
-              'Resend code in $_secondsLeft s',
-              style: TheyDiTextStyles.caption
-                  .copyWith(color: TheyDiColors.textMuted),
-            )
-          else
-            TextButton(
-              onPressed: _resendOtp,
-              child: Text('Resend OTP',
-                  style: TheyDiTextStyles.labelMedium
-                      .copyWith(color: TheyDiColors.primary)),
-            ),
-          const SizedBox(height: 6),
-          TextButton(
-            onPressed: () => setState(() {
-              _step = _FpStep.enterEmail;
-              _timer?.cancel();
-            }),
-            child: Text('Change email address',
-                style: TheyDiTextStyles.caption
-                    .copyWith(color: TheyDiColors.textSecondary)),
-          ),
-        ]).animate(delay: 530.ms).fade(duration: 300.ms),
-      ]),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Step 3 UI — Reset Password
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildResetPassword() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-      child: Form(
-        key: _pwFormKey,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Icon
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: TheyDiColors.gradientPrimary,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child:
-                const Icon(Icons.lock_outline, color: Colors.white, size: 30),
-          ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
-
-          const SizedBox(height: 28),
-
-          Text('Reset Password', style: TheyDiTextStyles.displayMedium)
-              .animate(delay: 80.ms)
-              .fade(duration: 300.ms),
-          const SizedBox(height: 8),
-          Text('Create a strong new password for your account.',
-                  style: TheyDiTextStyles.bodySmall
-                      .copyWith(color: TheyDiColors.textSecondary, height: 1.5))
-              .animate(delay: 120.ms)
-              .fade(duration: 300.ms),
-
-          const SizedBox(height: 40),
-
-          // New password
-          TextFormField(
-            controller: _newPwController,
-            obscureText: _obscureNew,
-            style: TheyDiTextStyles.bodyMedium,
-            decoration: InputDecoration(
-              labelText: 'New Password',
-              hintText: '8+ characters',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscureNew
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined),
-                onPressed: () => setState(() => _obscureNew = !_obscureNew),
-              ),
-            ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Password is required';
-              if (v.length < 8) return 'Must be at least 8 characters';
-              return null;
-            },
-          ).animate(delay: 180.ms).fade(duration: 300.ms),
-
-          const SizedBox(height: 16),
-
-          // Confirm password
-          TextFormField(
-            controller: _confirmPwController,
-            obscureText: _obscureConfirm,
-            style: TheyDiTextStyles.bodyMedium,
-            decoration: InputDecoration(
-              labelText: 'Confirm Password',
-              hintText: '••••••••',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscureConfirm
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined),
-                onPressed: () =>
-                    setState(() => _obscureConfirm = !_obscureConfirm),
-              ),
-            ),
-            validator: (v) {
-              if (v != _newPwController.text) {
-                return 'Passwords do not match';
-              }
-              return null;
-            },
-          ).animate(delay: 230.ms).fade(duration: 300.ms),
-
-          const SizedBox(height: 12),
-
-          // Password strength hint
-          _PasswordStrengthHint(password: _newPwController.text)
-              .animate(delay: 260.ms)
-              .fade(duration: 300.ms),
-
-          const SizedBox(height: 36),
-
-          SizedBox(
-            width: double.infinity,
-            child: _updatingPw
-                ? const Center(
-                    child:
-                        CircularProgressIndicator(color: TheyDiColors.primary))
-                : GradientButton(
-                    label: 'Update Password ✓',
-                    onPressed: _updatePassword,
-                  ),
-          ).animate(delay: 310.ms).fade(duration: 300.ms),
-        ]),
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Step 4 UI — Success
@@ -766,56 +339,74 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               color: Colors.green.withValues(alpha: 0.12),
               shape: BoxShape.circle,
               border: Border.all(
-                  color: Colors.green.withValues(alpha: 0.4), width: 2),
+                color: Colors.green.withValues(alpha: 0.4),
+                width: 2,
+              ),
             ),
-            child: const Icon(Icons.check_circle_outline_rounded,
-                color: Colors.green, size: 54),
-          ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
+            child: const Icon(
+              Icons.mark_email_read_rounded,
+              color: Colors.green,
+              size: 54,
+            ),
+          ).animate().scale(
+                duration: 500.ms,
+                curve: Curves.elasticOut,
+              ),
 
           const SizedBox(height: 32),
 
-          Text('Password Updated!',
-                  style: TheyDiTextStyles.displayMedium,
-                  textAlign: TextAlign.center)
-              .animate(delay: 100.ms)
-              .fade(duration: 300.ms),
+          Text(
+            'Check Your Email',
+            style: TheyDiTextStyles.displayMedium,
+            textAlign: TextAlign.center,
+          ).animate(delay: 100.ms).fade(duration: 300.ms),
 
           const SizedBox(height: 12),
 
           Text(
-            'Your password has been reset successfully.\n'
-            'A confirmation link has also been sent to\n${_maskedEmail(_email)}.',
-            style: TheyDiTextStyles.bodySmall
-                .copyWith(color: TheyDiColors.textSecondary, height: 1.6),
+            'A password reset link has been sent to\n'
+            '${_maskedEmail(_email)}.\n\n'
+            'Open the email and follow the instructions to create a new password.',
+            style: TheyDiTextStyles.bodySmall.copyWith(
+              color: TheyDiColors.textSecondary,
+              height: 1.6,
+            ),
             textAlign: TextAlign.center,
           ).animate(delay: 160.ms).fade(duration: 300.ms),
 
           const SizedBox(height: 48),
 
-          // Checkmarks
           ...[
-            '✅  Identity verified via OTP',
-            '✅  New password set',
-            '✅  Account secured',
-          ].asMap().entries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: Colors.green.withValues(alpha: 0.2)),
+            '📧 Reset link sent successfully',
+            '🔒 Secure Firebase password reset',
+            '✅ Login with your new password after reset',
+          ].asMap().entries.map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.green.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Text(
+                      e.value,
+                      style: TheyDiTextStyles.bodySmall.copyWith(
+                        color: Colors.green,
+                      ),
+                    ),
                   ),
-                  child: Text(e.value,
-                      style: TheyDiTextStyles.bodySmall
-                          .copyWith(color: Colors.green)),
-                ),
-              )
-                  .animate(delay: Duration(milliseconds: 240 + e.key * 80))
-                  .fade(duration: 300.ms)
-                  .slideY(begin: 0.1, end: 0)),
+                )
+                    .animate(
+                      delay: Duration(milliseconds: 240 + e.key * 80),
+                    )
+                    .fade(duration: 300.ms)
+                    .slideY(begin: 0.1, end: 0),
+              ),
 
           const SizedBox(height: 40),
 
