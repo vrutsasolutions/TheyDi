@@ -7,7 +7,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +14,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
+import '../../../core/services/otp_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
@@ -35,7 +35,6 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   final List<FocusNode> _focusNodes =
       List.generate(6, (_) => FocusNode());
 
-  String _generatedOtp = '';
   int _secondsLeft = 30;
   Timer? _timer;
   bool _isVerifying = false;
@@ -44,7 +43,7 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   @override
   void initState() {
     super.initState();
-    _sendOtp();
+    _sendOtp(); // real async send — fire and forget on init
     _startTimer();
     // Auto-focus first box
     WidgetsBinding.instance.addPostFrameCallback(
@@ -74,25 +73,22 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     super.dispose();
   }
 
-  // ── Generate & "send" OTP ──────────────────────────────────────────────────
-  void _sendOtp() {
-    _generatedOtp =
-        (100000 + Random().nextInt(900000)).toString(); // 6-digit
-
-    // Show in snackbar so developers can test
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+  // ── Send OTP via EmailJS + Firestore ─────────────────────────────────────
+  Future<void> _sendOtp() async {
+    final success = await OTPService.sendOTP(
+      email: widget.signupData.email,
+      name: widget.signupData.name.isNotEmpty
+          ? widget.signupData.name
+          : widget.signupData.email,
+    );
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '📧 Dev mode — Your OTP: $_generatedOtp\n(Real email delivery coming soon)',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: TheyDiColors.primary,
-          duration: const Duration(seconds: 8),
+        const SnackBar(
+          content: Text('❌ Failed to send OTP. Please check your email and try again.'),
+          backgroundColor: Colors.red,
         ),
       );
-    });
+    }
   }
 
   void _startTimer() {
@@ -112,12 +108,13 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     });
   }
 
-  void _resendOtp() {
+  Future<void> _resendOtp() async {
+    await OTPService.clearOTP(widget.signupData.email);
     for (final c in _controllers) {
       c.clear();
     }
     _focusNodes[0].requestFocus();
-    _sendOtp();
+    await _sendOtp();
     _startTimer();
     setState(() {});
   }
@@ -139,7 +136,7 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   String get _enteredOtp =>
       _controllers.map((c) => c.text).join();
 
-  // ── Verify ─────────────────────────────────────────────────────────────────
+  // ── Verify via Firestore ───────────────────────────────────────────────────
   Future<void> _verify() async {
     if (_enteredOtp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,9 +149,13 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     }
 
     setState(() => _isVerifying = true);
-    await Future.delayed(const Duration(milliseconds: 600)); // simulate
 
-    if (_enteredOtp == _generatedOtp) {
+    final result = await OTPService.verifyOTP(
+      email: widget.signupData.email,
+      inputOtp: _enteredOtp,
+    );
+
+    if (result['valid'] == true) {
       widget.signupData.emailVerified = true;
       if (mounted) {
         context.push(AppRoutes.signupStep2, extra: widget.signupData);
@@ -162,14 +163,13 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     } else {
       if (mounted) {
         setState(() => _isVerifying = false);
-        // Shake and clear
         for (final c in _controllers) {
           c.clear();
         }
         _focusNodes[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Incorrect OTP. Please try again.'),
+          SnackBar(
+            content: Text('❌ ${result['message'] ?? 'Incorrect OTP. Please try again.'}'),
             backgroundColor: Colors.red,
           ),
         );
