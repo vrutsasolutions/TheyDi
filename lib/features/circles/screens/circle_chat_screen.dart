@@ -1042,7 +1042,11 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: TheyDiColors.primary)),
                 const SizedBox(width: 10),
+
                 Text('Uploading media...',
+
+                
+
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary)),
               ]),

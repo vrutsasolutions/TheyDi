@@ -10,6 +10,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/circle_join_service.dart';
+import '../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../shared/widgets/avatar_online_status_dot.dart';
 
 // ── Providers ────────────────────────────────────────────────────────────────
 
@@ -391,7 +393,7 @@ class _ConnectedFriendCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Avatar with online dot
+                // Avatar with online status dot
                 Stack(
                   children: [
                     Container(
@@ -418,21 +420,12 @@ class _ConnectedFriendCard extends StatelessWidget {
                               ),
                       ),
                     ),
-                    if (isOnline)
-                      Positioned(
-                        right: 2,
-                        bottom: 2,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: TheyDiColors.card, width: 1.5),
-                          ),
-                        ),
-                      ),
+                    // Online status dot (gray only when online)
+                    Positioned(
+                      right: 2,
+                      bottom: 2,
+                      child: AvatarOnlineStatusDot(uid: uid, size: 10),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 12),

@@ -28,6 +28,11 @@ import '../../../core/router/app_routes.dart';
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
 
+
+import '../../../shared/widgets/avatar_online_status_dot.dart';
+import 'package:theydi/shared/widgets/avatar_online_status_dot.dart';
+
+
 const _kCircleReportReasons = [
   'Spam or unwanted content',
   'Harassment or bullying',
@@ -728,25 +733,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                 if (_circle.isEventCircle) ...[
                                   const SizedBox(width: 8),
                                   Container(
-<<<<<<< Updated upstream
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
                                       color:
                                           Colors.orange.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(8),
-=======
-
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3), 
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange
-                                          .withOpacity(0.15),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
-
->>>>>>> Stashed changes
                                     ),
                                     child: Text('Event',
                                         style: TheyDiTextStyles.caption
@@ -852,7 +844,6 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                       final isCreator = uid == _circle.creatorUid;
                       final isMe = uid == _myUid;
 
-<<<<<<< Updated upstream
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(
@@ -864,19 +855,34 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                         ),
                         child: Row(
                           children: [
-                            Container(
+                            SizedBox(
                               width: 44,
                               height: 44,
-                              decoration: BoxDecoration(
-                                gradient: TheyDiColors.gradientPrimary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                  style: TheyDiTextStyles.labelLarge
-                                      .copyWith(color: Colors.white),
-                                ),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      gradient: TheyDiColors.gradientPrimary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                        style: TheyDiTextStyles.labelLarge
+                                            .copyWith(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  // Online status dot (gray only when online)
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: AvatarOnlineStatusDot(uid: uid),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -891,67 +897,9 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                         style: TheyDiTextStyles.caption
                                             .copyWith(
                                                 color: TheyDiColors.textMuted)),
-=======
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          context.push(
-                            AppRoutes.userProfile,
-                            extra: {'uid': uid, 'requestId': null},
-                          );
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: TheyDiColors.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: TheyDiColors.divider),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  gradient: TheyDiColors.gradientPrimary,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    name.isNotEmpty
-                                        ? name[0].toUpperCase()
-                                        : '?',
-                                    style: TheyDiTextStyles.labelLarge
-                                        .copyWith(color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Text(name,
-                                        style: TheyDiTextStyles
-                                            .labelMedium),
-                                    if (isMe) ...[
-                                      const SizedBox(width: 6),
-                                      Text('(You)',
-                                          style: TheyDiTextStyles
-                                              .caption
-                                              .copyWith(
-                                                  color: TheyDiColors
-                                                      .textMuted)),
-                                    ],
-                                    const SizedBox(width: 6),
-                                    _OnlineDot(uid: uid),
-
->>>>>>> Stashed changes
                                   ],
                                 ],
                               ),
-<<<<<<< Updated upstream
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -966,21 +914,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                               child: Text(
                                 isCreator ? 'Admin' : 'Member',
                                 style: TheyDiTextStyles.caption.copyWith(
-=======
-
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-
->>>>>>> Stashed changes
                                   color: isCreator
                                       ? TheyDiColors.primary
                                       : Colors.green,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 10,
                                 ),
-<<<<<<< Updated upstream
                               ),
                             ),
                             if (_isHost && !isMe && !isCreator) ...[
@@ -996,20 +935,6 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   ),
                                   child: const Icon(Icons.remove_circle_outline,
                                       size: 16, color: Colors.red),
-=======
-
-     
-                                child: Text(
-                                  isCreator ? 'Admin' : 'Member',
-                                  style: TheyDiTextStyles.caption.copyWith(
-                                    color: isCreator
-                                        ? TheyDiColors.primary
-                                        : Colors.green,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 10,
-                                  ),
-
->>>>>>> Stashed changes
                                 ),
                               ),
                             ],

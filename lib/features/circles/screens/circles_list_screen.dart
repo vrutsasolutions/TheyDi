@@ -9,6 +9,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/friends_service.dart';
 import '../models/circle_model.dart';
+import '../../../shared/widgets/avatar_online_status_dot.dart';
 
 // ── Providers ──
 
@@ -466,30 +467,50 @@ class _FriendCard extends StatelessWidget {
             child: Row(
               children: [
                 // Avatar
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: TheyDiColors.gradientPrimary,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: photoUrl.isNotEmpty
-                        ? Image.network(photoUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
-                                  child: Text(initial,
-                                      style: TheyDiTextStyles.labelLarge
-                                          .copyWith(color: Colors.white)),
-                                ))
-                        : Center(
-                            child: Text(initial,
-                                style: TheyDiTextStyles.labelLarge
-                                    .copyWith(color: Colors.white)),
-                          ),
+                // Avatar + Online Status Dot
+Stack(
+  children: [
+    Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        gradient: TheyDiColors.gradientPrimary,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: photoUrl.isNotEmpty
+            ? Image.network(
+                photoUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Text(
+                    initial,
+                    style: TheyDiTextStyles.labelLarge
+                        .copyWith(color: Colors.white),
                   ),
                 ),
+              )
+            : Center(
+                child: Text(
+                  initial,
+                  style: TheyDiTextStyles.labelLarge
+                      .copyWith(color: Colors.white),
+                ),
+              ),
+      ),
+    ),
+
+    Positioned(
+      right: 0,
+      bottom: 0,
+      child: AvatarOnlineStatusDot(
+        uid: uid,
+        size: 10,
+      ),
+    ),
+  ],
+),
                 const SizedBox(width: 12),
 
                 // Info
