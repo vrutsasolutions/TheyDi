@@ -205,16 +205,20 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
-                                        Expanded(
+                                        SizedBox(
+                                          width: 55,
+                                          height: 55,
                                           child: Image.asset(
                                             _cityIcons[city]!,
                                             fit: BoxFit.contain,
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 12),
                                         Text(
                                           city,
                                           textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: TheyDiTextStyles.labelMedium
                                               .copyWith(
                                             color: isSelected
