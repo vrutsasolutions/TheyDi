@@ -10,7 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../models/booking_model.dart';
 
 // Stream user's bookings from Firestore
-final _bookingsProvider =
+final _userBookingsProvider =
     StreamProvider.autoDispose<List<BookingModel>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value([]);
@@ -24,125 +24,169 @@ final _bookingsProvider =
           .toList());
 });
 
-class PaymentHistoryScreen extends ConsumerWidget {
+// Stream host's bookings from Firestore
+final _hostBookingsProvider =
+    StreamProvider.autoDispose<List<BookingModel>>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value([]);
+  return FirebaseFirestore.instance
+      .collection('bookings')
+      .where('hostUid', isEqualTo: uid)
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => BookingModel.fromFirestore(doc))
+          .toList());
+});
+
+class PaymentHistoryScreen extends StatelessWidget {
   const PaymentHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bookingsAsync = ref.watch(_bookingsProvider);
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // App bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon:
-                          const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
-                      onPressed: () => context.pop(),
-                    ),
-                    const SizedBox(width: 4),
-                    Text('Payment History',
-                        style: TheyDiTextStyles.displayMedium),
-                  ],
-                ),
-              ).animate().fade(duration: 300.ms),
-
-              const SizedBox(height: 8),
-
-              // Content
-              Expanded(
-                child: bookingsAsync.when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(
-                        color: TheyDiColors.primary),
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // App bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon:
+                            const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                        onPressed: () => context.pop(),
+                      ),
+                      const SizedBox(width: 4),
+                      Text('Payment History',
+                          style: TheyDiTextStyles.displayMedium),
+                    ],
                   ),
-                  error: (e, _) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(40),
-                      child: Text('Failed to load: $e',
-                          style: TheyDiTextStyles.bodySmall),
-                    ),
+                ).animate().fade(duration: 300.ms),
+
+                const SizedBox(height: 8),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TabBar(
+                    labelColor: TheyDiColors.primary,
+                    unselectedLabelColor: TheyDiColors.textSecondary,
+                    indicatorColor: TheyDiColors.primary,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelStyle: TheyDiTextStyles.labelMedium,
+                    tabs: const [
+                      Tab(text: 'User History'),
+                      Tab(text: 'Host History'),
+                    ],
                   ),
-                  data: (bookings) {
-                    if (bookings.isEmpty) {
-                      return _buildEmptyState();
-                    }
-
-                    // Calculate totals
-                    final totalSpent = bookings
-                        .where((b) => b.isConfirmed)
-                        .fold(0.0, (sum, b) => sum + b.totalAmount);
-                    final totalBookings =
-                        bookings.where((b) => b.isConfirmed).length;
-
-                    return Column(
-                      children: [
-                        // Stats row
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 8),
-                          child: Row(
-                            children: [
-                              _StatChip(
-                                label: 'Total spent',
-                                value:
-                                    '₹${totalSpent.toStringAsFixed(0)}',
-                              ),
-                              const SizedBox(width: 12),
-                              _StatChip(
-                                label: 'Bookings',
-                                value: totalBookings.toString(),
-                              ),
-                            ],
-                          ),
-                        )
-                            .animate(delay: 100.ms)
-                            .fade(duration: 400.ms),
-
-                        const SizedBox(height: 8),
-
-                        // Transactions list
-                        Expanded(
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20),
-                            itemCount: bookings.length,
-                            itemBuilder: (context, index) {
-                              return _BookingCard(
-                                      booking: bookings[index])
-                                  .animate(
-                                    delay: Duration(
-                                        milliseconds:
-                                            150 + 50 * index),
-                                  )
-                                  .fade(duration: 300.ms)
-                                  .slideY(begin: 0.1, end: 0);
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+
+                // Tab Views
+                const Expanded(
+                  child: TabBarView(
+                    children: [
+                      _HistoryTab(isHost: false),
+                      _HistoryTab(isHost: true),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HistoryTab extends ConsumerWidget {
+  final bool isHost;
+  const _HistoryTab({required this.isHost});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final provider = isHost ? _hostBookingsProvider : _userBookingsProvider;
+    final bookingsAsync = ref.watch(provider);
+
+    return bookingsAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: TheyDiColors.primary),
+      ),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Text('Failed to load: $e',
+              style: TheyDiTextStyles.bodySmall),
+        ),
+      ),
+      data: (bookings) {
+        if (bookings.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        // Calculate totals
+        final totalAmount = bookings
+            .where((b) => b.isConfirmed)
+            .fold(0.0, (sum, b) => sum + (isHost ? b.amount : b.totalAmount));
+        final totalBookings =
+            bookings.where((b) => b.isConfirmed).length;
+
+        return Column(
+          children: [
+            // Stats row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  _StatChip(
+                    label: isHost ? 'Total earned' : 'Total spent',
+                    value: '₹${totalAmount.toStringAsFixed(0)}',
+                  ),
+                  const SizedBox(width: 12),
+                  _StatChip(
+                    label: 'Bookings',
+                    value: totalBookings.toString(),
+                  ),
+                ],
+              ),
+            ).animate(delay: 100.ms).fade(duration: 400.ms),
+
+            const SizedBox(height: 8),
+
+            // Transactions list
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: bookings.length,
+                itemBuilder: (context, index) {
+                  return _BookingCard(
+                    booking: bookings[index],
+                    isHost: isHost,
+                  )
+                      .animate(
+                        delay: Duration(milliseconds: 150 + 50 * index),
+                      )
+                      .fade(duration: 300.ms)
+                      .slideY(begin: 0.1, end: 0);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -199,7 +243,8 @@ class _StatChip extends StatelessWidget {
 // ── Booking card ──
 class _BookingCard extends StatelessWidget {
   final BookingModel booking;
-  const _BookingCard({required this.booking});
+  final bool isHost;
+  const _BookingCard({required this.booking, required this.isHost});
 
   @override
   Widget build(BuildContext context) {
@@ -233,6 +278,18 @@ class _BookingCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+
+          if (isHost) ...[
+            Row(
+              children: [
+                const Icon(Icons.person,
+                    size: 13, color: TheyDiColors.textMuted),
+                const SizedBox(width: 4),
+                Text('Attendee: ${booking.userName}', style: TheyDiTextStyles.caption),
+              ],
+            ),
+            const SizedBox(height: 4),
+          ],
 
           // Date
           Row(
@@ -273,11 +330,11 @@ class _BookingCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Ticket + fee',
+              Text(isHost ? 'Ticket amount' : 'Ticket + fee',
                   style: TheyDiTextStyles.caption
                       .copyWith(color: TheyDiColors.textSecondary)),
               Text(
-                '₹${booking.amount.toStringAsFixed(0)} + ₹${booking.platformFee.toStringAsFixed(0)}',
+                isHost ? '₹${booking.amount.toStringAsFixed(0)}' : '₹${booking.amount.toStringAsFixed(0)} + ₹${booking.platformFee.toStringAsFixed(0)}',
                 style: TheyDiTextStyles.caption,
               ),
             ],
@@ -286,9 +343,9 @@ class _BookingCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total', style: TheyDiTextStyles.labelMedium),
+              Text(isHost ? 'Earnings' : 'Total', style: TheyDiTextStyles.labelMedium),
               Text(
-                '₹${booking.totalAmount.toStringAsFixed(0)}',
+                '₹${(isHost ? booking.amount : booking.totalAmount).toStringAsFixed(0)}',
                 style: TheyDiTextStyles.labelLarge.copyWith(
                   color: booking.isConfirmed
                       ? Colors.green

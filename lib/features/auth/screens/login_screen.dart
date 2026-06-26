@@ -79,6 +79,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+      if (mounted && FirebaseAuth.instance.currentUser != null) {
+        context.go(AppRoutes.home);
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? 'Google sign in failed.');
+    } catch (e) {
+      if (e.toString().contains('sign_in_canceled') || e.toString().contains('canceled')) {
+        return;
+      }
+      _showError('Google Sign-In failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -243,7 +262,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: _isLoading ? null : _signInWithGoogle,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

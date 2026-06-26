@@ -28,7 +28,7 @@ class _SearchScreenState extends State<SearchScreen> {
     'Music',
     'Tech meetup',
     'Free events',
-    'Dance',
+    'Party',
     'Networking',
   ];
 
@@ -38,7 +38,7 @@ class _SearchScreenState extends State<SearchScreen> {
     {'label': 'Food', 'icon': Icons.restaurant, 'color': Colors.orange},
     {'label': 'Sports', 'icon': Icons.sports_soccer, 'color': Colors.green},
     {'label': 'Art', 'icon': Icons.palette, 'color': Colors.pink},
-    {'label': 'Dance', 'icon': Icons.nightlife, 'color': Colors.red},
+    {'label': 'Party', 'icon': Icons.nightlife, 'color': Colors.red},
   ];
 
   @override

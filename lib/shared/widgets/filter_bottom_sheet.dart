@@ -122,7 +122,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   static const _kCategories = [
     'Music', 'Tech', 'Sports', 'Art', 'Food', 'Networking',
-    'Gaming', 'Fitness', 'Comedy', 'Workshop', 'Party', 'Social', 'Other',
+    'Gaming', 'Fitness', 'Comedy', 'Workshop', 'Party', 'Social', 'Adult Party', 'Other',
   ];
 
   static const _kCities = [

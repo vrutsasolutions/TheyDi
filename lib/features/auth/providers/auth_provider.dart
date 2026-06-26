@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/user_service.dart';
 
@@ -82,6 +84,48 @@ class AuthNotifier extends AsyncNotifier<User?> {
         email: email,
         password: password,
       );
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = const AsyncLoading();
+    try {
+      final UserCredential userCredential;
+
+      if (kIsWeb) {
+        // WEB: Sign in with a popup
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        userCredential = await _auth.signInWithPopup(googleProvider);
+      } else {
+        // ANDROID / IOS: Use GoogleSignIn plugin
+        final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+        );
+
+        userCredential = await _auth.signInWithCredential(credential);
+      }
+
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final profile = await userService.getUserProfile(user.uid);
+        if (profile == null) {
+          await userService.createUserProfile(
+            uid: user.uid,
+            name: user.displayName ?? 'Google User',
+            email: user.email ?? '',
+            phone: user.phoneNumber ?? '',
+          );
+        }
+      }
+
+      state = AsyncData(user);
     } catch (e, st) {
       state = AsyncError(e, st);
       rethrow;
