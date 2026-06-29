@@ -54,7 +54,7 @@ image_picker: ^1.0.7    # for detecting file types
 dependency_overrides:
   # dependency_overrides removed to avoid incompatible transitive versions
   # record_web: 2.1.0
-  # record_platform_interface: 2.1.0
+  record_platform_interface: 1.5.0
  
 dev_dependencies:
   flutter_test:

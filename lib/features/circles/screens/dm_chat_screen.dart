@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io' show File;
-import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart' as ap;
@@ -207,6 +206,20 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         _notificationsMuted = muteDoc.exists;
       });
     }
+
+    // Mark DM notifications as read
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(myUid)
+        .collection('notifications')
+        .where('chatId', isEqualTo: chatId)
+        .where('isRead', isEqualTo: false)
+        .get()
+        .then((snap) {
+      for (var doc in snap.docs) {
+        doc.reference.update({'isRead': true});
+      }
+    });
   }
 
   Future<void> _handleSelectedMedia(XFile file) async {
@@ -313,7 +326,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
             : mediaType == 'video'
                 ? '🎥 Sent a video'
                 : (text.length > 50 ? '${text.substring(0, 50)}...' : text),
-        type: 'social',
+        type: 'dm',
         fromUid: myUid,
         chatId: _chatId,
       );
@@ -528,7 +541,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         toUid: widget.otherUid,
         title: 'Voice message from $myName 🎤',
         body: 'Sent a voice message',
-        type: 'social',
+        type: 'dm',
         fromUid: myUid,
         chatId: _chatId,
       );
@@ -1133,7 +1146,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         toUid: widget.otherUid,
         title: 'New $type from $myName',
         body: msgText,
-        type: 'social',
+        type: 'dm',
         fromUid: myUid,
         chatId: _chatId,
       );

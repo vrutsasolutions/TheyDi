@@ -13,7 +13,8 @@ import 'package:theydi/features/auth/screens/signup_step2_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step3_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step4_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step5_screen.dart';
-import 'package:theydi/features/auth/screens/forgot_password_screen.dart';  // ← NEW
+import 'package:theydi/features/auth/screens/forgot_password_screen.dart';
+import 'package:theydi/core/router/deep_link_handlers.dart';
 import 'package:theydi/features/events/screens/create_event_screen.dart';
 import 'package:theydi/shared/widgets/main_shell.dart';
 import 'package:theydi/features/home/screens/home_screen.dart';
@@ -98,12 +99,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
  
-      // ── Event detail ──
+      // ── Deep Links ──
       GoRoute(
         path: '/event/:id',
         builder: (context, state) {
-          final event = state.extra as EventModel;
-          return EventDetailScreen(event: event);
+          if (state.extra != null && state.extra is EventModel) {
+            return EventDetailScreen(event: state.extra as EventModel);
+          }
+          final eventId = state.pathParameters['id']!;
+          return DeepLinkEventScreen(eventId: eventId);
+        },
+      ),
+      GoRoute(
+        path: '/circle/:id',
+        builder: (context, state) {
+          final circleId = state.pathParameters['id']!;
+          return DeepLinkCircleScreen(circleId: circleId);
+        },
+      ),
+      GoRoute(
+        path: '/user/:id',
+        builder: (context, state) {
+          final userId = state.pathParameters['id']!;
+          return UserProfileScreen(uid: userId);
         },
       ),
  

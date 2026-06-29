@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../services/profile_share_service.dart';
@@ -146,17 +147,37 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
   }
 
   Future<void> _shareExternal(String url, String platformName) async {
+    if (platformName == 'Instagram') {
+      final text = ProfileShareService.buildShareText(
+        userId: widget.userId,
+        displayName: widget.displayName,
+        city: widget.city,
+        bio: widget.bio,
+      );
+      await Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Link copied! Paste it in Instagram.', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        backgroundColor: TheyDiColors.card,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ));
+    }
+
     final launched = await ProfileShareService.launchExternal(url);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not open $platformName'),
+        content: Text('Could not open $platformName', style: const TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     } else if (launched && mounted) {
       Navigator.pop(context);
-      _showSuccessToast();
+      if (platformName != 'Instagram') {
+        _showSuccessToast();
+      }
     }
   }
 
@@ -165,13 +186,26 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Profile shared successfully! 🚀'),
+        Text('Profile shared successfully! 🚀', style: const TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       duration: const Duration(seconds: 2),
     ));
+  }
+
+  void _shareToFriends() {
+    Navigator.pop(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _InAppFriendProfileShareSheet(
+        userId: widget.userId,
+        displayName: widget.displayName,
+      ),
+    );
   }
 
   void _shareInApp() {
@@ -258,14 +292,21 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
 
           // ── Share options ──
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _ShareOption(
                 icon: Icons.people_outline,
-                label: 'In-App',
+                label: 'Circles',
                 color: TheyDiColors.primary,
                 onTap: _shareInApp,
                 delay: 150,
+              ),
+              _ShareOption(
+                icon: Icons.person_outline,
+                label: 'Friends',
+                color: TheyDiColors.info,
+                onTap: _shareToFriends,
+                delay: 165,
               ),
               _ShareOption(
                 assetLabel: 'WA',
@@ -282,14 +323,8 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
                 ),
                 delay: 180,
               ),
-              _ShareOption(
-                assetLabel: 'IG',
-                label: 'Instagram',
-                color: const Color(0xFFE1306C),
-                onTap: () => _shareExternal(
-                    ProfileShareService.instagramUrl(), 'Instagram'),
-                delay: 210,
-              ),
+
+
               _ShareOption(
                 assetLabel: 'FB',
                 label: 'Facebook',
@@ -316,7 +351,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
             ],
           ),
 
-          const SizedBox(height: 24),
+      const SizedBox(height: 24),
 
           SizedBox(
             width: double.infinity,
@@ -414,7 +449,8 @@ class _InAppProfileShareSheetState
               color: Colors.green, size: 18),
           const SizedBox(width: 8),
           Text(
-              'Profile shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉'),
+              'Profile shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
+              style: const TextStyle(color: TheyDiColors.textPrimary)),
         ]),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
@@ -825,6 +861,233 @@ class _ShareOption extends StatelessWidget {
           .scale(
               begin: const Offset(0.85, 0.85),
               end: const Offset(1, 1)),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-App Share Sheet — sends profile_share message to selected friends
+// ─────────────────────────────────────────────────────────────────────────────
+class _InAppFriendProfileShareSheet extends StatefulWidget {
+  final String userId;
+  final String displayName;
+  const _InAppFriendProfileShareSheet(
+      {required this.userId, required this.displayName});
+
+  @override
+  State<_InAppFriendProfileShareSheet> createState() =>
+      _InAppFriendProfileShareSheetState();
+}
+
+class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareSheet> {
+  List<Map<String, dynamic>> _friends = [];
+  final Set<String> _selected = {};
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFriends();
+  }
+
+  Future<void> _loadFriends() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('friends')
+        .get();
+
+    if (mounted) {
+      setState(() {
+        _friends = snap.docs
+            .map((d) => {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
+            .toList();
+        _loading = false;
+      });
+    }
+  }
+
+  String _generateChatId(String uid1, String uid2) {
+    final sorted = [uid1, uid2]..sort();
+    return '${sorted[0]}_${sorted[1]}';
+  }
+
+  Future<void> _send() async {
+    if (_selected.isEmpty) return;
+    setState(() => _sending = true);
+
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
+
+    final senderName =
+        FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+    final link = ProfileShareService.profileLink(widget.userId);
+
+    for (final friendUid in _selected) {
+      final chatId = _generateChatId(myUid, friendUid);
+      final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
+      
+      final chatSnap = await chatRef.get();
+      if (!chatSnap.exists) {
+        await chatRef.set({
+          'participants': [myUid, friendUid],
+          'type': 'dm',
+          'lastMessage': null,
+          'lastMessageSenderId': null,
+          'updatedAt': Timestamp.now(),
+          'createdAt': Timestamp.now(),
+        });
+      }
+
+      await chatRef.collection('messages').add({
+        'type': 'profile_share',
+        'userId': widget.userId,
+        'userName': widget.displayName,
+        'profileLink': link,
+        'text': '👤 $senderName shared ${widget.displayName}\'s profile\n$link',
+        'senderId': myUid,
+        'senderName': senderName,
+        'sentAt': Timestamp.now(),
+        'readBy': [],
+      });
+
+      await chatRef.update({
+        'lastMessage': 'Shared a profile',
+        'lastMessageSenderId': myUid,
+        'updatedAt': Timestamp.now(),
+      });
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle_outline,
+              color: Colors.green, size: 18),
+          const SizedBox(width: 8),
+          Text(
+              'Profile shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+              style: const TextStyle(color: TheyDiColors.textPrimary)),
+        ]),
+        backgroundColor: TheyDiColors.card,
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_friends.isEmpty)
+            Expanded(
+              child: Center(
+                child: Text('No friends yet.',
+                    style: TheyDiTextStyles.bodyMedium
+                        .copyWith(color: TheyDiColors.textSecondary)),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: _friends.length,
+                itemBuilder: (context, index) {
+                  final f = _friends[index];
+                  final isSelected = _selected.contains(f['id']);
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: TheyDiColors.primary.withAlpha(25),
+                      child: const Icon(Icons.person, color: TheyDiColors.primary),
+                    ),
+                    title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle,
+                            color: TheyDiColors.primary)
+                        : const Icon(Icons.circle_outlined,
+                            color: Colors.grey),
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selected.remove(f['id']);
+                        } else {
+                          _selected.add(f['id']);
+                        }
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel',
+                        style: TheyDiTextStyles.labelLarge
+                            .copyWith(color: TheyDiColors.textSecondary)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TheyDiColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      elevation: 0,
+                    ),
+                    onPressed: (_selected.isEmpty || _sending) ? null : _send,
+                    child: _sending
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text('Send (${_selected.length})',
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
