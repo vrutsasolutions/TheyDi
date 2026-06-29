@@ -25,6 +25,7 @@ import '../../../core/services/friends_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/utils/platform_helper.dart';
 import '../../../core/services/cloudflare_upload.dart';
+import '../../../shared/widgets/avatar_online_status_dot.dart';
 
 const _kEmojis = [
   '😀',
@@ -120,6 +121,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   bool _showAttachmentMenu = false;
   bool _notificationsMuted = false;
   DateTime? _clearedAt;
+  bool _selectionMode = false;
+  final Set<String> _selectedMessageIds = {};
+  final Set<String> _receiptWritesQueued = {};
 
   // ── Voice ──────────────────────────────────────────────────────────────────
   final AudioRecorder _recorder = AudioRecorder();
@@ -286,6 +290,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         'mediaUrl': mediaUrl,
         'timestamp': now,
         'seen': false,
+        'deliveredAt': null,
         'readBy': [myUid],
       });
 
@@ -508,6 +513,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         'text': '🎤 Voice message',
         'timestamp': now,
         'seen': false,
+        'deliveredAt': null,
         'readBy': [myUid],
       });
 
@@ -634,6 +640,85 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     if (!mounted) return;
     _showSnack('Chat deleted', Colors.red);
     context.pop();
+  }
+
+  void _enterSelectionMode() {
+    setState(() {
+      _selectionMode = true;
+      _selectedMessageIds.clear();
+      _showEmojiPicker = false;
+      _showAttachmentMenu = false;
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedMessageIds.clear();
+    });
+  }
+
+  void _toggleMessageSelection(String messageId, bool isMine) {
+    if (!isMine) {
+      _showSnack(
+        'You can only delete messages you sent',
+        Colors.grey.shade700,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    setState(() {
+      if (!_selectionMode) _selectionMode = true;
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+      } else {
+        _selectedMessageIds.add(messageId);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedMessages() async {
+    if (_chatId == null || _selectedMessageIds.isEmpty) return;
+
+    final confirmed = await _confirmDialog(
+      title: 'Delete Messages?',
+      body:
+          'This permanently deletes the selected messages you sent from this chat.',
+      confirm: 'Delete',
+      confirmColor: Colors.red,
+    );
+    if (!confirmed) return;
+
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
+
+    final chatRef = FirebaseFirestore.instance.collection('chats').doc(_chatId);
+    final batch = FirebaseFirestore.instance.batch();
+    var deleteCount = 0;
+
+    for (final messageId in _selectedMessageIds) {
+      final ref = chatRef.collection('messages').doc(messageId);
+      final snap = await ref.get();
+      if (!snap.exists) continue;
+      final data = snap.data();
+      if (data?['senderId'] != myUid) continue;
+      batch.delete(ref);
+      deleteCount++;
+    }
+
+    if (deleteCount == 0) {
+      _showSnack('Select messages you sent to delete', Colors.grey.shade700);
+      return;
+    }
+
+    await batch.commit();
+    if (!mounted) return;
+    _exitSelectionMode();
+    _showSnack(
+      deleteCount == 1 ? 'Message deleted' : '$deleteCount messages deleted',
+      Colors.red,
+    );
   }
 
   Future<void> _blockUser() async {
@@ -1033,6 +1118,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         'text': msgText,
         'timestamp': now,
         'seen': false,
+        'deliveredAt': null,
         'readBy': [myUid],
       });
 
@@ -1077,6 +1163,44 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     return da.year == db.year && da.month == db.month && da.day == db.day;
   }
 
+  void _queueReceiptUpdates(List<QueryDocumentSnapshot<Object?>> docs) {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
+
+    final incoming = docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data['senderId'] != myUid &&
+          (data['deliveredAt'] == null || data['seen'] != true) &&
+          !_receiptWritesQueued.contains(doc.id);
+    }).toList();
+
+    if (incoming.isEmpty) return;
+
+    for (final doc in incoming) {
+      _receiptWritesQueued.add(doc.id);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in incoming) {
+        final data = doc.data() as Map<String, dynamic>;
+        final update = <String, dynamic>{
+          'readBy': FieldValue.arrayUnion([myUid]),
+        };
+        if (data['deliveredAt'] == null) {
+          update['deliveredAt'] = FieldValue.serverTimestamp();
+        }
+        if (routeIsCurrent && data['seen'] != true) {
+          update['seen'] = true;
+        }
+        batch.update(doc.reference, update);
+      }
+      await batch.commit();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -1099,7 +1223,25 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
             decoration: BoxDecoration(
                 border:
                     Border(bottom: BorderSide(color: TheyDiColors.divider))),
-            child: Row(children: [
+            child: _selectionMode
+                ? Row(children: [
+                    IconButton(
+                        icon: const Icon(Icons.close,
+                            color: TheyDiColors.textPrimary),
+                        onPressed: _exitSelectionMode),
+                    Expanded(
+                        child: Text(
+                      '${_selectedMessageIds.length} selected',
+                      style: TheyDiTextStyles.labelLarge,
+                    )),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: _selectedMessageIds.isEmpty
+                          ? null
+                          : _deleteSelectedMessages,
+                    ),
+                  ])
+                : Row(children: [
               IconButton(
                   icon: const Icon(Icons.arrow_back,
                       color: TheyDiColors.textPrimary),
@@ -1156,27 +1298,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                           Positioned(
                             bottom: 0,
                             right: 0,
-                            child: StreamBuilder<DocumentSnapshot>(
-                              stream: FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(widget.otherUid)
-                                  .snapshots(),
-                              builder: (ctx, snap) {
-                                final isOnline = (snap.data?.data() as Map<
-                                        String, dynamic>?)?['isOnline'] ==
-                                    true;
-                                return Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                        color: isOnline
-                                            ? Colors.green
-                                            : Colors.grey,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color: const Color(0xFF0D0D14),
-                                            width: 2)));
-                              },
+                            child: AvatarOnlineStatusDot(
+                              uid: widget.otherUid,
+                              size: 12,
                             ),
                           ),
                         ]),
@@ -1231,6 +1355,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                 muted: _notificationsMuted,
                 onSelected: (value) {
                   switch (value) {
+                    case 'select':
+                      _enterSelectionMode();
+                      break;
                     case 'viewProfile':
                       _openUserProfile();
                       break;
@@ -1277,7 +1404,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                 child: CircularProgressIndicator(
                                     color: TheyDiColors.primary));
                           }
-                          var docs = snapshot.data?.docs ?? [];
+                          var docs =
+                              List<QueryDocumentSnapshot<Object?>>.from(
+                                  snapshot.data?.docs ?? const []);
                           if (_clearedAt != null) {
                             docs = docs.where((d) {
                               final ts = (d.data()
@@ -1304,16 +1433,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                           }
                           WidgetsBinding.instance
                               .addPostFrameCallback((_) => _scrollToBottom());
-                          for (final doc in docs) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            if (data['senderId'] != myUid &&
-                                data['seen'] != true) {
-                              doc.reference.update({
-                                'seen': true,
-                                'readBy': FieldValue.arrayUnion([myUid])
-                              });
-                            }
-                          }
+                          _queueReceiptUpdates(docs);
                           return ListView.builder(
                             controller: _scrollController,
                             padding: const EdgeInsets.symmetric(
@@ -1326,6 +1446,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                               final msgType = data['type'] ?? 'text';
                               final timestamp = data['timestamp'] as Timestamp?;
                               final seen = data['seen'] ?? false;
+                              final delivered = data['deliveredAt'] != null;
+                              final selected =
+                                  _selectedMessageIds.contains(docs[index].id);
                               final timeLabel = timestamp != null
                                   ? DateFormat('h:mm a')
                                       .format(timestamp.toDate())
@@ -1336,40 +1459,61 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                         dynamic>)['timestamp'] as Timestamp?,
                                     timestamp,
                                   );
+                              Widget bubble;
+                              if (msgType == 'voice') {
+                                bubble = _VoiceBubble(
+                                  audioUrl: data['audioUrl'] ?? '',
+                                  durationSecs:
+                                      (data['duration'] as num?)?.toInt() ?? 0,
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
+                              } else if (msgType == 'image') {
+                                bubble = _DmImageReceiptBubble(
+                                  imageUrl: data['mediaUrl'] ?? '',
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
+                              } else if (msgType == 'video') {
+                                bubble = _DmVideoReceiptBubble(
+                                  videoUrl: data['mediaUrl'] ?? '',
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
+                              } else {
+                                bubble = _DmBubble(
+                                  text: data['text'] ?? '',
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
+                              }
+
                               return Column(children: [
                                 if (showDate && timestamp != null)
                                   _DateSeparator(date: timestamp.toDate()),
-                                if (msgType == 'voice')
-                                  _VoiceBubble(
-                                    audioUrl: data['audioUrl'] ?? '',
-                                    durationSecs:
-                                        (data['duration'] as num?)?.toInt() ??
-                                            0,
-                                    isMine: isMine,
-                                    timeLabel: timeLabel,
-                                    seen: seen,
-                                  )
-                                else if (msgType == 'image')
-                                  _DmImageBubble(
-                                    imageUrl: data['mediaUrl'] ?? '',
-                                    isMine: isMine,
-                                    timeLabel: timeLabel,
-                                    seen: seen,
-                                  )
-                                else if (msgType == 'video')
-                                  _DmVideoBubble(
-                                    videoUrl: data['mediaUrl'] ?? '',
-                                    isMine: isMine,
-                                    timeLabel: timeLabel,
-                                    seen: seen,
-                                  )
-                                else
-                                  _DmBubble(
-                                    text: data['text'] ?? '',
-                                    isMine: isMine,
-                                    timeLabel: timeLabel,
-                                    seen: seen,
+                                GestureDetector(
+                                  onLongPress: () => _toggleMessageSelection(
+                                      docs[index].id, isMine),
+                                  onTap: _selectionMode
+                                      ? () => _toggleMessageSelection(
+                                          docs[index].id, isMine)
+                                      : null,
+                                  child: Container(
+                                    color: selected
+                                        ? TheyDiColors.primary
+                                            .withValues(alpha: 0.12)
+                                        : Colors.transparent,
+                                    child: bubble,
                                   ),
+                                ),
                               ]);
                             },
                           );
@@ -1669,6 +1813,11 @@ class _ChatMenuButton extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       itemBuilder: (context) => [
         _item(
+          value: 'select',
+          icon: Icons.checklist,
+          label: 'Select Messages',
+        ),
+        _item(
           value: 'viewProfile',
           icon: Icons.person_outline,
           label: 'View Profile',
@@ -1791,12 +1940,14 @@ class _VoiceBubble extends StatefulWidget {
   final bool isMine;
   final String timeLabel;
   final bool seen;
+  final bool delivered;
   const _VoiceBubble(
       {required this.audioUrl,
       required this.durationSecs,
       required this.isMine,
       required this.timeLabel,
-      required this.seen});
+      required this.seen,
+      required this.delivered});
   @override
   State<_VoiceBubble> createState() => _VoiceBubbleState();
 }
@@ -1921,7 +2072,10 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                               fontSize: 10)),
                       if (widget.isMine) ...[
                         const SizedBox(width: 4),
-                        _ReadReceipt(seen: widget.seen)
+                        _ReadReceipt(
+                          seen: widget.seen,
+                          delivered: widget.delivered,
+                        )
                       ],
                     ]),
                   ]),
@@ -2030,11 +2184,13 @@ class _DmBubble extends StatelessWidget {
   final bool isMine;
   final String timeLabel;
   final bool seen;
+  final bool delivered;
   const _DmBubble(
       {required this.text,
       required this.isMine,
       required this.timeLabel,
-      required this.seen});
+      required this.seen,
+      required this.delivered});
   @override
   Widget build(BuildContext context) => Padding(
       padding: EdgeInsets.only(
@@ -2068,24 +2224,27 @@ class _DmBubble extends StatelessWidget {
                         fontSize: 10)),
                 if (isMine) ...[
                   const SizedBox(width: 4),
-                  _ReadReceipt(seen: seen)
+                  _ReadReceipt(seen: seen, delivered: delivered)
                 ],
               ]),
             ]),
           )));
 }
 
+// ignore: unused_element
 class _DmImageBubble extends StatelessWidget {
   final String imageUrl;
   final bool isMine;
   final String timeLabel;
   final bool seen;
+  final bool delivered;
 
   const _DmImageBubble({
     required this.imageUrl,
     required this.isMine,
     required this.timeLabel,
     required this.seen,
+    required this.delivered,
   });
 
   @override
@@ -2129,17 +2288,20 @@ class _DmImageBubble extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _DmVideoBubble extends StatelessWidget {
   final String videoUrl;
   final bool isMine;
   final String timeLabel;
   final bool seen;
+  final bool delivered;
 
   const _DmVideoBubble({
     required this.videoUrl,
     required this.isMine,
     required this.timeLabel,
     required this.seen,
+    required this.delivered,
   });
 
   @override
@@ -2176,9 +2338,122 @@ class _DmVideoBubble extends StatelessWidget {
   }
 }
 
+class _DmImageReceiptBubble extends StatelessWidget {
+  final String imageUrl;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+  final bool delivered;
+
+  const _DmImageReceiptBubble({
+    required this.imageUrl,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+    required this.delivered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          crossAxisAlignment:
+              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.broken_image, size: 80),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(timeLabel, style: TheyDiTextStyles.caption),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  _ReadReceipt(seen: seen, delivered: delivered),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DmVideoReceiptBubble extends StatelessWidget {
+  final String videoUrl;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+  final bool delivered;
+
+  const _DmVideoReceiptBubble({
+    required this.videoUrl,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+    required this.delivered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: 0.15)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.play_circle_fill, size: 60),
+            const SizedBox(height: 8),
+            const Text('Video'),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(timeLabel, style: TheyDiTextStyles.caption),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  _ReadReceipt(seen: seen, delivered: delivered),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ReadReceipt extends StatelessWidget {
   final bool seen;
-  const _ReadReceipt({required this.seen});
+  final bool delivered;
+  const _ReadReceipt({required this.seen, required this.delivered});
   @override
   Widget build(BuildContext context) {
     // UI-only change: adjust tick icon color + tighten spacing between the two checks.
@@ -2186,6 +2461,10 @@ class _ReadReceipt extends StatelessWidget {
     // - single grey tick: sent/offline/not delivered (seen==false AND message not read)
     // - double grey ticks: delivered but not seen
     // - double blue ticks: seen
+    if (!delivered && !seen) {
+      return const Icon(Icons.check, size: 11, color: Colors.grey);
+    }
+
     final tickColor = seen ? Colors.blue : Colors.grey;
     return SizedBox(
       width: 15, // Adjusted width to accommodate closer ticks
