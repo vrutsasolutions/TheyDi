@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
@@ -175,7 +176,7 @@ class _ProfileContent extends ConsumerWidget {
     required this.gender,
   });
 
-  Future<void> _signOut(BuildContext context) async {
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -204,8 +205,11 @@ class _ProfileContent extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      await FirebaseAuth.instance.signOut();
-      if (context.mounted) context.go(AppRoutes.login);
+      await ref.read(authNotifierProvider.notifier).signOut();
+
+      if (context.mounted) {
+        context.go(AppRoutes.login);
+      }
     }
   }
 
@@ -220,7 +224,8 @@ class _ProfileContent extends ConsumerWidget {
       city: city,
       bio: bio,
       photoUrl: photoUrl,
-      isPrivate: false, // Defaulting to false, adjust if there is a privacy flag
+      isPrivate:
+          false, // Defaulting to false, adjust if there is a privacy flag
     );
   }
 
@@ -266,7 +271,7 @@ class _ProfileContent extends ConsumerWidget {
                       context.push(AppRoutes.helpSupport);
                       break;
                     case 'signOut':
-                      _signOut(context);
+                      _signOut(context, ref);
                       break;
                   }
                 },
