@@ -1,15 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -39,7 +37,10 @@ const _kCategories = [
 ];
 
 const _kAdultAgeGroups = [
-  'Young Adults (18–25)', 'Adults (26–40)', 'Middle Age (41–60)', 'Seniors (60+)',
+  'Young Adults (18–25)',
+  'Adults (26–40)',
+  'Middle Age (41–60)',
+  'Seniors (60+)',
 ];
 
 const _kCities = [
@@ -66,8 +67,13 @@ const _kCities = [
 ];
 
 const _kAgeGroups = [
-  'All Ages', 'Kids (0–12)', 'Teens (13–17)', 'Young Adults (18–25)',
-  'Adults (26–40)', 'Middle Age (41–60)', 'Seniors (60+)',
+  'All Ages',
+  'Kids (0–12)',
+  'Teens (13–17)',
+  'Young Adults (18–25)',
+  'Adults (26–40)',
+  'Middle Age (41–60)',
+  'Seniors (60+)',
 ];
 
 const _kDefaultAmenities = [
@@ -116,7 +122,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final _additionalAddressController = TextEditingController();
 
   // Map
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
+  double _currentZoom = 15;
+  LatLng _currentCenter = const LatLng(20.5937, 78.9629);
   Timer? _geocodeDebounce;
 
   // Location state
@@ -201,8 +209,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     try {
       final encodedQuery = Uri.encodeComponent(fullQuery);
       // Photon is a free, fast search autocomplete API for OpenStreetMap
-      final url = Uri.parse(
-          'https://photon.komoot.io/api/?q=$encodedQuery&limit=5');
+      final url =
+          Uri.parse('https://photon.komoot.io/api/?q=$encodedQuery&limit=5');
 
       final response = await http.get(url);
 
@@ -218,7 +226,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Could not find location coordinates. Try adjusting the pin manually.'),
+              content: Text(
+                  'Could not find location coordinates. Try adjusting the pin manually.'),
               backgroundColor: Colors.amber,
             ),
           );
@@ -297,9 +306,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
     // Move map
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        _mapController.move(LatLng(result.lat, result.lng), 15.0);
-      } catch (_) {}
+      _currentCenter = LatLng(result.lat, result.lng);
+      _currentZoom = 15;
+
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          _currentCenter,
+          _currentZoom,
+        ),
+      );
     });
   }
 
@@ -342,12 +357,20 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _isGeocoding = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        try {
-          _mapController.move(
-              LatLng(position.latitude, position.longitude), 15.0);
-        } catch (_) {}
+        _currentCenter = LatLng(position.latitude, position.longitude);
+        _currentZoom = 15;
+
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(
+            _currentCenter,
+            _currentZoom,
+          ),
+        );
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Location detected from GPS'), backgroundColor: Colors.green));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('📍 Location detected from GPS'),
+            backgroundColor: Colors.green));
     } catch (e) {
       if (mounted) {
         setState(() => _isGeocoding = false);
@@ -380,7 +403,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         DateTime? birthDate;
         if (dob is Timestamp) {
           birthDate = dob.toDate();
-        } else if (dob is String && dob.isNotEmpty) birthDate = DateTime.tryParse(dob);
+        } else if (dob is String && dob.isNotEmpty)
+          birthDate = DateTime.tryParse(dob);
         if (birthDate != null && mounted) {
           final today = DateTime.now();
           int age = today.year - birthDate.year;
@@ -705,7 +729,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           .update({'eventsCreated': FieldValue.increment(1)});
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Event created! 🎉'), backgroundColor: TheyDiColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), margin: const EdgeInsets.all(16)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Event created! 🎉'),
+            backgroundColor: TheyDiColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16)));
         context.pop();
       }
     } catch (e) {
@@ -748,199 +778,339 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
               child: Form(
                 key: _formKey,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                  // ── Title ──
-                  const _Label('Event Title *'),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _titleController, style: TheyDiTextStyles.bodyMedium, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(hintText: 'e.g. Rooftop Mixer', prefixIcon: Icon(Icons.title_outlined)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required' : null).animate(delay: 60.ms).fade(duration: 300.ms),
-
-                      const SizedBox(height: 16),
-
-                  // ── Description ──
-                  const _Label('Description *'),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _descController, style: TheyDiTextStyles.bodyMedium, maxLines: 3, decoration: const InputDecoration(hintText: 'Tell people what this event is about...', alignLabelWithHint: true), validator: (v) => (v == null || v.trim().isEmpty) ? 'Description is required' : null).animate(delay: 80.ms).fade(duration: 300.ms),
-
-                      const SizedBox(height: 16),
-
-                  // ── Category ──
-                  const _Label('Category'),
-                  const SizedBox(height: 8),
-                  _DropdownField<String>(hint: 'Select category', value: _selectedCategory, items: _kCategories
-                    .where((c) => c != 'Adult Party' || _userAge >= 18)
-                    .map((c) => DropdownMenuItem(value: c, child: Row(children: [
-                      Text(c, style: TheyDiTextStyles.bodyMedium),
-                      if (c == 'Adult Party') ...[
-                        const SizedBox(width: 6),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)), child: Text('🔞 18+', style: TheyDiTextStyles.caption.copyWith(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w600))),
-                      ],
-                    ]))).toList(), onChanged: _onCategoryChanged, icon: Icons.category_outlined).animate(delay: 100.ms).fade(duration: 300.ms),
-
-                      const SizedBox(height: 16),
-
-                  // ── Event Type ──
-                  const _Label('Event Type'),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _PillButton(label: 'Indoor', icon: Icons.home_outlined, isSelected: _eventType == 'Indoor', onTap: () => setState(() => _eventType = 'Indoor')),
-                    const SizedBox(width: 10),
-                    _PillButton(label: 'Outdoor', icon: Icons.park_outlined, isSelected: _eventType == 'Outdoor', onTap: _isAdultParty ? null : () => setState(() => _eventType = 'Outdoor'), disabled: _isAdultParty),
-                  ]).animate(delay: 110.ms).fade(duration: 300.ms),
-
-                      const SizedBox(height: 16),
-
-                  Row(
+                child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 6,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _Label('House/Room/Floor/Additional'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _additionalAddressController,
+                      // ── Title ──
+                      const _Label('Event Title *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                              controller: _titleController,
                               style: TheyDiTextStyles.bodyMedium,
+                              textCapitalization: TextCapitalization.words,
                               decoration: const InputDecoration(
-                                hintText: 'e.g. Room 4B, 3rd Floor',
-                                prefixIcon: Icon(Icons.info_outline),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 5,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _Label('City'),
-                            const SizedBox(height: 8),
-                            _DropdownField<String>(
-                              hint: 'Select city',
-                              value: _selectedCity,
-                              items: _kCities.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TheyDiTextStyles.bodyMedium))).toList(),
-                              onChanged: (v) {
-                                setState(() => _selectedCity = v);
-                                if (_venueController.text.trim().isNotEmpty) {
-                                  _geocodeVenue(_venueController.text.trim());
-                                }
-                              },
-                              icon: Icons.location_city_outlined,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ).animate(delay: 120.ms).fade(duration: 300.ms),
+                                  hintText: 'e.g. Rooftop Mixer',
+                                  prefixIcon: Icon(Icons.title_outlined)),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Title is required'
+                                  : null)
+                          .animate(delay: 60.ms)
+                          .fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
-                  // ── Venue ──
-                  const _Label('Venue *'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _venueController,
-                    style: TheyDiTextStyles.bodyMedium,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Sky Lounge, MG Road',
-                      prefixIcon: const Icon(Icons.place_outlined),
-                      suffixIcon: _isGeocoding
-                          ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: TheyDiColors.primary)))
-                          : _pinnedLat != null
-                              ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
-                              : null,
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Venue is required' : null,
-                  ).animate(delay: 140.ms).fade(duration: 300.ms),
+                      // ── Description ──
+                      const _Label('Description *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                              controller: _descController,
+                              style: TheyDiTextStyles.bodyMedium,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                  hintText:
+                                      'Tell people what this event is about...',
+                                  alignLabelWithHint: true),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Description is required'
+                                  : null)
+                          .animate(delay: 80.ms)
+                          .fade(duration: 300.ms),
 
-                  // ── Multiple results picker ──
-                  if (_showResultPicker && _geoResults.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: TheyDiColors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Column(
+                      const SizedBox(height: 16),
+
+                      // ── Category ──
+                      const _Label('Category'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                              hint: 'Select category',
+                              value: _selectedCategory,
+                              items: _kCategories
+                                  .where((c) =>
+                                      c != 'Adult Party' || _userAge >= 18)
+                                  .map((c) => DropdownMenuItem(
+                                      value: c,
+                                      child: Row(children: [
+                                        Text(c,
+                                            style: TheyDiTextStyles.bodyMedium),
+                                        if (c == 'Adult Party') ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                  color: Colors.red
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6)),
+                                              child: Text('🔞 18+',
+                                                  style: TheyDiTextStyles
+                                                      .caption
+                                                      .copyWith(
+                                                          color: Colors.red,
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight
+                                                              .w600))),
+                                        ],
+                                      ])))
+                                  .toList(),
+                              onChanged: _onCategoryChanged,
+                              icon: Icons.category_outlined)
+                          .animate(delay: 100.ms)
+                          .fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // ── Event Type ──
+                      const _Label('Event Type'),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        _PillButton(
+                            label: 'Indoor',
+                            icon: Icons.home_outlined,
+                            isSelected: _eventType == 'Indoor',
+                            onTap: () => setState(() => _eventType = 'Indoor')),
+                        const SizedBox(width: 10),
+                        _PillButton(
+                            label: 'Outdoor',
+                            icon: Icons.park_outlined,
+                            isSelected: _eventType == 'Outdoor',
+                            onTap: _isAdultParty
+                                ? null
+                                : () => setState(() => _eventType = 'Outdoor'),
+                            disabled: _isAdultParty),
+                      ]).animate(delay: 110.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-                            child: Row(children: [
-                              const Icon(Icons.location_on_outlined, size: 14, color: TheyDiColors.primary),
-                              const SizedBox(width: 6),
-                              Text('Select matching location', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontWeight: FontWeight.w600)),
-                            ]),
-                          ),
-                          const Divider(height: 1, color: TheyDiColors.divider),
-                          ..._geoResults.asMap().entries.map((entry) {
-                            final i = entry.key;
-                            final r = entry.value;
-                            return GestureDetector(
-                              onTap: () => _applyGeoResult(r),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  border: i < _geoResults.length - 1 ? const Border(bottom: BorderSide(color: TheyDiColors.divider)) : null,
-                                ),
-                                child: Row(children: [
-                                  Container(
-                                    width: 28, height: 28,
-                                    decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
-                                    child: Center(child: Text('${i + 1}', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontWeight: FontWeight.w700))),
+                          Expanded(
+                            flex: 6,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('House/Room/Floor/Additional'),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _additionalAddressController,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                  decoration: const InputDecoration(
+                                    hintText: 'e.g. Room 4B, 3rd Floor',
+                                    prefixIcon: Icon(Icons.info_outline),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: Text(r.displayAddress, style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary))),
-                                  const Icon(Icons.chevron_right, size: 16, color: TheyDiColors.textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 5,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('City'),
+                                const SizedBox(height: 8),
+                                _DropdownField<String>(
+                                  hint: 'Select city',
+                                  value: _selectedCity,
+                                  items: _kCities
+                                      .map((c) => DropdownMenuItem(
+                                          value: c,
+                                          child: Text(c,
+                                              style:
+                                                  TheyDiTextStyles.bodyMedium)))
+                                      .toList(),
+                                  onChanged: (v) {
+                                    setState(() => _selectedCity = v);
+                                    if (_venueController.text
+                                        .trim()
+                                        .isNotEmpty) {
+                                      _geocodeVenue(
+                                          _venueController.text.trim());
+                                    }
+                                  },
+                                  icon: Icons.location_city_outlined,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ).animate(delay: 120.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // ── Venue ──
+                      const _Label('Venue *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _venueController,
+                        style: TheyDiTextStyles.bodyMedium,
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Sky Lounge, MG Road',
+                          prefixIcon: const Icon(Icons.place_outlined),
+                          suffixIcon: _isGeocoding
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: TheyDiColors.primary)))
+                              : _pinnedLat != null
+                                  ? const Icon(Icons.check_circle,
+                                      color: Colors.green, size: 20)
+                                  : null,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Venue is required'
+                            : null,
+                      ).animate(delay: 140.ms).fade(duration: 300.ms),
+
+                      // ── Multiple results picker ──
+                      if (_showResultPicker && _geoResults.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: TheyDiColors.primary
+                                    .withValues(alpha: 0.4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                                child: Row(children: [
+                                  const Icon(Icons.location_on_outlined,
+                                      size: 14, color: TheyDiColors.primary),
+                                  const SizedBox(width: 6),
+                                  Text('Select matching location',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: TheyDiColors.primary,
+                                          fontWeight: FontWeight.w600)),
                                 ]),
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ],
+                              const Divider(
+                                  height: 1, color: TheyDiColors.divider),
+                              ..._geoResults.asMap().entries.map((entry) {
+                                final i = entry.key;
+                                final r = entry.value;
+                                return GestureDetector(
+                                  onTap: () => _applyGeoResult(r),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      border: i < _geoResults.length - 1
+                                          ? const Border(
+                                              bottom: BorderSide(
+                                                  color: TheyDiColors.divider))
+                                          : null,
+                                    ),
+                                    child: Row(children: [
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                            color: TheyDiColors.primary
+                                                .withValues(alpha: 0.12),
+                                            shape: BoxShape.circle),
+                                        child: Center(
+                                            child: Text('${i + 1}',
+                                                style: TheyDiTextStyles.caption
+                                                    .copyWith(
+                                                        color: TheyDiColors
+                                                            .primary,
+                                                        fontWeight:
+                                                            FontWeight.w700))),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                          child: Text(r.displayAddress,
+                                              style: TheyDiTextStyles.bodySmall
+                                                  .copyWith(
+                                                      color: TheyDiColors
+                                                          .textSecondary))),
+                                      const Icon(Icons.chevron_right,
+                                          size: 16,
+                                          color: TheyDiColors.textMuted),
+                                    ]),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 12),
 
-                  // ── Location Section ──
-                  const _Label('Pin Location *'),
-                  const SizedBox(height: 8),
+                      // ── Location Section ──
+                      const _Label('Pin Location *'),
+                      const SizedBox(height: 8),
 
-                  // Status bar
-                  if (_pinnedLat != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('📍 Location detected', style: TheyDiTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.w600)),
-                          if (_pinnedAddress != null) Text(_pinnedAddress!, style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          Text('${_pinnedLat!.toStringAsFixed(5)}, ${_pinnedLng!.toStringAsFixed(5)}', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted, fontSize: 10)),
-                        ])),
-                        GestureDetector(
-                          onTap: _clearLocation,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(color: TheyDiColors.card, shape: BoxShape.circle, border: Border.all(color: TheyDiColors.divider)),
-                            child: const Icon(Icons.close, size: 14, color: TheyDiColors.textMuted),
+                      // Status bar
+                      if (_pinnedLat != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.green.withValues(alpha: 0.3)),
                           ),
+                          child: Row(children: [
+                            const Icon(Icons.check_circle,
+                                color: Colors.green, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text('📍 Location detected',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600)),
+                                  if (_pinnedAddress != null)
+                                    Text(_pinnedAddress!,
+                                        style: TheyDiTextStyles.caption
+                                            .copyWith(
+                                                color:
+                                                    TheyDiColors.textSecondary),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis),
+                                  Text(
+                                      '${_pinnedLat!.toStringAsFixed(5)}, ${_pinnedLng!.toStringAsFixed(5)}',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: TheyDiColors.textMuted,
+                                          fontSize: 10)),
+                                ])),
+                            GestureDetector(
+                              onTap: _clearLocation,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                    color: TheyDiColors.card,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: TheyDiColors.divider)),
+                                child: const Icon(Icons.close,
+                                    size: 14, color: TheyDiColors.textMuted),
+                              ),
+                            ),
+                          ]),
                         ),
-                      ]),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                        const SizedBox(height: 10),
+                      ],
 
                       // GPS fallback button (shown when no location set)
                       if (_pinnedLat == null)
@@ -977,57 +1147,63 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           ),
                         ),
 
-                  // ── MAP PREVIEW ──
-                  if (_showMapPreview && _pinnedLat != null && _pinnedLng != null) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        height: 220,
-                        decoration: BoxDecoration(
+                      // ── MAP PREVIEW ──
+                      if (_showMapPreview &&
+                          _pinnedLat != null &&
+                          _pinnedLng != null) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.3)),
-                        ),
-                        child: Stack(children: [
-                          FlutterMap(
-                            mapController: _mapController,
-                            options: MapOptions(
-                              initialCenter: LatLng(_pinnedLat!, _pinnedLng!),
-                              initialZoom: 15.0,
-                              onTap: (tapPos, point) {
-                                // Tap to move pin (adjust pin)
-                                setState(() {
-                                  _pinnedLat = point.latitude;
-                                  _pinnedLng = point.longitude;
-                                });
-                                _reverseGeocode(point.latitude, point.longitude);
-                              },
+                          child: Container(
+                            height: 220,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.3)),
                             ),
-                            children: [
-                              TileLayer(
-                                urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                subdomains: const ['a', 'b', 'c'],
-                                userAgentPackageName: 'com.tiein.app',
-                              ),
-                              MarkerLayer(markers: [
-                                Marker(
-                                  point: LatLng(_pinnedLat!, _pinnedLng!),
-                                  width: 48,
-                                  height: 48,
-                                  child: Column(children: [
-                                    Container(
-                                      width: 36, height: 36,
-                                      decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: TheyDiColors.primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 2)]),
-                                      child: const Icon(Icons.place, color: Colors.white, size: 18),
-                                    ),
-                                    // Pin tail
-                                    Container(width: 2, height: 8, color: TheyDiColors.primary),
-                                  ]),
+                            child: Stack(children: [
+                              GoogleMap(
+                                initialCameraPosition: CameraPosition(
+                                  target: LatLng(_pinnedLat!, _pinnedLng!),
+                                  zoom: 15,
                                 ),
-                              ]),
-                            ],
-                          ),
+                                onMapCreated: (controller) {
+                                  _mapController = controller;
 
+                                  _currentCenter = LatLng(
+                                    _pinnedLat!,
+                                    _pinnedLng!,
+                                  );
+                                  _currentZoom = 15;
+                                },
+                                onTap: (LatLng position) {
+                                  setState(() {
+                                    _pinnedLat = position.latitude;
+                                    _pinnedLng = position.longitude;
+
+                                    _currentCenter = position;
+                                  });
+
+                                  _reverseGeocode(
+                                    position.latitude,
+                                    position.longitude,
+                                  );
+                                },
+                                myLocationEnabled: true,
+                                myLocationButtonEnabled: true,
+                                compassEnabled: true,
+                                markers: {
+                                  Marker(
+                                    markerId:
+                                        const MarkerId("selected_location"),
+                                    position: LatLng(
+                                      _pinnedLat!,
+                                      _pinnedLng!,
+                                    ),
+                                  ),
+                                },
+                              ),
                               // "Tap to adjust" overlay label
                               Positioned(
                                 bottom: 10,
@@ -1059,31 +1235,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                               ),
 
                               // Zoom in/out controls
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Column(children: [
-                                  _MapButton(
-                                      icon: Icons.add,
-                                      onTap: () {
-                                        try {
-                                          _mapController.move(
-                                              _mapController.camera.center,
-                                              _mapController.camera.zoom + 1);
-                                        } catch (_) {}
-                                      }),
-                                  const SizedBox(height: 4),
-                                  _MapButton(
-                                      icon: Icons.remove,
-                                      onTap: () {
-                                        try {
-                                          _mapController.move(
-                                              _mapController.camera.center,
-                                              _mapController.camera.zoom - 1);
-                                        } catch (_) {}
-                                      }),
-                                ]),
-                              ),
                             ]),
                           ),
                         ),
@@ -1091,50 +1242,148 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                  // ── Date & Time ──
-                  Row(children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const _Label('Date'), const SizedBox(height: 8), _PickerTile(icon: Icons.calendar_today_outlined, label: _selectedDate != null ? DateFormat('d MMM yyyy').format(_selectedDate!) : 'Pick date', onTap: _pickDate)])),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const _Label('Time'), const SizedBox(height: 8), _PickerTile(icon: Icons.access_time_outlined, label: _selectedTime != null ? _selectedTime!.format(context) : 'Pick time', onTap: _pickTime)])),
-                  ]).animate(delay: 160.ms).fade(duration: 300.ms),
+                      // ── Date & Time ──
+                      Row(children: [
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              const _Label('Date'),
+                              const SizedBox(height: 8),
+                              _PickerTile(
+                                  icon: Icons.calendar_today_outlined,
+                                  label: _selectedDate != null
+                                      ? DateFormat('d MMM yyyy')
+                                          .format(_selectedDate!)
+                                      : 'Pick date',
+                                  onTap: _pickDate)
+                            ])),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              const _Label('Time'),
+                              const SizedBox(height: 8),
+                              _PickerTile(
+                                  icon: Icons.access_time_outlined,
+                                  label: _selectedTime != null
+                                      ? _selectedTime!.format(context)
+                                      : 'Pick time',
+                                  onTap: _pickTime)
+                            ])),
+                      ]).animate(delay: 160.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
-                  // ── Duration ──
-                  const _Label('Duration (hours)'),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                    child: Row(children: [
-                      const Icon(Icons.timer_outlined, size: 18, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 10),
-                      Text('$_durationHours hr${_durationHours > 1 ? 's' : ''}', style: TheyDiTextStyles.bodyMedium),
-                      const Spacer(),
-                      GestureDetector(onTap: _durationHours > 1 ? () => setState(() => _durationHours--) : null, child: Container(width: 36, height: 36, decoration: BoxDecoration(color: _durationHours > 1 ? TheyDiColors.primary.withValues(alpha: 0.2) : TheyDiColors.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: _durationHours > 1 ? TheyDiColors.primary : TheyDiColors.divider)), child: Icon(Icons.remove, size: 18, color: _durationHours > 1 ? TheyDiColors.primary : TheyDiColors.textMuted))),
-                      const SizedBox(width: 8),
-                      GestureDetector(onTap: _durationHours < 24 ? () => setState(() => _durationHours++) : null, child: Container(width: 36, height: 36, decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10), border: Border.all(color: TheyDiColors.primary)), child: const Icon(Icons.add, size: 18, color: TheyDiColors.primary))),
-                    ]),
-                  ).animate(delay: 165.ms).fade(duration: 300.ms),
+                      // ── Duration ──
+                      const _Label('Duration (hours)'),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.inputFill,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: TheyDiColors.divider)),
+                        child: Row(children: [
+                          const Icon(Icons.timer_outlined,
+                              size: 18, color: TheyDiColors.textMuted),
+                          const SizedBox(width: 10),
+                          Text(
+                              '$_durationHours hr${_durationHours > 1 ? 's' : ''}',
+                              style: TheyDiTextStyles.bodyMedium),
+                          const Spacer(),
+                          GestureDetector(
+                              onTap: _durationHours > 1
+                                  ? () => setState(() => _durationHours--)
+                                  : null,
+                              child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                      color: _durationHours > 1
+                                          ? TheyDiColors.primary
+                                              .withValues(alpha: 0.2)
+                                          : TheyDiColors.card,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: _durationHours > 1
+                                              ? TheyDiColors.primary
+                                              : TheyDiColors.divider)),
+                                  child: Icon(Icons.remove,
+                                      size: 18,
+                                      color: _durationHours > 1
+                                          ? TheyDiColors.primary
+                                          : TheyDiColors.textMuted))),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                              onTap: _durationHours < 24
+                                  ? () => setState(() => _durationHours++)
+                                  : null,
+                              child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                      color: TheyDiColors.primary
+                                          .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: TheyDiColors.primary)),
+                                  child: const Icon(Icons.add,
+                                      size: 18, color: TheyDiColors.primary))),
+                        ]),
+                      ).animate(delay: 165.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
-                  // ── Max Attendees ──
-                  const _Label('Max Attendees'),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _maxAttendeesController, style: TheyDiTextStyles.bodyMedium, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(hintText: '50', prefixIcon: Icon(Icons.group_outlined))).animate(delay: 180.ms).fade(duration: 300.ms),
+                      // ── Max Attendees ──
+                      const _Label('Max Attendees'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                              controller: _maxAttendeesController,
+                              style: TheyDiTextStyles.bodyMedium,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                              decoration: const InputDecoration(
+                                  hintText: '50',
+                                  prefixIcon: Icon(Icons.group_outlined)))
+                          .animate(delay: 180.ms)
+                          .fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
-                  // ── Gender Balance ──
-                  const _Label('Gender Balance (Optional)'),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    _PillButton(label: 'Open', icon: Icons.people_outline, isSelected: _genderBalance == 'Open', onTap: () => setState(() => _genderBalance = 'Open')),
-                    _PillButton(label: 'Ratio', icon: Icons.tune, isSelected: _genderBalance == 'Ratio', onTap: () => setState(() => _genderBalance = 'Ratio')),
-                    _PillButton(label: 'Female Only', icon: Icons.female, isSelected: _genderBalance == 'Female Only', onTap: () => setState(() => _genderBalance = 'Female Only')),
-                    _PillButton(label: 'Male Only', icon: Icons.male, isSelected: _genderBalance == 'Male Only', onTap: () => setState(() => _genderBalance = 'Male Only')),
-                  ]).animate(delay: 190.ms).fade(duration: 300.ms),
+                      // ── Gender Balance ──
+                      const _Label('Gender Balance (Optional)'),
+                      const SizedBox(height: 8),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        _PillButton(
+                            label: 'Open',
+                            icon: Icons.people_outline,
+                            isSelected: _genderBalance == 'Open',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Open')),
+                        _PillButton(
+                            label: 'Ratio',
+                            icon: Icons.tune,
+                            isSelected: _genderBalance == 'Ratio',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Ratio')),
+                        _PillButton(
+                            label: 'Female Only',
+                            icon: Icons.female,
+                            isSelected: _genderBalance == 'Female Only',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Female Only')),
+                        _PillButton(
+                            label: 'Male Only',
+                            icon: Icons.male,
+                            isSelected: _genderBalance == 'Male Only',
+                            onTap: () =>
+                                setState(() => _genderBalance = 'Male Only')),
+                      ]).animate(delay: 190.ms).fade(duration: 300.ms),
 
                       if (_genderBalance == 'Ratio') ...[
                         const SizedBox(height: 14),
@@ -1199,150 +1448,466 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                  // ── Age Group ──
-                  const _Label('Age Group'),
-                  const SizedBox(height: 8),
-                  _DropdownField<String>(hint: 'Select age group', value: _ageGroup, items: (_isAdultParty ? _kAdultAgeGroups : _kAgeGroups).map((a) => DropdownMenuItem(value: a, child: Text(a, style: TheyDiTextStyles.bodyMedium))).toList(), onChanged: (v) => setState(() => _ageGroup = v ?? (_isAdultParty ? 'Young Adults (18–25)' : 'All Ages')), icon: Icons.people_alt_outlined).animate(delay: 205.ms).fade(duration: 300.ms),
+                      // ── Age Group ──
+                      const _Label('Age Group'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                              hint: 'Select age group',
+                              value: _ageGroup,
+                              items: (_isAdultParty
+                                      ? _kAdultAgeGroups
+                                      : _kAgeGroups)
+                                  .map((a) => DropdownMenuItem(
+                                      value: a,
+                                      child: Text(a,
+                                          style: TheyDiTextStyles.bodyMedium)))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _ageGroup = v ??
+                                  (_isAdultParty
+                                      ? 'Young Adults (18–25)'
+                                      : 'All Ages')),
+                              icon: Icons.people_alt_outlined)
+                          .animate(delay: 205.ms)
+                          .fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
-                  // ── Approval Type ──
-                  const _Label('Approval Type'),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(child: _PillButton(label: 'Host Approval', icon: Icons.verified_user_outlined, isSelected: _approvalType == 'Host Approval', onTap: () => setState(() => _approvalType = 'Host Approval'))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _PillButton(label: 'First Come', icon: Icons.flash_on_outlined, isSelected: _approvalType == 'First Come First Serve', onTap: () => setState(() => _approvalType = 'First Come First Serve'))),
-                  ]).animate(delay: 210.ms).fade(duration: 300.ms),
-
-                      const SizedBox(height: 20),
-
-                  // ── Free / Paid ──
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: TheyDiColors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                    child: Column(children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Row(children: [const Icon(Icons.confirmation_number_outlined, size: 18, color: TheyDiColors.textSecondary), const SizedBox(width: 8), Text('Free Event', style: TheyDiTextStyles.bodyMedium)]),
-                        Switch(value: _isFree, activeThumbColor: TheyDiColors.primary, onChanged: (v) => setState(() => _isFree = v)),
-                      ]),
-                      if (!_isFree) ...[
-                        const SizedBox(height: 12),
-                        TextFormField(controller: _priceController, style: TheyDiTextStyles.bodyMedium, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '299', prefixIcon: Icon(Icons.currency_rupee_outlined), labelText: 'Price (₹)'), validator: (v) { if (!_isFree && (v == null || v.isEmpty)) return 'Enter a price'; return null; }),
-                      ],
-                    ]),
-                  ).animate(delay: 220.ms).fade(duration: 300.ms),
-
-                      const SizedBox(height: 20),
-
-                  // ── Amenities ──
-                  const _Label('Amenities (Optional)'),
-                  const SizedBox(height: 4),
-                  Text('Let attendees know what\'s available at your event', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary)),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: TheyDiColors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.divider)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        ..._kDefaultAmenities.map((amenity) {
-                          final label = amenity['label'] as String;
-                          final icon = amenity['icon'] as IconData;
-                          final isSelected = _selectedAmenities.contains(label);
-                          return GestureDetector(
-                            onTap: () => setState(() { if (isSelected) {
-                              _selectedAmenities.remove(label);
-                            } else {
-                              _selectedAmenities.add(label);
-                            } }),
-                            child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: isSelected ? TheyDiColors.primary.withValues(alpha: 0.18) : TheyDiColors.inputFill, borderRadius: BorderRadius.circular(20), border: Border.all(color: isSelected ? TheyDiColors.primary : TheyDiColors.divider)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15, color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary), const SizedBox(width: 6), Text(label, style: TheyDiTextStyles.caption.copyWith(color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal))])),
-                          );
-                        }),
-                        ..._customAmenities.map((label) {
-                          final isSelected = _selectedAmenities.contains(label);
-                          return GestureDetector(
-                            onTap: () => setState(() { if (isSelected) {
-                              _selectedAmenities.remove(label);
-                            } else {
-                              _selectedAmenities.add(label);
-                            } }),
-                            child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: isSelected ? TheyDiColors.primary.withValues(alpha: 0.18) : TheyDiColors.inputFill, borderRadius: BorderRadius.circular(20), border: Border.all(color: isSelected ? TheyDiColors.primary : TheyDiColors.divider)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.add_circle_outline, size: 14, color: TheyDiColors.primary), const SizedBox(width: 5), Text(label, style: TheyDiTextStyles.caption.copyWith(color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)), const SizedBox(width: 4), GestureDetector(onTap: () => setState(() { _customAmenities.remove(label); _selectedAmenities.remove(label); }), child: const Icon(Icons.close, size: 13, color: TheyDiColors.textMuted))])),
-                          );
-                        }),
-                      ]),
-                      const SizedBox(height: 14),
-                      const Divider(color: TheyDiColors.divider),
-                      const SizedBox(height: 10),
+                      // ── Approval Type ──
+                      const _Label('Approval Type'),
+                      const SizedBox(height: 8),
                       Row(children: [
-                        Expanded(child: TextFormField(controller: _customAmenityController, style: TheyDiTextStyles.bodySmall, textCapitalization: TextCapitalization.words, decoration: InputDecoration(hintText: 'Add custom amenity...', hintStyle: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.divider)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.divider)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.primary)), filled: true, fillColor: TheyDiColors.inputFill), onFieldSubmitted: (_) => _addCustomAmenity())),
+                        Expanded(
+                            child: _PillButton(
+                                label: 'Host Approval',
+                                icon: Icons.verified_user_outlined,
+                                isSelected: _approvalType == 'Host Approval',
+                                onTap: () => setState(
+                                    () => _approvalType = 'Host Approval'))),
                         const SizedBox(width: 10),
-                        GestureDetector(onTap: _addCustomAmenity, child: Container(width: 42, height: 42, decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add, color: Colors.white, size: 20))),
-                      ]),
-                    ]),
-                  ).animate(delay: 228.ms).fade(duration: 300.ms),
+                        Expanded(
+                            child: _PillButton(
+                                label: 'First Come',
+                                icon: Icons.flash_on_outlined,
+                                isSelected:
+                                    _approvalType == 'First Come First Serve',
+                                onTap: () => setState(() =>
+                                    _approvalType = 'First Come First Serve'))),
+                      ]).animate(delay: 210.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 20),
+
+                      // ── Free / Paid ──
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: TheyDiColors.divider)),
+                        child: Column(children: [
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(children: [
+                                  const Icon(Icons.confirmation_number_outlined,
+                                      size: 18,
+                                      color: TheyDiColors.textSecondary),
+                                  const SizedBox(width: 8),
+                                  Text('Free Event',
+                                      style: TheyDiTextStyles.bodyMedium)
+                                ]),
+                                Switch(
+                                    value: _isFree,
+                                    activeThumbColor: TheyDiColors.primary,
+                                    onChanged: (v) =>
+                                        setState(() => _isFree = v)),
+                              ]),
+                          if (!_isFree) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                                controller: _priceController,
+                                style: TheyDiTextStyles.bodyMedium,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: const InputDecoration(
+                                    hintText: '299',
+                                    prefixIcon:
+                                        Icon(Icons.currency_rupee_outlined),
+                                    labelText: 'Price (₹)'),
+                                validator: (v) {
+                                  if (!_isFree && (v == null || v.isEmpty))
+                                    return 'Enter a price';
+                                  return null;
+                                }),
+                          ],
+                        ]),
+                      ).animate(delay: 220.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 20),
+
+                      // ── Amenities ──
+                      const _Label('Amenities (Optional)'),
+                      const SizedBox(height: 4),
+                      Text('Let attendees know what\'s available at your event',
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: TheyDiColors.textSecondary)),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: TheyDiColors.divider)),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(spacing: 8, runSpacing: 8, children: [
+                                ..._kDefaultAmenities.map((amenity) {
+                                  final label = amenity['label'] as String;
+                                  final icon = amenity['icon'] as IconData;
+                                  final isSelected =
+                                      _selectedAmenities.contains(label);
+                                  return GestureDetector(
+                                    onTap: () => setState(() {
+                                      if (isSelected) {
+                                        _selectedAmenities.remove(label);
+                                      } else {
+                                        _selectedAmenities.add(label);
+                                      }
+                                    }),
+                                    child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? TheyDiColors.primary
+                                                    .withValues(alpha: 0.18)
+                                                : TheyDiColors.inputFill,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: isSelected
+                                                    ? TheyDiColors.primary
+                                                    : TheyDiColors.divider)),
+                                        child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(icon,
+                                                  size: 15,
+                                                  color: isSelected
+                                                      ? TheyDiColors.primary
+                                                      : TheyDiColors
+                                                          .textSecondary),
+                                              const SizedBox(width: 6),
+                                              Text(label,
+                                                  style: TheyDiTextStyles
+                                                      .caption
+                                                      .copyWith(
+                                                          color: isSelected
+                                                              ? TheyDiColors
+                                                                  .primary
+                                                              : TheyDiColors
+                                                                  .textSecondary,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w600
+                                                              : FontWeight
+                                                                  .normal))
+                                            ])),
+                                  );
+                                }),
+                                ..._customAmenities.map((label) {
+                                  final isSelected =
+                                      _selectedAmenities.contains(label);
+                                  return GestureDetector(
+                                    onTap: () => setState(() {
+                                      if (isSelected) {
+                                        _selectedAmenities.remove(label);
+                                      } else {
+                                        _selectedAmenities.add(label);
+                                      }
+                                    }),
+                                    child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? TheyDiColors.primary
+                                                    .withValues(alpha: 0.18)
+                                                : TheyDiColors.inputFill,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: isSelected
+                                                    ? TheyDiColors.primary
+                                                    : TheyDiColors.divider)),
+                                        child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                  Icons.add_circle_outline,
+                                                  size: 14,
+                                                  color: TheyDiColors.primary),
+                                              const SizedBox(width: 5),
+                                              Text(label,
+                                                  style: TheyDiTextStyles
+                                                      .caption
+                                                      .copyWith(
+                                                          color: isSelected
+                                                              ? TheyDiColors
+                                                                  .primary
+                                                              : TheyDiColors
+                                                                  .textSecondary,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w600
+                                                              : FontWeight
+                                                                  .normal)),
+                                              const SizedBox(width: 4),
+                                              GestureDetector(
+                                                  onTap: () => setState(() {
+                                                        _customAmenities
+                                                            .remove(label);
+                                                        _selectedAmenities
+                                                            .remove(label);
+                                                      }),
+                                                  child: const Icon(Icons.close,
+                                                      size: 13,
+                                                      color: TheyDiColors
+                                                          .textMuted))
+                                            ])),
+                                  );
+                                }),
+                              ]),
+                              const SizedBox(height: 14),
+                              const Divider(color: TheyDiColors.divider),
+                              const SizedBox(height: 10),
+                              Row(children: [
+                                Expanded(
+                                    child: TextFormField(
+                                        controller: _customAmenityController,
+                                        style: TheyDiTextStyles.bodySmall,
+                                        textCapitalization:
+                                            TextCapitalization.words,
+                                        decoration: InputDecoration(
+                                            hintText: 'Add custom amenity...',
+                                            hintStyle: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color:
+                                                        TheyDiColors.textMuted),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 10),
+                                            border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                borderSide: const BorderSide(
+                                                    color:
+                                                        TheyDiColors.divider)),
+                                            enabledBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                borderSide: const BorderSide(
+                                                    color: TheyDiColors.divider)),
+                                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: TheyDiColors.primary)),
+                                            filled: true,
+                                            fillColor: TheyDiColors.inputFill),
+                                        onFieldSubmitted: (_) => _addCustomAmenity())),
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                    onTap: _addCustomAmenity,
+                                    child: Container(
+                                        width: 42,
+                                        height: 42,
+                                        decoration: BoxDecoration(
+                                            gradient:
+                                                TheyDiColors.gradientPrimary,
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        child: const Icon(Icons.add,
+                                            color: Colors.white, size: 20))),
+                              ]),
+                            ]),
+                      ).animate(delay: 228.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 24),
 
-                  // ── Event Images ──
-                  const _Label('Event Images'),
-                  const SizedBox(height: 4),
-                  Text('Add up to $_maxImages photos to showcase your event', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.2))),
-                    child: Row(children: [
-                      const Icon(Icons.lightbulb_outline, size: 14, color: TheyDiColors.primary),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('Suggestions for $_eventType: ${suggestions.join(' · ')}', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontSize: 11))),
-                    ]),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 110,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        if (_eventImages.length < _maxImages)
-                          GestureDetector(
-                            onTap: _isUploadingImage ? null : _showImageSourceSheet,
-                            child: Container(
-                              width: 90, height: 90,
-                              margin: const EdgeInsets.only(right: 10),
-                              decoration: BoxDecoration(color: TheyDiColors.inputFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.4), width: 1.5)),
-                              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Container(width: 32, height: 32, decoration: const BoxDecoration(gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle), child: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white, size: 18)),
-                                const SizedBox(height: 6),
-                                Text('Add Photo', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontSize: 10)),
-                              ]),
-                            ),
-                          ),
-                        ..._eventImages.map((img) => Container(
-                          width: 90, height: 90,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
-                          child: Stack(children: [
-                            ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.memory(Uint8List.fromList(img.bytes), width: 90, height: 90, fit: BoxFit.cover)),
-                            if (img.isUploading)
-                              Container(width: 90, height: 90, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(14)), child: const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))),
-                            if (!img.isUploading)
-                              Positioned(top: 4, right: 4, child: GestureDetector(onTap: () => _removeImage(img.id), child: Container(width: 22, height: 22, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), shape: BoxShape.circle), child: const Icon(Icons.close, size: 12, color: Colors.white)))),
-                            if (_eventImages.first.id == img.id && !img.isUploading)
-                              Positioned(bottom: 0, left: 0, right: 0, child: Container(padding: const EdgeInsets.symmetric(vertical: 3), decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.8), borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14))), child: Text('Cover', style: TheyDiTextStyles.caption.copyWith(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600), textAlign: TextAlign.center))),
-                          ]),
-                        )),
-                      ],
-                    ),
-                  ),
-                  Align(alignment: Alignment.centerRight, child: Text('${_eventImages.length} / $_maxImages photos', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted, fontSize: 11))),
+                      // ── Event Images ──
+                      const _Label('Event Images'),
+                      const SizedBox(height: 4),
+                      Text(
+                          'Add up to $_maxImages photos to showcase your event',
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: TheyDiColors.textSecondary)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: TheyDiColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: TheyDiColors.primary
+                                    .withValues(alpha: 0.2))),
+                        child: Row(children: [
+                          const Icon(Icons.lightbulb_outline,
+                              size: 14, color: TheyDiColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: Text(
+                                  'Suggestions for $_eventType: ${suggestions.join(' · ')}',
+                                  style: TheyDiTextStyles.caption.copyWith(
+                                      color: TheyDiColors.primary,
+                                      fontSize: 11))),
+                        ]),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 110,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            if (_eventImages.length < _maxImages)
+                              GestureDetector(
+                                onTap: _isUploadingImage
+                                    ? null
+                                    : _showImageSourceSheet,
+                                child: Container(
+                                  width: 90,
+                                  height: 90,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                      color: TheyDiColors.inputFill,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                          color: TheyDiColors.primary
+                                              .withValues(alpha: 0.4),
+                                          width: 1.5)),
+                                  child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: const BoxDecoration(
+                                                gradient: TheyDiColors
+                                                    .gradientPrimary,
+                                                shape: BoxShape.circle),
+                                            child: const Icon(
+                                                Icons
+                                                    .add_photo_alternate_outlined,
+                                                color: Colors.white,
+                                                size: 18)),
+                                        const SizedBox(height: 6),
+                                        Text('Add Photo',
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: TheyDiColors.primary,
+                                                    fontSize: 10)),
+                                      ]),
+                                ),
+                              ),
+                            ..._eventImages.map((img) => Container(
+                                  width: 90,
+                                  height: 90,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  child: Stack(children: [
+                                    ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Image.memory(
+                                            Uint8List.fromList(img.bytes),
+                                            width: 90,
+                                            height: 90,
+                                            fit: BoxFit.cover)),
+                                    if (img.isUploading)
+                                      Container(
+                                          width: 90,
+                                          height: 90,
+                                          decoration: BoxDecoration(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.5),
+                                              borderRadius:
+                                                  BorderRadius.circular(14)),
+                                          child: const Center(
+                                              child: SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                          strokeWidth: 2)))),
+                                    if (!img.isUploading)
+                                      Positioned(
+                                          top: 4,
+                                          right: 4,
+                                          child: GestureDetector(
+                                              onTap: () => _removeImage(img.id),
+                                              child: Container(
+                                                  width: 22,
+                                                  height: 22,
+                                                  decoration: BoxDecoration(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                              alpha: 0.7),
+                                                      shape: BoxShape.circle),
+                                                  child: const Icon(Icons.close,
+                                                      size: 12,
+                                                      color: Colors.white)))),
+                                    if (_eventImages.first.id == img.id &&
+                                        !img.isUploading)
+                                      Positioned(
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 3),
+                                              decoration: BoxDecoration(
+                                                  color: TheyDiColors.primary
+                                                      .withValues(alpha: 0.8),
+                                                  borderRadius: const BorderRadius.vertical(
+                                                      bottom:
+                                                          Radius.circular(14))),
+                                              child: Text('Cover',
+                                                  style: TheyDiTextStyles.caption
+                                                      .copyWith(
+                                                          color: Colors.white,
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.w600),
+                                                  textAlign: TextAlign.center))),
+                                  ]),
+                                )),
+                          ],
+                        ),
+                      ),
+                      Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                              '${_eventImages.length} / $_maxImages photos',
+                              style: TheyDiTextStyles.caption.copyWith(
+                                  color: TheyDiColors.textMuted,
+                                  fontSize: 11))),
 
                       const SizedBox(height: 32),
 
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator(color: TheyDiColors.primary))
-                  else
-                    GradientButton(label: 'Create Event 🚀', onPressed: _submit).animate(delay: 250.ms).fade(duration: 300.ms),
-                ]),
+                      if (_isLoading)
+                        const Center(
+                            child: CircularProgressIndicator(
+                                color: TheyDiColors.primary))
+                      else
+                        GradientButton(
+                                label: 'Create Event 🚀', onPressed: _submit)
+                            .animate(delay: 250.ms)
+                            .fade(duration: 300.ms),
+                    ]),
               ),
             )),
           ]),
@@ -1418,7 +1983,8 @@ class _DropdownField<T> extends StatelessWidget {
     return InputDecorator(
       decoration: InputDecoration(
         prefixIcon: Icon(icon, size: 18, color: TheyDiColors.textMuted),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13.5),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 13.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: TheyDiColors.divider),

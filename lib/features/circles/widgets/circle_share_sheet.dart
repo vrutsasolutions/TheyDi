@@ -47,7 +47,7 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
       await Clipboard.setData(ClipboardData(text: text));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Link copied! Paste it in Instagram.', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        content: const Text('Link copied! Paste it in Instagram.', style: TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -76,7 +76,7 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Circle invite shared! 🚀', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        Text('Circle invite shared! 🚀', style: TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,

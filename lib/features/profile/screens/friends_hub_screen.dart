@@ -11,7 +11,6 @@ import '../../../core/services/friends_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/circle_join_service.dart';
 import '../../../shared/widgets/avatar_online_status_dot.dart';
-import '../../../shared/widgets/avatar_online_status_dot.dart';
 
 // ── Providers ────────────────────────────────────────────────────────────────
 
