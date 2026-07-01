@@ -1,27 +1,7 @@
-# TODO
-
-## Plan for fixing terminal errors (Flutter)
-
-1. Fix environment terminal errors:
-   - Visual Studio toolchain missing: install “Desktop development with C++” workload (Visual Studio Installer)
-   - Re-run `flutter doctor`
-   - Then run `flutter run -d windows`
-
-2. Collect actual terminal error output
-   - Run `flutter run` from `TheyDi-main/` and capture full logs.
-
-2. Identify the failing package/code area
-   - Look for: dependency resolution, Gradle/Kotlin/Java build errors, Dart compile errors, asset/font/image issues.
-
-3. Fix errors with minimal changes
-   - Prefer pinning/removing incompatible dependency versions.
-   - Prefer small code fixes only where compiler points.
-
-4. Run `flutter clean` + dependency fetch
-   - `flutter clean`
-   - `flutter pub get`
-
-5. Re-run `flutter run` and verify
-
-6. Commit-style summary in final message
-
+- [x] Inspect current event share navigation from EventShareSheet
+- [ ] Update `CirclesListScreen` to support event share selection mode (add eventId, selectedFriendIds/selectedCircleIds, bottom Send button)
+- [ ] Implement Send action: DM + Circle chats with `type: event_share` payload
+- [x] Update `EventShareSheet` navigation to pass `eventId` (and set selection mode)
+- [ ] Run `flutter analyze`
+- [ ] Run `flutter test` (if available)
+- [ ] Manual verification: normal mode unchanged; event share mode hides actions and sends to all selected recipients

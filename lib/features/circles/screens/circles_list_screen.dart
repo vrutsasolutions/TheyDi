@@ -60,7 +60,15 @@ final _requestsProvider =
 // ── Main Screen ──
 
 class CirclesListScreen extends ConsumerStatefulWidget {
-  const CirclesListScreen({super.key});
+  final bool isSelectionMode;
+  final String? eventId;
+
+  const CirclesListScreen({
+    super.key,
+    this.isSelectionMode = false,
+    this.eventId,
+  });
+
 
   @override
   ConsumerState<CirclesListScreen> createState() => _CirclesListScreenState();
@@ -69,11 +77,32 @@ class CirclesListScreen extends ConsumerStatefulWidget {
 class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final Set<String> _selectedFriendUids = {};
+  final Set<String> _selectedCircleIds = {};
+  
+
+  Future<void> _sendEventShare({
+  required BuildContext context,
+  required String eventId,
+  required List<String> selectedFriendUids,
+  required List<String> selectedCircleIds,
+}) async {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Event Share feature is under development.'),
+    ),
+  );
+
+  if (context.mounted) {
+    context.pop();
+  }
+}
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController =
+        TabController(length: widget.isSelectionMode ? 3 : 4, vsync: this);
   }
 
   @override
@@ -86,6 +115,7 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
   Widget build(BuildContext context) {
     final requestsAsync = ref.watch(_requestsProvider);
     final pendingCount = requestsAsync.asData?.value.length ?? 0;
+    final selectedCount = _selectedFriendUids.length + _selectedCircleIds.length;
 
     return Scaffold(
       body: Container(
@@ -114,28 +144,29 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                     Text('Friend Circles',
                         style: TheyDiTextStyles.displayMedium),
                     const Spacer(),
-                    GestureDetector(
-                      onTap: () => context.push(AppRoutes.createCircle),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.add,
-                                color: Colors.white, size: 16),
-                            const SizedBox(width: 4),
-                            Text('New',
-                                style: TheyDiTextStyles.labelMedium
-                                    .copyWith(color: Colors.white)),
-                          ],
+                    if (!widget.isSelectionMode)
+                      GestureDetector(
+                        onTap: () => context.push(AppRoutes.createCircle),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: TheyDiColors.gradientPrimary,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.add,
+                                  color: Colors.white, size: 16),
+                              const SizedBox(width: 4),
+                              Text('New',
+                                  style: TheyDiTextStyles.labelMedium
+                                      .copyWith(color: Colors.white)),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ).animate().fade(duration: 300.ms),
@@ -156,32 +187,33 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                     const Tab(text: 'All'),
                     const Tab(text: 'Friends'),
                     const Tab(text: 'Circles'),
-                    Tab(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Requests'),
-                          if (pendingCount > 0) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              width: 18,
-                              height: 18,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
+                    if (!widget.isSelectionMode)
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Requests'),
+                            if (pendingCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text('$pendingCount',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700)),
+                                ),
                               ),
-                              child: Center(
-                                child: Text('$pendingCount',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700)),
-                              ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -193,10 +225,24 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _AllTab(),
-                    _FriendsTab(),
-                    _CirclesTab(),
-                    _RequestsTab(),
+                    _AllTab(
+                      isSelectionMode: widget.isSelectionMode,
+                      selectedFriendUids: _selectedFriendUids,
+                      selectedCircleIds: _selectedCircleIds,
+                      onFriendSelected: _toggleFriend,
+                      onCircleSelected: _toggleCircle,
+                    ),
+                    _FriendsTab(
+                      isSelectionMode: widget.isSelectionMode,
+                      selectedFriendUids: _selectedFriendUids,
+                      onFriendSelected: _toggleFriend,
+                    ),
+                    _CirclesTab(
+                      isSelectionMode: widget.isSelectionMode,
+                      selectedCircleIds: _selectedCircleIds,
+                      onCircleSelected: _toggleCircle,
+                    ),
+                    if (!widget.isSelectionMode) _RequestsTab(),
                   ],
                 ),
               ),
@@ -204,7 +250,45 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
           ),
         ),
       ),
+      bottomNavigationBar: widget.isSelectionMode
+          ? (widget.eventId != null
+              ? _EventShareSelectionBar(
+                  selectedCount: selectedCount,
+                  selectedCircleCount: _selectedCircleIds.length,
+                  onCancel: () => context.pop(),
+                  onSend: selectedCount == 0
+                      ? null
+                      : () => _sendEventShare(
+                            context: context,
+                            eventId: widget.eventId!,
+                            selectedFriendUids: _selectedFriendUids.toList(),
+                            selectedCircleIds: _selectedCircleIds.toList(),
+                          ),
+                )
+              : _SelectionBar(
+                  selectedCount: selectedCount,
+                  onCancel: () => context.pop(),
+                  onDone: selectedCount == 0
+                      ? null
+                      : () => context.pop({
+                            'friendUids': _selectedFriendUids.toList(),
+                            'circleIds': _selectedCircleIds.toList(),
+                          }),
+                ))
+          : null,
     );
+  }
+
+  void _toggleFriend(String uid) {
+    setState(() {
+      if (!_selectedFriendUids.add(uid)) _selectedFriendUids.remove(uid);
+    });
+  }
+
+  void _toggleCircle(String id) {
+    setState(() {
+      if (!_selectedCircleIds.add(id)) _selectedCircleIds.remove(id);
+    });
   }
 }
 
@@ -213,6 +297,20 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
 // ══════════════════════════════════════════
 
 class _AllTab extends ConsumerWidget {
+  final bool isSelectionMode;
+  final Set<String> selectedFriendUids;
+  final Set<String> selectedCircleIds;
+  final ValueChanged<String> onFriendSelected;
+  final ValueChanged<String> onCircleSelected;
+
+  const _AllTab({
+    required this.isSelectionMode,
+    required this.selectedFriendUids,
+    required this.selectedCircleIds,
+    required this.onFriendSelected,
+    required this.onCircleSelected,
+  });
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final friendsAsync = ref.watch(_friendsProvider);
@@ -238,6 +336,9 @@ class _AllTab extends ConsumerWidget {
                       uid: f['uid'] ?? '',
                       displayName: f['displayName'] ?? 'User',
                       photoUrl: f['profileImageUrl'] ?? '',
+                      isSelectionMode: isSelectionMode,
+                      isSelected: selectedFriendUids.contains(f['uid'] ?? ''),
+                      onSelected: onFriendSelected,
                     )),
                 if (friends.length > 5)
                   Padding(
@@ -278,7 +379,12 @@ class _AllTab extends ConsumerWidget {
                     style: TheyDiTextStyles.labelLarge
                         .copyWith(color: TheyDiColors.textSecondary)),
                 const SizedBox(height: 8),
-                ...circles.map((c) => _CircleCard(circle: c)),
+                ...circles.map((c) => _CircleCard(
+                      circle: c,
+                      isSelectionMode: isSelectionMode,
+                      isSelected: selectedCircleIds.contains(c.id),
+                      onSelected: onCircleSelected,
+                    )),
               ],
             );
           },
@@ -306,6 +412,16 @@ class _AllTab extends ConsumerWidget {
 // ══════════════════════════════════════════
 
 class _FriendsTab extends ConsumerWidget {
+  final bool isSelectionMode;
+  final Set<String> selectedFriendUids;
+  final ValueChanged<String> onFriendSelected;
+
+  const _FriendsTab({
+    required this.isSelectionMode,
+    required this.selectedFriendUids,
+    required this.onFriendSelected,
+  });
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final friendsAsync = ref.watch(_friendsProvider);
@@ -332,6 +448,9 @@ class _FriendsTab extends ConsumerWidget {
               uid: f['uid'] ?? '',
               displayName: f['displayName'] ?? 'User',
               photoUrl: f['profileImageUrl'] ?? '',
+              isSelectionMode: isSelectionMode,
+              isSelected: selectedFriendUids.contains(f['uid'] ?? ''),
+              onSelected: onFriendSelected,
             )
                 .animate(delay: Duration(milliseconds: 50 * index))
                 .fade(duration: 300.ms)
@@ -348,6 +467,16 @@ class _FriendsTab extends ConsumerWidget {
 // ══════════════════════════════════════════
 
 class _CirclesTab extends ConsumerWidget {
+  final bool isSelectionMode;
+  final Set<String> selectedCircleIds;
+  final ValueChanged<String> onCircleSelected;
+
+  const _CirclesTab({
+    required this.isSelectionMode,
+    required this.selectedCircleIds,
+    required this.onCircleSelected,
+  });
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final circlesAsync = ref.watch(_myCirclesProvider);
@@ -363,15 +492,23 @@ class _CirclesTab extends ConsumerWidget {
             icon: Icons.group_outlined,
             title: 'No circles yet',
             subtitle: 'Create a circle to start chatting with friends',
-            actionLabel: 'Create your first circle',
-            onAction: (context) => context.push(AppRoutes.createCircle),
+            actionLabel:
+                isSelectionMode ? null : 'Create your first circle',
+            onAction: isSelectionMode
+                ? null
+                : (context) => context.push(AppRoutes.createCircle),
           );
         }
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           itemCount: circles.length,
           itemBuilder: (context, index) {
-            return _CircleCard(circle: circles[index])
+            return _CircleCard(
+              circle: circles[index],
+              isSelectionMode: isSelectionMode,
+              isSelected: selectedCircleIds.contains(circles[index].id),
+              onSelected: onCircleSelected,
+            )
                 .animate(delay: Duration(milliseconds: 50 * index))
                 .fade(duration: 300.ms)
                 .slideX(begin: 0.05, end: 0);
@@ -435,9 +572,18 @@ class _FriendCard extends StatelessWidget {
   final String uid;
   final String displayName;
   final String photoUrl;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final ValueChanged<String>? onSelected;
 
-  const _FriendCard(
-      {required this.uid, required this.displayName, required this.photoUrl});
+  const _FriendCard({
+    required this.uid,
+    required this.displayName,
+    required this.photoUrl,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -452,10 +598,12 @@ class _FriendCard extends StatelessWidget {
         final photoUrl = data['profileImageUrl'] ?? '';
 
         return GestureDetector(
-          onTap: () => context.push(
-            AppRoutes.userProfile,
-            extra: {'uid': uid, 'requestId': null},
-          ),
+          onTap: isSelectionMode
+              ? () => onSelected?.call(uid)
+              : () => context.push(
+                    AppRoutes.userProfile,
+                    extra: {'uid': uid, 'requestId': null},
+                  ),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
@@ -535,35 +683,42 @@ Stack(
                 const SizedBox(width: 8),
 
                 // ── Message Button ──
-                GestureDetector(
-                  onTap: () => context.push(
-                    AppRoutes.dmChat,
-                    extra: {
-                      'otherUid': uid,
-                      'otherName': displayName,
-                    },
-                  ),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      gradient: TheyDiColors.gradientPrimary,
-                      borderRadius: BorderRadius.circular(10),
+                if (isSelectionMode)
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => onSelected?.call(uid),
+                    activeColor: TheyDiColors.primary,
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => context.push(
+                      AppRoutes.dmChat,
+                      extra: {
+                        'otherUid': uid,
+                        'otherName': displayName,
+                      },
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.chat_bubble_outline,
-                            size: 14, color: Colors.white),
-                        const SizedBox(width: 5),
-                        Text('Message',
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600)),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.chat_bubble_outline,
+                              size: 14, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text('Message',
+                              style: TheyDiTextStyles.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -577,8 +732,15 @@ Stack(
 class _CircleCard extends StatelessWidget {
   final CircleModel circle;
   final String? profileImageUrl;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final ValueChanged<String>? onSelected;
+
   const _CircleCard({
     required this.circle,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelected,
   }) : profileImageUrl = null;
 
   @override
@@ -586,7 +748,9 @@ class _CircleCard extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.circleChat, extra: circle),
+      onTap: isSelectionMode
+          ? () => onSelected?.call(circle.id)
+          : () => context.push(AppRoutes.circleChat, extra: circle),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
@@ -661,8 +825,15 @@ class _CircleCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.arrow_forward_ios,
-                size: 14, color: TheyDiColors.textMuted),
+            if (isSelectionMode)
+              Checkbox(
+                value: isSelected,
+                onChanged: (_) => onSelected?.call(circle.id),
+                activeColor: TheyDiColors.primary,
+              )
+            else
+              Icon(Icons.arrow_forward_ios,
+                  size: 14, color: TheyDiColors.textMuted),
           ],
         ),
       ),
@@ -680,6 +851,170 @@ class _CircleCard extends StatelessWidget {
 }
 
 // ── Request Card ──
+class _SelectionBar extends StatelessWidget {
+  final int selectedCount;
+  final VoidCallback onCancel;
+  final VoidCallback? onDone;
+
+  const _SelectionBar({
+    required this.selectedCount,
+    required this.onCancel,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+      decoration: BoxDecoration(
+        color: TheyDiColors.dark,
+        border: Border(top: BorderSide(color: TheyDiColors.divider)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            TextButton(
+              onPressed: onCancel,
+              child: Text(
+                'Cancel',
+                style: TheyDiTextStyles.labelMedium
+                    .copyWith(color: TheyDiColors.textSecondary),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$selectedCount selected',
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: onDone,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TheyDiColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EventShareSelectionBar extends StatelessWidget {
+  final int selectedCount;
+  final int selectedCircleCount;
+  final VoidCallback onCancel;
+  final VoidCallback? onSend;
+
+  const _EventShareSelectionBar({
+    required this.selectedCount,
+    required this.selectedCircleCount,
+    required this.onCancel,
+    required this.onSend,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sendLabel = 'Send ($selectedCount)';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+      decoration: BoxDecoration(
+        color: TheyDiColors.dark,
+        border: Border(top: BorderSide(color: TheyDiColors.divider)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            TextButton(
+              onPressed: onCancel,
+              child: Text(
+                'Cancel',
+                style: TheyDiTextStyles.labelMedium
+                    .copyWith(color: TheyDiColors.textSecondary),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$selectedCount selected',
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: onSend,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TheyDiColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    TheyDiColors.primary.withValues(alpha: 0.35),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(sendLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Container(
+  //     padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+  //     decoration: BoxDecoration(
+  //       color: TheyDiColors.dark,
+  //       border: Border(top: BorderSide(color: TheyDiColors.divider)),
+  //     ),
+  //     child: SafeArea(
+  //       top: false,
+  //       child: Row(
+  //         children: [
+  //           TextButton(
+  //             onPressed: onCancel,
+  //             child: Text(
+  //               'Cancel',
+  //               style: TheyDiTextStyles.labelMedium
+  //                   .copyWith(color: TheyDiColors.textSecondary),
+  //             ),
+  //           ),
+  //           const Spacer(),
+  //           Text(
+  //             '$selectedCount selected',
+  //             style: TheyDiTextStyles.caption
+  //                 .copyWith(color: TheyDiColors.textSecondary),
+  //           ),
+  //           const SizedBox(width: 12),
+  //           ElevatedButton(
+  //             onPressed: onDone,
+  //             style: ElevatedButton.styleFrom(
+  //               backgroundColor: TheyDiColors.primary,
+  //               foregroundColor: Colors.white,
+  //               shape: RoundedRectangleBorder(
+  //                 borderRadius: BorderRadius.circular(12),
+  //               ),
+  //             ),
+  //             child: const Text('Done'),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
+
+
 class _RequestCard extends StatefulWidget {
   final String requestId;
   final String fromUid;

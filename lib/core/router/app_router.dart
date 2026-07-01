@@ -167,7 +167,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.circles,
-        builder: (context, state) => const CirclesListScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final isSelectionMode = extra is Map<String, dynamic> &&
+              (extra['isSelectionMode'] as bool? ?? false);
+          return CirclesListScreen(isSelectionMode: isSelectionMode);
+        },
       ),
       GoRoute(
         path: AppRoutes.createCircle,

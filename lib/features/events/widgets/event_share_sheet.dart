@@ -148,7 +148,10 @@ class _EventShareSheetState extends State<EventShareSheet> {
     Navigator.pop(context);
     // Navigate to circles list so user can pick a circle to share the event in.
     // The circle chat screen can receive the event as an extra.
-    context.push('/circles', extra: {'shareEvent': widget.event});
+context.push('/circles', extra: {
+      'isSelectionMode': true,
+      'eventId': widget.event.id,
+    });
   }
 
   @override

@@ -63,24 +63,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Thiruvananthapuram',
   ];
 
-  static const List<Map<String, String>> _interestOptions = [
-    {'label': 'Music', 'emoji': '🎵'},
-    {'label': 'Tech', 'emoji': '💻'},
-    {'label': 'Sports', 'emoji': '⚽'},
-    {'label': 'Art', 'emoji': '🎨'},
-    {'label': 'Food', 'emoji': '🍕'},
-    {'label': 'Travel', 'emoji': '✈️'},
-    {'label': 'Gaming', 'emoji': '🎮'},
-    {'label': 'Fitness', 'emoji': '💪'},
-    {'label': 'Movies', 'emoji': '🎬'},
-    {'label': 'Books', 'emoji': '📚'},
-    {'label': 'Photography', 'emoji': '📷'},
-    {'label': 'Dance', 'emoji': '💃'},
-    {'label': 'Startups', 'emoji': '🚀'},
-    {'label': 'Comedy', 'emoji': '😂'},
-    {'label': 'Networking', 'emoji': '🤝'},
-    {'label': 'Wellness', 'emoji': '🧘'},
-  ];
+ static const List<String> _interestOptions = [
+  'Music',
+  'Tech',
+  'Sports',
+  'Art',
+  'Food',
+  'Networking',
+  'Gaming',
+  'Fitness',
+  'Comedy',
+  'Workshop',
+  'Party',
+  'Social',
+  'Adult Party',
+  'Other',
+];
 
   // ── Light theme constants ──────────────────────────────────────────────────
   static const Color _fillColor = Color(0xFFF3F4F6); // TieInColors.inputFill
@@ -525,62 +523,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 24),
 
                   // ── Interests ──
-                  _buildLabel('Interests'),
-                  const SizedBox(height: 4),
-                  const Text('Tap to select or deselect',
-                      style: TextStyle(color: _hintColor, fontSize: 12)),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _interestOptions.map((interest) {
-                      final label = interest['label']!;
-                      final emoji = interest['emoji']!;
-                      final isSelected = _selectedInterests.contains(label);
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedInterests.remove(label);
-                            } else {
-                              _selectedInterests.add(label);
-                            }
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(24),
-                            // ── FIXED: light unselected, emerald selected ──
-                            color: isSelected
-                                ? TheyDiColors.primary.withValues(alpha: 0.12)
-                                : _fillColor,
-                            border: Border.all(
-                              color: isSelected
-                                  ? TheyDiColors.primary
-                                  : _borderColor,
-                              width: isSelected ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Text(
-                            '$emoji $label',
-                            style: TextStyle(
-                              color: isSelected
-                                  ? TheyDiColors.primary
-                                  : _labelColor,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 32),
+                  
+_buildLabel('Interests'),
+const SizedBox(height: 4),
+const Text(
+  'Tap to select or deselect',
+  style: TextStyle(color: _hintColor, fontSize: 12),
+),
+const SizedBox(height: 12),
+
+SizedBox(
+  height: 36,
+  child: ListView.separated(
+    scrollDirection: Axis.horizontal,
+    itemCount: _interestOptions.length,
+    separatorBuilder: (_, __) => const SizedBox(width: 8),
+    itemBuilder: (context, index) {
+      final label = _interestOptions[index];
+      final isSelected = _selectedInterests.contains(label);
+
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            if (isSelected) {
+              _selectedInterests.remove(label);
+            } else {
+              _selectedInterests.add(label);
+            }
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            gradient:
+                isSelected ? TheyDiColors.gradientPrimary : null,
+            color: isSelected ? null : TheyDiColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : TheyDiColors.divider,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TheyDiTextStyles.labelMedium.copyWith(
+                color: isSelected
+                    ? Colors.white
+                    : TheyDiColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  ),
+),
+
+const SizedBox(height: 32),
 
                   // ── Save Button ──
                   SizedBox(
