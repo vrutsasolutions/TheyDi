@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../widgets/profile_share_sheet.dart';
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
@@ -209,47 +210,17 @@ class _ProfileContent extends ConsumerWidget {
   }
 
   Future<void> _openShareSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: TheyDiColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Share your profile', style: TheyDiTextStyles.headlineSmall),
-              const SizedBox(height: 8),
-              Text(
-                'Share a link to your profile with friends and invite them to join your events.',
-                style: TheyDiTextStyles.bodySmall
-                    .copyWith(color: TheyDiColors.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.copy_outlined),
-                title: Text('Copy profile link',
-                    style: TheyDiTextStyles.bodyMedium),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_outlined),
-                title: Text('Share via...', style: TheyDiTextStyles.bodyMedium),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return;
+
+    showProfileShareSheet(
+      context,
+      userId: uid,
+      displayName: displayName,
+      city: city,
+      bio: bio,
+      photoUrl: photoUrl,
+      isPrivate: false, // Defaulting to false, adjust if there is a privacy flag
     );
   }
 

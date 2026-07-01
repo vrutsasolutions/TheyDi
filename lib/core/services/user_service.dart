@@ -25,6 +25,10 @@ class UserService {
       'gender': '',
       'interests': [],
       'isVerified': false,
+
+      // Add these two fields
+      'isOnline': false,
+      'lastSeen': FieldValue.serverTimestamp(),
     });
   }
 

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/notification_icon_button.dart';
 import '../../events/models/event_model.dart';
 
 class MyEventsScreen extends ConsumerStatefulWidget {
@@ -80,20 +81,7 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                             .animate()
                             .fade(duration: 400.ms),
                         const Spacer(),
-                        GestureDetector(
-                          onTap: () => context.push(AppRoutes.notifications),
-                          child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: TheyDiColors.divider)),
-                              child: const Icon(
-                                  Icons.notifications_outlined,
-                                  color: TheyDiColors.textSecondary,
-                                  size: 20)),
-                        ),
+                        const NotificationIconButton(),
                       ],
                     ),
                     const SizedBox(height: 16),

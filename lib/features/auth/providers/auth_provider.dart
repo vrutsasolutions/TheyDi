@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ── Firebase Auth Instance ──
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
@@ -63,6 +65,8 @@ class AuthNotifier extends AsyncNotifier<User?> {
           email: email,
           phone: phone,
         );
+        // Add this
+        await _updateOnlineStatus(true);
       }
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -84,6 +88,8 @@ class AuthNotifier extends AsyncNotifier<User?> {
         email: email,
         password: password,
       );
+      // Add this
+      await _updateOnlineStatus(true);
     } catch (e, st) {
       state = AsyncError(e, st);
       rethrow;
@@ -101,7 +107,8 @@ class AuthNotifier extends AsyncNotifier<User?> {
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
         // ANDROID / IOS: Use GoogleSignIn plugin
-        final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+        final GoogleSignInAccount googleUser =
+            await GoogleSignIn.instance.authenticate();
         final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
         final credential = GoogleAuthProvider.credential(
@@ -124,7 +131,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
           );
         }
       }
-
+      await _updateOnlineStatus(true);
       state = AsyncData(user);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -132,22 +139,22 @@ class AuthNotifier extends AsyncNotifier<User?> {
     }
   }
 
-  Future<void> login({
-    required String email,
-    required String password,
-    bool keepMeSignedIn = true,
-  }) async {
-    await signInWithEmail(
-      email: email,
-      password: password,
-      keepMeSignedIn: keepMeSignedIn,
-    );
-  }
 
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keepSignedInKey, false);
+    await _updateOnlineStatus(false);
     await _auth.signOut();
+  }
+
+  Future<void> _updateOnlineStatus(bool isOnline) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'isOnline': isOnline,
+      'lastSeen': FieldValue.serverTimestamp(),
+    });
   }
 }
 

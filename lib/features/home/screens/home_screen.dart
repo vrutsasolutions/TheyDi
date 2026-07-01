@@ -23,6 +23,8 @@ import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../events/models/event_model.dart';
 import '../../map/events_map_screen.dart';
+import '../../../shared/widgets/notification_icon_button.dart';
+
 
 // ── NEW imports ──
 import '../../reviews/services/review_trigger_service.dart';
@@ -393,23 +395,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               const SizedBox(width: 8),
                               Row(mainAxisSize: MainAxisSize.min, children: [
-                                GestureDetector(
-                                  onTap: () =>
-                                      context.push(AppRoutes.notifications),
-                                  child: Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: const Color.fromARGB(
-                                                  255, 229, 235, 229))),
-                                      child: const Icon(
-                                          Icons.notifications_outlined,
-                                          color:
-                                              Color.fromARGB(255, 75, 85, 99),
-                                          size: 20)),
+                                NotificationIconButton(
+                                  borderColor: const Color.fromARGB(255, 229, 235, 229),
+                                  iconColor: const Color.fromARGB(255, 75, 85, 99),
                                 ),
                                 const SizedBox(width: 8),
                                 GestureDetector(
