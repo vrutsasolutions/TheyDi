@@ -229,6 +229,30 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
+  Widget _buildProfileActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14, color: Colors.white),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: TheyDiColors.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: TheyDiTextStyles.labelSmall.copyWith(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'T';
@@ -238,7 +262,6 @@ class _ProfileContent extends ConsumerWidget {
     if (gender.isNotEmpty) identityParts.add(gender);
     final identityLine = identityParts.join(' • ');
 
-    // Whether to show interests chips (kept true by default)
     final showInterests = true;
 
     return SingleChildScrollView(
@@ -250,7 +273,7 @@ class _ProfileContent extends ConsumerWidget {
             children: [
               Text(
                 'Profile',
-                style: TheyDiTextStyles.headlineMedium.copyWith(
+                style: TheyDiTextStyles.displayMedium.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -281,49 +304,71 @@ class _ProfileContent extends ConsumerWidget {
 
           const SizedBox(height: 18),
 
-          // ══════════════════════════════════════
-          // HERO ROW — avatar left, all info right
-          // ══════════════════════════════════════
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  gradient: TheyDiColors.gradientPrimary,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: TheyDiColors.primary.withValues(alpha: 0.35),
-                      width: 2),
-                ),
-                child: ClipOval(
-                  child: photoUrl.isNotEmpty
-                      ? Image.network(photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                                child: Text(initial,
-                                    style: TheyDiTextStyles.displayLarge
-                                        .copyWith(
-                                            fontSize: 36, color: Colors.white)),
-                              ))
-                      : Center(
-                          child: Text(initial,
-                              style: TheyDiTextStyles.displayLarge
-                                  .copyWith(fontSize: 36, color: Colors.white)),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      gradient: TheyDiColors.gradientPrimary,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: TheyDiColors.primary.withValues(alpha: 0.35),
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: photoUrl.isNotEmpty
+                          ? Image.network(photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                    child: Text(initial,
+                                        style: TheyDiTextStyles.displayLarge
+                                            .copyWith(fontSize: 36, color: Colors.white)),
+                                  ))
+                          : Center(
+                              child: Text(initial,
+                                  style: TheyDiTextStyles.displayLarge
+                                      .copyWith(fontSize: 36, color: Colors.white)),
+                            ),
+                    ),
+                  ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+
+                  const SizedBox(height: 8),
+
+                  // Show verify button only when not verified
+                  if (!isVerified)
+                    Center(
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.push(AppRoutes.verifyProfile),
+                        icon: const Icon(Icons.check, size: 14, color: Colors.white),
+                        label: const Text('Verify Profile'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          minimumSize: const Size(0, 36),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          textStyle: TheyDiTextStyles.labelSmall
+                              .copyWith(color: Colors.white, fontSize: 12),
                         ),
-                ),
-              ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+                      ),
+                    ),
+                ],
+              ),
 
               const SizedBox(width: 16),
 
-              // Info column
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Name + verified badge
                     Row(
                       children: [
                         Expanded(
@@ -331,25 +376,30 @@ class _ProfileContent extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Flexible(
-                                child: Text(displayName,
-                                    style: TheyDiTextStyles.headlineMedium
-                                        .copyWith(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                      height: 1.15,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  displayName,
+                                  style: TheyDiTextStyles.headlineMedium.copyWith(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               if (isVerified) ...[
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.all(3),
                                   decoration: const BoxDecoration(
-                                      color: TheyDiColors.warning,
-                                      shape: BoxShape.circle),
-                                  child: const Icon(Icons.check,
-                                      size: 12, color: Colors.white),
+                                    color: TheyDiColors.warning,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ],
@@ -358,7 +408,6 @@ class _ProfileContent extends ConsumerWidget {
                       ],
                     ).animate(delay: 80.ms).fade(duration: 300.ms),
 
-                    // Age • Gender
                     if (identityLine.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(identityLine,
@@ -368,7 +417,6 @@ class _ProfileContent extends ConsumerWidget {
                           .fade(duration: 300.ms),
                     ],
 
-                    // Location
                     if (city.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(
@@ -386,7 +434,6 @@ class _ProfileContent extends ConsumerWidget {
                       ).animate(delay: 110.ms).fade(duration: 300.ms),
                     ],
 
-                    // Email
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(email,
@@ -398,7 +445,6 @@ class _ProfileContent extends ConsumerWidget {
                           .fade(duration: 300.ms),
                     ],
 
-                    // Bio
                     if (bio.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(bio,
@@ -411,7 +457,6 @@ class _ProfileContent extends ConsumerWidget {
                           .fade(duration: 300.ms),
                     ],
 
-                    // ── Interests — directly under bio, above buttons ──
                     if (interests.isNotEmpty && showInterests) ...[
                       const SizedBox(height: 10),
                       Wrap(
@@ -435,22 +480,45 @@ class _ProfileContent extends ConsumerWidget {
 
                     const SizedBox(height: 10),
 
-                    // Edit Profile + Share Profile
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _ProfileButton(
-                          icon: Icons.edit_outlined,
-                          label: 'Edit Profile',
-                          onTap: () => context.push(AppRoutes.editprofile),
-                        ).animate(delay: 150.ms).fade(duration: 300.ms),
-                        _ProfileButton(
-                          icon: Icons.share_outlined,
-                          label: 'Share Profile',
-                          onTap: () => _openShareSheet(context),
-                        ).animate(delay: 150.ms).fade(duration: 300.ms),
-                      ],
+                    // Mobile: show buttons side-by-side with equal flexible width
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth >= 600;
+                        if (isWide) return const SizedBox.shrink();
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => context.push(AppRoutes.editprofile),
+                                icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+                                label: const Text('Edit'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: TheyDiColors.primary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _openShareSheet(context),
+                                icon: const Icon(Icons.share, size: 14, color: Colors.white),
+                                label: const Text('Share'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: TheyDiColors.primary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -458,11 +526,56 @@ class _ProfileContent extends ConsumerWidget {
             ],
           ),
 
+          // Web/Desktop: place buttons below the interests, left aligned with profile info
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 600;
+              if (!isWide) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 104),
+                    SizedBox(
+                      width: 170,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.push(AppRoutes.editprofile),
+                        icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+                        label: const Text('Edit'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 170,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openShareSheet(context),
+                        icon: const Icon(Icons.share, size: 14, color: Colors.white),
+                        label: const Text('Share'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
           const SizedBox(height: 24),
 
-          // ══════════════════════════════════════
-          // STAT CARDS — live counts, tappable
-          // ══════════════════════════════════════
           Column(
             children: [
               Row(
@@ -509,18 +622,8 @@ class _ProfileContent extends ConsumerWidget {
             ],
           ).animate(delay: 200.ms).fade(duration: 400.ms),
 
-          // const SizedBox(height: 28),
-
-          // _PremiumHostCard(
-          //   onTap: () => context.push(AppRoutes.hostDashboard),
-          // ).animate(delay: 230.ms).fade(duration: 300.ms),
-
-          // const SizedBox(height: 20),
           const SizedBox(height: 20),
 
-          // ══════════════════════════════════════
-          // MENU ITEMS
-          // ══════════════════════════════════════
           _MenuItem(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
@@ -657,122 +760,49 @@ class _ProfileButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: TheyDiColors.primary,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: TheyDiColors.primary.withValues(alpha: 0.18),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: Colors.white),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TheyDiTextStyles.labelSmall.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(
+    vertical: 10,
+    horizontal: 12,
+  ),
+  decoration: BoxDecoration(
+    color: TheyDiColors.primary,
+    borderRadius: BorderRadius.circular(10),
+    boxShadow: [
+      BoxShadow(
+        color: TheyDiColors.primary.withValues(alpha: 0.18),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  ),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(
+        icon,
+        size: 15,
+        color: Colors.white,
+      ),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          style: TheyDiTextStyles.labelSmall.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
+    ],
+  ),
+),
     );
   }
 }
 
-// class _PremiumHostCard extends StatelessWidget {
-//   final VoidCallback onTap;
 
-//   const _PremiumHostCard({required this.onTap});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return GestureDetector(
-//       onTap: onTap,
-//       child: Container(
-//         width: double.infinity,
-//         padding: const EdgeInsets.all(16),
-//         decoration: BoxDecoration(
-//           gradient: const LinearGradient(
-//             colors: [TheyDiColors.primary, TheyDiColors.secondary],
-//             begin: Alignment.topLeft,
-//             end: Alignment.bottomRight,
-//           ),
-//           borderRadius: BorderRadius.circular(14),
-//           boxShadow: [
-//             BoxShadow(
-//               color: TheyDiColors.primary.withValues(alpha: 0.18),
-//               blurRadius: 18,
-//               offset: const Offset(0, 8),
-//             ),
-//           ],
-//         ),
-//         child: Row(
-//           children: [
-//             Container(
-//               width: 42,
-//               height: 42,
-//               decoration: BoxDecoration(
-//                 color: Colors.white.withValues(alpha: 0.18),
-//                 borderRadius: BorderRadius.circular(12),
-//               ),
-//               child: const Icon(
-//                 Icons.workspace_premium_outlined,
-//                 color: Colors.white,
-//                 size: 24,
-//               ),
-//             ),
-//             const SizedBox(width: 14),
-//             Expanded(
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Text(
-//                     'Become Premium Host',
-//                     style: TheyDiTextStyles.headlineSmall.copyWith(
-//                       color: Colors.white,
-//                       fontWeight: FontWeight.w700,
-//                     ),
-//                   ),
-//                   const SizedBox(height: 4),
-//                   Text(
-//                     'Unlock better tools for events, insights, and earnings.',
-//                     style: TheyDiTextStyles.bodySmall.copyWith(
-//                       color: Colors.white.withValues(alpha: 0.88),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-//             const SizedBox(width: 12),
-//             Container(
-//               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-//               decoration: BoxDecoration(
-//                 color: Colors.white,
-//                 borderRadius: BorderRadius.circular(10),
-//               ),
-//               child: Text(
-//                 'Start',
-//                 style: TheyDiTextStyles.labelMedium.copyWith(
-//                   color: TheyDiColors.primary,
-//                   fontWeight: FontWeight.w700,
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 class _StatCard extends StatelessWidget {
   final String label;

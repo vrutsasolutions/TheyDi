@@ -767,9 +767,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     color: TheyDiColors.textPrimary,
                     onPressed: () => context.pop()),
                 Expanded(
-                    child: Text('Create Event',
-                        style: TheyDiTextStyles.headlineMedium,
-                        textAlign: TextAlign.center)),
+                    child: Text(
+  'Create Event',
+  style: TheyDiTextStyles.displayMedium,
+  textAlign: TextAlign.center,
+)),
                 const SizedBox(width: 40),
               ]),
             ),

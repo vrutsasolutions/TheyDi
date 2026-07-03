@@ -133,41 +133,54 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
               // ── App Bar ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back,
-                          color: TheyDiColors.textPrimary),
-                      onPressed: () => context.pop(),
-                    ),
-                    const SizedBox(width: 4),
-                    Text('Friend Circles',
-                        style: TheyDiTextStyles.displayMedium),
-                    const Spacer(),
-                    if (!widget.isSelectionMode)
-                      GestureDetector(
-                        onTap: () => context.push(AppRoutes.createCircle),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            gradient: TheyDiColors.gradientPrimary,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.add,
-                                  color: Colors.white, size: 16),
-                              const SizedBox(width: 4),
-                              Text('New',
-                                  style: TheyDiTextStyles.labelMedium
-                                      .copyWith(color: Colors.white)),
-                            ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back,
+                              color: TheyDiColors.textPrimary),
+                          onPressed: () => context.pop(),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Friend Circles',
+                            style: TheyDiTextStyles.displayMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                  ],
+                        if (!widget.isSelectionMode) ...[
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: () => context.push(AppRoutes.createCircle),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  gradient: TheyDiColors.gradientPrimary,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.add,
+                                        color: Colors.white, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text('New',
+                                        style: TheyDiTextStyles.labelMedium
+                                            .copyWith(color: Colors.white)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ).animate().fade(duration: 300.ms),
 
