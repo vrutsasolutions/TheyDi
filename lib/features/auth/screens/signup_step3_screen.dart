@@ -80,7 +80,6 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
   Uint8List? _imageBytes;
   String? _uploadedImageUrl;
   bool _isUploadingImage = false;
-  String? _photoValidationError;
 
   @override
   void initState() {
@@ -250,7 +249,6 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
           _isUploadingImage = false;
           // Pre-fill signupData so it persists if user navigates back
           widget.signupData.profileImageUrl = url;
-          _photoValidationError = null;
         });
         _showSnack('✅ Profile photo added', Colors.green);
       }
@@ -364,16 +362,6 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
   // ── Continue ───────────────────────────────────────────────────────────────
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
-
-    final hasPhoto = _uploadedImageUrl != null ||
-        (widget.signupData.profileImageUrl?.isNotEmpty == true);
-    if (!hasPhoto) {
-      setState(() => _photoValidationError = 'Please upload your profile image.');
-      _showSnack('Please upload your profile image.', Colors.red);
-      return;
-    } else if (_photoValidationError != null) {
-      setState(() => _photoValidationError = null);
-    }
 
     final raw = _usernameController.text.trim();
     final stored = raw.toLowerCase();
@@ -650,20 +638,21 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                               child: Text(
                                 _usernameController.text.trim().isNotEmpty
                                     ? previewName
-                                    : '',
+                                    : 'Your Name',
                                 key: ValueKey(previewName),
                                 style: TheyDiTextStyles.labelLarge.copyWith(
                                     color: TheyDiColors.textSecondary),
                               ),
                             ),
-                            
                             const SizedBox(height: 4),
                             Text(
-                              'Upload a valid user image',
+                              _imageBytes != null
+                                  ? 'Tap to change photo'
+                                  : 'Add Photo (Optional)',
                               style: TheyDiTextStyles.caption.copyWith(
-                                color: TheyDiColors.textMuted,
-                              ),
-                              textAlign: TextAlign.center,
+                                  color: _imageBytes != null
+                                      ? TheyDiColors.primary
+                                      : TheyDiColors.textMuted),
                             ),
                           ]),
                         ).animate(delay: 100.ms).fade(duration: 400.ms),
@@ -671,10 +660,23 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                         const SizedBox(height: 28),
 
                         // ── USERNAME (single field) ─────────────────────────
-                        Text('Username (@handle)',
-                                style: TheyDiTextStyles.labelMedium)
-                            .animate(delay: 140.ms)
-                            .fade(duration: 300.ms),
+                        Row(children: [
+                          Text('Username (@handle)',
+                              style: TheyDiTextStyles.labelMedium),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color:
+                                  TheyDiColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('Instagram style',
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: TheyDiColors.primary, fontSize: 10)),
+                          ),
+                        ]).animate(delay: 140.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 4),
                         Text(
@@ -748,15 +750,10 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                         const SizedBox(height: 24),
 
                         // ── Bio ────────────────────────────────────────────
-                        Text('Bio', style: TheyDiTextStyles.labelMedium)
+                        Text('Bio (optional)',
+                                style: TheyDiTextStyles.labelMedium)
                             .animate(delay: 200.ms)
                             .fade(duration: 300.ms),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Write a short bio so people know who you are.',
-                          style: TheyDiTextStyles.caption
-                              .copyWith(color: TheyDiColors.textMuted),
-                        ).animate(delay: 210.ms).fade(duration: 300.ms),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _bioController,
@@ -769,15 +766,6 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                             counterStyle: TextStyle(
                                 color: TheyDiColors.textMuted, fontSize: 11),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Please enter your bio.';
-                            }
-                            if (v.trim().length < 15) {
-                              return 'Bio must be at least 15 characters';
-                            }
-                            return null;
-                          },
                         ).animate(delay: 215.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 20),

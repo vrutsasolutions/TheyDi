@@ -440,9 +440,9 @@ class _StatPill extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // _PendingRequestCard — NOW reads pendingMeta tag from Firestore
 // ─────────────────────────────────────────────────────────────────────────────
-class _PendingRequestCard extends StatelessWidget {
+class _PendingRequestCard extends StatefulWidget {
   final String userUid;
-  final String eventId;       // ← NEW
+  final String eventId;
   final bool isPaidEvent;
   final VoidCallback onApprove;
   final VoidCallback onReject;
@@ -458,6 +458,24 @@ class _PendingRequestCard extends StatelessWidget {
     required this.onViewProfile,
     required this.isProcessing,
   });
+
+  @override
+  State<_PendingRequestCard> createState() => _PendingRequestCardState();
+}
+
+class _PendingRequestCardState extends State<_PendingRequestCard> {
+  late Future<List<DocumentSnapshot>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = Future.wait([
+      FirebaseFirestore.instance.collection('users').doc(widget.userUid).get(),
+      FirebaseFirestore.instance
+          .collection('events').doc(widget.eventId)
+          .collection('pendingMeta').doc(widget.userUid).get(),
+    ]);
+  }
 
   // ── Tag colour mapping ──
   static Color _tagColor(String tag) {
@@ -483,12 +501,7 @@ class _PendingRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<DocumentSnapshot>>(
-      future: Future.wait([
-        FirebaseFirestore.instance.collection('users').doc(userUid).get(),
-        FirebaseFirestore.instance
-            .collection('events').doc(eventId)
-            .collection('pendingMeta').doc(userUid).get(),
-      ]),
+      future: _future,
       builder: (context, snapshot) {
         final userSnap = snapshot.data?[0];
         final metaSnap = snapshot.data?[1];
@@ -522,7 +535,7 @@ class _PendingRequestCard extends StatelessWidget {
               MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
-                  onTap: onViewProfile,
+                  onTap: widget.onViewProfile,
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Container(width: 44, height: 44,
                       decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, borderRadius: BorderRadius.circular(12)),
@@ -536,7 +549,7 @@ class _PendingRequestCard extends StatelessWidget {
                         Icon(Icons.open_in_new, size: 11, color: TheyDiColors.textMuted),
                       ]),
                       if (email.isNotEmpty) Text(email, style: TheyDiTextStyles.caption),
-                      if (isPaidEvent) ...[
+                      if (widget.isPaidEvent) ...[
                         const SizedBox(height: 2),
                         Text('Approving will require payment',
                             style: TheyDiTextStyles.caption.copyWith(color: Colors.blue, fontSize: 10)),
@@ -550,7 +563,7 @@ class _PendingRequestCard extends StatelessWidget {
 
               // ── Reject ──
               GestureDetector(
-                onTap: isProcessing ? null : onReject,
+                onTap: widget.isProcessing ? null : widget.onReject,
                 child: Container(width: 38, height: 38,
                   decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.close, color: Colors.red, size: 20)),
@@ -558,7 +571,7 @@ class _PendingRequestCard extends StatelessWidget {
               const SizedBox(width: 8),
               // ── Approve ──
               GestureDetector(
-                onTap: isProcessing ? null : onApprove,
+                onTap: widget.isProcessing ? null : widget.onApprove,
                 child: Container(width: 38, height: 38,
                   decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.check, color: Colors.green, size: 20)),
@@ -602,14 +615,28 @@ class _PendingRequestCard extends StatelessWidget {
 }
 
 // ── Awaiting Payment Card (unchanged) ────────────────────────────────────────
-class _AwaitingPaymentCard extends StatelessWidget {
-  final String userUid; final VoidCallback onViewProfile;
+class _AwaitingPaymentCard extends StatefulWidget {
+  final String userUid; 
+  final VoidCallback onViewProfile;
   const _AwaitingPaymentCard({required this.userUid, required this.onViewProfile});
+
+  @override
+  State<_AwaitingPaymentCard> createState() => _AwaitingPaymentCardState();
+}
+
+class _AwaitingPaymentCardState extends State<_AwaitingPaymentCard> {
+  late Future<DocumentSnapshot> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = FirebaseFirestore.instance.collection('users').doc(widget.userUid).get();
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(userUid).get(),
+      future: _future,
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final name = data['displayName'] ?? 'Loading...';
@@ -618,10 +645,10 @@ class _AwaitingPaymentCard extends StatelessWidget {
           decoration: BoxDecoration(color: TheyDiColors.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.blue.withValues(alpha: 0.3))),
           child: Row(children: [
             MouseRegion(cursor: SystemMouseCursors.click,
-              child: GestureDetector(onTap: onViewProfile, child: Row(mainAxisSize: MainAxisSize.min, children: [
+              child: GestureDetector(onTap: widget.onViewProfile, child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(width: 40, height: 40,
                     decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, borderRadius: BorderRadius.circular(10)),
-                    child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    child: Center(child: Text(name.isNotEmpty && name != 'Loading...' ? name[0].toUpperCase() : '?',
                         style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)))),
                 const SizedBox(width: 12),
                 Row(children: [Text(name, style: TheyDiTextStyles.labelMedium), const SizedBox(width: 4), Icon(Icons.open_in_new, size: 11, color: TheyDiColors.textMuted)]),

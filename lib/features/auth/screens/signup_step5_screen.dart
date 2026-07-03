@@ -348,44 +348,7 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                           ),
                         ).animate(delay: 350.ms).fade(duration: 300.ms),
 
-                      // ── Debug info (only in debug mode) ──
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: Colors.yellow.withValues(alpha: 0.3)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Debug Info',
-                                  style: TextStyle(
-                                      color: Colors.yellow,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Text('Email: ${widget.signupData.email}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 10)),
-                              Text(
-                                  'Username: ${widget.signupData.username}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 10)),
-                              Text('City: ${widget.signupData.city}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 10)),
-                              Text(
-                                  'Route target: ${AppRoutes.home}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 10)),
-                            ],
-                          ),
-                        ),
-                      ],
+
                     ],
                   ),
                 ),

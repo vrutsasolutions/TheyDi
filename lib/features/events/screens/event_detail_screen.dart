@@ -103,16 +103,21 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       if (uid != null) {
         final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
         if (userDoc.exists) {
-          final dob = userDoc.data()?['dob'];
-          DateTime? birthDate;
-          if (dob is Timestamp) {
-            birthDate = dob.toDate();
-          } else if (dob is String && dob.isNotEmpty) birthDate = DateTime.tryParse(dob);
-          if (birthDate != null) {
-            final today = DateTime.now();
-            int age = today.year - birthDate.year;
-            if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) age--;
-            if (mounted) setState(() => _userAge = age);
+          final data = userDoc.data();
+          if (data != null && data['age'] != null && data['age'] is num) {
+            if (mounted) setState(() => _userAge = (data['age'] as num).toInt());
+          } else {
+            final dob = userDoc.data()?['dob'];
+            DateTime? birthDate;
+            if (dob is Timestamp) {
+              birthDate = dob.toDate();
+            } else if (dob is String && dob.isNotEmpty) birthDate = DateTime.tryParse(dob);
+            if (birthDate != null) {
+              final today = DateTime.now();
+              int age = today.year - birthDate.year;
+              if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) age--;
+              if (mounted) setState(() => _userAge = age);
+            }
           }
         }
       }

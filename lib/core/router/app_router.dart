@@ -19,7 +19,6 @@ import 'package:theydi/features/events/screens/create_event_screen.dart';
 import 'package:theydi/shared/widgets/main_shell.dart';
 import 'package:theydi/features/home/screens/home_screen.dart';
 import 'package:theydi/features/profile/screens/profile_screen.dart';
-import 'package:theydi/features/profile/screens/verify_profile_screen.dart';
 import 'package:theydi/features/explore/screens/explore_screen.dart';
 import 'package:theydi/features/events/screens/my_events_screen.dart';
 import 'package:theydi/features/events/screens/event_detail_screen.dart';
@@ -48,8 +47,6 @@ import 'package:theydi/features/profile/screens/friend_info_screen.dart';
 import 'package:theydi/features/profile/screens/friends_hub_screen.dart';
 import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
-import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
-import 'package:theydi/features/settings/screens/report_problem_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
@@ -58,8 +55,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     AppRoutes.explore,
     AppRoutes.myEvents,
     AppRoutes.profile,
-    AppRoutes.editprofile,
-    AppRoutes.verifyProfile,
     AppRoutes.createEvent,
     AppRoutes.hostDashboard,
     AppRoutes.circles,
@@ -95,14 +90,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(
- path: AppRoutes.blockedUsers,
-  builder: (context, state) => const BlockedUsersScreen(),
-),
-GoRoute(
-  path: AppRoutes.reportProblem,
-  builder: (context, state) => const ReportProblemScreen(),
-),
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
@@ -198,12 +185,7 @@ GoRoute(
       ),
       GoRoute(
         path: AppRoutes.circles,
-        builder: (context, state) {
-          final extra = state.extra;
-          final isSelectionMode = extra is Map<String, dynamic> &&
-              (extra['isSelectionMode'] as bool? ?? false);
-          return CirclesListScreen(isSelectionMode: isSelectionMode);
-        },
+        builder: (context, state) => const CirclesListScreen(),
       ),
       GoRoute(
         path: AppRoutes.createCircle,
@@ -332,10 +314,6 @@ GoRoute(
         builder: (context, state) => SignupStep5Screen(
           signupData: state.extra as SignupData,
         ),
-      ),
-      GoRoute(
-        path: AppRoutes.verifyProfile,
-        builder: (context, state) => const VerifyProfileScreen(),
       ),
  
       // ── Shell routes ────────────────────────────────────────────────────────

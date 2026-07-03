@@ -6,16 +6,45 @@ service cloud.firestore {
       allow read, write, delete: if true;
     }
 
+    // Usernames collection - critical for uniqueness checks during signup
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
     match /users/{userId} {
       // Allow unauthenticated read so forgot-password can check if email exists
       allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avgRating', 'totalReviews'])
+      );
+      allow delete: if request.auth != null && request.auth.uid == userId;
 
       // Notifications subcollection
       match /notifications/{notificationId} {
-        allow read, create: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null;
         allow update, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Friends subcollection
+      match /friends/{friendId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && (request.auth.uid == userId || request.auth.uid == friendId);
+      }
+
+      // Friend Requests subcollection
+      match /friendRequests/{requesterId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+
+      // Blocked subcollection
+      match /blocked/{blockedUid} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
@@ -28,6 +57,20 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeUids', 'pendingUids']))
       );
       allow delete: if request.auth != null && request.auth.uid == resource.data.creatorUid;
+
+      // attendeePayments subcollection
+      match /attendeePayments/{paymentId} {
+        allow read: if request.auth != null && request.auth.uid == paymentId;
+      }
+
+      // pendingMeta subcollection
+      match /pendingMeta/{uid} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && (
+          request.auth.uid == uid || 
+          request.auth.uid == get(/databases/$(database)/documents/events/$(eventId)).data.creatorUid
+        );
+      }
     }
 
     match /bookings/{bookingId} {
@@ -64,6 +107,16 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.reviewerUid;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.reviewerUid;
+    }
+
+    match /chats/{chatId} {
+      allow read: if request.auth != null && request.auth.uid in chatId.split('_');
+      allow write: if request.auth != null && request.auth.uid in chatId.split('_');
+
+      match /messages/{messageId} {
+        allow read: if request.auth != null && request.auth.uid in chatId.split('_');
+        allow write: if request.auth != null && request.auth.uid in chatId.split('_');
+      }
     }
   }
 }

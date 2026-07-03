@@ -941,7 +941,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                           ],
                         ),
                       );
-                    }),
+                    }).toList(),
 
                     const SizedBox(height: 28),
 

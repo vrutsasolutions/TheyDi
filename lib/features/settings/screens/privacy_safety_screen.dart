@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import 'package:theydi/core/router/app_routes.dart';
 
 // Stream user's privacy settings from Firestore
 final _privacySettingsProvider =
@@ -154,11 +153,23 @@ class PrivacySafetyScreen extends ConsumerWidget {
       }
       await batch.commit();
 
+      // Get username before deleting user document
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final username = userDoc.data()?['username'] as String?;
+
       // Delete user's Firestore document
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .delete();
+
+      // Free up their username in the usernames registry
+      if (username != null && username.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('usernames')
+            .doc(username.toLowerCase())
+            .delete();
+      }
 
       // Delete Firebase Auth account
       await user.delete();
@@ -332,17 +343,14 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           icon: Icons.block_outlined,
                           title: 'Blocked users',
                           subtitle: 'Manage your blocked list',
-                          // onTap: () {
-                          //   ScaffoldMessenger.of(context).showSnackBar(
-                          //     const SnackBar(
-                          //       content: Text(
-                          //           'Blocked users — coming soon'),
-                          //     ),
-                          //   );
-                          // },
                           onTap: () {
-  context.push(AppRoutes.blockedUsers);
-}
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Blocked users — coming soon'),
+                              ),
+                            );
+                          },
                         ).animate(delay: 500.ms).fade(duration: 300.ms),
 
                         _ActionTile(
@@ -351,8 +359,13 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           subtitle:
                               'Report inappropriate content or behaviour',
                           onTap: () {
-  context.push(AppRoutes.reportProblem);
-},
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Report — coming soon'),
+                              ),
+                            );
+                          },
                         ).animate(delay: 550.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 24),

@@ -8,6 +8,8 @@ import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +19,11 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  if (kDebugMode) {
+    // Connect to the local Cloud Functions Emulator to bypass CORS
+    // FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator('localhost', 5001);
+  }
 
   // Run database mojibake migration in background
   _fixDatabaseMojibake();

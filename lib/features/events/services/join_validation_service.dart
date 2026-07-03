@@ -154,6 +154,10 @@ class JoinValidationService {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   static int _calculateAge(Map<String, dynamic> userDoc) {
+    if (userDoc['age'] != null && userDoc['age'] is num) {
+      return (userDoc['age'] as num).toInt();
+    }
+
     final dob = userDoc['dob'];
     DateTime? birthDate;
     if (dob is Timestamp) {

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../../shared/widgets/google_map_widget.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_theme.dart';
 import 'package:theydi/features/events/models/event_model.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class EventsMapScreen extends StatefulWidget {
   final List<EventModel> events;
@@ -26,40 +24,34 @@ class EventsMapScreen extends StatefulWidget {
 
 class _EventsMapScreenState extends State<EventsMapScreen> {
   EventModel? _selectedEvent;
-  late final GoogleMapController? _mapController;
+  late final MapController _mapController;
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _mapController = MapController();
-  // }
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+  }
 
   LatLng get _initialCenter {
     if (widget.userLat != null && widget.userLng != null) {
       return LatLng(widget.userLat!, widget.userLng!);
     }
-
+    // Default to India center
     final eventsWithCoords = widget.events
         .where((e) => e.latitude != 0 && e.longitude != 0)
         .toList();
-
     if (eventsWithCoords.isNotEmpty) {
       return LatLng(
-        eventsWithCoords.first.latitude,
-        eventsWithCoords.first.longitude,
-      );
+          eventsWithCoords.first.latitude, eventsWithCoords.first.longitude);
     }
-
-    return const LatLng(20.5937, 78.9629);
+    return const LatLng(20.5937, 78.9629); // India center
   }
 
   void _onMarkerTap(EventModel event) {
     setState(() => _selectedEvent = event);
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(event.latitude, event.longitude),
-        14,
-      ),
+    _mapController.move(
+      LatLng(event.latitude, event.longitude),
+      14.0,
     );
   }
 
@@ -73,49 +65,97 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
       body: Stack(
         children: [
           // ── Map ──
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _initialCenter,
-              zoom: widget.userLat != null ? 12 : 5,
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _initialCenter,
+              initialZoom: widget.userLat != null ? 12.0 : 5.0,
+              onTap: (_, __) => setState(() => _selectedEvent = null),
             ),
-            onMapCreated: (controller) {
-              _mapController = controller;
-            },
-            onTap: (_) {
-              setState(() {
-                _selectedEvent = null;
-              });
-            },
-            myLocationEnabled: widget.userLat != null,
-            myLocationButtonEnabled: true,
-            zoomControlsEnabled: true,
-            markers: {
-              if (widget.userLat != null && widget.userLng != null)
-                Marker(
-                  markerId: const MarkerId("user"),
-                  position: LatLng(
-                    widget.userLat!,
-                    widget.userLng!,
-                  ),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueAzure,
-                  ),
-                ),
-              ...eventsWithCoords.map(
-                (event) => Marker(
-                  markerId: MarkerId(event.id),
-                  position: LatLng(
-                    event.latitude,
-                    event.longitude,
-                  ),
-                  infoWindow: InfoWindow(
-                    title: event.title,
-                    snippet: event.isFree ? "FREE" : "₹${event.price.toInt()}",
-                  ),
-                  onTap: () => _onMarkerTap(event),
-                ),
+            children: [
+              // OpenStreetMap tiles (dark style)
+              TileLayer(
+                urlTemplate:
+                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c'],
+                userAgentPackageName: 'com.tiein.app',
               ),
-            },
+
+              // User location marker
+              if (widget.userLat != null && widget.userLng != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: LatLng(widget.userLat!, widget.userLng!),
+                      width: 20,
+                      height: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+              // Event markers
+              MarkerLayer(
+                markers: eventsWithCoords.map((event) {
+                  final isSelected = _selectedEvent?.id == event.id;
+                  return Marker(
+                    point: LatLng(event.latitude, event.longitude),
+                    width: isSelected ? 52 : 44,
+                    height: isSelected ? 52 : 44,
+                    child: GestureDetector(
+                      onTap: () => _onMarkerTap(event),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.6),
+                            width: isSelected ? 3 : 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: TheyDiColors.primary
+                                  .withValues(alpha: isSelected ? 0.6 : 0.3),
+                              blurRadius: isSelected ? 12 : 6,
+                              spreadRadius: isSelected ? 3 : 1,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            event.isFree
+                                ? 'F'
+                                : '₹${event.price.toInt()}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSelected ? 11 : 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
 
           // ── Dark overlay for contrast ──
@@ -173,8 +213,8 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
 
                   // Event count badge
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0D0D14).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12),
@@ -261,7 +301,8 @@ class _EventPreviewCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: TheyDiColors.cardLight,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: TheyDiColors.divider, width: 1.5),
+          border: Border.all(
+              color: TheyDiColors.divider, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -351,8 +392,8 @@ class _EventPreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: event.isFree
                         ? Colors.green.withValues(alpha: 0.15)
@@ -362,7 +403,8 @@ class _EventPreviewCard extends StatelessWidget {
                   child: Text(
                     event.isFree ? 'FREE' : '₹${event.price.toInt()}',
                     style: TheyDiTextStyles.caption.copyWith(
-                      color: event.isFree ? Colors.green : TheyDiColors.primary,
+                      color:
+                          event.isFree ? Colors.green : TheyDiColors.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

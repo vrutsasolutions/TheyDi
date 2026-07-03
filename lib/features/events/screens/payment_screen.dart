@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -32,6 +35,8 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
+  late Razorpay _razorpay;
+
   bool _isProcessing = false;
   bool _paymentFailed = false;
   String _selectedMethod = 'UPI';
@@ -70,101 +75,66 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         .doc(widget.event.id)
         .collection('attendeePayments')
         .doc(_myUid)
-        .get();
+        .get(const GetOptions(source: Source.server));
     if (!payDoc.exists) return false;
     return (payDoc.data()?['status'] as String?) == 'paid';
   }
 
-  // ── Process payment ──────────────────────────────────────────────────────────
-  Future<void> _processPayment() async {
-    setState(() { _isProcessing = true; _paymentFailed = false; });
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
 
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() { _isProcessing = false; _paymentFailed = true; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Payment failed: ${response.message}'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (mounted) {
+      setState(() { _isProcessing = false; _paymentFailed = true; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('External Wallet Selected: ${response.walletName}'),
+        backgroundColor: Colors.orange,
+      ));
+    }
+  }
+
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
     try {
-      // Duplicate payment guard
-      if (await _alreadyPaid()) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('You have already paid for this event.'),
-            backgroundColor: Colors.orange,
-          ));
-        }
-        setState(() => _isProcessing = false);
-        return;
-      }
-
       final user = FirebaseAuth.instance.currentUser!;
       String userName = user.displayName ?? user.email!.split('@').first;
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (userDoc.exists) {
-          userName = userDoc.data()?['displayName'] ?? userName;
-        }
-      } catch (_) {}
-
-      // Simulate payment processing
-      await Future.delayed(const Duration(milliseconds: 1500));
-
-      final txnId = 'TXN${DateTime.now().millisecondsSinceEpoch}';
-
-      // ── Write booking record ──
-      final booking = BookingModel(
-        id: '',
-        eventId: widget.event.id,
-        eventTitle: widget.event.title,
-        userId: user.uid,
-        userName: userName,
-        hostUid: widget.event.creatorUid,
-        amount: _eventPrice,
-        platformFee: _platformFee,
-        totalAmount: _totalAmount,
-        status: BookingStatus.confirmed,
-        paymentMethod: _selectedMethod,
-        transactionId: txnId,
-        createdAt: DateTime.now(),
-        confirmedAt: DateTime.now(),
-      );
-
-      await FirebaseFirestore.instance
-          .collection('bookings')
-          .add(booking.toFirestoreMap());
-
-      final eventRef = FirebaseFirestore.instance
-          .collection('events')
-          .doc(widget.event.id);
-
-      // ── Move user into attendees ──
-      // If fromApproval, also remove from pendingUids (was already moved to
-      // attendeePayments = approved_pending_payment by host_manage)
-      final updates = <String, dynamic>{
-        'attendeeUids': FieldValue.arrayUnion([user.uid]),
-      };
-      if (widget.fromApproval) {
-        updates['approvedPendingPaymentUids'] = FieldValue.arrayRemove([user.uid]);
-      }
-      await eventRef.update(updates);
-
-      // ── Mark attendeePayments as paid ──
-      await eventRef
-          .collection('attendeePayments')
-          .doc(user.uid)
-          .set({
-        'status': 'paid',
-        'userName': userName,
-        'transactionId': txnId,
-        'paymentMethod': _selectedMethod,
-        'amount': _totalAmount,
-        'paidAt': Timestamp.now(),
+      final verifyPaymentCallable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('verifyPayment');
+      await verifyPaymentCallable.call({
+        'razorpay_payment_id': response.paymentId,
+        'razorpay_order_id': response.orderId,
+        'razorpay_signature': response.signature,
         'eventId': widget.event.id,
-      }, SetOptions(merge: true));
+        'eventTitle': widget.event.title,
+        'hostUid': widget.event.creatorUid,
+        'amount': _eventPrice,
+        'platformFee': _platformFee,
+        'totalAmount': _totalAmount,
+        'paymentMethod': _selectedMethod,
+        'fromApproval': widget.fromApproval,
+      });
 
-      // ── Update user event count ──
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'eventsAttended': FieldValue.increment(1)});
+      final txnId = response.paymentId ?? 'TXN${DateTime.now().millisecondsSinceEpoch}';
 
       // ── Notify host ──
       await NotificationService.notifyHostNewBooking(
@@ -199,7 +169,85 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       if (mounted) {
         setState(() { _isProcessing = false; _paymentFailed = true; });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Payment failed: $e'),
+          content: Text('Payment fulfillment failed: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  // ── Process payment ──────────────────────────────────────────────────────────
+  Future<void> _processPayment() async {
+    setState(() { _isProcessing = true; _paymentFailed = false; });
+
+    try {
+      // Duplicate payment guard
+      if (await _alreadyPaid()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('You have already paid for this event.'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      print('--- Starting payment process ---');
+      final keyId = dotenv.env['RAZORPAY_KEY_ID'];
+      print('Razorpay Key ID loaded: ${keyId != null}');
+
+      if (keyId == null) {
+        throw Exception('Razorpay Key ID not found in .env');
+      }
+
+      final amountInPaise = (_totalAmount * 100).toInt();
+      final user = FirebaseAuth.instance.currentUser!;
+      print('Calling createOrder for amount: $amountInPaise, user: ${user.uid}');
+
+      // ── Create Order securely via Backend ──
+      final createOrderCallable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createOrder');
+      print('Calling function in asia-south1...');
+      final response = await createOrderCallable.call({
+        'amount': amountInPaise,
+        'currency': 'INR',
+        'receipt': 'rcptid_${DateTime.now().millisecondsSinceEpoch}',
+        'notes': {
+          'eventId': widget.event.id,
+          'eventTitle': widget.event.title,
+          'userId': user.uid,
+          'hostUid': widget.event.creatorUid,
+          'platformFee': _platformFee.toString(),
+          'totalAmount': _totalAmount.toString(),
+          'fromApproval': widget.fromApproval.toString(),
+        }
+      });
+      print('Order created successfully. Response: ${response.data}');
+
+      final orderId = response.data['orderId'];
+
+      var options = {
+        'key': keyId,
+        'amount': amountInPaise,
+        'order_id': orderId,
+        'name': 'TheyDi',
+        'description': widget.event.title,
+        'prefill': {
+          'contact': '',
+          'email': user.email ?? ''
+        },
+      };
+      
+      print('Opening Razorpay UI...');
+      _razorpay.open(options);
+    } catch (e, stackTrace) {
+      print('--- PAYMENT LAUNCH ERROR ---');
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() { _isProcessing = false; _paymentFailed = true; });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not launch payment: $e'),
           backgroundColor: Colors.red,
         ));
       }

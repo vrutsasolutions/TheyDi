@@ -405,8 +405,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         } else if (isFriendRequest) {
           // 11. Incoming friend request → Friends Hub pending tab
           context.push(AppRoutes.friendRequests);
-        } else if (notif.type == 'suggested_friends') {
-          context.push(AppRoutes.circleDiscovery);
         } else if (notif.fromUid != null) {
           context.push(AppRoutes.userProfile, extra: {
             'uid': notif.fromUid!,
