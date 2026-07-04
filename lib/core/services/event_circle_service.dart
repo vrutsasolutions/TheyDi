@@ -9,10 +9,14 @@ class EventCircleService {
 
   /// Check if an event circle already exists for this event
   static Future<CircleModel?> getExistingEventCircle(String eventId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
     final snap = await FirebaseFirestore.instance
         .collection('circles')
         .where('type', isEqualTo: 'event')
         .where('eventId', isEqualTo: eventId)
+        .where('memberUids', arrayContains: user.uid)
         .limit(1)
         .get();
 

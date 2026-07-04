@@ -66,8 +66,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
           'pendingUids': FieldValue.arrayRemove([userUid]),
           'attendeeUids': FieldValue.arrayUnion([userUid]),
         });
-        await FirebaseFirestore.instance.collection('users').doc(userUid)
-            .update({'eventsAttended': FieldValue.increment(1)});
+        // Note: eventsAttended increment should be handled by a backend trigger to avoid permission denied
         await NotificationService.notifyRequestApproved(
             userUid: userUid, eventTitle: event.title, hostName: hostName, eventId: widget.eventId);
         if (mounted) {

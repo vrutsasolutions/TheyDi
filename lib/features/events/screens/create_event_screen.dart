@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -640,15 +641,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+      if (!_isFree) {
+        final data = userDoc.data() ?? {};
+        if (data['razorpayXFundAccountId'] == null || data['razorpayXFundAccountId'].toString().isEmpty) {
+          setState(() => _isLoading = false);
+          _showBankAccountSetupDialog();
+          return;
+        }
+      }
+
       final dateTime = DateTime(_selectedDate!.year, _selectedDate!.month,
           _selectedDate!.day, _selectedTime!.hour, _selectedTime!.minute);
 
       String creatorName = user.displayName ?? 'Anonymous';
       try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
         if (userDoc.exists) {
           creatorName = userDoc.data()?['displayName'] ?? creatorName;
         }
@@ -713,6 +721,94 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showBankAccountSetupDialog() {
+    final nameCtrl = TextEditingController(text: FirebaseAuth.instance.currentUser?.displayName ?? '');
+    final ifscCtrl = TextEditingController();
+    final accCtrl = TextEditingController();
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TheyDiColors.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Setup Host Payouts', style: TheyDiTextStyles.headlineMedium),
+                const SizedBox(height: 8),
+                Text('You are creating a paid event. Please add your bank details to receive automatic payouts.', style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary)),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: nameCtrl,
+                  style: TheyDiTextStyles.bodyMedium,
+                  decoration: const InputDecoration(labelText: 'Account Holder Name', prefixIcon: Icon(Icons.person_outline)),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: ifscCtrl,
+                  style: TheyDiTextStyles.bodyMedium,
+                  decoration: const InputDecoration(labelText: 'IFSC Code', hintText: 'e.g. HDFC0001234', prefixIcon: Icon(Icons.account_balance_outlined)),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: accCtrl,
+                  style: TheyDiTextStyles.bodyMedium,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Account Number', prefixIcon: Icon(Icons.numbers_outlined)),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isSaving ? null : () async {
+                      if (nameCtrl.text.trim().isEmpty || ifscCtrl.text.trim().isEmpty || accCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+                        return;
+                      }
+                      setModalState(() => isSaving = true);
+                      try {
+                        final HttpsCallable callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createRazorpayXContact');
+                        await callable.call({
+                          'name': nameCtrl.text.trim(),
+                          'ifsc': ifscCtrl.text.trim(),
+                          'accountNumber': accCtrl.text.trim(),
+                        });
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          _submit(); // Resume event creation
+                        }
+                      } catch (e) {
+                        setModalState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TheyDiColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isSaving 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Save & Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override

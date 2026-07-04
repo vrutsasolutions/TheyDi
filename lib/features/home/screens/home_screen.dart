@@ -108,6 +108,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _loadUserLocation() async {
+    // ---> TEMPORARY CODE TO GET TOKEN <---
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final token = await user.getIdToken(true);
+      print("========================================");
+      print("🔥 FIREBASE TOKEN: $token");
+      print("========================================");
+    }
+    // -------------------------------------
+
     try {
       final position = await LocationService.getCurrentPosition();
       if (position != null && mounted) {
