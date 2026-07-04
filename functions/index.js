@@ -343,3 +343,145 @@ exports.razorpayWebhook = onRequest(
     return res.status(500).send("Internal Server Error");
   }
 });
+
+ * 4. createRazorpayXContact
+ * Creates a RazorpayX Contact and Fund Account using provided dummy details.
+ */
+exports.createRazorpayXContact = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
+    
+    const uid = request.auth.uid;
+    const { name, ifsc, accountNumber } = request.data;
+    
+    if (!name || !ifsc || !accountNumber) {
+      throw new HttpsError("invalid-argument", "Missing bank details.");
+    }
+
+    const db = admin.firestore();
+    const userDoc = await db.collection("users").doc(uid).get();
+    
+    if (userDoc.exists && userDoc.data().razorpayXFundAccountId) {
+      return { success: true, fundAccountId: userDoc.data().razorpayXFundAccountId, message: "Already onboarded." };
+    }
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_SECRET_KEY;
+    if (!keyId || !keySecret) throw new HttpsError("internal", "Razorpay not configured.");
+    const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+
+    try {
+      // 1. Create Contact
+      const contactRes = await fetch("https://api.razorpay.com/v1/contacts", {
+        method: "POST",
+        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name,
+          email: request.auth.token.email || "host@example.com",
+          contact: "9999999999",
+          type: "vendor",
+          reference_id: uid,
+        })
+      });
+      const contact = await contactRes.json();
+      if (!contact.id) throw new Error("Failed to create contact: " + JSON.stringify(contact));
+
+      // 2. Create Fund Account
+      const fundRes = await fetch("https://api.razorpay.com/v1/fund_accounts", {
+        method: "POST",
+        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_id: contact.id,
+          account_type: "bank_account",
+          bank_account: {
+            name: name,
+            ifsc: ifsc,
+            account_number: accountNumber
+          }
+        })
+      });
+      const fundAccount = await fundRes.json();
+      if (!fundAccount.id) throw new Error("Failed to create fund account: " + JSON.stringify(fundAccount));
+
+      // 3. Save to Firestore
+      await db.collection("users").doc(uid).update({ 
+        razorpayXContactId: contact.id,
+        razorpayXFundAccountId: fundAccount.id 
+      });
+
+      return { success: true, fundAccountId: fundAccount.id };
+    } catch (e) {
+      logger.error("Error creating RazorpayX Contact/Fund Account", e);
+      throw new HttpsError("internal", e.message || "Failed to create RazorpayX details");
+    }
+});
+
+/**
+ * 5. releaseHostPayoutsX
+ * Transfers 90% of the ticket price to the host's RazorpayX Fund Account.
+ */
+exports.releaseHostPayoutsX = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    const { eventId, merchantAccountNumber } = request.data;
+    if (!eventId) throw new HttpsError("invalid-argument", "Event ID required.");
+    
+    const db = admin.firestore();
+    const eventDoc = await db.collection("events").doc(eventId).get();
+    if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
+
+    const hostUid = eventDoc.data().creatorUid;
+    const hostDoc = await db.collection("users").doc(hostUid).get();
+    const fundAccountId = hostDoc.data()?.razorpayXFundAccountId;
+
+    if (!fundAccountId) throw new HttpsError("failed-precondition", "Host has no linked RazorpayX Fund Account.");
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_SECRET_KEY;
+    const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+
+    const bookings = await db.collection("bookings").where("eventId", "==", eventId).where("status", "==", "confirmed").get();
+    
+    let transferCount = 0;
+    const sourceAccount = merchantAccountNumber || process.env.RAZORPAYX_ACCOUNT_NUMBER;
+    if (!sourceAccount) throw new HttpsError("invalid-argument", "Missing Merchant RazorpayX Account Number.");
+    
+    for (const doc of bookings.docs) {
+      const bData = doc.data();
+      if (bData.payoutStatus === "completed") continue;
+
+      const payoutAmount = Math.floor((bData.totalAmount - (bData.platformFee || 0)) * 100);
+
+      try {
+        const payoutRes = await fetch("https://api.razorpay.com/v1/payouts", {
+          method: "POST",
+          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            account_number: sourceAccount,
+            fund_account_id: fundAccountId,
+            amount: payoutAmount,
+            currency: "INR",
+            mode: "IMPS",
+            purpose: "payout",
+            reference_id: `theydi_payout_${doc.id}`,
+            notes: { 
+              project: "theydi",
+              user_id: hostUid,
+              bookingId: doc.id, 
+              eventId: eventId 
+            }
+          })
+        });
+        const payoutData = await payoutRes.json();
+        if (!payoutData.id) throw new Error("Payout failed: " + JSON.stringify(payoutData));
+
+        await doc.ref.update({ payoutStatus: "completed" });
+        transferCount++;
+      } catch (e) {
+        logger.error(`RazorpayX Payout failed for booking ${doc.id}`, e);
+      }
+    }
+
+    return { success: true, transfersProcessed: transferCount };
+});
