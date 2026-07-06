@@ -68,7 +68,9 @@ final _suggestedCirclesProvider =
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class CircleDiscoveryScreen extends ConsumerStatefulWidget {
-  const CircleDiscoveryScreen({super.key});
+  final int initialTab;
+
+  const CircleDiscoveryScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<CircleDiscoveryScreen> createState() =>
@@ -83,7 +85,11 @@ class _CircleDiscoveryScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 2),
+    );
 
     // Fire suggested circles notification
     WidgetsBinding.instance.addPostFrameCallback((_) async {

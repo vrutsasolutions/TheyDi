@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_routes.dart';
 import 'package:theydi/features/auth/screens/splash_screen.dart';
@@ -273,7 +274,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.circleDiscovery,
-        builder: (context, state) => const CircleDiscoveryScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final initialTab = extra is Map<String, dynamic>
+              ? (extra['initialTab'] as int? ?? 0)
+              : 0;
+          return CircleDiscoveryScreen(initialTab: initialTab);
+        },
       ),
       GoRoute(
         path: AppRoutes.settings,
