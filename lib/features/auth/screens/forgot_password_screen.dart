@@ -1,33 +1,31 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // forgot_password_screen.dart
 //
-// Self-contained 4-step forgot password flow:
-//   Step 1: Enter email → validate + check Firestore + generate OTP
-//   Step 2: Verify OTP  → 6 boxes, 30s resend, max 5 attempts
-//   Step 3: New password → min 8 chars, confirm match
-//   Step 4: Success     → green tick, back to login
+// Self-contained 4-step forgot password flow (backed by your Cloud Functions):
+//   Step 1: Enter email    → calls sendOtp()
+//   Step 2: Verify OTP     → 6 boxes, 30s resend, max 5 attempts
+//   Step 3: New password   → min 8 chars, confirm match, calls resetPassword()
+//   Step 4: Success        → green tick, back to login
 //
-// OTP is simulated locally (shown in snackbar) — wire real email later.
-// Password reset uses Firebase Auth sendPasswordResetEmail under the hood,
-// but the UX presents the custom OTP + new-password UI as designed.
+// Uses ForgotPasswordService (sendOtp / verifyOtp / resetPassword) which talks
+// to your Firebase Cloud Functions backend.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
-import '../../../core/services/otp_service.dart';
+import '../../../core/services/otp_service.dart'; // ForgotPasswordService
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_button.dart';
+import '../../../core/services/forgot_password_service.dart';
 
 // ── Step enum ─────────────────────────────────────────────────────────────────
-enum _FpStep { enterEmail, success }
+enum _FpStep { enterEmail, verifyOtp, newPassword, success }
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -38,16 +36,47 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   _FpStep _step = _FpStep.enterEmail;
+  final _service = ForgotPasswordService();
 
   // Shared state
   String _email = '';
 
-  // ── Step 1 ──
+  // ── Step 1: Enter Email ──
   final _emailFormKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _sendingOtp = false;
 
-  // ── Step 2 ──
+  // ── Step 2: Verify OTP ──
+  final List<TextEditingController> _otpControllers =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
+  bool _verifyingOtp = false;
+  int _resendSeconds = 30;
+  Timer? _resendTimer;
+  int _attemptsLeft = 5;
+
+  // ── Step 3: New Password ──
+  final _passwordFormKey = GlobalKey<FormState>();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+  bool _resettingPassword = false;
+
+  @override
+  void dispose() {
+    _resendTimer?.cancel();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    for (final c in _otpControllers) {
+      c.dispose();
+    }
+    for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
+    super.dispose();
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers
@@ -73,52 +102,130 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return '${name[0]}${name[1]}***@$domain';
   }
 
-  Future<void> _sendResetLink() async {
-    if (!_emailFormKey.currentState!.validate()) return;
+  String get _otpValue => _otpControllers.map((c) => c.text).join();
+
+  void _startResendTimer() {
+    _resendTimer?.cancel();
+    setState(() => _resendSeconds = 30);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendSeconds = 0);
+      } else {
+        setState(() => _resendSeconds--);
+      }
+    });
+  }
+
+  void _clearOtpBoxes() {
+    for (final c in _otpControllers) {
+      c.clear();
+    }
+    _otpFocusNodes.first.requestFocus();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Step 1 — Send OTP
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _sendOtp({bool isResend = false}) async {
+    if (!isResend && !_emailFormKey.currentState!.validate()) return;
 
     FocusScope.of(context).unfocus();
-
     setState(() => _sendingOtp = true);
 
-    try {
-      final email = _emailController.text.trim();
+    final email = isResend ? _email : _emailController.text.trim();
 
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: email,
-      );
+    final result = await _service.sendOtp(email);
 
-      if (!mounted) return;
+    if (!mounted) return;
+    setState(() => _sendingOtp = false);
 
+    if (result['success'] == true) {
       setState(() {
         _email = email;
-        _sendingOtp = false;
-        _step = _FpStep.success;
+        _attemptsLeft = 5;
+        _step = _FpStep.verifyOtp;
       });
-
+      _clearOtpBoxes();
+      _startResendTimer();
       _showSnack(
-        'Password reset link sent successfully.',
+        isResend ? 'A new OTP has been sent.' : 'OTP sent to your email.',
         color: TheyDiColors.success,
       );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-
-      setState(() => _sendingOtp = false);
-
+    } else {
       _showSnack(
-        e.message ?? 'Failed to send password reset email.',
-        color: TheyDiColors.error,
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() => _sendingOtp = false);
-
-      _showSnack(
-        'Something went wrong. Please try again.',
+        result['message'] ?? 'Failed to send OTP. Please try again.',
         color: TheyDiColors.error,
       );
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Step 2 — Verify OTP
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _verifyOtp() async {
+    final otp = _otpValue;
+    if (otp.length != 6) {
+      _showSnack('Please enter the full 6-digit code.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _verifyingOtp = true);
+
+    final result = await _service.verifyOtp(email: _email, otp: otp);
+
+    if (!mounted) return;
+    setState(() => _verifyingOtp = false);
+
+    if (result['success'] == true) {
+      setState(() => _step = _FpStep.newPassword);
+    } else {
+      setState(() {
+        if (_attemptsLeft > 0) _attemptsLeft--;
+      });
+      _clearOtpBoxes();
+      _showSnack(
+        result['message'] ?? 'Invalid OTP. Please try again.',
+        color: TheyDiColors.error,
+      );
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Step 3 — Reset Password
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _resetPassword() async {
+    if (!_passwordFormKey.currentState!.validate()) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _resettingPassword = true);
+
+    final result = await _service.resetPassword(
+      email: _email,
+      password: _passwordController.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _resettingPassword = false);
+
+    if (result['success'] == true) {
+      setState(() => _step = _FpStep.success);
+    } else {
+      _showSnack(
+        result['message'] ?? 'Failed to reset password. Please try again.',
+        color: TheyDiColors.error,
+      );
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Build
   // ─────────────────────────────────────────────────────────────────────────
@@ -155,23 +262,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       onPressed: () => context.pop(),
                     ),
 
-                    // Progress Indicator (2 steps only)
+                    // Progress Indicator (4 steps)
                     Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(2, (i) {
+                        children: List.generate(4, (i) {
                           final active =
                               i <= _step.index && _step != _FpStep.success;
+                          final done = _step == _FpStep.success;
 
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: active ? 28 : 8,
+                            width: (active || done) ? 28 : 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              gradient:
-                                  active ? TheyDiColors.gradientPrimary : null,
-                              color: active ? null : TheyDiColors.divider,
+                              gradient: (active || done)
+                                  ? TheyDiColors.gradientPrimary
+                                  : null,
+                              color: (active || done)
+                                  ? null
+                                  : TheyDiColors.divider,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           );
@@ -221,7 +332,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     switch (_step) {
       case _FpStep.enterEmail:
         return _buildEnterEmail();
-
+      case _FpStep.verifyOtp:
+        return _buildVerifyOtp();
+      case _FpStep.newPassword:
+        return _buildNewPassword();
       case _FpStep.success:
         return _buildSuccess();
     }
@@ -255,7 +369,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               .fade(duration: 300.ms),
           const SizedBox(height: 8),
           Text(
-            'Enter your email address and we\'ll send you a verification code to reset your password.',
+            'Enter your email address and we\'ll send you a 6-digit code to reset your password.',
             style: TheyDiTextStyles.bodySmall
                 .copyWith(color: TheyDiColors.textSecondary, height: 1.5),
           ).animate(delay: 120.ms).fade(duration: 300.ms),
@@ -293,8 +407,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         )
                       : GradientButton(
-                          label: 'Send Reset Link',
-                          onPressed: _sendResetLink,
+                          label: 'Send OTP',
+                          onPressed: () => _sendOtp(),
                         ))
               .animate(delay: 240.ms)
               .fade(duration: 300.ms),
@@ -317,10 +431,246 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   // Step 2 UI — Verify OTP
   // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildVerifyOtp() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: TheyDiColors.gradientPrimary,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Icon(Icons.mark_email_unread_outlined,
+              color: Colors.white, size: 32),
+        ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+
+        const SizedBox(height: 28),
+
+        Text('Verify Code', style: TheyDiTextStyles.displayMedium)
+            .animate(delay: 80.ms)
+            .fade(duration: 300.ms),
+        const SizedBox(height: 8),
+        Text(
+          'Enter the 6-digit code sent to\n${_maskedEmail(_email)}',
+          style: TheyDiTextStyles.bodySmall
+              .copyWith(color: TheyDiColors.textSecondary, height: 1.5),
+        ).animate(delay: 120.ms).fade(duration: 300.ms),
+
+        const SizedBox(height: 36),
+
+        // 6 OTP boxes
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            6,
+            (i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: _otpBox(i),
+            ),
+          ),
+        ).animate(delay: 180.ms).fade(duration: 300.ms),
+
+        if (_attemptsLeft < 5) ...[
+          const SizedBox(height: 12),
+          Text(
+            '$_attemptsLeft attempt${_attemptsLeft == 1 ? '' : 's'} left',
+            style: TheyDiTextStyles.caption.copyWith(
+              color: _attemptsLeft <= 2
+                  ? TheyDiColors.error
+                  : TheyDiColors.textSecondary,
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 32),
+
+        SizedBox(
+                width: double.infinity,
+                child: _verifyingOtp
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: TheyDiColors.primary,
+                        ),
+                      )
+                    : GradientButton(
+                        label: 'Verify Code',
+                        onPressed: _verifyOtp,
+                      ))
+            .animate(delay: 240.ms)
+            .fade(duration: 300.ms),
+
+        const SizedBox(height: 20),
+
+        Center(
+          child: _resendSeconds > 0
+              ? Text(
+                  'Resend code in ${_resendSeconds}s',
+                  style: TheyDiTextStyles.labelMedium
+                      .copyWith(color: TheyDiColors.textSecondary),
+                )
+              : TextButton(
+                  onPressed:
+                      _sendingOtp ? null : () => _sendOtp(isResend: true),
+                  child: Text(
+                    'Resend Code',
+                    style: TheyDiTextStyles.labelMedium
+                        .copyWith(color: TheyDiColors.primary),
+                  ),
+                ),
+        ).animate(delay: 280.ms).fade(duration: 300.ms),
+      ]),
+    );
+  }
+
+  Widget _otpBox(int index) {
+    return SizedBox(
+      width: 44,
+      height: 52,
+      child: TextField(
+        controller: _otpControllers[index],
+        focusNode: _otpFocusNodes[index],
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        style: TheyDiTextStyles.bodyMedium.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        decoration: InputDecoration(
+          counterText: '',
+          contentPadding: EdgeInsets.zero,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: TheyDiColors.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: TheyDiColors.divider),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: TheyDiColors.primary, width: 2),
+          ),
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 5) {
+            _otpFocusNodes[index + 1].requestFocus();
+          } else if (value.isEmpty && index > 0) {
+            _otpFocusNodes[index - 1].requestFocus();
+          }
+          // Auto-submit once all 6 boxes are filled
+          if (index == 5 && value.isNotEmpty && _otpValue.length == 6) {
+            _verifyOtp();
+          }
+          setState(() {}); // refresh attempts/label if needed
+        },
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Step 3 UI — Reset Password
+  // Step 3 UI — New Password
   // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildNewPassword() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+      child: Form(
+        key: _passwordFormKey,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: TheyDiColors.gradientPrimary,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.password_outlined,
+                color: Colors.white, size: 32),
+          ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+          const SizedBox(height: 28),
+          Text('Create New Password', style: TheyDiTextStyles.displayMedium)
+              .animate(delay: 80.ms)
+              .fade(duration: 300.ms),
+          const SizedBox(height: 8),
+          Text(
+            'Your new password must be different from your previous password.',
+            style: TheyDiTextStyles.bodySmall
+                .copyWith(color: TheyDiColors.textSecondary, height: 1.5),
+          ).animate(delay: 120.ms).fade(duration: 300.ms),
+          const SizedBox(height: 36),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            style: TheyDiTextStyles.bodyMedium,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: 'New Password',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Password is required';
+              if (v.length < 8) return 'Must be at least 8 characters';
+              return null;
+            },
+          ).animate(delay: 160.ms).fade(duration: 300.ms),
+          const SizedBox(height: 8),
+          _PasswordStrengthHint(password: _passwordController.text)
+              .animate(delay: 180.ms)
+              .fade(duration: 300.ms),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _confirmPasswordController,
+            obscureText: _obscureConfirm,
+            style: TheyDiTextStyles.bodyMedium,
+            decoration: InputDecoration(
+              labelText: 'Confirm Password',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscureConfirm
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please confirm your password';
+              if (v != _passwordController.text)
+                return 'Passwords do not match';
+              return null;
+            },
+          ).animate(delay: 220.ms).fade(duration: 300.ms),
+          const SizedBox(height: 36),
+          SizedBox(
+                  width: double.infinity,
+                  child: _resettingPassword
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: TheyDiColors.primary,
+                          ),
+                        )
+                      : GradientButton(
+                          label: 'Reset Password',
+                          onPressed: _resetPassword,
+                        ))
+              .animate(delay: 260.ms)
+              .fade(duration: 300.ms),
+        ]),
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Step 4 UI — Success
@@ -331,7 +681,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Success circle
           Container(
             width: 100,
             height: 100,
@@ -344,7 +693,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
             child: const Icon(
-              Icons.mark_email_read_rounded,
+              Icons.check_circle_rounded,
               color: Colors.green,
               size: 54,
             ),
@@ -352,34 +701,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 duration: 500.ms,
                 curve: Curves.elasticOut,
               ),
-
           const SizedBox(height: 32),
-
           Text(
-            'Check Your Email',
+            'Password Reset!',
             style: TheyDiTextStyles.displayMedium,
             textAlign: TextAlign.center,
           ).animate(delay: 100.ms).fade(duration: 300.ms),
-
           const SizedBox(height: 12),
-
           Text(
-            'A password reset link has been sent to\n'
-            '${_maskedEmail(_email)}.\n\n'
-            'Open the email and follow the instructions to create a new password.',
+            'Your password has been reset successfully.\n'
+            'You can now sign in with your new password.',
             style: TheyDiTextStyles.bodySmall.copyWith(
               color: TheyDiColors.textSecondary,
               height: 1.6,
             ),
             textAlign: TextAlign.center,
           ).animate(delay: 160.ms).fade(duration: 300.ms),
-
           const SizedBox(height: 48),
-
           ...[
-            '📧 Reset link sent successfully',
-            '🔒 Secure Firebase password reset',
-            '✅ Login with your new password after reset',
+            '✅ Email verified successfully',
+            '🔒 Password updated securely',
+            '🔑 Login with your new password',
           ].asMap().entries.map(
                 (e) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -407,9 +749,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     .fade(duration: 300.ms)
                     .slideY(begin: 0.1, end: 0),
               ),
-
           const SizedBox(height: 40),
-
           SizedBox(
             width: double.infinity,
             child: GradientButton(

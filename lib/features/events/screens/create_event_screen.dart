@@ -77,7 +77,7 @@ const List<String> _kCities = [
   'Begusarai',
   'Bihar Sharif',
   'Sasaram',
-  'Aurangabad',
+  'Aurangabad, Bihar',
   'Katihar',
   'Munger',
 
@@ -186,7 +186,7 @@ const List<String> _kCities = [
   'Nagpur',
   'Nashik',
   'Thane',
-  'Aurangabad',
+  'Aurangabad, Maharashtra',
   'Kolhapur',
   'Solapur',
   'Amravati',
@@ -582,22 +582,38 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       for (final component in result['address_components']) {
         final types = List<String>.from(component['types']);
 
-        if (types.contains('premise') ||
-            types.contains('point_of_interest') ||
-            types.contains('establishment')) {
+        if (venue.isEmpty &&
+            (types.contains('premise') ||
+                types.contains('point_of_interest') ||
+                types.contains('establishment'))) {
           venue = component['long_name'];
         }
 
-        if (types.contains('route') && additional.isEmpty) {
+        if (additional.isEmpty &&
+            (types.contains('route') ||
+                types.contains('sublocality') ||
+                types.contains('sublocality_level_1'))) {
           additional = component['long_name'];
         }
 
-        if (types.contains('sublocality')) {
-          additional = component['long_name'];
+        // Highest priority
+        if (city.isEmpty && types.contains('locality')) {
+          city = component['long_name'];
         }
 
-        if (types.contains('locality') ||
-            types.contains('postal_town') ||
+        // Second priority
+        else if (city.isEmpty && types.contains('postal_town')) {
+          city = component['long_name'];
+        }
+
+        // Third priority
+        else if (city.isEmpty &&
+            types.contains('administrative_area_level_3')) {
+          city = component['long_name'];
+        }
+
+        // Last priority
+        else if (city.isEmpty &&
             types.contains('administrative_area_level_2')) {
           city = component['long_name'];
         }
@@ -621,12 +637,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
         _additionalAddressController.text = additional;
 
-        final matchedCity = _kCities.cast<String>().firstWhere(
-              (c) =>
-                  city.toLowerCase().contains(c.toLowerCase()) ||
-                  c.toLowerCase().contains(city.toLowerCase()),
-              orElse: () => '',
-            );
+        String normalize(String value) {
+          return value
+              .toLowerCase()
+              .replaceAll(' division', '')
+              .replaceAll(' district', '')
+              .replaceAll(' municipal corporation', '')
+              .trim();
+        }
+
+        final normalizedCity = normalize(city);
+
+        final matchedCity = _kCities.firstWhere(
+          (c) => normalize(c) == normalizedCity,
+          orElse: () => '',
+        );
+
+        if (matchedCity.isNotEmpty) {
+          _selectedCity = matchedCity;
+        }
 
         if (matchedCity.isNotEmpty) {
           _selectedCity = matchedCity;
