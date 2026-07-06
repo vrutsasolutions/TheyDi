@@ -30,6 +30,89 @@ const _kCities = [
   'Vadodara',
 ];
 
+const List<String> _otherCities = [
+  'Agra',
+  'Ajmer',
+  'Aligarh',
+  'Allahabad',
+  'Amritsar',
+  'Aurangabad',
+  'Bareilly',
+  'Belgaum',
+  'Bhilai',
+  'Bhubaneswar',
+  'Bilaspur',
+  'Bokaro',
+  'Cuttack',
+  'Dehradun',
+  'Dhanbad',
+  'Dharamshala',
+  'Dibrugarh',
+  'Durgapur',
+  'Ernakulam',
+  'Erode',
+  'Faridabad',
+  'Gangtok',
+  'Ghaziabad',
+  'Gorakhpur',
+  'Guntur',
+  'Gurugram',
+  'Guwahati',
+  'Gwalior',
+  'Hisar',
+  'Hubli',
+  'Imphal',
+  'Jabalpur',
+  'Jalandhar',
+  'Jammu',
+  'Jamnagar',
+  'Jamshedpur',
+  'Jhansi',
+  'Jodhpur',
+  'Jorhat',
+  'Kanpur',
+  'Karnal',
+  'Kolhapur',
+  'Kollam',
+  'Kota',
+  'Kozhikode',
+  'Kurnool',
+  'Ludhiana',
+  'Madurai',
+  'Mangalore',
+  'Meerut',
+  'Moradabad',
+  'Mysuru',
+  'Nanded',
+  'Nashik',
+  'Navi Mumbai',
+  'Noida',
+  'Patiala',
+  'Patna',
+  'Puducherry',
+  'Raipur',
+  'Rajkot',
+  'Ranchi',
+  'Rourkela',
+  'Salem',
+  'Shimla',
+  'Siliguri',
+  'Srinagar',
+  'Thane',
+  'Thiruvananthapuram',
+  'Thrissur',
+  'Tirupati',
+  'Udaipur',
+  'Udupi',
+  'Varanasi',
+  'Vellore',
+  'Vijayawada',
+  'Warangal',
+];
+
+List<String> _filtered = _kCities;
+List<String> _filteredOtherCities = _otherCities;
+
 const Map<String, String> _cityIcons = {
   'Mumbai': 'assets/city_icons/mumbai.png',
   'Delhi': 'assets/city_icons/delhi.png',
@@ -74,11 +157,22 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
 
   void _onSearch(String query) {
     setState(() {
-      _filtered = query.isEmpty
-          ? _kCities
-          : _kCities
-              .where((c) => c.toLowerCase().contains(query.toLowerCase()))
-              .toList();
+      if (query.isEmpty) {
+        _filtered = _kCities;
+        _filteredOtherCities = _otherCities;
+      } else {
+        _filtered = _kCities
+            .where(
+              (city) => city.toLowerCase().contains(query.toLowerCase()),
+            )
+            .toList();
+
+        _filteredOtherCities = _otherCities
+            .where(
+              (city) => city.toLowerCase().contains(query.toLowerCase()),
+            )
+            .toList();
+      }
     });
   }
 
@@ -164,13 +258,24 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: _filtered.isEmpty
-                    ? Center(
-                        child: Text('No cities found',
-                            style: TheyDiTextStyles.bodySmall),
-                      )
-                    : GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// Popular Cities
+                      Text(
+                        "Popular Cities",
+                        style: TheyDiTextStyles.displayMedium.copyWith(
+                          fontSize: 20,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      ///
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -182,64 +287,104 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                         itemBuilder: (context, index) {
                           final city = _filtered[index];
                           final isSelected = city == _selectedCity;
+
                           return GestureDetector(
-                              onTap: () => _onCityTap(city),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                decoration: BoxDecoration(
-                                  gradient: isSelected
-                                      ? TheyDiColors.gradientPrimary
-                                      : null,
-                                  color: isSelected ? null : TheyDiColors.card,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? Colors.transparent
-                                        : TheyDiColors.divider,
+                            onTap: () => _onCityTap(city),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              decoration: BoxDecoration(
+                                gradient: isSelected
+                                    ? TheyDiColors.gradientPrimary
+                                    : null,
+                                color: isSelected ? null : TheyDiColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.transparent
+                                      : TheyDiColors.divider,
+                                ),
+                              ),
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 55,
+                                        height: 55,
+                                        child: Image.asset(
+                                          _cityIcons[city]!,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        city,
+                                        textAlign: TextAlign.center,
+                                        style: TheyDiTextStyles.labelMedium
+                                            .copyWith(
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.black,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 55,
-                                          height: 55,
-                                          child: Image.asset(
-                                            _cityIcons[city]!,
-                                            fit: BoxFit.contain,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          city,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TheyDiTextStyles.labelMedium
-                                              .copyWith(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : Colors.black,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              )
-                                  .animate(
-                                      delay: Duration(milliseconds: 20 * index))
-                                  .fade(duration: 250.ms)
-                                  .scale(
-                                      begin: const Offset(0.9, 0.9),
-                                      end: const Offset(1, 1)));
+                              ),
+                            ),
+                          )
+                              .animate(
+                                  delay: Duration(milliseconds: 20 * index))
+                              .fade(duration: 250.ms)
+                              .scale();
                         },
                       ),
+
+                      const SizedBox(height: 28),
+
+                      Text(
+                        "Other Cities",
+                        style: TheyDiTextStyles.labelMedium.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _filteredOtherCities.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final city = _filteredOtherCities[index];
+
+                          return InkWell(
+                            onTap: () => _onCityTap(city),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(0xFFEAEAEA),
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                city,
+                                style: TheyDiTextStyles.bodyMedium,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),

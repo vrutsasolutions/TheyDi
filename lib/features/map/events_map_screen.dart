@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'dart:ui' as ui;
 
 import '../../../core/theme/app_theme.dart';
 import 'package:theydi/features/events/models/event_model.dart';
@@ -24,12 +25,14 @@ class EventsMapScreen extends StatefulWidget {
 
 class _EventsMapScreenState extends State<EventsMapScreen> {
   EventModel? _selectedEvent;
-  late final MapController _mapController;
+  GoogleMapController? _mapController;
+  final Map<String, BitmapDescriptor> _markerCache = {};
+  Set<Marker> _markers = {};
 
   @override
   void initState() {
     super.initState();
-    _mapController = MapController();
+    _loadMarkers();
   }
 
   LatLng get _initialCenter {
@@ -49,9 +52,176 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
 
   void _onMarkerTap(EventModel event) {
     setState(() => _selectedEvent = event);
-    _mapController.move(
-      LatLng(event.latitude, event.longitude),
-      14.0,
+
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(
+          event.latitude,
+          event.longitude,
+        ),
+        14,
+      ),
+    );
+  }
+
+  Future<void> _loadMarkers() async {
+    final Set<Marker> markerSet = {};
+    if (widget.userLat != null && widget.userLng != null) {
+      markerSet.add(
+        Marker(
+          markerId: const MarkerId("user"),
+          position: LatLng(
+            widget.userLat!,
+            widget.userLng!,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
+        ),
+      );
+    }
+
+    for (final event in widget.events) {
+      if (event.latitude == 0 || event.longitude == 0) continue;
+
+      final icon = await createPriceMarker(
+        event.isFree ? "FREE" : "₹${event.price.toInt()}",
+        event.isFree,
+      );
+
+      markerSet.add(
+        Marker(
+          markerId: MarkerId(event.id),
+          position: LatLng(
+            event.latitude,
+            event.longitude,
+          ),
+          icon: icon,
+          infoWindow: InfoWindow(
+            title: event.title,
+            snippet: event.isFree ? "FREE" : "₹${event.price.toInt()}",
+          ),
+          onTap: () => _onMarkerTap(event),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _markers = markerSet;
+    });
+  }
+
+  Future<BitmapDescriptor> _getMarker(EventModel event) async {
+    final key = event.isFree ? "FREE" : "₹${event.price.toInt()}";
+
+    if (_markerCache.containsKey(key)) {
+      return _markerCache[key]!;
+    }
+
+    final icon = await createPriceMarker(
+      key,
+      event.isFree,
+    );
+
+    _markerCache[key] = icon;
+
+    return icon;
+  }
+
+  Future<BitmapDescriptor> createPriceMarker(
+    String text,
+    bool isFree,
+  ) async {
+    const double width = 220;
+    const double height = 110;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    final bgPaint = Paint()..color = Colors.white;
+
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: .18)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+
+    final accentColor =
+        isFree ? const Color(0xff2ECC71) : const Color(0xffFF4D6D);
+
+    final borderPaint = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    // Shadow
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(14, 14, 190, 56),
+        const Radius.circular(28),
+      ),
+      shadowPaint,
+    );
+
+    // White pill
+    final pill = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(10, 10, 190, 56),
+      const Radius.circular(28),
+    );
+
+    canvas.drawRRect(pill, bgPaint);
+    canvas.drawRRect(pill, borderPaint);
+
+    // Bottom pin
+    final path = Path();
+
+    path.moveTo(95, 66);
+    path.lineTo(115, 66);
+    path.lineTo(105, 82);
+    path.close();
+
+    canvas.drawPath(path, Paint()..color = accentColor);
+
+    canvas.drawCircle(
+      const Offset(105, 94),
+      7,
+      Paint()..color = accentColor,
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: accentColor,
+          fontWeight: FontWeight.w800,
+          fontSize: text.length > 5 ? 22 : 26,
+          letterSpacing: .4,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+
+    tp.layout();
+
+    tp.paint(
+      canvas,
+      Offset(
+        (210 - tp.width) / 2,
+        22,
+      ),
+    );
+
+    final picture = recorder.endRecording();
+
+    final image = await picture.toImage(
+      width.toInt(),
+      height.toInt(),
+    );
+
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.fromBytes(
+      bytes!.buffer.asUint8List(),
     );
   }
 
@@ -65,97 +235,23 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
       body: Stack(
         children: [
           // ── Map ──
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _initialCenter,
-              initialZoom: widget.userLat != null ? 12.0 : 5.0,
-              onTap: (_, __) => setState(() => _selectedEvent = null),
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _initialCenter,
+              zoom: widget.userLat != null ? 12 : 5,
             ),
-            children: [
-              // OpenStreetMap tiles (dark style)
-              TileLayer(
-                urlTemplate:
-                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c'],
-                userAgentPackageName: 'com.tiein.app',
-              ),
-
-              // User location marker
-              if (widget.userLat != null && widget.userLng != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: LatLng(widget.userLat!, widget.userLng!),
-                      width: 20,
-                      height: 20,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                          shape: BoxShape.circle,
-                          border:
-                              Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.withValues(alpha: 0.4),
-                              blurRadius: 8,
-                              spreadRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-              // Event markers
-              MarkerLayer(
-                markers: eventsWithCoords.map((event) {
-                  final isSelected = _selectedEvent?.id == event.id;
-                  return Marker(
-                    point: LatLng(event.latitude, event.longitude),
-                    width: isSelected ? 52 : 44,
-                    height: isSelected ? 52 : 44,
-                    child: GestureDetector(
-                      onTap: () => _onMarkerTap(event),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.6),
-                            width: isSelected ? 3 : 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: TheyDiColors.primary
-                                  .withValues(alpha: isSelected ? 0.6 : 0.3),
-                              blurRadius: isSelected ? 12 : 6,
-                              spreadRadius: isSelected ? 3 : 1,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            event.isFree
-                                ? 'F'
-                                : '₹${event.price.toInt()}',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isSelected ? 11 : 9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
+            onMapCreated: (controller) {
+              _mapController = controller;
+            },
+            onTap: (_) {
+              setState(() {
+                _selectedEvent = null;
+              });
+            },
+            myLocationEnabled: widget.userLat != null,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: true,
+            markers: _markers,
           ),
 
           // ── Dark overlay for contrast ──
@@ -213,8 +309,8 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
 
                   // Event count badge
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 9),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0D0D14).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12),
@@ -301,8 +397,7 @@ class _EventPreviewCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: TheyDiColors.cardLight,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: TheyDiColors.divider, width: 1.5),
+          border: Border.all(color: TheyDiColors.divider, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -392,8 +487,8 @@ class _EventPreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: event.isFree
                         ? Colors.green.withValues(alpha: 0.15)
@@ -403,8 +498,7 @@ class _EventPreviewCard extends StatelessWidget {
                   child: Text(
                     event.isFree ? 'FREE' : '₹${event.price.toInt()}',
                     style: TheyDiTextStyles.caption.copyWith(
-                      color:
-                          event.isFree ? Colors.green : TheyDiColors.primary,
+                      color: event.isFree ? Colors.green : TheyDiColors.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
