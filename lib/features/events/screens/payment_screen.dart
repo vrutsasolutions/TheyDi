@@ -136,8 +136,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
       final txnId = response.paymentId ?? 'TXN${DateTime.now().millisecondsSinceEpoch}';
 
-      // ── Notify host ──
-      await NotificationService.notifyHostNewBooking(
+      // ── Notify host (in-app) ──
+      await NotificationService.notifyHostNewAttendeeEmail(
         hostUid: widget.event.creatorUid,
         attendeeName: userName,
         eventTitle: widget.event.title,
@@ -145,11 +145,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         eventId: widget.event.id,
       );
 
-      // ── Notify user ──
-      await NotificationService.notifyPaymentConfirmed(
+      // ── Notify attendee (in-app + email receipt) ──
+      await NotificationService.notifyPaymentReceivedEmail(
         userUid: user.uid,
         eventTitle: widget.event.title,
+        eventDate: DateFormat('EEE, MMM d · h:mm a').format(widget.event.dateTime),
+        eventVenue: widget.event.venue,
         amount: _totalAmount.toStringAsFixed(0),
+        transactionId: txnId,
         eventId: widget.event.id,
       );
 

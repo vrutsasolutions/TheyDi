@@ -372,9 +372,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Center(child: _buildAvatar(initial)),
                   const SizedBox(height: 6),
                   Center(
-                    child: Text('Tap to change photo',
+                    child: Text('Upload a valid user image',
                         style: TheyDiTextStyles.caption
-                            .copyWith(color: TheyDiColors.textMuted)),
+                            .copyWith(color: TheyDiColors.textMuted),
+                        textAlign: TextAlign.center),
                   ),
                   const SizedBox(height: 24),
 

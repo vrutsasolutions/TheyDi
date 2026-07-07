@@ -261,62 +261,72 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                       const SizedBox(height: 40),
 
                       // ── 6 OTP boxes ──
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(6, (i) {
-                          return Container(
-                            width: 46,
-                            height: 56,
-                            margin: const EdgeInsets.symmetric(horizontal: 5),
-                            decoration: BoxDecoration(
-                              color: TheyDiColors.inputFill,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _focusNodes[i].hasFocus ||
-                                        _controllers[i].text.isNotEmpty
-                                    ? TheyDiColors.primary
-                                    : TheyDiColors.divider,
-                                width: _focusNodes[i].hasFocus ||
-                                        _controllers[i].text.isNotEmpty
-                                    ? 2
-                                    : 1,
-                              ),
-                            ),
-                            child: TextField(
-                              controller: _controllers[i],
-                              focusNode: _focusNodes[i],
-                              textAlign: TextAlign.center,
-                              keyboardType: TextInputType.number,
-                              maxLength: 1,
-                              style: TheyDiTextStyles.displayMedium
-                                  .copyWith(color: TheyDiColors.primary),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: const InputDecoration(
-                                counterText: '',
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                fillColor: Colors.transparent,
-                                filled: false,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              onChanged: (v) => _onDigitChanged(v, i),
-                              onTap: () {
-                                _controllers[i].selection =
-                                    TextSelection.fromPosition(
-                                  TextPosition(
-                                      offset: _controllers[i].text.length),
-                                );
-                              },
-                            ),
-                          )
-                              .animate(
-                                  delay: Duration(milliseconds: 200 + i * 50))
-                              .fade(duration: 250.ms)
-                              .slideY(begin: 0.3, end: 0);
-                        }),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final spacing = 8.0;
+                          final totalSpacing = spacing * 5;
+                          final availableWidth =
+                              (constraints.maxWidth - totalSpacing).clamp(0.0, double.infinity);
+                          final boxWidth = (availableWidth / 6).clamp(36.0, 46.0);
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(6, (i) {
+                              return Container(
+                                width: boxWidth,
+                                height: 56,
+                                margin: EdgeInsets.symmetric(horizontal: spacing / 2),
+                                decoration: BoxDecoration(
+                                  color: TheyDiColors.inputFill,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _focusNodes[i].hasFocus ||
+                                            _controllers[i].text.isNotEmpty
+                                        ? TheyDiColors.primary
+                                        : TheyDiColors.divider,
+                                    width: _focusNodes[i].hasFocus ||
+                                            _controllers[i].text.isNotEmpty
+                                        ? 2
+                                        : 1,
+                                  ),
+                                ),
+                                child: TextField(
+                                  controller: _controllers[i],
+                                  focusNode: _focusNodes[i],
+                                  textAlign: TextAlign.center,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 1,
+                                  style: TheyDiTextStyles.displayMedium
+                                      .copyWith(color: TheyDiColors.primary),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: const InputDecoration(
+                                    counterText: '',
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    fillColor: Colors.transparent,
+                                    filled: false,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: (v) => _onDigitChanged(v, i),
+                                  onTap: () {
+                                    _controllers[i].selection =
+                                        TextSelection.fromPosition(
+                                      TextPosition(
+                                          offset: _controllers[i].text.length),
+                                    );
+                                  },
+                                ),
+                              )
+                                  .animate(
+                                      delay: Duration(milliseconds: 200 + i * 50))
+                                  .fade(duration: 250.ms)
+                                  .slideY(begin: 0.3, end: 0);
+                            }),
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 40),

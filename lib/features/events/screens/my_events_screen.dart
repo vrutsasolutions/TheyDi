@@ -71,13 +71,11 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                   children: [
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: TheyDiColors.textPrimary),
-                          onPressed: () => context.go(AppRoutes.profile),
-                        ),
                         const SizedBox(width: 4),
-                        Text('My Events', style: TheyDiTextStyles.displayMedium)
+                        Text(
+  'My Events',
+  style: TheyDiTextStyles.displayMedium,
+)
                             .animate()
                             .fade(duration: 400.ms),
                         const Spacer(),

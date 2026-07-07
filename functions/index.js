@@ -372,16 +372,20 @@ exports.createRazorpayXContact = onCall(
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
 
     const uid = request.auth.uid;
-    const { name, ifsc, accountNumber } = request.data;
-
-    if (!name || !ifsc || !accountNumber) {
-      throw new HttpsError("invalid-argument", "Missing bank details.");
+    const { payoutMethod, upiId, name, ifsc, accountNumber } = request.data;
+    const mode = payoutMethod === 'upi' ? 'vpa' : 'bank_account';
+    
+    if (mode === 'vpa') {
+      if (!upiId) throw new HttpsError("invalid-argument", "Missing UPI ID.");
+    } else {
+      if (!name || !ifsc || !accountNumber) throw new HttpsError("invalid-argument", "Missing bank details.");
     }
 
     const userDoc = await db.collection("users").doc(uid).get();
-
-    if (userDoc.exists && userDoc.data().razorpayXFundAccountId) {
-      return { success: true, fundAccountId: userDoc.data().razorpayXFundAccountId, message: "Already onboarded." };
+    
+    let contactId = null;
+    if (userDoc.exists) {
+      contactId = userDoc.data().razorpayXContactId;
     }
 
     const keyId = process.env.RAZORPAY_KEY_ID;
@@ -390,44 +394,61 @@ exports.createRazorpayXContact = onCall(
     const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
 
     try {
-      // 1. Create Contact
-      const contactRes = await fetch("https://api.razorpay.com/v1/contacts", {
-        method: "POST",
-        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name,
-          email: request.auth.token.email || "host@example.com",
-          contact: "9999999999",
-          type: "vendor",
-          reference_id: uid,
-        }),
-      });
-      const contact = await contactRes.json();
-      if (!contact.id) throw new Error("Failed to create contact: " + JSON.stringify(contact));
+      if (!contactId) {
+        logger.info(`[RazorpayX] Attempting to create contact for UID: ${uid} with name: ${name || "Host"}`);
+        // 1. Create Contact
+        const contactRes = await fetch("https://api.razorpay.com/v1/contacts", {
+          method: "POST",
+          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name || "Host",
+            email: request.auth.token.email || "host@example.com",
+            type: "vendor",
+            reference_id: uid,
+          })
+        });
+        const contact = await contactRes.json();
+        logger.info(`[RazorpayX] Contact API Response: ${JSON.stringify(contact)}`);
+        
+        if (!contact.id) throw new Error("Failed to create contact: " + JSON.stringify(contact));
+        contactId = contact.id;
+      }
 
+      logger.info(`[RazorpayX] Attempting to create fund account for Contact ID: ${contactId}`);
       // 2. Create Fund Account
+      const fundAccountPayload = {
+        contact_id: contactId,
+        account_type: mode,
+      };
+      if (mode === 'vpa') {
+        fundAccountPayload.vpa = { address: upiId };
+      } else {
+        fundAccountPayload.bank_account = {
+          name: name,
+          ifsc: ifsc,
+          account_number: accountNumber
+        };
+      }
+
       const fundRes = await fetch("https://api.razorpay.com/v1/fund_accounts", {
         method: "POST",
         headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contact_id: contact.id,
-          account_type: "bank_account",
-          bank_account: {
-            name: name,
-            ifsc: ifsc,
-            account_number: accountNumber,
-          },
-        }),
+        body: JSON.stringify(fundAccountPayload)
       });
       const fundAccount = await fundRes.json();
+      logger.info(`[RazorpayX] Fund Account API Response: ${JSON.stringify(fundAccount)}`);
+      
       if (!fundAccount.id) throw new Error("Failed to create fund account: " + JSON.stringify(fundAccount));
 
       // 3. Save to Firestore
-      await db.collection("users").doc(uid).update({
-        razorpayXContactId: contact.id,
+      logger.info(`[RazorpayX] Saving RazorpayX IDs to Firestore for UID: ${uid}`);
+      await db.collection("users").doc(uid).update({ 
+        razorpayXContactId: contactId,
         razorpayXFundAccountId: fundAccount.id,
+        razorpayXPayoutMode: mode === 'vpa' ? 'UPI' : 'IMPS'
       });
 
+      logger.info(`[RazorpayX] Successfully onboarded UID: ${uid}`);
       return { success: true, fundAccountId: fundAccount.id };
     } catch (e) {
       logger.error("Error creating RazorpayX Contact/Fund Account", e);
@@ -445,36 +466,55 @@ exports.releaseHostPayoutsX = onCall(
   async (request) => {
     const { eventId, merchantAccountNumber } = request.data;
     if (!eventId) throw new HttpsError("invalid-argument", "Event ID required.");
-
+    
+    const db = admin.firestore();
+    logger.info(`[HostPayout] Starting payout process for event: ${eventId}`);
+    
     const eventDoc = await db.collection("events").doc(eventId).get();
     if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
 
     const hostUid = eventDoc.data().creatorUid;
+    logger.info(`[HostPayout] Event host UID: ${hostUid}`);
+    
     const hostDoc = await db.collection("users").doc(hostUid).get();
-    const fundAccountId = hostDoc.data()?.razorpayXFundAccountId;
+    const hostData = hostDoc.data() || {};
+    const fundAccountId = hostData.razorpayXFundAccountId;
+    const payoutMode = hostData.razorpayXPayoutMode || "IMPS";
 
     if (!fundAccountId) throw new HttpsError("failed-precondition", "Host has no linked RazorpayX Fund Account.");
+    logger.info(`[HostPayout] Found host fund account: ${fundAccountId} with mode ${payoutMode}`);
 
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_SECRET_KEY;
     const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
 
-    const bookings = await db.collection("bookings")
-      .where("eventId", "==", eventId)
-      .where("status", "==", "confirmed")
-      .get();
-
+    const bookings = await db.collection("bookings").where("eventId", "==", eventId).where("status", "==", "confirmed").get();
+    logger.info(`[HostPayout] Found ${bookings.docs.length} confirmed bookings for this event.`);
+    
+    const attendeeUids = eventDoc.data().attendeeUids || [];
+    
     let transferCount = 0;
     const sourceAccount = merchantAccountNumber || process.env.RAZORPAYX_ACCOUNT_NUMBER;
     if (!sourceAccount) throw new HttpsError("invalid-argument", "Missing Merchant RazorpayX Account Number.");
-
+    logger.info(`[HostPayout] Using source account: ${sourceAccount}`);
+    
     for (const doc of bookings.docs) {
       const bData = doc.data();
+      logger.info(`[HostPayout] Processing booking ID: ${doc.id} - payoutStatus: ${bData.payoutStatus}`);
       if (bData.payoutStatus === "completed") continue;
+      
+      // Double check that the user is actually still in the event's attendee list!
+      // This protects against manual database deletions where the booking was left behind.
+      if (!attendeeUids.includes(bData.userId)) {
+        logger.info(`[HostPayout] Skipping booking ${doc.id} because user ${bData.userId} is no longer in the event attendee list.`);
+        continue;
+      }
 
       const payoutAmount = Math.floor((bData.totalAmount - (bData.platformFee || 0)) * 100);
+      logger.info(`[HostPayout] Calculated payout amount (in paise): ${payoutAmount} for booking ${doc.id}`);
 
       try {
+        logger.info(`[HostPayout] Sending ${payoutMode} payout request for booking ${doc.id} to Razorpay...`);
         const payoutRes = await fetch("https://api.razorpay.com/v1/payouts", {
           method: "POST",
           headers: { "Authorization": authHeader, "Content-Type": "application/json" },
@@ -483,7 +523,7 @@ exports.releaseHostPayoutsX = onCall(
             fund_account_id: fundAccountId,
             amount: payoutAmount,
             currency: "INR",
-            mode: "IMPS",
+            mode: payoutMode,
             purpose: "payout",
             reference_id: `theydi_payout_${doc.id}`,
             notes: {
@@ -495,14 +535,21 @@ exports.releaseHostPayoutsX = onCall(
           }),
         });
         const payoutData = await payoutRes.json();
+        logger.info(`[HostPayout] Razorpay response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
+        
         if (!payoutData.id) throw new Error("Payout failed: " + JSON.stringify(payoutData));
 
         await doc.ref.update({ payoutStatus: "completed" });
         transferCount++;
+        logger.info(`[HostPayout] Successfully completed payout for booking ${doc.id}`);
       } catch (e) {
         logger.error(`RazorpayX Payout failed for booking ${doc.id}`, e);
       }
     }
+
+    // Mark the event itself as completed so it can't be paid out again and UI updates
+    logger.info(`[HostPayout] Marking event ${eventId} as completed.`);
+    await eventDoc.ref.update({ status: "completed" });
 
     return { success: true, transfersProcessed: transferCount };
   }

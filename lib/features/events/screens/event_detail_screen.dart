@@ -211,8 +211,20 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         await eventRef.update({'attendeeUids': FieldValue.arrayUnion([uid])});
         await FirebaseFirestore.instance.collection('users').doc(uid)
             .update({'eventsAttended': FieldValue.increment(1)});
-        await NotificationService.notifyFreeEventJoined(
-            userUid: uid, eventTitle: _event.title, eventId: _event.id);
+        await NotificationService.notifyAttendeeJoinedEmail(
+          toUid: uid,
+          eventTitle: _event.title,
+          eventDate: DateFormat('EEE, MMM d · h:mm a').format(_event.dateTime),
+          eventVenue: _event.venue,
+          eventId: _event.id,
+        );
+        await NotificationService.notifyHostNewAttendeeEmail(
+          hostUid: _event.creatorUid,
+          attendeeName: userName,
+          eventTitle: _event.title,
+          amount: '0',
+          eventId: _event.id,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('You\'re in! 🎉'), backgroundColor: Colors.green));

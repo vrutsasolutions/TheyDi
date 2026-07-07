@@ -35,30 +35,6 @@ service cloud.firestore {
       allow update, delete: if isAuth() && resource.data.uid == request.auth.uid;
     }
 
-
-    // Usernames collection - critical for uniqueness checks during signup
-    match /usernames/{username} {
-      allow read: if true;
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
-    }
-
-    match /users/{userId} {
-      // Allow unauthenticated read so forgot-password can check if email exists
-      allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && (
-        request.auth.uid == userId ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avgRating', 'totalReviews'])
-      );
-      allow delete: if request.auth != null && request.auth.uid == userId;
-
-      // Notifications subcollection
-      match /notifications/{notificationId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
-        allow update, delete: if request.auth != null && request.auth.uid == userId;
-
     // ── USERS ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
       // Allow unauthenticated read so forgot-password can check if email exists
@@ -70,8 +46,13 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avgRating', 'totalReviews'])
       );
       
-      allow delete: if false;
+      allow delete: if isOwner(userId);
   
+      // users/{uid}/private — Used for sensitive info like bank details
+      match /private/{document=**} {
+         allow read, write: if isOwner(userId);
+      }
+
       // users/{uid}/friends — FriendsHubScreen connected tab reads this
       match /friends/{friendId} {
          allow read, write: if isAuth();
@@ -90,24 +71,6 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isAuth();
         allow update, delete: if isOwner(userId);
- (feat: improve notifications, report history, and UI enhancements)
-      }
-
-      // Friends subcollection
-      match /friends/{friendId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && (request.auth.uid == userId || request.auth.uid == friendId);
-      }
-
-      // Friend Requests subcollection
-      match /friendRequests/{requesterId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null;
-      }
-
-      // Blocked subcollection
-      match /blocked/{blockedUid} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
@@ -123,30 +86,26 @@ service cloud.firestore {
         resource.data.creatorUid == request.auth.uid ||
         resource.data.organizerUid == request.auth.uid
       );
-allow delete: if request.auth != null && request.auth.uid == resource.data.creatorUid;
 
-// attendees subcollection
-match /attendees/{userId} {
-  allow read: if request.auth != null;
-  allow write: if request.auth != null && request.auth.uid == userId;
-}
-
-// attendeePayments subcollection
-match /attendeePayments/{userId} {
-  allow read: if request.auth != null;
-  allow create, update: if request.auth != null && request.auth.uid == userId;
-  allow delete: if false;
-}
-
-// pendingMeta subcollection
-match /pendingMeta/{uid} {
-  allow read: if request.auth != null;
-  allow write: if request.auth != null && (
+      match /attendees/{userId} {
+        allow read: if isAuth();
+        allow write: if isOwner(userId);
+      }
+      
+      match /attendeePayments/{userId} {
+         allow read: if isAuth();
+         allow create, update: if isAuth() && request.auth.uid == userId;
+         allow delete: if false;
+      }
+      
+      // NEW: pendingMeta subcollection for tracking the status of join requests (age/gender limits)
+      match /pendingMeta/{uid} {
+        allow read: if isAuth();
+        allow write: if isAuth() && (
           request.auth.uid == uid || 
           request.auth.uid == get(/databases/$(database)/documents/events/$(eventId)).data.creatorUid
         );
       }
-
 
       match /reviews/{reviewId} {
         allow read: if isAuth();
@@ -154,7 +113,6 @@ match /pendingMeta/{uid} {
         allow update, delete: if isAuth() &&
           resource.data.reviewerUid == request.auth.uid;
       }
-(feat: improve notifications, report history, and UI enhancements)
     }
 
     // ── REVIEWS (Collection Group & Root) ─────────────────────────────────────
@@ -203,7 +161,7 @@ match /pendingMeta/{uid} {
       allow delete: if isAuth() && resource.data.creatorUid == request.auth.uid;
 
       match /messages/{messageId} {
-        allow read, write: if true;
+        allow read, write: if isCircleMember(circleId);
       }
 
       match /clearedBy/{userId} {
@@ -230,7 +188,6 @@ match /pendingMeta/{uid} {
         (resource.data.fromUid == request.auth.uid ||
          resource.data.toUid == request.auth.uid);
     }
-
     
     // ── CHATS (DMs) ───────────────────────────────────────────────────────────
     match /chats/{chatId} {
@@ -283,6 +240,5 @@ match /pendingMeta/{uid} {
       allow read, update, delete: if false; // Only admins can read/manage reports from backend
     }
 
-(feat: improve notifications, report history, and UI enhancements)
   }
 }

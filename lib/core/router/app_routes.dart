@@ -15,6 +15,7 @@ class AppRoutes {
   static const myEvents = '/my-events';
   static const profile = '/profile';
   static const editprofile = '/edit-profile';
+  static const verifyProfile = '/verify-profile';
   static const payment = '/payment';
   static const paymentsuccess = '/payment-success';
   static const paymenthistory = '/payment-history';
@@ -44,4 +45,6 @@ class AppRoutes {
  
   // ── Settings ──
   static const settings = '/settings';
+  static const blockedUsers = '/blocked-users';
+  static const reportProblem = '/report-problem';
 }

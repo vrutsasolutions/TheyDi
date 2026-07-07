@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import 'package:theydi/core/router/app_routes.dart';
 
 // Stream user's privacy settings from Firestore
 final _privacySettingsProvider =
@@ -343,14 +344,17 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           icon: Icons.block_outlined,
                           title: 'Blocked users',
                           subtitle: 'Manage your blocked list',
+                          // onTap: () {
+                          //   ScaffoldMessenger.of(context).showSnackBar(
+                          //     const SnackBar(
+                          //       content: Text(
+                          //           'Blocked users — coming soon'),
+                          //     ),
+                          //   );
+                          // },
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Blocked users — coming soon'),
-                              ),
-                            );
-                          },
+  context.push(AppRoutes.blockedUsers);
+}
                         ).animate(delay: 500.ms).fade(duration: 300.ms),
 
                         _ActionTile(
@@ -359,13 +363,8 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           subtitle:
                               'Report inappropriate content or behaviour',
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Report — coming soon'),
-                              ),
-                            );
-                          },
+  context.push(AppRoutes.reportProblem);
+},
                         ).animate(delay: 550.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 24),

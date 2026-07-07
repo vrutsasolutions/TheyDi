@@ -330,52 +330,65 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final t = notif.title.toLowerCase();
     final b = notif.body.toLowerCase();
 
+    Future<void> openEventDetail() async {
+      if (notif.eventId != null) await _pushEventDetail(context, notif.eventId!);
+    }
+    
+    void goManageEvent() {
+      if (notif.eventId != null) context.push(AppRoutes.hostManage, extra: notif.eventId);
+    }
+
     switch (notif.type) {
+      case 'system':
+        if (t.contains('completed') || t.contains('ended')) {
+          if (b.contains('marked as completed') || t.contains('event completed')) {
+            goManageEvent(); // Host
+          } else {
+            context.go(AppRoutes.myEvents, extra: {'tab': 2, 'filter': 'All'}); // Attendee
+          }
+        } else if (t.contains('created') || t.contains('live')) {
+          goManageEvent();
+        } else if (t.contains('cancelled') || t.contains('declined')) {
+          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
+        } else {
+          await openEventDetail();
+        }
+        break;
 
-      // ── 1. Event ended ──────────────────────────────────────────────────────
-      case 'event_completed':
-        context.go(AppRoutes.myEvents, extra: {'tab': 2, 'filter': 'All'});
+      case 'payment':
+        if (t.contains('payout')) {
+          context.push(AppRoutes.hostDashboard);
+        } else if (t.contains('new attendee') || t.contains('new booking') || b.contains('booked') || b.contains('joined')) {
+          goManageEvent();
+        } else {
+          context.push(AppRoutes.paymenthistory);
+        }
+        break;
 
-      // ── 2. Review received ─────────────────────────────────────────────────
+      case 'booking':
+        if (t.contains('you\'re in') || (t.contains('approved') && !t.contains('join request'))) {
+          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
+        } else if (t.contains('join request') || t.contains('spot cancelled')) {
+          goManageEvent();
+        } else {
+          await openEventDetail();
+        }
+        break;
+
+      case 'suggested_event':
+      case 'reminder':
+        await openEventDetail();
+        break;
+
       case 'review':
         context.push(AppRoutes.myReviews);
+        break;
 
-      // ── 3–7. Booking-type notifications ────────────────────────────────────
-      case 'booking':
-        final isCompletePayment = t.contains('complete payment') || b.contains('tap to pay');
-        final isApproved        = t.contains('approved') && !t.contains('join request') && !isCompletePayment;
-        final isJoinRequest     = t.contains('join request');
-        final isNewBooking      = t.contains('booking') || b.contains('booked');
-        final isCancelled       = t.contains('cancelled') || t.contains('spot cancelled');
-
-        if (isCompletePayment && notif.eventId != null) {
-          // 4. Complete payment → event detail
-          await _pushEventDetail(context, notif.eventId!);
-        } else if (isApproved) {
-          // 5. Request approved (user's own) → My Events Attending
-          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
-        } else if (isJoinRequest && notif.eventId != null) {
-          // 6. Join request (host receives) → Manage Event
-          context.push(AppRoutes.hostManage, extra: notif.eventId);
-        } else if ((isNewBooking || isCancelled) && notif.eventId != null) {
-          // 3 & 7. New booking / spot cancelled (host) → Manage Event
-          context.push(AppRoutes.hostManage, extra: notif.eventId);
-        } else if (notif.eventId != null) {
-          await _pushEventDetail(context, notif.eventId!);
-        }
-
-      // ── Payment confirmed → Payment History ────────────────────────────────
-      case 'payment':
-        context.push(AppRoutes.paymenthistory);
-
-      // ── 8 & 9. Messages (DM or Circle) ─────────────────────────────────────
       case 'dm':
       case 'message':
         if (notif.circleId != null) {
-          // 9. Circle message → Circles list (circle model needed for CircleChatScreen)
           context.push(AppRoutes.circles);
         } else if (notif.fromUid != null) {
-          // 8. DM message → direct chat
           final senderName = _extractSenderName(notif.title);
           context.push(AppRoutes.dmChat, extra: {
             'otherUid': notif.fromUid!,
@@ -384,62 +397,39 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         } else {
           context.push(AppRoutes.circles);
         }
+        break;
 
-      // ── 10 & 11. Friend social notifications ────────────────────────────────
       case 'social':
-        final isAccepted      = t.contains('accepted');
-        final isFriendRequest = t.contains('friend request') && !isAccepted;
-        final isAddedToCircle = t.contains('added to a circle') || t.contains('added you to');
-
-        final isReview = t.contains('review');
-
-        if (isReview) {
-          // Review received → My Reviews
-          context.push(AppRoutes.myReviews);
-        } else if (isAddedToCircle) {
-          // 12. Added to circle → Circles list
-          context.push(AppRoutes.circles);
-        } else if (isAccepted && notif.fromUid != null) {
-          // 10. Friend request accepted → Friends Hub connected tab
+        if (t.contains('accepted')) {
           context.push(AppRoutes.friendsHub);
-        } else if (isFriendRequest) {
-          // 11. Incoming friend request → Friends Hub pending tab
+        } else if (t.contains('friend request')) {
           context.push(AppRoutes.friendRequests);
-
-                    
-        } else if (notif.type == 'suggested_friends') {
-          context.push(AppRoutes.circleDiscovery);
         } else if (notif.fromUid != null) {
           context.push(AppRoutes.userProfile, extra: {
             'uid': notif.fromUid!,
             'requestId': null,
           });
         }
+        break;
 
-      // ── 12. Circle-type notifications ───────────────────────────────────────
+      case 'suggested_friends':
+        context.push(AppRoutes.circleDiscovery);
+        break;
+
+      case 'suggested_circles':
       case 'circle_added':
       case 'circle_join_request':
       case 'circle_approved':
       case 'circle_rejected':
       case 'circle_removed':
-        // Navigate to circles list — user can find and open their circle from there
         context.push(AppRoutes.circles);
+        break;
 
-      // ── Reminder → Event Detail ─────────────────────────────────────────────
-      case 'reminder':
-        if (notif.eventId != null) {
-          await _pushEventDetail(context, notif.eventId!);
-        } else {
-          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
-        }
-
-      // ── Default fallback ────────────────────────────────────────────────────
       default:
-        if (t.contains('review')) {
-          context.push(AppRoutes.myReviews);
-        } else if (notif.eventId != null) {
-          await _pushEventDetail(context, notif.eventId!);
+        if (notif.eventId != null) {
+          await openEventDetail();
         }
+        break;
     }
   }
 
@@ -759,24 +749,32 @@ class _NavHint extends StatelessWidget {
     final t = title.toLowerCase();
     final b = body.toLowerCase();
     switch (type) {
-      case 'event_completed':
-        return 'Past Events';
+      case 'system':
+        if (t.contains('completed') || t.contains('ended')) {
+          return b.contains('marked as completed') ? 'Manage Event' : 'Past Events';
+        }
+        if (t.contains('created') || t.contains('live')) return 'Manage Event';
+        if (t.contains('cancelled')) return 'My Events';
+        return 'Open Event';
       case 'review':
         return 'My Reviews';
       case 'booking':
-        if (t.contains('complete payment') || b.contains('tap to pay')) return 'Open Event';
-        if (t.contains('approved') && !t.contains('join request')) return 'My Events';
-        return 'Manage Event'; // join request, new booking, spot cancelled
+        if (t.contains('you\'re in') || (t.contains('approved') && !t.contains('join request'))) return 'My Events';
+        if (t.contains('join request') || t.contains('spot cancelled')) return 'Manage Event';
+        return 'Open Event';
       case 'payment':
+        if (t.contains('payout')) return 'Host Dashboard';
+        if (t.contains('new attendee') || t.contains('new booking') || b.contains('booked')) return 'Manage Event';
         return 'Payment History';
       case 'dm':
       case 'message':
         return 'Open Chat';
       case 'social':
-        if (t.contains('review')) return 'My Reviews';
         if (t.contains('accepted')) return 'Friends';
-        if (t.contains('added to a circle') || t.contains('added you to')) return 'Circles';
         return 'Friend Requests';
+      case 'suggested_friends':
+        return 'Discover Friends';
+      case 'suggested_circles':
       case 'circle_added':
       case 'circle_join_request':
       case 'circle_approved':
@@ -784,6 +782,7 @@ class _NavHint extends StatelessWidget {
       case 'circle_removed':
         return 'Circles';
       case 'reminder':
+      case 'suggested_event':
         return 'Open Event';
       default:
         if (t.contains('review')) return 'My Reviews';

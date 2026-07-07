@@ -103,6 +103,18 @@ class LeaveEventService {
           'estimatedDays': 7,
         });
       }
+      
+      // Find and update the booking to 'cancelled' (for both free and paid)
+      final bookingQuery = await db
+          .collection('bookings')
+          .where('eventId', isEqualTo: eventId)
+          .where('userId', isEqualTo: uid)
+          .where('status', isEqualTo: 'confirmed')
+          .get();
+          
+      for (var doc in bookingQuery.docs) {
+        batch.update(doc.reference, {'status': 'cancelled'});
+      }
 
       // 4. Leave activity log (for trust audit trail)
       final logRef = db

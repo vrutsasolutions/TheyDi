@@ -275,151 +275,121 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           const SizedBox(height: 14),
 
                           // Filter chips + advanced filter
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SizedBox(
-                                  height: 36,
-                                  child: ListView.separated(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _filters.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(width: 8),
-                                    itemBuilder: (context, index) {
-                                      final filter = _filters[index];
-                                      final isSelected =
-                                          filter == _selectedFilter;
-                                      return GestureDetector(
-                                        onTap: () {
-                                          debugPrint('EXPLORE_UI: Selected filter chip: $filter');
-                                          setState(() =>
-                                            _selectedFilter = filter);
-                                        },
-                                        child: AnimatedContainer(
-                                          duration: const Duration(
-                                              milliseconds: 200),
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 16),
-                                          decoration: BoxDecoration(
-                                            gradient: isSelected
-                                                ? TheyDiColors
-                                                    .gradientPrimary
-                                                : null,
-                                            color: isSelected
-                                                ? null
-                                                : TheyDiColors.card,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    20),
-                                            border: Border.all(
-                                              color: isSelected
-                                                  ? Colors.transparent
-                                                  : TheyDiColors.divider,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(filter,
-                                                style: TheyDiTextStyles
-                                                    .labelMedium
-                                                    .copyWith(
-                                                  color: isSelected
-                                                      ? Colors.white
-                                                      : TheyDiColors
-                                                          .textSecondary,
-                                                )),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              GestureDetector(
-                                onTap: () {
-                                  FilterBottomSheet.show(
-                                    context: context,
-                                    filters: _advancedFilters,
-                                    onApply: (filters) {
-                                      setState(() {
-                                        _advancedFilters.category =
-                                            filters.category;
-                                        _advancedFilters.city =
-                                            filters.city;
-                                        _advancedFilters.freeOnly =
-                                            filters.freeOnly;
-                                        _advancedFilters.maxPrice =
-                                            filters.maxPrice;
-                                        _advancedFilters.dateFrom =
-                                            filters.dateFrom;
-                                        _advancedFilters.dateTo =
-                                            filters.dateTo;
-                                      });
-                                    },
-                                  );
-                                },
-                                child: Container(
-                                  height: 36,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: _advancedFilters
-                                            .hasActiveFilters
-                                        ? TheyDiColors.primary
-                                            .withValues(alpha: 0.2)
-                                        : TheyDiColors.card,
-                                    borderRadius:
-                                        BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _advancedFilters
-                                              .hasActiveFilters
-                                          ? TheyDiColors.primary
-                                          : TheyDiColors.divider,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.tune,
-                                          size: 16,
-                                          color: _advancedFilters
-                                                  .hasActiveFilters
-                                              ? TheyDiColors.primary
-                                              : TheyDiColors
-                                                  .textSecondary),
-                                      if (_advancedFilters.activeCount >
-                                          0) ...[
-                                        const SizedBox(width: 4),
-                                        Container(
-                                          width: 18,
-                                          height: 18,
-                                          decoration:
-                                              const BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: TheyDiColors.primary,
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '${_advancedFilters.activeCount}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight:
-                                                    FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                              .animate(delay: 150.ms)
-                              .fade(duration: 400.ms),
+                          SingleChildScrollView(
+  scrollDirection: Axis.horizontal,
+  child: Row(
+    children: [
+
+      SizedBox(
+        height: 32,
+        child: ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          scrollDirection: Axis.horizontal,
+          itemCount: _filters.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (context, index) {
+            final filter = _filters[index];
+            final isSelected = filter == _selectedFilter;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedFilter = filter;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  gradient:
+                      isSelected ? TheyDiColors.gradientPrimary : null,
+                  color:
+                      isSelected ? null : TheyDiColors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected
+                        ? Colors.transparent
+                        : TheyDiColors.divider,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    filter,
+                    style: TheyDiTextStyles.caption.copyWith(
+                      fontSize: 11,
+                      color: isSelected
+                          ? Colors.white
+                          : TheyDiColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+
+      const SizedBox(width: 8),
+
+      GestureDetector(
+        onTap: () {
+          FilterBottomSheet.show(
+            context: context,
+            filters: _advancedFilters,
+            onApply: (filters) {
+              setState(() {
+                _advancedFilters.category = filters.category;
+                _advancedFilters.city = filters.city;
+                _advancedFilters.freeOnly = filters.freeOnly;
+                _advancedFilters.maxPrice = filters.maxPrice;
+                _advancedFilters.dateFrom = filters.dateFrom;
+                _advancedFilters.dateTo = filters.dateTo;
+              });
+            },
+          );
+        },
+        child: Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: _advancedFilters.hasActiveFilters
+                ? TheyDiColors.primary.withValues(alpha: .15)
+                : TheyDiColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _advancedFilters.hasActiveFilters
+                  ? TheyDiColors.primary
+                  : TheyDiColors.divider,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.tune,
+                size: 15,
+                color: _advancedFilters.hasActiveFilters
+                    ? TheyDiColors.primary
+                    : TheyDiColors.textSecondary,
+              ),
+              if (_advancedFilters.activeCount > 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  "${_advancedFilters.activeCount}",
+                  style: TheyDiTextStyles.caption.copyWith(
+                    fontSize: 10,
+                    color: TheyDiColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ],
+  ),
+),
 
                           const SizedBox(height: 20),
                         ],
