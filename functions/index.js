@@ -1,6 +1,7 @@
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const { FieldValue } = require("firebase-admin/firestore");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
@@ -170,8 +171,8 @@ exports.verifyPayment = onCall(
         status: "confirmed",
         paymentMethod: paymentMethod || "Unknown",
         transactionId: razorpay_payment_id,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        confirmedAt: FieldValue.serverTimestamp(),
       };
 
       // Run as a batch write for atomicity
@@ -184,10 +185,10 @@ exports.verifyPayment = onCall(
       // 2. Add user to attendees array in event
       const eventRef = db.collection("events").doc(eventId);
       const eventUpdates = {
-        attendeeUids: admin.firestore.FieldValue.arrayUnion(uid),
+        attendeeUids: FieldValue.arrayUnion(uid),
       };
       if (fromApproval) {
-        eventUpdates.approvedPendingPaymentUids = admin.firestore.FieldValue.arrayRemove(uid);
+        eventUpdates.approvedPendingPaymentUids = FieldValue.arrayRemove(uid);
       }
       batch.update(eventRef, eventUpdates);
 
@@ -199,21 +200,21 @@ exports.verifyPayment = onCall(
         transactionId: razorpay_payment_id,
         paymentMethod: paymentMethod || "Unknown",
         amount: totalAmount,
-        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        paidAt: FieldValue.serverTimestamp(),
         eventId,
       }, { merge: true });
 
       // 4. Update user event count
       const userRef = db.collection("users").doc(uid);
       batch.update(userRef, {
-        eventsAttended: admin.firestore.FieldValue.increment(1),
+        eventsAttended: FieldValue.increment(1),
       });
 
       // 5. Create Payment history record in root 'payment' collection
       const globalPaymentRef = db.collection("payment").doc(razorpay_payment_id);
       batch.set(globalPaymentRef, {
         amount: amount || totalAmount || 0,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         currency: "INR",
         eventId: eventId,
         orderId: razorpay_order_id,
@@ -300,8 +301,8 @@ exports.razorpayWebhook = onRequest(
           status: "confirmed",
           paymentMethod: payment.method || "Unknown",
           transactionId: payment.id,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
+          confirmedAt: FieldValue.serverTimestamp(),
         };
 
         const batch = db.batch();
@@ -311,10 +312,10 @@ exports.razorpayWebhook = onRequest(
 
         const eventRef = db.collection("events").doc(notes.eventId);
         const eventUpdates = {
-          attendeeUids: admin.firestore.FieldValue.arrayUnion(notes.userId),
+          attendeeUids: FieldValue.arrayUnion(notes.userId),
         };
         if (notes.fromApproval === "true") {
-          eventUpdates.approvedPendingPaymentUids = admin.firestore.FieldValue.arrayRemove(notes.userId);
+          eventUpdates.approvedPendingPaymentUids = FieldValue.arrayRemove(notes.userId);
         }
         batch.update(eventRef, eventUpdates);
 
@@ -325,19 +326,19 @@ exports.razorpayWebhook = onRequest(
           transactionId: payment.id,
           paymentMethod: payment.method || "Unknown",
           amount: bookingData.totalAmount,
-          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAt: FieldValue.serverTimestamp(),
           eventId: notes.eventId,
         }, { merge: true });
 
         const userRef = db.collection("users").doc(notes.userId);
         batch.update(userRef, {
-          eventsAttended: admin.firestore.FieldValue.increment(1),
+          eventsAttended: FieldValue.increment(1),
         });
 
         const globalPaymentRef = db.collection("payment").doc(payment.id);
         batch.set(globalPaymentRef, {
           amount: bookingData.totalAmount,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
           currency: "INR",
           eventId: notes.eventId,
           orderId: order.id,
@@ -536,7 +537,7 @@ exports.sendOtp = onRequest({ cors: true, region: REGION }, async (req, res) => 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await db.collection("otp_resets").doc(emailTrimmed).set({
+    await db.collection("password_reset_otps").doc(emailTrimmed).set({
       email: emailTrimmed,
       otp,
       expiresAt,
@@ -568,7 +569,7 @@ exports.verifyOtp = onRequest({ cors: true, region: REGION }, async (req, res) =
     if (!email || !otp) return res.status(400).json({ success: false, message: "Missing fields" });
 
     const emailTrimmed = email.trim().toLowerCase();
-    const docRef = db.collection("otp_resets").doc(emailTrimmed);
+    const docRef = db.collection("password_reset_otps").doc(emailTrimmed);
     const doc = await docRef.get();
     if (!doc.exists) return res.status(400).json({ success: false, message: "No active OTP request" });
 
@@ -582,7 +583,7 @@ exports.verifyOtp = onRequest({ cors: true, region: REGION }, async (req, res) =
     }
 
     if (data.otp !== otp.trim()) {
-      await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+      await docRef.update({ attempts: FieldValue.increment(1) });
       return res.status(400).json({ success: false, message: "Invalid OTP" });
     }
 
@@ -605,17 +606,32 @@ exports.resetPassword = onRequest({ cors: true, region: REGION }, async (req, re
     if (!email || !password) return res.status(400).json({ success: false, message: "Missing fields" });
 
     const emailTrimmed = email.trim().toLowerCase();
-    const docRef = db.collection("otp_resets").doc(emailTrimmed);
+    const docRef = db.collection("password_reset_otps").doc(emailTrimmed);
     const doc = await docRef.get();
     if (!doc.exists) return res.status(400).json({ success: false, message: "Session not found" });
 
     const data = doc.data();
     if (!data.verified || data.verifiedExpiresAt.toDate() < new Date()) {
+      await db.collection("password_reset_logs").add({
+        email: emailTrimmed,
+        resetAt: FieldValue.serverTimestamp(),
+        success: false,
+        reason: "Verification expired or invalid",
+      });
       return res.status(400).json({ success: false, message: "Verification expired or invalid" });
     }
 
     const user = await admin.auth().getUserByEmail(emailTrimmed);
     await admin.auth().updateUser(user.uid, { password });
+
+    // Keep a permanent, non-sensitive audit record that a reset happened —
+    // this never stores the OTP itself, only proof that a reset occurred.
+    await db.collection("password_reset_logs").add({
+      email: emailTrimmed,
+      resetAt: FieldValue.serverTimestamp(),
+      success: true,
+    });
+
     await docRef.delete();
 
     return res.status(200).json({ success: true, message: "Password updated" });
