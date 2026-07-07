@@ -23,11 +23,40 @@ class EventsMapScreen extends StatefulWidget {
   State<EventsMapScreen> createState() => _EventsMapScreenState();
 }
 
+// Matches the price-pill bitmap height in createPriceMarker() (pill + stem +
+// dot = 40px total), used to position the popup so its pointer touches the
+// dot instead of covering it.
+const double _kMarkerHeight = 40;
+const double _kPopupWidth = 190;
+// Fallback used only for the first frame before the real height is measured.
+const double _kPopupHeightFallback = 150;
+
 class _EventsMapScreenState extends State<EventsMapScreen> {
   EventModel? _selectedEvent;
+  Offset? _markerScreenPosition;
   GoogleMapController? _mapController;
   final Map<String, BitmapDescriptor> _markerCache = {};
   Set<Marker> _markers = {};
+
+  // Key + measured height for the marker popup card. Since the card's
+  // content (title/address) can wrap to a variable number of lines, we
+  // measure its real rendered height after each frame instead of assuming
+  // a fixed value, then reposition so the pointer always lands exactly on
+  // the pin.
+  final GlobalKey _popupKey = GlobalKey();
+  double _popupHeight = _kPopupHeightFallback;
+
+  void _measurePopupAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final renderBox =
+          _popupKey.currentContext?.findRenderObject() as RenderBox?;
+      final measured = renderBox?.size.height;
+      if (measured != null && measured > 0 && measured != _popupHeight) {
+        setState(() => _popupHeight = measured);
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -50,16 +79,28 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     return const LatLng(20.5937, 78.9629); // India center
   }
 
-  void _onMarkerTap(EventModel event) {
-    setState(() => _selectedEvent = event);
+  Future<void> _onMarkerTap(EventModel event) async {
+    if (_mapController == null) return;
 
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(
-          event.latitude,
-          event.longitude,
-        ),
-        14,
+    final screenPoint = await _mapController!.getScreenCoordinate(
+      LatLng(event.latitude, event.longitude),
+    );
+
+    setState(() {
+      _selectedEvent = event;
+      _markerScreenPosition = Offset(
+        screenPoint.x.toDouble(),
+        screenPoint.y.toDouble(),
+      );
+      // Reset to the fallback height for this new card's first frame, then
+      // measure its real height once it's actually laid out.
+      _popupHeight = _kPopupHeightFallback;
+    });
+    _measurePopupAfterFrame();
+
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLng(
+        LatLng(event.latitude, event.longitude),
       ),
     );
   }
@@ -84,26 +125,14 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     for (final event in widget.events) {
       if (event.latitude == 0 || event.longitude == 0) continue;
 
-      final icon = await createPriceMarker(
-        event.isFree ? "FREE" : "₹${event.price.toInt()}",
-        event.isFree,
-      );
-
-      markerSet.add(
-        Marker(
-          markerId: MarkerId(event.id),
-          position: LatLng(
-            event.latitude,
-            event.longitude,
-          ),
-          icon: icon,
-          infoWindow: InfoWindow(
-            title: event.title,
-            snippet: event.isFree ? "FREE" : "₹${event.price.toInt()}",
-          ),
-          onTap: () => _onMarkerTap(event),
-        ),
-      );
+      final icon = await _getMarker(event);
+      markerSet.add(Marker(
+        markerId: MarkerId(event.id),
+        position: LatLng(event.latitude, event.longitude),
+        icon: icon,
+        consumeTapEvents: true,
+        onTap: () => _onMarkerTap(event),
+      ));
     }
 
     if (!mounted) return;
@@ -130,72 +159,54 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     return icon;
   }
 
+  // ── Smaller price marker with a location dot ──
+  // Canvas is 56x40: the 56x26 pill sits on top (unchanged), and a thin
+  // stem + small colored dot beneath it marks the exact coordinate, since
+  // the marker's default anchor is bottom-center of the whole bitmap.
   Future<BitmapDescriptor> createPriceMarker(
     String text,
     bool isFree,
   ) async {
-    const double width = 220;
-    const double height = 110;
+    const double width = 56;
+    const double pillHeight = 26;
+    const double stemHeight = 10;
+    const double dotRadius = 4;
+    const double height = pillHeight + stemHeight + dotRadius; // 40
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    final bgPaint = Paint()..color = Colors.white;
-
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: .18)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-
     final accentColor =
         isFree ? const Color(0xff2ECC71) : const Color(0xffFF4D6D);
+
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(.18)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+
+    final bgPaint = Paint()..color = Colors.white;
 
     final borderPaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 1.4;
 
-    // Shadow
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(14, 14, 190, 56),
-        const Radius.circular(28),
-      ),
-      shadowPaint,
-    );
-
-    // White pill
     final pill = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(10, 10, 190, 56),
-      const Radius.circular(28),
+      const Rect.fromLTWH(2, 2, 52, 18),
+      const Radius.circular(9),
     );
+
+    canvas.drawRRect(pill.shift(const Offset(0.5, 1)), shadowPaint);
 
     canvas.drawRRect(pill, bgPaint);
     canvas.drawRRect(pill, borderPaint);
-
-    // Bottom pin
-    final path = Path();
-
-    path.moveTo(95, 66);
-    path.lineTo(115, 66);
-    path.lineTo(105, 82);
-    path.close();
-
-    canvas.drawPath(path, Paint()..color = accentColor);
-
-    canvas.drawCircle(
-      const Offset(105, 94),
-      7,
-      Paint()..color = accentColor,
-    );
 
     final tp = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           color: accentColor,
-          fontWeight: FontWeight.w800,
-          fontSize: text.length > 5 ? 22 : 26,
-          letterSpacing: .4,
+          fontWeight: FontWeight.bold,
+          fontSize: text.length > 5 ? 8 : 9.5,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -204,12 +215,42 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     tp.layout();
 
     tp.paint(
-      canvas,
-      Offset(
-        (210 - tp.width) / 2,
-        22,
-      ),
+        canvas,
+        Offset(
+          (width - tp.width) / 2,
+          (pillHeight - tp.height) / 2 - 1,
+        ));
+
+    // ── Stem + dot marking the exact pin location ──
+    final centerX = width / 2;
+    final stemStartY = pillHeight;
+    final dotCenterY = height - dotRadius;
+
+    final stemPaint = Paint()
+      ..color = accentColor
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(centerX, stemStartY),
+      Offset(centerX, dotCenterY - dotRadius),
+      stemPaint,
     );
+
+    final dotShadowPaint = Paint()
+      ..color = Colors.black.withOpacity(.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
+    canvas.drawCircle(
+        Offset(centerX, dotCenterY + 0.5), dotRadius, dotShadowPaint);
+
+    final dotFillPaint = Paint()..color = accentColor;
+    canvas.drawCircle(Offset(centerX, dotCenterY), dotRadius, dotFillPaint);
+
+    final dotRingPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(Offset(centerX, dotCenterY), dotRadius, dotRingPaint);
 
     final picture = recorder.endRecording();
 
@@ -240,21 +281,46 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               target: _initialCenter,
               zoom: widget.userLat != null ? 12 : 5,
             ),
+
             onMapCreated: (controller) {
               _mapController = controller;
             },
+
             onTap: (_) {
               setState(() {
                 _selectedEvent = null;
+                _markerScreenPosition = null;
               });
             },
+
+            // 👇 ADD THIS HERE
+            onCameraMove: (_) async {
+              if (_selectedEvent == null || _mapController == null) return;
+
+              final point = await _mapController!.getScreenCoordinate(
+                LatLng(
+                  _selectedEvent!.latitude,
+                  _selectedEvent!.longitude,
+                ),
+              );
+
+              if (!mounted) return;
+
+              setState(() {
+                _markerScreenPosition = Offset(
+                  point.x.toDouble(),
+                  point.y.toDouble(),
+                );
+              });
+            },
+
             myLocationEnabled: widget.userLat != null,
             myLocationButtonEnabled: true,
             zoomControlsEnabled: true,
             markers: _markers,
           ),
 
-          // ── Dark overlay for contrast ──
+          // ── Dark overlay for contrast (rendered first so cards on top stay crisp) ──
           Positioned.fill(
             child: IgnorePointer(
               child: Container(
@@ -273,6 +339,23 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               ),
             ),
           ),
+
+          // ── Marker popup card, centered above the tapped pin with the
+          // pointer triangle touching it (not overlapping). Horizontal
+          // position is clamped so the card can't render off-screen near
+          // the map edges. ──
+          if (_selectedEvent != null && _markerScreenPosition != null)
+            Positioned(
+              left: (_markerScreenPosition!.dx - _kPopupWidth / 2).clamp(
+                8.0,
+                MediaQuery.of(context).size.width - _kPopupWidth - 8.0,
+              ),
+              top: _markerScreenPosition!.dy - _kMarkerHeight - _popupHeight,
+              child: _MarkerPopupCard(
+                key: _popupKey,
+                event: _selectedEvent!,
+              ),
+            ),
 
           // ── Top bar ──
           SafeArea(
@@ -335,7 +418,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
             ),
           ),
 
-          // ── Event preview card ──
+          // ── Bottom event preview card ──
           if (_selectedEvent != null)
             Positioned(
               bottom: 32,
@@ -517,4 +600,95 @@ class _EventPreviewCard extends StatelessWidget {
     final period = dt.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
+}
+
+class _MarkerPopupCard extends StatelessWidget {
+  final EventModel event;
+
+  const _MarkerPopupCard({
+    super.key,
+    required this.event,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
+
+          Container(
+            width: 190,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 16,
+                  color: Colors.black.withOpacity(.18),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  event.isFree
+                      ? "FREE"
+                      : "₹${event.price.toInt()}",
+                  style: TextStyle(
+                    color: event.isFree
+                        ? Colors.green
+                        : Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Pointer triangle
+          CustomPaint(
+            size: const Size(20, 12),
+            painter: _TrianglePainter(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrianglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white;
+
+    final path = Path()
+      ..moveTo(size.width / 2, size.height)
+      ..lineTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..close();
+
+    canvas.drawShadow(path, Colors.black26, 3, true);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

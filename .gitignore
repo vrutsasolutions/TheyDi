@@ -45,6 +45,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-# .env
+.env
+.env.local
 
 functions/serviceAccountKey.json

@@ -647,8 +647,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             validator: (v) {
               if (v == null || v.isEmpty) return 'Please confirm your password';
-              if (v != _passwordController.text)
+              if (v != _passwordController.text) {
                 return 'Passwords do not match';
+              }
               return null;
             },
           ).animate(delay: 220.ms).fade(duration: 300.ms),

@@ -4,7 +4,6 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -48,7 +47,7 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       final sd = widget.signupData;
 
       // ── 1. Final username uniqueness guard ──────────────────────────────────
-      debugPrint('[Signup] Step 1: Checking username uniqueness...');
+      
       final usernameDoc = await FirebaseFirestore.instance
           .collection('usernames')
           .doc(sd.username.toLowerCase())
@@ -62,39 +61,39 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       }
 
       // ── 2. Create Firebase Auth account ────────────────────────────────────
-      debugPrint('[Signup] Step 2: Creating Firebase Auth account...');
+     
       final credential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: sd.email.trim(),
         password: sd.password,
       );
       createdUser = credential.user!;
-      debugPrint('[Signup] Auth account created: ${createdUser.uid}');
+      
 
       // ── 3. Update display name ──────────────────────────────────────────────
-      debugPrint('[Signup] Step 3: Setting display name...');
+      
       final displayName =
           sd.displayName.isNotEmpty ? sd.displayName : sd.name;
       await createdUser.updateDisplayName(displayName);
 
       // ── 4. Write user profile to Firestore ─────────────────────────────────
-      debugPrint('[Signup] Step 4: Writing to Firestore...');
+      
 
       // Write separately instead of batch — easier to debug which one fails
       await FirebaseFirestore.instance
           .collection('users')
           .doc(createdUser.uid)
           .set(sd.toFirestoreMap(createdUser.uid));
-      debugPrint('[Signup] users doc written successfully');
+   
 
       await FirebaseFirestore.instance
           .collection('usernames')
           .doc(sd.username.toLowerCase())
           .set({'uid': createdUser.uid, 'username': sd.username.toLowerCase()});
-      debugPrint('[Signup] usernames doc written successfully');
+      
 
       // ── 5. Navigate home ────────────────────────────────────────────────────
-      debugPrint('[Signup] Step 5: Navigating to home...');
+     
       if (mounted) context.go(AppRoutes.home);
 
     } on FirebaseAuthException catch (e) {

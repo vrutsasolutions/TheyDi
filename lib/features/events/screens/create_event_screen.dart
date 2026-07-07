@@ -562,8 +562,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           '&key=$apiKey';
 
       final response = await http.get(Uri.parse(url));
-      debugPrint("Status: ${response.statusCode}");
-      debugPrint(response.body);
+     
 
       if (response.statusCode != 200) return;
 
@@ -627,7 +626,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
         _pinnedAddress = formattedAddress;
 
-        String venue = result['address_components'][0]['long_name'];
+        _venueController.text = venue.isNotEmpty ? venue : formattedAddress;
 
         _updatingVenueProgrammatically = true;
 
@@ -649,7 +648,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         final normalizedCity = normalize(city);
 
         final matchedCity = _kCities.firstWhere(
-          (c) => normalize(c) == normalizedCity,
+          (c) {
+            final item = normalize(c);
+
+            return item.startsWith(normalizedCity);
+          },
           orElse: () => '',
         );
 

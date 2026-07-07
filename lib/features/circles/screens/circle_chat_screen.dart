@@ -1932,9 +1932,9 @@ class _MediaOption extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.3))),
+                border: Border.all(color: color.withValues(alpha: 0.3))),
             child: Icon(icon, color: color, size: 28)),
         const SizedBox(height: 8),
         Text(label,

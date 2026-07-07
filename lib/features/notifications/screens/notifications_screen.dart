@@ -409,7 +409,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     
         } else if (notif.type == 'suggested_friends') {
           context.push(AppRoutes.circleDiscovery);
->>>>>>> 480f126 (feat: improve notifications, report history, and UI enhancements)
         } else if (notif.fromUid != null) {
           context.push(AppRoutes.userProfile, extra: {
             'uid': notif.fromUid!,

@@ -157,7 +157,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       await Clipboard.setData(ClipboardData(text: text));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Link copied! Paste it in Instagram.', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        content: const Text('Link copied! Paste it in Instagram.', style: TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -186,7 +186,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Profile shared successfully! 🚀', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        Text('Profile shared successfully! 🚀', style: TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,
