@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/user_service.dart';
+import '../../../core/services/notification_service.dart';
 
 // ── Firebase Auth Instance ──
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
@@ -26,6 +27,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
     final keepSignedIn = prefs.getBool(_keepSignedInKey) ?? true;
 
     if (!keepSignedIn && _auth.currentUser != null) {
+      await NotificationService.setOnlineStatus(false);
       await _auth.signOut();
       return null;
     }
@@ -147,6 +149,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keepSignedInKey, false);
+    await NotificationService.setOnlineStatus(false);
     await _auth.signOut();
   }
 }

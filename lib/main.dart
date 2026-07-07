@@ -5,9 +5,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 void main() async {
@@ -129,11 +132,58 @@ Future<void> _fixDatabaseMojibake() async {
   }
 }
 
-class TheyDiApp extends ConsumerWidget {
+class TheyDiApp extends ConsumerStatefulWidget {
   const TheyDiApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TheyDiApp> createState() => _TheyDiAppState();
+}
+
+class _TheyDiAppState extends ConsumerState<TheyDiApp> with WidgetsBindingObserver {
+  StreamSubscription? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed ||
+            WidgetsBinding.instance.lifecycleState == null) {
+          _updateOnlineStatus(true);
+        }
+      }
+    });
+    _updateOnlineStatus(true);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _authSub?.cancel();
+    _updateOnlineStatus(false);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _updateOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _updateOnlineStatus(false);
+    }
+  }
+
+  void _updateOnlineStatus(bool isOnline) {
+    Future.microtask(() {
+      try {
+        NotificationService.setOnlineStatus(isOnline);
+      } catch (_) {}
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

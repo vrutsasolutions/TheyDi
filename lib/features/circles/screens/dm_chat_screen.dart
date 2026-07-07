@@ -497,19 +497,14 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         return;
       }
 
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('voice_messages')
-          .child(_chatId!)
-          .child(fileName);
-
-      final contentType = kIsWeb ? 'audio/webm' : 'audio/aac';
-      final snapshot = await storageRef.putData(
-        Uint8List.fromList(bytes),
-        SettableMetadata(contentType: contentType),
-      );
-      final audioUrl = await snapshot.ref.getDownloadURL();
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final audioUrl = await CloudflareUpload.uploadBytes(bytes, fileName);
+      
+      if (audioUrl == null) {
+        if (mounted) _showSnack('Audio upload failed. Please try again.', Colors.red);
+        setState(() => _isUploading = false);
+        return;
+      }
 
       final now = Timestamp.now();
       await FirebaseFirestore.instance
@@ -1769,18 +1764,29 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                       gradient: TheyDiColors.gradientPrimary,
                       shape: BoxShape.circle),
                   child: const Icon(Icons.send, color: Colors.white, size: 20)))
-          : GestureDetector(
-              onLongPressStart: (_) => _startRecording(),
-              onLongPressEnd: (_) => _stopAndSendRecording(),
-              child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                      color: TheyDiColors.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: TheyDiColors.divider)),
-                  child: const Icon(Icons.mic_none,
-                      color: TheyDiColors.textSecondary, size: 20))),
+          : MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: _startRecording,
+                onLongPressStart: (_) => _startRecording(),
+                onLongPressEnd: (_) => _stopAndSendRecording(),
+                child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                        color: TheyDiColors.card,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: TheyDiColors.divider),
+                        boxShadow: [
+                          BoxShadow(
+                              color: TheyDiColors.primary.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2))
+                        ]),
+                    child: const Icon(Icons.mic_none,
+                        color: TheyDiColors.textSecondary, size: 20)),
+              ),
+            ),
     ]);
   }
 }
@@ -2147,16 +2153,8 @@ class _WaveformBars extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 1),
                     decoration: BoxDecoration(
                         color: i < played
-                            ? (isMine
-                                ? Colors.white
-                                : TheyDiColors
-                                    .primary) // Sent played bars are white
-                            : (isMine
-                                ? Colors.white.withValues(
-                                    alpha:
-                                        0.5) // Sent unplayed bars are lighter white
-                                : TheyDiColors.textMuted
-                                    .withValues(alpha: 0.4)),
+                            ? TheyDiColors.primary
+                            : TheyDiColors.textMuted.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(2))))));
   }
 }

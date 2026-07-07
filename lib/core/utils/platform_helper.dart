@@ -28,5 +28,5 @@ Future<List<int>> getFileBytes(String path) async {
 /// On mobile this returns empty — blob URLs don't exist on mobile.
 Future<List<int>> getBlobBytes(String blobUrl) async {
   if (!kIsWeb) return [];
-  return [];
+  return fetchBlobBytes(blobUrl);
 }

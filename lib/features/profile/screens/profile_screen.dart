@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 
@@ -204,6 +205,7 @@ class _ProfileContent extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
+      await NotificationService.setOnlineStatus(false);
       await FirebaseAuth.instance.signOut();
       if (context.mounted) context.go(AppRoutes.login);
     }

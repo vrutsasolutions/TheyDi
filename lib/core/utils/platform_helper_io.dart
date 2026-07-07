@@ -11,3 +11,5 @@ Future<String> getNativeTempDir() async {
 Future<List<int>> readFileBytes(String path) async {
   return File(path).readAsBytes();
 }
+
+Future<List<int>> fetchBlobBytes(String blobUrl) async => [];

@@ -460,20 +460,14 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         return;
       }
 
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('voice_messages')
-          .child('circles')
-          .child(_circle.id)
-          .child(fileName);
-
-      final contentType = kIsWeb ? 'audio/webm' : 'audio/aac';
-      final snapshot = await storageRef.putData(
-        Uint8List.fromList(bytes),
-        SettableMetadata(contentType: contentType),
-      );
-      final audioUrl = await snapshot.ref.getDownloadURL();
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final audioUrl = await CloudflareUpload.uploadBytes(bytes, fileName);
+      
+      if (audioUrl == null) {
+        if (mounted) _showSnack('Audio upload failed. Please try again.', Colors.red);
+        setState(() => _isUploading = false);
+        return;
+      }
 
       final now = DateTime.now();
       await FirebaseFirestore.instance
@@ -1331,23 +1325,34 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                   ),
                 ),
               )
-            : GestureDetector(
-                onLongPressStart: (_) => _startRecording(),
-                onLongPressEnd: (_) => _stopAndSendRecording(),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: TheyDiColors.card,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: TheyDiColors.divider,
+            : MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: _startRecording,
+                  onLongPressStart: (_) => _startRecording(),
+                  onLongPressEnd: (_) => _stopAndSendRecording(),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: TheyDiColors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: TheyDiColors.divider,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: TheyDiColors.primary.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
                     ),
-                  ),
-                  child: const Icon(
-                    Icons.mic_none,
-                    color: TheyDiColors.textSecondary,
-                    size: 20,
+                    child: const Icon(
+                      Icons.mic_none,
+                      color: TheyDiColors.textSecondary,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -1760,9 +1765,7 @@ class _WaveformBars extends StatelessWidget {
             decoration: BoxDecoration(
               color: i < played
                   ? TheyDiColors.primary
-                  : (isMine
-                      ? Colors.white.withValues(alpha: 0.3)
-                      : TheyDiColors.textMuted.withValues(alpha: 0.4)),
+                  : TheyDiColors.textMuted.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
