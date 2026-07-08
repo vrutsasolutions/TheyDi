@@ -521,37 +521,7 @@ class _ProfileContent extends ConsumerWidget {
                     ),
 
 
-// Verify Profile Button (only if not verified)
-if (!isVerified) ...[
-  OutlinedButton.icon(
-    onPressed: () {
-      context.push(
-        AppRoutes.signupStep4,
-        extra: {
-          'fromProfile': true,
-          'isVerified': isVerified,
-        },
-      );
-    },
-    icon: const Icon(
-      Icons.verified_outlined,
-      size: 18,
-    ),
-    label: const Text('Verify Profile'),
-    style: OutlinedButton.styleFrom(
-      foregroundColor: TheyDiColors.primary,
-      side: const BorderSide(
-        color: TheyDiColors.primary,
-      ),
-      shape: const StadiumBorder(),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 10,
-      ),
-    ),
-  ),
-  const SizedBox(height: 10),
-],
+
 
 // Edit Profile + Share Profile
 
