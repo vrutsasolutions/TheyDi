@@ -373,14 +373,7 @@ onTap: () => context.push(AppRoutes.blockedUsers),
                           },
                         ).animate(delay: 600.ms).fade(duration: 300.ms),
 
-                        const SizedBox(height: 8),
 
-                        _ActionTile(
-                          icon: Icons.history_outlined,
-                          title: 'Report History',
-                          subtitle: 'Review your submitted reports',
-                          onTap: () => context.push(AppRoutes.reportHistory),
-                        ).animate(delay: 575.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 24),
 
