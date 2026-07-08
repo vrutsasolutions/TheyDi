@@ -335,25 +335,23 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           subtitle: 'Manage your blocked list',
 onTap: () => context.push(AppRoutes.blockedUsers),
                         ).animate(delay: 500.ms).fade(duration: 300.ms),
-
-                        _ActionTile(
-                          icon: Icons.flag_outlined,
-// Report a problem
-_MenuItem(
+_ActionTile(
+  icon: Icons.flag_outlined,
   title: 'Report a problem',
   subtitle: 'Report inappropriate content or behaviour',
   onTap: () {
     context.push(AppRoutes.reportProblem);
   },
-),
+).animate(delay: 550.ms).fade(duration: 300.ms),
 
-// Report History
-_MenuItem(
+_ActionTile(
+  icon: Icons.history_outlined,
   title: 'Report History',
   subtitle: 'Review your submitted reports',
-  onTap: () => context.push(AppRoutes.reportHistory),
-),
-                        ).animate(delay: 550.ms).fade(duration: 300.ms),
+  onTap: () {
+    context.push(AppRoutes.reportHistory);
+  },
+).animate(delay: 600.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 24),
 
