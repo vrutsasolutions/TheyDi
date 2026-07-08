@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import 'package:theydi/core/router/app_routes.dart';
 
 // Stream user's privacy settings from Firestore
 final _privacySettingsProvider =
@@ -43,6 +44,10 @@ class PrivacySafetyScreen extends ConsumerWidget {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    final isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
     final passwordController = TextEditingController();
 
     final confirm = await showDialog<bool>(
@@ -60,33 +65,35 @@ class PrivacySafetyScreen extends ConsumerWidget {
               style: TheyDiTextStyles.bodyMedium
                   .copyWith(color: TheyDiColors.textSecondary),
             ),
-            const SizedBox(height: 16),
-            Text('Enter your password to confirm:',
-                style: TheyDiTextStyles.caption
-                    .copyWith(color: TheyDiColors.textSecondary)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              style: TheyDiTextStyles.bodyMedium,
-              decoration: InputDecoration(
-                hintText: 'Password',
-                hintStyle: TheyDiTextStyles.bodySmall
-                    .copyWith(color: TheyDiColors.textMuted),
-                filled: true,
-                fillColor: TheyDiColors.card,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: TheyDiColors.divider),
+            if (!isGoogle) ...[
+              const SizedBox(height: 16),
+              Text('Enter your password to confirm:',
+                  style: TheyDiTextStyles.caption
+                      .copyWith(color: TheyDiColors.textSecondary)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                style: TheyDiTextStyles.bodyMedium,
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                  hintStyle: TheyDiTextStyles.bodySmall
+                      .copyWith(color: TheyDiColors.textMuted),
+                  filled: true,
+                  fillColor: TheyDiColors.card,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: TheyDiColors.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: TheyDiColors.divider),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: TheyDiColors.divider),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
-            ),
+            ],
           ],
         ),
         actions: [
@@ -109,7 +116,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
     if (confirm != true || !context.mounted) return;
 
     final password = passwordController.text.trim();
-    if (password.isEmpty) {
+    if (!isGoogle && password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Password is required to delete account'),
@@ -129,29 +136,45 @@ class PrivacySafetyScreen extends ConsumerWidget {
     );
 
     try {
-      final user = FirebaseAuth.instance.currentUser!;
       final email = user.email!;
 
       // Re-authenticate (required by Firebase before deletion)
-      final credential = EmailAuthProvider.credential(
-        email: email,
-        password: password,
-      );
-      await user.reauthenticateWithCredential(credential);
+      if (isGoogle) {
+        if (kIsWeb) {
+          await user.reauthenticateWithProvider(GoogleAuthProvider());
+        } else {
+          final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+          final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+          final credential = GoogleAuthProvider.credential(
+            idToken: googleAuth.idToken,
+          );
+          await user.reauthenticateWithCredential(credential);
+        }
+      } else {
+        final credential = EmailAuthProvider.credential(
+          email: email,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
 
       final uid = user.uid;
 
       // Delete user's notifications subcollection
-      final notifDocs = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('notifications')
-          .get();
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in notifDocs.docs) {
-        batch.delete(doc.reference);
+      try {
+        final notifDocs = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('notifications')
+            .get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in notifDocs.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Non-critical: Failed to delete notifications: $e');
       }
-      await batch.commit();
 
       // Get username before deleting user document
       final userDoc =
@@ -163,10 +186,14 @@ class PrivacySafetyScreen extends ConsumerWidget {
 
       // Free up their username in the usernames registry
       if (username != null && username.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('usernames')
-            .doc(username.toLowerCase())
-            .delete();
+        try {
+          await FirebaseFirestore.instance
+              .collection('usernames')
+              .doc(username.toLowerCase())
+              .delete();
+        } catch (e) {
+          debugPrint('Non-critical: Failed to delete username doc: $e');
+        }
       }
 
       // Delete Firebase Auth account
@@ -337,14 +364,23 @@ onTap: () => context.push(AppRoutes.blockedUsers),
                         ).animate(delay: 500.ms).fade(duration: 300.ms),
 
 
-_ActionTile(
-  icon: Icons.history_outlined,
-  title: 'Report History',
-  subtitle: 'Review your submitted reports',
-  onTap: () {
-    context.push(AppRoutes.reportHistory);
-  },
-).animate(delay: 600.ms).fade(duration: 300.ms),
+                        _ActionTile(
+                          icon: Icons.history_outlined,
+                          title: 'Report History',
+                          subtitle: 'Review your submitted reports',
+                          onTap: () {
+                            context.push(AppRoutes.reportHistory);
+                          },
+                        ).animate(delay: 600.ms).fade(duration: 300.ms),
+
+                        const SizedBox(height: 8),
+
+                        _ActionTile(
+                          icon: Icons.history_outlined,
+                          title: 'Report History',
+                          subtitle: 'Review your submitted reports',
+                          onTap: () => context.push(AppRoutes.reportHistory),
+                        ).animate(delay: 575.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 24),
 

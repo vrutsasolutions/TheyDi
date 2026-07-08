@@ -1,11 +1,19 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-
 class ForgotPasswordService {
-  // Replace with your project's region and project ID after running: firebase deploy
-  // e.g. "https://us-central1-my-firebase-project.cloudfunctions.net"
-  static const String baseUrl = "http://127.0.0.1:5001/theydi-cefdf/asia-south1";
+  // Automatically switches between Local Emulator and Live Server
+  static String get baseUrl {
+    if (kDebugMode) {
+      if (!kIsWeb && Platform.isAndroid) {
+        return "http://10.0.2.2:5001/theydi-cefdf/asia-south1";
+      }
+      return "http://127.0.0.1:5001/theydi-cefdf/asia-south1";
+    }
+    return "https://asia-south1-theydi-cefdf.cloudfunctions.net";
+  }
 
   /// Sends a 6-digit OTP code to the user's email address
   Future<Map<String, dynamic>> sendOtp(String email) async {

@@ -13,6 +13,39 @@ const db = admin.firestore();
 // All functions live in this region so client base URLs stay consistent.
 const REGION = "asia-south1";
 
+// Email Base HTML Template
+function getBaseEmailHtml(title, bodyContent) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #FFFFFF; margin: 40px auto; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid #E5E7EB;">
+    <tr>
+      <td align="center" style="padding: 30px 0 20px 0; border-bottom: 1px solid #E5E7EB;">
+        <h1 style="color: #10B981; font-size: 28px; font-weight: 700; margin: 0; letter-spacing: 1px;">TheyDi</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 40px 40px 20px 40px;">
+        ${bodyContent}
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding: 24px 40px; background-color: #F9FAFB; border-top: 1px solid #E5E7EB;">
+        <p style="color: #9CA3AF; font-size: 12px; line-height: 18px; margin: 0;">
+          © 2026 TheyDi App. All rights reserved.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 function getRazorpay() {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_SECRET_KEY;
@@ -352,6 +385,79 @@ exports.razorpayWebhook = onRequest(
 
         await batch.commit();
         logger.info("Webhook processed payment successfully", { orderId: order.id });
+      } else if (event.event === "payout.processed") {
+        const payout = event.payload.payout.entity;
+        const notes = payout.notes || {};
+        const { eventId, bookingId } = notes;
+
+        if (eventId && bookingId) {
+          logger.info(`[Webhook] Payout processed successfully for event ${eventId}, booking ${bookingId}`);
+          await db.collection("events").doc(eventId).collection("attendeePayments").doc(bookingId).update({
+            payoutStatus: "completed",
+            payoutCompletedAt: FieldValue.serverTimestamp()
+          });
+        }
+      } else if (event.event === "payout.failed" || event.event === "payout.reversed" || event.event === "payout.rejected") {
+        const payout = event.payload.payout.entity;
+        const notes = payout.notes || {};
+        const { eventId, bookingId } = notes;
+
+        if (eventId && bookingId) {
+          logger.warn(`[Webhook] Payout failed/reversed for event ${eventId}, booking ${bookingId}`);
+          await db.collection("events").doc(eventId).collection("attendeePayments").doc(bookingId).update({
+            payoutStatus: "failed",
+            payoutFailedAt: FieldValue.serverTimestamp(),
+            payoutFailureReason: payout.failure_reason || "Unknown reason"
+          });
+
+          // Send Email & Notification to Host
+          const hostUid = notes.user_id;
+          if (hostUid) {
+            try {
+              const hostDoc = await db.collection("users").doc(hostUid).get();
+              const hostData = hostDoc.data();
+              if (hostData) {
+                // 1. Send Email
+                if (hostData.email) {
+                  const transporter = getTransporter();
+                  if (transporter) {
+                    const emailBody = `
+                      <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${hostData.displayName || 'Host'},</h2>
+                      <h3 style="color: #10B981; font-size: 18px; margin: 0 0 10px 0;">Action Required: Payout Failed ⚠️</h3>
+                      <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0;">
+                        Unfortunately, your payout for a booking in your event failed.<br><br>
+                        <strong>Reason from bank:</strong> ${payout.failure_reason || 'Incorrect bank details'}.<br><br>
+                        Please update your bank details in the TheyDi app as soon as possible so we can safely retry your payment.
+                      </p>
+                    `;
+                    const html = getBaseEmailHtml("Action Required: Payout Failed", emailBody);
+
+                    await transporter.sendMail({
+                      from: `"TheyDi Team" <${process.env.GMAIL_USER}>`,
+                      to: hostData.email,
+                      subject: "Action Required: Payout Failed ⚠️",
+                      text: `Hi ${hostData.displayName || 'Host'},\n\nUnfortunately, your payout for a booking in your event failed. \n\nReason from bank: ${payout.failure_reason || 'Incorrect bank details'}.\n\nPlease update your bank details in the TheyDi app as soon as possible so we can safely retry your payment.\n\nThank you,\nTheyDi Team`,
+                      html: html
+                    });
+                  }
+                }
+                
+                // 2. In-App Notification
+                await db.collection("notifications").add({
+                  toUid: hostUid,
+                  title: "Payout Failed ⚠️",
+                  body: `Your bank rejected a payout. Reason: ${payout.failure_reason || 'Incorrect bank details'}. Please update your account details.`,
+                  type: "payout_failed",
+                  eventId: eventId,
+                  createdAt: FieldValue.serverTimestamp(),
+                  isRead: false
+                });
+              }
+            } catch (notifyErr) {
+              logger.error("[Webhook] Failed to send failure notification to host:", notifyErr);
+            }
+          }
+        }
       }
 
       return res.status(200).send("OK");
@@ -539,9 +645,12 @@ exports.releaseHostPayoutsX = onCall(
         
         if (!payoutData.id) throw new Error("Payout failed: " + JSON.stringify(payoutData));
 
-        await doc.ref.update({ payoutStatus: "completed" });
+        await doc.ref.update({ 
+          payoutStatus: "processing", 
+          payoutId: payoutData.id 
+        });
         transferCount++;
-        logger.info(`[HostPayout] Successfully completed payout for booking ${doc.id}`);
+        logger.info(`[HostPayout] Successfully queued payout for booking ${doc.id}`);
       } catch (e) {
         logger.error(`RazorpayX Payout failed for booking ${doc.id}`, e);
       }
@@ -592,12 +701,30 @@ exports.sendOtp = onRequest({ cors: true, region: REGION }, async (req, res) => 
       attempts: 0,
     });
 
+    const emailBody = `
+      <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello there,</h2>
+      <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0;">
+        Here is your secure verification code. Please use this to complete your current action in the TheyDi app. This code will expire in 10 minutes.
+      </p>
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F9FAFB; border-radius: 12px; border: 1px solid #E5E7EB;">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <h1 style="color: #10B981; font-size: 38px; font-weight: 700; margin: 0; letter-spacing: 12px; font-family: monospace;">${otp}</h1>
+          </td>
+        </tr>
+      </table>
+      <p style="color: #9CA3AF; font-size: 13px; line-height: 20px; margin: 30px 0 0 0; text-align: center;">
+        If you didn't request this email, please ignore it or contact TheyDi support immediately if you feel your account is at risk.
+      </p>
+    `;
+    const html = getBaseEmailHtml("Your TheyDi Verification Code", emailBody);
+
     await transporter.sendMail({
-      from: `"Your App" <${process.env.GMAIL_USER}>`,
+      from: `"TheyDi" <${process.env.GMAIL_USER}>`,
       to: emailTrimmed,
       subject: "Password Reset OTP",
       text: `Your OTP is ${otp}. Valid for 10 mins.`,
-      html: `<p>Your OTP is <strong>${otp}</strong>. Valid for 10 mins.</p>`,
+      html: html,
     });
 
     return res.status(200).json({ success: true, message: "OTP sent" });
@@ -671,8 +798,6 @@ exports.resetPassword = onRequest({ cors: true, region: REGION }, async (req, re
     const user = await admin.auth().getUserByEmail(emailTrimmed);
     await admin.auth().updateUser(user.uid, { password });
 
-    // Keep a permanent, non-sensitive audit record that a reset happened —
-    // this never stores the OTP itself, only proof that a reset occurred.
     await db.collection("password_reset_logs").add({
       email: emailTrimmed,
       resetAt: FieldValue.serverTimestamp(),
@@ -685,5 +810,75 @@ exports.resetPassword = onRequest({ cors: true, region: REGION }, async (req, re
   } catch (error) {
     logger.error("Error resetting password", error);
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+exports.sendSignupOtpEmail = onCall({ region: REGION }, async (request) => {
+  try {
+    const { toEmail, toName, otp } = request.data;
+    if (!toEmail || !otp) throw new HttpsError("invalid-argument", "Missing email or OTP");
+    
+    const transporter = getTransporter();
+    if (!transporter) throw new HttpsError("internal", "Email service not configured.");
+
+    const emailBody = `
+      <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${toName || 'there'},</h2>
+      <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0;">
+        Here is your verification code to complete your TheyDi registration. This code will expire in 10 minutes.
+      </p>
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F9FAFB; border-radius: 12px; border: 1px solid #E5E7EB;">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <h1 style="color: #10B981; font-size: 38px; font-weight: 700; margin: 0; letter-spacing: 12px; font-family: monospace;">${otp}</h1>
+          </td>
+        </tr>
+      </table>
+    `;
+    const html = getBaseEmailHtml("Your TheyDi Verification Code", emailBody);
+
+    await transporter.sendMail({
+      from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+      to: toEmail,
+      subject: "TheyDi Registration OTP",
+      text: `Your OTP is ${otp}.`,
+      html: html,
+    });
+    return { success: true };
+  } catch (e) {
+    logger.error("sendSignupOtpEmail failed", e);
+    throw new HttpsError("internal", e.message);
+  }
+});
+
+exports.sendSystemNotificationEmail = onCall({ region: REGION }, async (request) => {
+  try {
+    const { toEmail, toName, title, message } = request.data;
+    if (!toEmail || !message) throw new HttpsError("invalid-argument", "Missing fields");
+
+    const transporter = getTransporter();
+    if (!transporter) throw new HttpsError("internal", "Email service not configured.");
+
+    // Remove any double greetings if the client still sends them accidentally
+    let cleanMessage = message.replace(new RegExp(`^Hi ${toName},?\\s*\\n*`, 'i'), '');
+
+    const emailBody = `
+      <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${toName || 'there'},</h2>
+      <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">
+        ${cleanMessage}
+      </p>
+    `;
+    const html = getBaseEmailHtml(title || "TheyDi Notification", emailBody);
+
+    await transporter.sendMail({
+      from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+      to: toEmail,
+      subject: title || "New Notification from TheyDi",
+      text: cleanMessage,
+      html: html,
+    });
+    return { success: true };
+  } catch (e) {
+    logger.error("sendSystemNotificationEmail failed", e);
+    throw new HttpsError("internal", e.message);
   }
 });

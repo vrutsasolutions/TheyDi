@@ -189,7 +189,7 @@ class NotificationService {
       toName: resolved.name,
       title: isFree ? '🎉 New attendee joined — $eventTitle' : '💰 New booking received — $eventTitle',
       message:
-          'Hi ${resolved.name},\n\n'
+          ''
           'Great news! $attendeeName has just ${isFree ? 'joined' : 'booked a spot for'} your event "$eventTitle"${isFree ? '.' : ' for ₹$amount.'}\n\n'
           'You can view their details in your Host Dashboard.',
     );
@@ -236,7 +236,7 @@ class NotificationService {
       toEmail: resolved.email,
       toName: resolved.name,
       title: '👋 New Friend Request from $fromName',
-      message: 'Hi ${resolved.name},\n\n'
+      message: ''
           '$fromName has sent you a friend request on TheyDi.\n\n'
           'Open the app to review and accept the request to start connecting!',
     );
@@ -262,7 +262,7 @@ class NotificationService {
       toEmail: resolved.email,
       toName: resolved.name,
       title: '🎉 $accepterName accepted your friend request!',
-      message: 'Hi ${resolved.name},\n\n'
+      message: ''
           'Great news! $accepterName has accepted your friend request on TheyDi.\n\n'
           'Open the app to say hi and start a conversation!',
     );

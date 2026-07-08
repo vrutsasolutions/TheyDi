@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
@@ -24,7 +25,7 @@ void main() async {
 
   if (kDebugMode) {
     // Connect to the local Cloud Functions Emulator to bypass CORS
-    // FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator('localhost', 5001);
+    FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator('localhost', 5001);
   }
 
   // Run database mojibake migration in background
