@@ -9,7 +9,7 @@ import 'package:theydi/features/auth/screens/login_screen.dart';
 import 'package:theydi/features/events/models/event_model.dart';
 import 'package:theydi/features/auth/models/signup_data.dart';
 import 'package:theydi/features/auth/screens/signup_step1_screen.dart';
-import 'package:theydi/features/auth/screens/signup_otp_screen.dart'; 
+import 'package:theydi/features/auth/screens/signup_otp_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step2_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step3_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step4_screen.dart';
@@ -112,7 +112,7 @@ GoRoute(
         path: AppRoutes.forgotPassword,
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
- 
+
       // ── Deep Links ──
       GoRoute(
         path: '/event/:id',
@@ -138,7 +138,7 @@ GoRoute(
           return UserProfileScreen(uid: userId);
         },
       ),
- 
+
       // ── Payment ──
       GoRoute(
         path: AppRoutes.payment,
@@ -283,7 +283,21 @@ GoRoute(
       ),
       GoRoute(
         path: AppRoutes.friendsHub,
-        builder: (context, state) => const FriendsHubScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final initialTab = extra is Map<String, dynamic>
+              ? (extra['initialTab'] as int? ?? 0)
+              : 0;
+          return FriendsHubScreen(initialTab: initialTab);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.blockedUsers,
+        builder: (context, state) => const BlockedUsersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.reportHistory,
+        builder: (context, state) => const ReportProblemScreen(),
       ),
       GoRoute(
         path: AppRoutes.circleDiscovery,
@@ -299,14 +313,14 @@ GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),
       ),
- 
+
       // ── Signup flow: 1 → otp → 2 → 3 → 4 → 5 ──────────────────────────────
       GoRoute(
         path: AppRoutes.signupStep1,
         builder: (context, state) => const SignupStep1Screen(),
       ),
       GoRoute(
-        path: AppRoutes.signupOtp,                                          // ← NEW
+        path: AppRoutes.signupOtp, // ← NEW
         builder: (context, state) => SignupOtpScreen(
           signupData: state.extra as SignupData,
         ),
@@ -324,22 +338,33 @@ GoRoute(
         ),
       ),
       GoRoute(
-        path: AppRoutes.signupStep4,                                        // ← now Face Verify
-        builder: (context, state) => SignupStep4Screen(
-          signupData: state.extra as SignupData,
-        ),
+        path: AppRoutes.signupStep4, // ← now Face Verify
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic> && extra['fromProfile'] == true) {
+            return const SignupStep4Screen(fromProfile: true);
+          }
+          if (extra is SignupData) {
+            return SignupStep4Screen(signupData: extra);
+          }
+          return const SignupStep4Screen();
+        },
       ),
       GoRoute(
-        path: AppRoutes.signupStep5,                                        // ← NEW: Review & Complete
+        path: AppRoutes.signupStep5, // ← NEW: Review & Complete
         builder: (context, state) => SignupStep5Screen(
           signupData: state.extra as SignupData,
         ),
       ),
+
       GoRoute(
         path: AppRoutes.verifyProfile,
         builder: (context, state) => const VerifyProfileScreen(),
       ),
  
+
+
+
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
@@ -368,8 +393,7 @@ GoRoute(
           ),
           GoRoute(
             path: AppRoutes.editprofile,
-            builder: (context, state) =>
-                const EditProfileScreen(),
+            builder: (context, state) => const EditProfileScreen(),
           ),
           GoRoute(
             path: AppRoutes.createEvent,

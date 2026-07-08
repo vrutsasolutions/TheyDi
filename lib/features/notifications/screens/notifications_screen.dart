@@ -53,39 +53,57 @@ class NotificationModel {
 
   IconData get icon {
     switch (type) {
-      case 'booking':          return Icons.confirmation_num_outlined;
-      case 'reminder':         return Icons.alarm_outlined;
-      case 'social':           return Icons.people_outline;
-      case 'payment':          return Icons.payment_outlined;
-      case 'event_completed':  return Icons.event_available_outlined;
-      case 'review':           return Icons.star_outline;
+      case 'booking':
+        return Icons.confirmation_num_outlined;
+      case 'reminder':
+        return Icons.alarm_outlined;
+      case 'social':
+        return Icons.people_outline;
+      case 'payment':
+        return Icons.payment_outlined;
+      case 'event_completed':
+        return Icons.event_available_outlined;
+      case 'review':
+        return Icons.star_outline;
       case 'circle_added':
       case 'circle_join_request':
       case 'circle_approved':
       case 'circle_rejected':
-      case 'circle_removed':   return Icons.group_outlined;
+      case 'circle_removed':
+        return Icons.group_outlined;
       case 'dm':
-      case 'message':          return Icons.chat_bubble_outline;
-      default:                 return Icons.notifications_outlined;
+      case 'message':
+        return Icons.chat_bubble_outline;
+      default:
+        return Icons.notifications_outlined;
     }
   }
 
   Color get iconColor {
     switch (type) {
-      case 'booking':          return Colors.green;
-      case 'reminder':         return Colors.amber;
-      case 'social':           return Colors.blue;
-      case 'payment':          return Colors.purple;
-      case 'event_completed':  return Colors.orange;
-      case 'review':           return Colors.amber;
+      case 'booking':
+        return Colors.green;
+      case 'reminder':
+        return Colors.amber;
+      case 'social':
+        return Colors.blue;
+      case 'payment':
+        return Colors.purple;
+      case 'event_completed':
+        return Colors.orange;
+      case 'review':
+        return Colors.amber;
       case 'circle_added':
       case 'circle_join_request':
       case 'circle_approved':
       case 'circle_rejected':
-      case 'circle_removed':   return Colors.blue;
+      case 'circle_removed':
+        return Colors.blue;
       case 'dm':
-      case 'message':          return Colors.teal;
-      default:                 return TheyDiColors.primary;
+      case 'message':
+        return Colors.teal;
+      default:
+        return TheyDiColors.primary;
     }
   }
 }
@@ -123,7 +141,8 @@ class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
@@ -199,14 +218,17 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
                     const SizedBox(width: 4),
-                    Text('Notifications', style: TheyDiTextStyles.displayMedium),
+                    Text('Notifications',
+                        style: TheyDiTextStyles.displayMedium),
                     const Spacer(),
                     PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: TheyDiColors.textSecondary),
+                      icon: Icon(Icons.more_vert,
+                          color: TheyDiColors.textSecondary),
                       color: TheyDiColors.card,
                       onSelected: (value) async {
                         if (value == 'read') {
@@ -216,18 +238,28 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               backgroundColor: TheyDiColors.card,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              title: Text('Clear all?', style: TheyDiTextStyles.headlineMedium),
-                              content: Text('This will delete all notifications.',
-                                  style: TheyDiTextStyles.bodyMedium.copyWith(color: TheyDiColors.textSecondary)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              title: Text('Clear all?',
+                                  style: TheyDiTextStyles.headlineMedium),
+                              content: Text(
+                                  'This will delete all notifications.',
+                                  style: TheyDiTextStyles.bodyMedium.copyWith(
+                                      color: TheyDiColors.textSecondary)),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: Text('Cancel', style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.textSecondary)),
+                                  child: Text('Cancel',
+                                      style: TheyDiTextStyles.labelMedium
+                                          .copyWith(
+                                              color:
+                                                  TheyDiColors.textSecondary)),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, true),
-                                  child: Text('Clear', style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.error)),
+                                  child: Text('Clear',
+                                      style: TheyDiTextStyles.labelMedium
+                                          .copyWith(color: TheyDiColors.error)),
                                 ),
                               ],
                             ),
@@ -239,17 +271,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         PopupMenuItem(
                           value: 'read',
                           child: Row(children: [
-                            Icon(Icons.done_all, size: 18, color: TheyDiColors.textSecondary),
+                            Icon(Icons.done_all,
+                                size: 18, color: TheyDiColors.textSecondary),
                             const SizedBox(width: 8),
-                            Text('Mark all as read', style: TheyDiTextStyles.bodySmall),
+                            Text('Mark all as read',
+                                style: TheyDiTextStyles.bodySmall),
                           ]),
                         ),
                         PopupMenuItem(
                           value: 'clear',
                           child: Row(children: [
-                            Icon(Icons.delete_outline, size: 18, color: TheyDiColors.error),
+                            Icon(Icons.delete_outline,
+                                size: 18, color: TheyDiColors.error),
                             const SizedBox(width: 8),
-                            Text('Clear all', style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.error)),
+                            Text('Clear all',
+                                style: TheyDiTextStyles.bodySmall
+                                    .copyWith(color: TheyDiColors.error)),
                           ]),
                         ),
                       ],
@@ -262,18 +299,26 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
               Expanded(
                 child: notificationsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
-                  error: (e, _) => Center(child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall)),
+                  loading: () => const Center(
+                      child: CircularProgressIndicator(
+                          color: TheyDiColors.primary)),
+                  error: (e, _) => Center(
+                      child: Text('Failed to load: $e',
+                          style: TheyDiTextStyles.bodySmall)),
                   data: (notifications) {
                     if (notifications.isEmpty) {
                       return Center(
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.notifications_none, size: 64, color: Colors.grey[700]),
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.notifications_none,
+                              size: 64, color: Colors.grey[700]),
                           const SizedBox(height: 16),
-                          Text('No notifications yet', style: TheyDiTextStyles.headlineMedium),
+                          Text('No notifications yet',
+                              style: TheyDiTextStyles.headlineMedium),
                           const SizedBox(height: 8),
                           Text('You\'ll see booking updates and reminders here',
-                              style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary),
+                              style: TheyDiTextStyles.bodySmall
+                                  .copyWith(color: TheyDiColors.textSecondary),
                               textAlign: TextAlign.center),
                         ]),
                       );
@@ -326,7 +371,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   //  11. social friend request     → Friends Hub › Pending tab
   //  12. circle_added / circle_*   → Circles list → Circle Info
   // ─────────────────────────────────────────────────────────
-  Future<void> _handleNavigation(BuildContext context, NotificationModel notif) async {
+  Future<void> _handleNavigation(
+      BuildContext context, NotificationModel notif) async {
     final t = notif.title.toLowerCase();
     final b = notif.body.toLowerCase();
 
@@ -339,6 +385,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
 
     switch (notif.type) {
+
       case 'system':
         if (t.contains('completed') || t.contains('ended')) {
           if (b.contains('marked as completed') || t.contains('event completed')) {
@@ -380,10 +427,42 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         await openEventDetail();
         break;
 
+      // ── 1. Event ended ──────────────────────────────────────────────────────
+
+
       case 'review':
         context.push(AppRoutes.myReviews);
         break;
 
+// ── 3–7. Booking-type notifications ────────────────────────────────────
+case 'booking':
+  final isCompletePayment =
+      t.contains('complete payment') || b.contains('tap to pay');
+  final isApproved = t.contains('approved') &&
+      !t.contains('join request') &&
+      !isCompletePayment;
+  final isJoinRequest = t.contains('join request');
+  final isNewBooking = t.contains('booking') || b.contains('booked');
+  final isCancelled =
+      t.contains('cancelled') || t.contains('spot cancelled');
+
+  if (isCompletePayment && notif.eventId != null) {
+    await _pushEventDetail(context, notif.eventId!);
+  } else if (isApproved) {
+    context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
+  } else if (isJoinRequest && notif.eventId != null) {
+    context.push(AppRoutes.hostManage, extra: notif.eventId);
+  } else if ((isNewBooking || isCancelled) && notif.eventId != null) {
+    context.push(AppRoutes.hostManage, extra: notif.eventId);
+  } else if (notif.eventId != null) {
+    await _pushEventDetail(context, notif.eventId!);
+  }
+
+// ── Payment confirmed → Payment History ────────────────────────────────
+case 'payment':
+  context.push(AppRoutes.paymenthistory);
+
+// ── 8 & 9. Messages (DM or Circle) ─────────────────────────────────────
       case 'dm':
       case 'message':
         if (notif.circleId != null) {
@@ -400,10 +479,28 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         break;
 
       case 'social':
-        if (t.contains('accepted')) {
+final isAccepted = t.contains('accepted');
+final isFriendRequest =
+    t.contains('friend request') && !isAccepted;
+final isAddedToCircle =
+    t.contains('added to a circle') || t.contains('added you to');
+final isReview = t.contains('review');
+
+if (isReview) {
+  // Review received → My Reviews
+  context.push(AppRoutes.myReviews);
+} else if (isAddedToCircle) {
+  // Added to circle → Circles list
+  context.push(AppRoutes.circles);
+} else if (isAccepted && notif.fromUid != null) {
           context.push(AppRoutes.friendsHub);
         } else if (t.contains('friend request')) {
           context.push(AppRoutes.friendRequests);
+        } else if (notif.type == 'suggested_friends') {
+          context.push(
+            AppRoutes.friendsHub,
+            extra: {'initialTab': 2},
+          );
         } else if (notif.fromUid != null) {
           context.push(AppRoutes.userProfile, extra: {
             'uid': notif.fromUid!,
@@ -455,7 +552,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open event'), backgroundColor: Colors.grey),
+          const SnackBar(
+              content: Text('Could not open event'),
+              backgroundColor: Colors.grey),
         );
       }
     }
@@ -531,13 +630,12 @@ class _NotificationCardState extends State<_NotificationCard> {
     }
   }
 
-
   String _timeAgo(DateTime dateTime) {
     final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 1)  return 'Just now';
+    if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24)   return '${diff.inHours}h ago';
-    if (diff.inDays < 7)     return '${diff.inDays}d ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${(diff.inDays / 7).floor()}w ago';
   }
 
@@ -557,15 +655,24 @@ class _NotificationCardState extends State<_NotificationCard> {
     setState(() => _processing = true);
     final requestId = await _findRequestId(fromUid);
     if (requestId == null) {
-      if (mounted) setState(() { _processing = false; _responded = true; });
+      if (mounted)
+        setState(() {
+          _processing = false;
+          _responded = true;
+        });
       return;
     }
     await FriendsService.acceptFriendRequest(
         requestId: requestId, fromUid: fromUid, fromName: fromName);
     if (mounted) {
-      setState(() { _responded = true; _processing = false; });
+      setState(() {
+        _responded = true;
+        _processing = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You and $fromName are now friends! 🎉'), backgroundColor: Colors.green),
+        SnackBar(
+            content: Text('You and $fromName are now friends! 🎉'),
+            backgroundColor: Colors.green),
       );
     }
   }
@@ -574,14 +681,23 @@ class _NotificationCardState extends State<_NotificationCard> {
     setState(() => _processing = true);
     final requestId = await _findRequestId(fromUid);
     if (requestId == null) {
-      if (mounted) setState(() { _processing = false; _responded = true; });
+      if (mounted)
+        setState(() {
+          _processing = false;
+          _responded = true;
+        });
       return;
     }
-    await FriendsService.declineFriendRequest(requestId: requestId, myUid: widget.myUid);
+    await FriendsService.declineFriendRequest(
+        requestId: requestId, myUid: widget.myUid);
     if (mounted) {
-      setState(() { _responded = true; _processing = false; });
+      setState(() {
+        _responded = true;
+        _processing = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request declined'), backgroundColor: Colors.grey),
+        const SnackBar(
+            content: Text('Request declined'), backgroundColor: Colors.grey),
       );
     }
   }
@@ -620,7 +736,12 @@ class _NotificationCardState extends State<_NotificationCard> {
             ),
             boxShadow: notif.isRead
                 ? null
-                : [BoxShadow(color: notif.iconColor.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))],
+                : [
+                    BoxShadow(
+                        color: notif.iconColor.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,20 +769,25 @@ class _NotificationCardState extends State<_NotificationCard> {
                           Expanded(
                             child: Text(notif.title,
                                 style: TheyDiTextStyles.labelMedium.copyWith(
-                                    fontWeight: notif.isRead ? FontWeight.normal : FontWeight.w700),
+                                    fontWeight: notif.isRead
+                                        ? FontWeight.normal
+                                        : FontWeight.w700),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                           ),
                           if (!notif.isRead)
                             Container(
-                              width: 8, height: 8,
+                              width: 8,
+                              height: 8,
                               decoration: const BoxDecoration(
-                                  shape: BoxShape.circle, color: TheyDiColors.primary),
+                                  shape: BoxShape.circle,
+                                  color: TheyDiColors.primary),
                             ),
                         ]),
                         const SizedBox(height: 3),
                         Text(notif.body,
-                            style: TheyDiTextStyles.caption.copyWith(height: 1.4),
+                            style:
+                                TheyDiTextStyles.caption.copyWith(height: 1.4),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 5),
@@ -669,9 +795,13 @@ class _NotificationCardState extends State<_NotificationCard> {
                         // Navigation hint chip
                         Row(children: [
                           Text(_timeAgo(notif.createdAt),
-                              style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted, fontSize: 11)),
+                              style: TheyDiTextStyles.caption.copyWith(
+                                  color: TheyDiColors.textMuted, fontSize: 11)),
                           const SizedBox(width: 8),
-                          _NavHint(type: notif.type, title: notif.title, body: notif.body),
+                          _NavHint(
+                              type: notif.type,
+                              title: notif.title,
+                              body: notif.body),
                         ]),
                       ],
                     ),
@@ -679,45 +809,63 @@ class _NotificationCardState extends State<_NotificationCard> {
 
                   // Chevron
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right, size: 18, color: TheyDiColors.textMuted.withValues(alpha: 0.5)),
+                  Icon(Icons.chevron_right,
+                      size: 18,
+                      color: TheyDiColors.textMuted.withValues(alpha: 0.5)),
                 ],
               ),
 
               // ── Friend request inline action buttons ──
-              if (isFriendRequest && notif.fromUid != null && !_loadingStatus && !_responded) ...[
+              if (isFriendRequest &&
+                  notif.fromUid != null &&
+                  !_loadingStatus &&
+                  !_responded) ...[
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _processing ? null : () => _decline(notif.fromUid!),
+                      onPressed:
+                          _processing ? null : () => _decline(notif.fromUid!),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: TheyDiColors.divider),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
-                      child: Text('Decline', style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.textSecondary)),
+                      child: Text('Decline',
+                          style: TheyDiTextStyles.labelMedium
+                              .copyWith(color: TheyDiColors.textSecondary)),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary, borderRadius: BorderRadius.circular(10)),
+                          gradient: TheyDiColors.gradientPrimary,
+                          borderRadius: BorderRadius.circular(10)),
                       child: ElevatedButton(
-                        onPressed: _processing ? null : () {
-                          final senderName = notif.body.split(' ').first;
-                          _accept(notif.fromUid!, senderName);
-                        },
+                        onPressed: _processing
+                            ? null
+                            : () {
+                                final senderName = notif.body.split(' ').first;
+                                _accept(notif.fromUid!, senderName);
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
                           padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
                         child: _processing
-                            ? const SizedBox(width: 16, height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text('Accept', style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)),
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Text('Accept',
+                                style: TheyDiTextStyles.labelMedium
+                                    .copyWith(color: Colors.white)),
                       ),
                     ),
                   ),
@@ -728,7 +876,8 @@ class _NotificationCardState extends State<_NotificationCard> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text('Responded',
-                      style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted)),
+                      style: TheyDiTextStyles.caption
+                          .copyWith(color: TheyDiColors.textMuted)),
                 ),
             ],
           ),
@@ -758,10 +907,19 @@ class _NavHint extends StatelessWidget {
         return 'Open Event';
       case 'review':
         return 'My Reviews';
-      case 'booking':
-        if (t.contains('you\'re in') || (t.contains('approved') && !t.contains('join request'))) return 'My Events';
-        if (t.contains('join request') || t.contains('spot cancelled')) return 'Manage Event';
-        return 'Open Event';
+      case 'booking':if (t.contains('complete payment') || b.contains('tap to pay'))
+  return 'Open Event';
+
+if (t.contains("you're in") ||
+    (t.contains('approved') && !t.contains('join request')))
+  return 'My Events';
+
+if (t.contains('join request') ||
+    t.contains('spot cancelled') ||
+    t.contains('booking'))
+  return 'Manage Event';
+
+return 'Open Event';
       case 'payment':
         if (t.contains('payout')) return 'Host Dashboard';
         if (t.contains('new attendee') || t.contains('new booking') || b.contains('booked')) return 'Manage Event';
@@ -770,7 +928,8 @@ class _NavHint extends StatelessWidget {
       case 'message':
         return 'Open Chat';
       case 'social':
-        if (t.contains('accepted')) return 'Friends';
+        if (t.contains('accepted')) return 'Friends';if (t.contains('added to a circle') || t.contains('added you to'))
+  return 'Circles';
         return 'Friend Requests';
       case 'suggested_friends':
         return 'Discover Friends';
@@ -802,8 +961,11 @@ class _NavHint extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.arrow_forward, size: 9, color: TheyDiColors.primary),
         const SizedBox(width: 3),
-        Text(_hint, style: TheyDiTextStyles.caption.copyWith(
-            color: TheyDiColors.primary, fontSize: 10, fontWeight: FontWeight.w600)),
+        Text(_hint,
+            style: TheyDiTextStyles.caption.copyWith(
+                color: TheyDiColors.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -818,12 +980,12 @@ class NotificationBadge extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final countAsync = ref.watch(unreadNotificationsCountProvider);
-    
+
     return countAsync.maybeWhen(
       data: (count) {
         if (count == 0) return child;
         final label = count > 99 ? '99+' : '$count';
-        
+
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -842,7 +1004,10 @@ class NotificationBadge extends ConsumerWidget {
                 child: Center(
                   child: Text(
                     label,
-                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

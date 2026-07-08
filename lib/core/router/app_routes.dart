@@ -3,13 +3,13 @@ class AppRoutes {
 
   static const splash = '/';
   static const login = '/login';
-  static const forgotPassword = '/forgot-password';  
+  static const forgotPassword = '/forgot-password';
   static const signupStep1 = '/signup/step1';
-  static const signupOtp     = '/signup/otp';
+  static const signupOtp = '/signup/otp';
   static const signupStep2 = '/signup/step2';
   static const signupStep3 = '/signup/step3';
   static const signupStep4 = '/signup/step4';
-  static const signupStep5   = '/signup/step5';
+  static const signupStep5 = '/signup/step5';
   static const home = '/home';
   static const explore = '/explore';
   static const myEvents = '/my-events';
@@ -38,13 +38,15 @@ class AppRoutes {
   static const dmChat = '/dm-chat';
   static const userProfile = '/user-profile';
   static const friendInfo = '/friend-info';
- 
+
   // ── Social discovery ──
   static const friendsHub = '/friends-hub';
   static const circleDiscovery = '/circle-discovery';
- 
-  // ── Settings ──
-  static const settings = '/settings';
   static const blockedUsers = '/blocked-users';
-  static const reportProblem = '/report-problem';
+  static const reportHistory = '/report-history';
+
+  // ── Settings ──
+// ── Settings ──
+static const settings = '/settings';
+static const reportProblem = '/report-problem';
 }

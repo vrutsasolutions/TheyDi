@@ -222,7 +222,8 @@ class _ProfileContent extends ConsumerWidget {
       city: city,
       bio: bio,
       photoUrl: photoUrl,
-      isPrivate: false, // Defaulting to false, adjust if there is a privacy flag
+      isPrivate:
+          false, // Defaulting to false, adjust if there is a privacy flag
     );
   }
 
@@ -477,6 +478,7 @@ class _ProfileContent extends ConsumerWidget {
 
                     const SizedBox(height: 10),
 
+
                     // Mobile: show buttons side-by-side with equal flexible width
                     LayoutBuilder(
                       builder: (context, constraints) {
@@ -517,6 +519,43 @@ class _ProfileContent extends ConsumerWidget {
                         );
                       },
                     ),
+
+
+// Verify Profile Button (only if not verified)
+if (!isVerified) ...[
+  OutlinedButton.icon(
+    onPressed: () {
+      context.push(
+        AppRoutes.signupStep4,
+        extra: {
+          'fromProfile': true,
+          'isVerified': isVerified,
+        },
+      );
+    },
+    icon: const Icon(
+      Icons.verified_outlined,
+      size: 18,
+    ),
+    label: const Text('Verify Profile'),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: TheyDiColors.primary,
+      side: const BorderSide(
+        color: TheyDiColors.primary,
+      ),
+      shape: const StadiumBorder(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 10,
+      ),
+    ),
+  ),
+  const SizedBox(height: 10),
+],
+
+// Edit Profile + Share Profile
+
+
                   ],
                 ),
               ),
@@ -619,14 +658,14 @@ class _ProfileContent extends ConsumerWidget {
             ],
           ).animate(delay: 200.ms).fade(duration: 400.ms),
 
-          const SizedBox(height: 28),
-
-          _PremiumHostCard(
-            onTap: () => context.push(AppRoutes.hostDashboard),
-          ).animate(delay: 230.ms).fade(duration: 300.ms),
-
           const SizedBox(height: 20),
 
+
+          
+
+          // ══════════════════════════════════════
+          // MENU ITEMS
+          // ══════════════════════════════════════
           _MenuItem(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
@@ -801,92 +840,6 @@ class _ProfileButton extends StatelessWidget {
     ],
   ),
 ),
-    );
-  }
-}
-
-class _PremiumHostCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _PremiumHostCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [TheyDiColors.primary, TheyDiColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: TheyDiColors.primary.withValues(alpha: 0.18),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.workspace_premium_outlined,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Become Premium Host',
-                    style: TheyDiTextStyles.headlineSmall.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Unlock better tools for events, insights, and earnings.',
-                    style: TheyDiTextStyles.bodySmall.copyWith(
-                      color: Colors.white.withValues(alpha: 0.88),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                'Start',
-                style: TheyDiTextStyles.labelMedium.copyWith(
-                  color: TheyDiColors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

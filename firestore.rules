@@ -1,8 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ── HELPER FUNCTIONS ──────────────────────────────────────────────────────
     function isAuth() {
       return request.auth != null;
     }
@@ -11,128 +9,88 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == uid;
     }
 
-    function isChatParticipant(chatId) {
-      return isAuth() &&
-        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-    }
-
-    function isCircleMember(circleId) {
-      return isAuth() &&
-        request.auth.uid in get(/databases/$(database)/documents/circles/$(circleId)).data.memberUids;
-    }
-    
-    // ── OTPs ──────────────────────────────────────────────────────────────────
-    // Used during signup & forgot password before login
     match /otps/{email} {
       allow read, write, delete: if true;
     }
-    
-    // ── USERNAMES ─────────────────────────────────────────────────────────────
-    // Critical for uniqueness checks during signup
+
     match /usernames/{username} {
       allow read: if true;
-      allow create: if isAuth();
-      allow update, delete: if isAuth() && resource.data.uid == request.auth.uid;
-    }
-
-    // ── USERS ─────────────────────────────────────────────────────────────────
-    match /users/{userId} {
-      // Allow unauthenticated read so forgot-password can check if email exists
-      allow read: if true;
-      
-      // NEW FIX: Allows host ratings to update avgRating without being the owner
-      allow create, update: if isAuth() && (
-        request.auth.uid == userId ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avgRating', 'totalReviews'])
-      );
-      
-      allow delete: if isOwner(userId);
-  
-      // users/{uid}/private — Used for sensitive info like bank details
-      match /private/{document=**} {
-         allow read, write: if isOwner(userId);
-      }
-
-      // users/{uid}/friends — FriendsHubScreen connected tab reads this
+allow create: if isAuth() && request.resource.data.uid == request.auth.uid;
+allow update: if isAuth() && resource.data.uid == request.auth.uid;
+allow delete: if isAuth() && resource.data.uid == request.auth.uid;
       match /friends/{friendId} {
-         allow read, write: if isAuth();
+        allow read: if isAuth();
+        allow create, update, delete: if isAuth() && (request.auth.uid == userId || request.auth.uid == friendId);
       }
-      
+
       match /friendRequests/{requestId} {
-         allow read, create, update, delete: if isAuth();
+        allow read: if isAuth();
+        allow create, update, delete: if isAuth();
       }
-      
+
       match /blocked/{blockedUid} {
-         allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
-      
-      // users/{uid}/notifications — NotificationsScreen reads this path
-      match /notifications/{notifId} {
+
+      match /notifications/{notificationId} {
         allow read: if isOwner(userId);
         allow create: if isAuth();
         allow update, delete: if isOwner(userId);
       }
     }
 
-    // ── EVENTS ────────────────────────────────────────────────────────────────
     match /events/{eventId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      
-      // Any signed-in user can update (needed for attendees joining/leaving)
       allow update: if isAuth();
-      
-      allow delete: if isAuth() && (
-        resource.data.creatorUid == request.auth.uid ||
-        resource.data.organizerUid == request.auth.uid
-      );
+allow delete: if isAuth() && (
+  resource.data.creatorUid == request.auth.uid ||
+  resource.data.organizerUid == request.auth.uid
+);
 
-      match /attendees/{userId} {
-        allow read: if isAuth();
-        allow write: if isOwner(userId);
-      }
-      
-      match /attendeePayments/{userId} {
-         allow read: if isAuth();
-         allow create, update: if isAuth() && request.auth.uid == userId;
-         allow delete: if false;
-      }
-      
-      // NEW: pendingMeta subcollection for tracking the status of join requests (age/gender limits)
-      match /pendingMeta/{uid} {
-        allow read: if isAuth();
-        allow write: if isAuth() && (
-          request.auth.uid == uid || 
-          request.auth.uid == get(/databases/$(database)/documents/events/$(eventId)).data.creatorUid
-        );
-      }
+match /attendees/{userId} {
+  allow read: if isAuth();
+  allow create, update, delete: if isAuth() &&
+      request.auth.uid == userId;
+}
 
+match /attendeePayments/{userId} {
+  allow read: if isAuth();
+  allow create, update: if isAuth() &&
+      request.auth.uid == userId;
+  allow delete: if false;
+}
+
+// pendingMeta subcollection for tracking join requests
+match /pendingMeta/{uid} {
+  allow read: if isAuth();
+  allow create, update, delete: if isAuth() && (
+    request.auth.uid == uid ||
+    request.auth.uid ==
+        get(/databases/$(database)/documents/events/$(eventId))
+            .data
+            .creatorUid
+  );
+}
       match /reviews/{reviewId} {
         allow read: if isAuth();
-        allow create: if isAuth();
-        allow update, delete: if isAuth() &&
-          resource.data.reviewerUid == request.auth.uid;
+        allow create: if isAuth() && request.auth.uid == request.resource.data.reviewerUid;
+        allow update, delete: if isAuth() && resource.data.reviewerUid == request.auth.uid;
       }
     }
 
-    // ── REVIEWS (Collection Group & Root) ─────────────────────────────────────
-    // Allows querying across all event reviews, and writing to the root reviews collection
     match /{path=**}/reviews/{reviewId} {
       allow read: if isAuth();
       allow create: if isAuth() && request.auth.uid == request.resource.data.reviewerUid;
       allow update, delete: if isAuth() && resource.data.reviewerUid == request.auth.uid;
     }
-    
-    // Root level reviews collection (used by submit_review_screen.dart)
+
     match /reviews/{reviewId} {
       allow read: if isAuth();
       allow create: if isAuth() && request.auth.uid == request.resource.data.reviewerUid;
       allow update, delete: if isAuth() && resource.data.reviewerUid == request.auth.uid;
     }
 
-    // ── BOOKINGS ──────────────────────────────────────────────────────────────
-    // Host Dashboard queries: .where('hostUid', isEqualTo: uid)
-    // Booking screen queries: .where('userId', isEqualTo: uid)
     match /bookings/{bookingId} {
       allow read: if isAuth() && (
         resource.data.userId == request.auth.uid ||
@@ -150,18 +108,14 @@ service cloud.firestore {
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
     }
 
-    // ── CIRCLES ───────────────────────────────────────────────────────────────
     match /circles/{circleId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow update: if isAuth() && (
-        resource.data.creatorUid == request.auth.uid ||
-        request.auth.uid in resource.data.memberUids
-      );
+      allow update: if isAuth() && (resource.data.creatorUid == request.auth.uid || request.auth.uid in resource.data.memberUids);
       allow delete: if isAuth() && resource.data.creatorUid == request.auth.uid;
 
       match /messages/{messageId} {
-        allow read, write: if isCircleMember(circleId);
+allow read, write: if isCircleMember(circleId);
       }
 
       match /clearedBy/{userId} {
@@ -169,27 +123,18 @@ service cloud.firestore {
       }
     }
 
-    // ── FRIEND REQUESTS (Global Collection) ───────────────────────────────────
     match /friend_requests/{requestId} {
-      allow create: if isAuth() &&
-        request.resource.data.fromUid == request.auth.uid;
-
-      allow read: if isAuth() &&
-        (resource.data.fromUid == request.auth.uid ||
-         resource.data.toUid == request.auth.uid);
-
-      allow update: if isAuth() &&
-        (resource.data.fromUid == request.auth.uid ||
-         resource.data.toUid == request.auth.uid) &&
-        request.resource.data.fromUid == resource.data.fromUid &&
-        request.resource.data.toUid == resource.data.toUid;
-
-      allow delete: if isAuth() &&
-        (resource.data.fromUid == request.auth.uid ||
-         resource.data.toUid == request.auth.uid);
+      allow create: if isAuth() && request.resource.data.fromUid == request.auth.uid;
+      allow read: if isAuth() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow update: if isAuth() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid) && request.resource.data.fromUid == resource.data.fromUid && request.resource.data.toUid == resource.data.toUid;
+      allow delete: if isAuth() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
     }
+
     
     // ── CHATS (DMs) ───────────────────────────────────────────────────────────
+
+
+
     match /chats/{chatId} {
       allow read, create, update: if isAuth();
       allow delete: if false;
@@ -201,7 +146,7 @@ service cloud.firestore {
       match /clearedBy/{userId} {
         allow read, write: if isOwner(userId);
       }
-      
+
       match /mutedBy/{userId} {
         allow read, write: if isAuth();
       }
@@ -211,34 +156,30 @@ service cloud.firestore {
       }
     }
 
-    // ── TOP-LEVEL NOTIFICATIONS ───────────────────────────────────────────────
     match /notifications/{notificationId} {
-      allow read: if isAuth() &&
-        resource.data.toUid == request.auth.uid;
+      allow read: if isAuth() && resource.data.toUid == request.auth.uid;
       allow create: if isAuth();
-      allow update, delete: if isAuth() &&
-        resource.data.toUid == request.auth.uid;
+      allow update, delete: if isAuth() && resource.data.toUid == request.auth.uid;
     }
 
-    // ── HOST STATS ────────────────────────────────────────────────────────────
     match /host_stats/{userId} {
       allow read, write: if isOwner(userId);
     }
 
-    // ── VOICE MESSAGES ────────────────────────────────────────────────────────
     match /voice_messages/{messageId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow delete: if isAuth() &&
-        resource.data.senderUid == request.auth.uid;
+      allow delete: if isAuth() && resource.data.senderUid == request.auth.uid;
     }
 
-    // ── REPORTS ───────────────────────────────────────────────────────────────
-    // Allows users to report accounts
     match /reports/{reportId} {
       allow create: if isAuth();
-      allow read, update, delete: if false; // Only admins can read/manage reports from backend
+      allow read: if isAuth() && resource.data.reporterUid == request.auth.uid;
+      allow update, delete: if false;
     }
+
+
+
 
   }
 }

@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+
+import 'signup_step3_validation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -47,6 +49,23 @@ const _kGenderOptions = [
 
 // ── Username validation states ──
 enum _UsernameState { idle, checking, available, taken, invalid }
+
+extension _UsernameStateX on _UsernameState {
+  SignupStep3UsernameState toValidationState() {
+    switch (this) {
+      case _UsernameState.idle:
+        return SignupStep3UsernameState.idle;
+      case _UsernameState.checking:
+        return SignupStep3UsernameState.checking;
+      case _UsernameState.available:
+        return SignupStep3UsernameState.available;
+      case _UsernameState.taken:
+        return SignupStep3UsernameState.taken;
+      case _UsernameState.invalid:
+        return SignupStep3UsernameState.invalid;
+    }
+  }
+}
 
 // ── Username regex: letters, numbers, underscore, dot — 3–30 chars ──
 // Allows uppercase input (we lowercase before saving + Firestore check)
@@ -377,21 +396,16 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
 
     final raw = _usernameController.text.trim();
     final stored = raw.toLowerCase();
+    final validation = validateSignupStep3Fields(
+      username: raw,
+      bio: _bioController.text,
+      hasPhoto: _uploadedImageUrl != null || _imageBytes != null,
+      usernameState: _usernameState.toValidationState(),
+    );
 
-    if (raw.isEmpty) {
-      _showSnack('Username is required', Colors.red);
-      return;
-    }
-    if (!_kUsernameRegex.hasMatch(raw)) {
-      _showSnack('Only letters, numbers, _ and . (3–30 chars)', Colors.red);
-      return;
-    }
-    if (_usernameState == _UsernameState.taken) {
-      _showSnack('Username is taken. Please choose another.', Colors.red);
-      return;
-    }
-    if (_usernameState == _UsernameState.checking) {
-      _showSnack('Still checking username… please wait.', Colors.orange);
+    if (!validation.isValid) {
+      _showSnack(validation.message ?? 'Please complete all required fields',
+          Colors.red);
       return;
     }
 
@@ -659,7 +673,13 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                             
                             const SizedBox(height: 4),
                             Text(
-                              'Upload a valid user image',
+
+                              
+
+                              _imageBytes != null
+                                  ? 'Tap to change photo'
+                                  : 'Add Photo (Required)',
+
                               style: TheyDiTextStyles.caption.copyWith(
                                 color: TheyDiColors.textMuted,
                               ),
@@ -681,6 +701,14 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                           'Letters, numbers, _ and . only. This becomes your @handle and display name.',
                           style: TheyDiTextStyles.caption
                               .copyWith(color: TheyDiColors.textMuted),
+                        ).animate(delay: 150.ms).fade(duration: 300.ms),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Please add a short bio and upload a profile photo to continue.',
+                          style: TheyDiTextStyles.caption.copyWith(
+                            color: TheyDiColors.warning,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ).animate(delay: 150.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 8),
@@ -748,7 +776,10 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                         const SizedBox(height: 24),
 
                         // ── Bio ────────────────────────────────────────────
-                        Text('Bio', style: TheyDiTextStyles.labelMedium)
+Text(
+  'Bio (required)',
+  style: TheyDiTextStyles.labelMedium,
+)
                             .animate(delay: 200.ms)
                             .fade(duration: 300.ms),
                         const SizedBox(height: 4),
@@ -769,15 +800,17 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                             counterStyle: TextStyle(
                                 color: TheyDiColors.textMuted, fontSize: 11),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Please enter your bio.';
-                            }
-                            if (v.trim().length < 15) {
-                              return 'Bio must be at least 15 characters';
-                            }
-                            return null;
-                          },
+validator: (value) {
+  if ((value ?? '').trim().isEmpty) {
+    return 'Bio is required';
+  }
+
+  if (value!.trim().length < 15) {
+    return 'Bio must be at least 15 characters';
+  }
+
+  return null;
+},
                         ).animate(delay: 215.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 20),

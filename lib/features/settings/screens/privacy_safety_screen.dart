@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:theydi/core/router/app_routes.dart';
 
@@ -48,10 +49,8 @@ class PrivacySafetyScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete Account?',
-            style: TheyDiTextStyles.headlineMedium),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Account?', style: TheyDiTextStyles.headlineMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,8 +83,8 @@ class PrivacySafetyScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: TheyDiColors.divider),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
           ],
@@ -155,14 +154,12 @@ class PrivacySafetyScreen extends ConsumerWidget {
       await batch.commit();
 
       // Get username before deleting user document
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       final username = userDoc.data()?['username'] as String?;
 
       // Delete user's Firestore document
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .delete();
+      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
 
       // Free up their username in the usernames registry
       if (username != null && username.isNotEmpty) {
@@ -255,8 +252,8 @@ class PrivacySafetyScreen extends ConsumerWidget {
               Expanded(
                 child: settingsAsync.when(
                   loading: () => const Center(
-                    child: CircularProgressIndicator(
-                        color: TheyDiColors.primary),
+                    child:
+                        CircularProgressIndicator(color: TheyDiColors.primary),
                   ),
                   error: (e, _) => Center(
                     child: Text('Failed to load: $e',
@@ -264,8 +261,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
                   ),
                   data: (settings) {
                     return ListView(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       children: [
                         // Privacy section
                         _SectionHeader(title: 'Profile privacy')
@@ -276,8 +272,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
                         _ToggleTile(
                           icon: Icons.visibility_outlined,
                           title: 'Profile visible to others',
-                          subtitle:
-                              'Others can see your profile and bio',
+                          subtitle: 'Others can see your profile and bio',
                           value: settings['profileVisible'] ?? true,
                           onChanged: (val) =>
                               _updateSetting('profileVisible', val),
@@ -286,29 +281,24 @@ class PrivacySafetyScreen extends ConsumerWidget {
                         _ToggleTile(
                           icon: Icons.location_on_outlined,
                           title: 'Show my city',
-                          subtitle:
-                              'Display your city on your profile',
+                          subtitle: 'Display your city on your profile',
                           value: settings['showCity'] ?? true,
-                          onChanged: (val) =>
-                              _updateSetting('showCity', val),
+                          onChanged: (val) => _updateSetting('showCity', val),
                         ).animate(delay: 200.ms).fade(duration: 300.ms),
 
                         _ToggleTile(
                           icon: Icons.event_outlined,
                           title: 'Show events attended',
-                          subtitle:
-                              'Others can see events you\'ve been to',
-                          value:
-                              settings['showEventsAttended'] ?? true,
-                          onChanged: (val) => _updateSetting(
-                              'showEventsAttended', val),
+                          subtitle: 'Others can see events you\'ve been to',
+                          value: settings['showEventsAttended'] ?? true,
+                          onChanged: (val) =>
+                              _updateSetting('showEventsAttended', val),
                         ).animate(delay: 250.ms).fade(duration: 300.ms),
 
                         _ToggleTile(
                           icon: Icons.interests_outlined,
                           title: 'Show my interests',
-                          subtitle:
-                              'Display your interests on your profile',
+                          subtitle: 'Display your interests on your profile',
                           value: settings['showInterests'] ?? true,
                           onChanged: (val) =>
                               _updateSetting('showInterests', val),
@@ -325,8 +315,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
                         _ToggleTile(
                           icon: Icons.chat_bubble_outline,
                           title: 'Allow messages',
-                          subtitle:
-                              'Let other users send you messages',
+                          subtitle: 'Let other users send you messages',
                           value: settings['allowMessages'] ?? true,
                           onChanged: (val) =>
                               _updateSetting('allowMessages', val),
@@ -344,35 +333,33 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           icon: Icons.block_outlined,
                           title: 'Blocked users',
                           subtitle: 'Manage your blocked list',
-                          // onTap: () {
-                          //   ScaffoldMessenger.of(context).showSnackBar(
-                          //     const SnackBar(
-                          //       content: Text(
-                          //           'Blocked users — coming soon'),
-                          //     ),
-                          //   );
-                          // },
-                          onTap: () {
-  context.push(AppRoutes.blockedUsers);
-}
+onTap: () => context.push(AppRoutes.blockedUsers),
                         ).animate(delay: 500.ms).fade(duration: 300.ms),
 
                         _ActionTile(
                           icon: Icons.flag_outlined,
-                          title: 'Report a problem',
-                          subtitle:
-                              'Report inappropriate content or behaviour',
-                          onTap: () {
-  context.push(AppRoutes.reportProblem);
-},
+// Report a problem
+_MenuItem(
+  title: 'Report a problem',
+  subtitle: 'Report inappropriate content or behaviour',
+  onTap: () {
+    context.push(AppRoutes.reportProblem);
+  },
+),
+
+// Report History
+_MenuItem(
+  title: 'Report History',
+  subtitle: 'Review your submitted reports',
+  onTap: () => context.push(AppRoutes.reportHistory),
+),
                         ).animate(delay: 550.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 24),
 
                         // Danger zone
                         _SectionHeader(
-                                title: 'Danger zone',
-                                color: TheyDiColors.error)
+                                title: 'Danger zone', color: TheyDiColors.error)
                             .animate(delay: 600.ms)
                             .fade(duration: 300.ms),
                         const SizedBox(height: 8),
@@ -380,8 +367,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
                         _ActionTile(
                           icon: Icons.delete_forever_outlined,
                           title: 'Delete account',
-                          subtitle:
-                              'Permanently delete your account and data',
+                          subtitle: 'Permanently delete your account and data',
                           iconColor: TheyDiColors.error,
                           titleColor: TheyDiColors.error,
                           onTap: () => _deleteAccount(context),

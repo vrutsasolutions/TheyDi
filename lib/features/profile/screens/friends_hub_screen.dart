@@ -55,7 +55,8 @@ final _suggestedFriendsProvider =
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
-  const FriendsHubScreen({super.key});
+  final int initialTab;
+  const FriendsHubScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<FriendsHubScreen> createState() => _FriendsHubScreenState();
@@ -68,7 +69,8 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+        length: 3, initialIndex: widget.initialTab.clamp(0, 2), vsync: this);
 
     // Fire suggested-friends notification if there are suggestions
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -88,6 +90,14 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant FriendsHubScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab) {
+      _tabController.animateTo(widget.initialTab.clamp(0, 2));
+    }
   }
 
   @override

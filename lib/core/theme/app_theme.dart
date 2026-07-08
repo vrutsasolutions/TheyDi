@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:theydi/core/theme/app_theme.dart';
 
 class TheyDiColors {
   TheyDiColors._();

@@ -9,6 +9,8 @@
 // Wire real ML / liveness check later via a mobile SDK.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -21,8 +23,10 @@ import '../models/signup_data.dart';
 enum _VerifyStep { idle, scanning, submitted }
 
 class SignupStep4Screen extends StatefulWidget {
-  final SignupData signupData;
-  const SignupStep4Screen({super.key, required this.signupData});
+  final SignupData? signupData;
+  final bool fromProfile;
+  const SignupStep4Screen(
+      {super.key, this.signupData, this.fromProfile = false});
 
   @override
   State<SignupStep4Screen> createState() => _SignupStep4ScreenState();
@@ -55,9 +59,36 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
     if (mounted) setState(() => _step = _VerifyStep.submitted);
   }
 
-  void _proceed({required bool verified}) {
-    widget.signupData.isVerified = verified;
-    context.push(AppRoutes.signupStep5, extra: widget.signupData);
+  Future<void> _proceed({required bool verified}) async {
+    if (widget.fromProfile) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'isVerified': verified,
+          'verificationStatus': verified ? 'verified' : 'none',
+          'trustScore': verified ? 80 : 50,
+        }, SetOptions(merge: true));
+      }
+      if (mounted) {
+        context.pop();
+        if (verified) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile verification completed.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    if (widget.signupData != null) {
+      widget.signupData!.isVerified = verified;
+      if (mounted) {
+        context.push(AppRoutes.signupStep5, extra: widget.signupData!);
+      }
+    }
   }
 
   @override
@@ -111,15 +142,15 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
                           .fade(duration: 400.ms),
                       const SizedBox(height: 8),
                       Text('Build trust by verifying your identity',
-                              style: TheyDiTextStyles.bodySmall.copyWith(
-                                  color: TheyDiColors.textSecondary),
+                              style: TheyDiTextStyles.bodySmall
+                                  .copyWith(color: TheyDiColors.textSecondary),
                               textAlign: TextAlign.center)
                           .animate(delay: 80.ms)
                           .fade(duration: 300.ms),
                       const SizedBox(height: 12),
                       Text('Step 4 of 5 — Optional',
-                              style: TheyDiTextStyles.caption.copyWith(
-                                  color: TheyDiColors.textMuted),
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: TheyDiColors.textMuted),
                               textAlign: TextAlign.center)
                           .animate(delay: 100.ms)
                           .fade(duration: 300.ms),
@@ -133,8 +164,10 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
 
                       // ── Body content switches by state ──
                       if (_step == _VerifyStep.idle) _buildIdleContent(),
-                      if (_step == _VerifyStep.scanning) _buildScanningContent(),
-                      if (_step == _VerifyStep.submitted) _buildSubmittedContent(),
+                      if (_step == _VerifyStep.scanning)
+                        _buildScanningContent(),
+                      if (_step == _VerifyStep.submitted)
+                        _buildSubmittedContent(),
                     ],
                   ),
                 ),
@@ -178,7 +211,8 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
         children: [
           // Outer glow ring
           Container(
-            width: 180, height: 180,
+            width: 180,
+            height: 180,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
@@ -189,7 +223,8 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
           ),
           // Middle ring
           Container(
-            width: 152, height: 152,
+            width: 152,
+            height: 152,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
@@ -200,7 +235,8 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
           ),
           // Face container
           Container(
-            width: 130, height: 130,
+            width: 130,
+            height: 130,
             decoration: BoxDecoration(
               gradient: _step == _VerifyStep.submitted
                   ? LinearGradient(
@@ -267,8 +303,7 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
             ),
           ),
           child: Text('Start Verification',
-              style: TheyDiTextStyles.labelLarge.copyWith(
-                  color: Colors.white)),
+              style: TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
         ),
       ).animate(delay: 300.ms).fade(duration: 300.ms),
 
@@ -312,8 +347,7 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
   Widget _buildScanningContent() {
     return Column(children: [
       const SizedBox(height: 8),
-      Text('Scanning your face...',
-              style: TheyDiTextStyles.headlineMedium)
+      Text('Scanning your face...', style: TheyDiTextStyles.headlineMedium)
           .animate()
           .fade(duration: 300.ms),
       const SizedBox(height: 12),
@@ -364,8 +398,7 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
             ),
           ),
           child: Text('Continue',
-              style: TheyDiTextStyles.labelLarge.copyWith(
-                  color: Colors.white)),
+              style: TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
         ),
       ).animate(delay: 250.ms).fade(duration: 300.ms),
     ]);
@@ -376,17 +409,21 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
 class _ScanBracket extends StatelessWidget {
   final double? top, left, right, bottom;
   final double rotate;
-  const _ScanBracket({this.top, this.left, this.right, this.bottom,
-      required this.rotate});
+  const _ScanBracket(
+      {this.top, this.left, this.right, this.bottom, required this.rotate});
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: top, left: left, right: right, bottom: bottom,
+      top: top,
+      left: left,
+      right: right,
+      bottom: bottom,
       child: Transform.rotate(
         angle: rotate * 3.14159 / 180,
         child: Container(
-          width: 22, height: 22,
+          width: 22,
+          height: 22,
           decoration: const BoxDecoration(
             border: Border(
               top: BorderSide(color: Colors.white, width: 2.5),
@@ -418,7 +455,8 @@ class _BenefitRow extends StatelessWidget {
       ),
       child: Row(children: [
         Container(
-          width: 36, height: 36,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
@@ -434,4 +472,3 @@ class _BenefitRow extends StatelessWidget {
     );
   }
 }
-
