@@ -44,255 +44,403 @@ const _kAdultAgeGroups = [
   'Middle Age (41–60)',
   'Seniors (60+)',
 ];
-const List<String> _kCities = [
-  // Andhra Pradesh
-  'Visakhapatnam',
-  'Vijayawada',
-  'Guntur',
-  'Nellore',
-  'Tirupati',
-  'Kurnool',
-  'Rajahmundry',
-  'Kadapa',
-
-  // Arunachal Pradesh
-  'Itanagar',
-  'Naharlagun',
-  'Pasighat',
-
-  // Assam
-  'Guwahati',
-  'Silchar',
-  'Dibrugarh',
-  'Jorhat',
-  'Nagaon',
-  'Tezpur',
-
-  // Bihar
-  'Patna',
-  'Gaya',
-  'Muzaffarpur',
-  'Bhagalpur',
-  'Darbhanga',
-  'Purnia',
-  'Ara',
-  'Begusarai',
-  'Bihar Sharif',
-  'Sasaram',
-  'Aurangabad, Bihar',
-  'Katihar',
-  'Munger',
-
-  // Chhattisgarh
-  'Raipur',
-  'Bhilai',
-  'Bilaspur',
-  'Korba',
-  'Raigarh',
-  'Jagdalpur',
-
-  // Goa
-  'Panaji',
-  'Margao',
-  'Vasco da Gama',
-  'Mapusa',
-  'Ponda',
-
-  // Gujarat
-  'Ahmedabad',
-  'Surat',
-  'Vadodara',
-  'Rajkot',
-  'Bhavnagar',
-  'Jamnagar',
-  'Junagadh',
-  'Gandhinagar',
-  'Anand',
-  'Nadiad',
-  'Mehsana',
-  'Palanpur',
-  'Navsari',
-  'Valsad',
-  'Morbi',
-  'Bharuch',
-  'Godhra',
-  'Veraval',
-  'Porbandar',
-  'Bhuj',
-
-  // Haryana
-  'Gurugram',
-  'Faridabad',
-  'Panipat',
-  'Ambala',
-  'Hisar',
-  'Karnal',
-  'Rohtak',
-  'Sonipat',
-  'Kurukshetra',
-
-  // Himachal Pradesh
-  'Shimla',
-  'Dharamshala',
-  'Solan',
-  'Mandi',
-  'Kullu',
-  'Hamirpur',
-
-  // Jharkhand
-  'Ranchi',
-  'Jamshedpur',
-  'Dhanbad',
-  'Bokaro',
-  'Hazaribagh',
-  'Deoghar',
-
-  // Karnataka
-  'Bengaluru',
-  'Mysuru',
-  'Mangaluru',
-  'Hubballi',
-  'Belagavi',
-  'Shivamogga',
-  'Tumakuru',
-  'Ballari',
-  'Udupi',
-  'Davanagere',
-
-  // Kerala
-  'Thiruvananthapuram',
-  'Kochi',
-  'Kozhikode',
-  'Thrissur',
-  'Kannur',
-  'Kollam',
-  'Palakkad',
-  'Alappuzha',
-  'Kottayam',
-
-  // Madhya Pradesh
-  'Bhopal',
-  'Indore',
-  'Jabalpur',
-  'Gwalior',
-  'Ujjain',
-  'Sagar',
-  'Rewa',
-  'Satna',
-  'Ratlam',
-  'Dewas',
-
-  // Maharashtra
-  'Mumbai',
-  'Pune',
-  'Nagpur',
-  'Nashik',
-  'Thane',
-  'Aurangabad, Maharashtra',
-  'Kolhapur',
-  'Solapur',
-  'Amravati',
-  'Akola',
-  'Jalgaon',
-  'Nanded',
-  'Latur',
-  'Sangli',
-  'Satara',
-
-  // Odisha
-  'Bhubaneswar',
-  'Cuttack',
-  'Rourkela',
-  'Sambalpur',
-  'Berhampur',
-  'Balasore',
-  'Puri',
-
-  // Punjab
-  'Ludhiana',
-  'Amritsar',
-  'Jalandhar',
-  'Patiala',
-  'Bathinda',
-  'Mohali',
-  'Pathankot',
-
-  // Rajasthan
-  'Jaipur',
-  'Jodhpur',
-  'Udaipur',
-  'Ajmer',
-  'Kota',
-  'Bikaner',
-  'Alwar',
-  'Bharatpur',
-  'Sikar',
-  'Chittorgarh',
-
-  // Tamil Nadu
-  'Chennai',
-  'Coimbatore',
-  'Madurai',
-  'Salem',
-  'Tiruchirappalli',
-  'Tirunelveli',
-  'Erode',
-  'Vellore',
-  'Thoothukudi',
-  'Kanchipuram',
-
-  // Telangana
-  'Hyderabad',
-  'Warangal',
-  'Karimnagar',
-  'Nizamabad',
-  'Khammam',
-  'Ramagundam',
-
-  // Uttar Pradesh
-  'Lucknow',
-  'Kanpur',
-  'Agra',
-  'Varanasi',
-  'Prayagraj',
-  'Ghaziabad',
-  'Noida',
-  'Meerut',
-  'Bareilly',
-  'Aligarh',
-  'Mathura',
-  'Gorakhpur',
-  'Jhansi',
-  'Moradabad',
-  'Saharanpur',
-  'Ayodhya',
-
-  // Uttarakhand
-  'Dehradun',
-  'Haridwar',
-  'Roorkee',
-  'Haldwani',
-  'Rudrapur',
-
-  // West Bengal
-  'Kolkata',
-  'Howrah',
-  'Durgapur',
-  'Asansol',
-  'Siliguri',
-  'Kharagpur',
-  'Malda',
-
-  // Union Territories
-  'New Delhi',
-  'Chandigarh',
-  'Puducherry',
-  'Port Blair',
-  'Leh',
-  'Kargil',
-  'Jammu',
-  'Srinagar',
+const List<String> _kStates = [
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
 ];
+
+
+final Map<String, List<String>> _stateCities = {
+  'Andhra Pradesh': [
+    'Visakhapatnam',
+    'Vijayawada',
+    'Tirupati',
+    'Guntur',
+    'Nellore',
+    'Kurnool',
+    'Rajahmundry',
+    'Kakinada',
+    'Anantapur',
+    'Kadapa',
+  ],
+
+  'Arunachal Pradesh': [
+    'Itanagar',
+    'Naharlagun',
+    'Pasighat',
+    'Tawang',
+    'Ziro',
+    'Bomdila',
+    'Tezu',
+    'Roing',
+    'Khonsa',
+    'Along',
+  ],
+
+  'Assam': [
+    'Guwahati',
+    'Silchar',
+    'Dibrugarh',
+    'Jorhat',
+    'Nagaon',
+    'Tezpur',
+    'Tinsukia',
+    'Sivasagar',
+    'Bongaigaon',
+    'Goalpara',
+  ],
+
+  'Bihar': [
+    'Patna',
+    'Gaya',
+    'Muzaffarpur',
+    'Bhagalpur',
+    'Darbhanga',
+    'Purnia',
+    'Ara',
+    'Begusarai',
+    'Katihar',
+    'Munger',
+  ],
+
+  'Chhattisgarh': [
+    'Raipur',
+    'Bhilai',
+    'Bilaspur',
+    'Korba',
+    'Raigarh',
+    'Jagdalpur',
+    'Ambikapur',
+    'Dhamtari',
+    'Rajnandgaon',
+    'Mahasamund',
+  ],
+
+  'Goa': [
+    'Panaji',
+    'Margao',
+    'Vasco da Gama',
+    'Mapusa',
+    'Ponda',
+    'Bicholim',
+    'Curchorem',
+    'Canacona',
+    'Sanquelim',
+    'Valpoi',
+  ],
+
+  'Gujarat': [
+    'Ahmedabad',
+    'Surat',
+    'Vadodara',
+    'Rajkot',
+    'Bhavnagar',
+    'Jamnagar',
+    'Junagadh',
+    'Anand',
+    'Gandhinagar',
+    'Morbi',
+  ],
+
+  'Haryana': [
+    'Gurugram',
+    'Faridabad',
+    'Panipat',
+    'Ambala',
+    'Hisar',
+    'Karnal',
+    'Rohtak',
+    'Sonipat',
+    'Yamunanagar',
+    'Panchkula',
+  ],
+
+  'Himachal Pradesh': [
+    'Shimla',
+    'Manali',
+    'Dharamshala',
+    'Solan',
+    'Mandi',
+    'Hamirpur',
+    'Una',
+    'Bilaspur',
+    'Kullu',
+    'Chamba',
+  ],
+
+  'Jharkhand': [
+    'Ranchi',
+    'Jamshedpur',
+    'Dhanbad',
+    'Bokaro',
+    'Deoghar',
+    'Hazaribagh',
+    'Giridih',
+    'Ramgarh',
+    'Chaibasa',
+    'Medininagar',
+  ],
+
+  'Karnataka': [
+    'Bengaluru',
+    'Mysuru',
+    'Mangaluru',
+    'Hubballi',
+    'Belagavi',
+    'Shivamogga',
+    'Davanagere',
+    'Ballari',
+    'Udupi',
+    'Kalaburagi',
+  ],
+
+  'Kerala': [
+    'Kochi',
+    'Thiruvananthapuram',
+    'Kozhikode',
+    'Thrissur',
+    'Kollam',
+    'Kannur',
+    'Alappuzha',
+    'Palakkad',
+    'Kottayam',
+    'Malappuram',
+  ],
+
+  'Madhya Pradesh': [
+    'Bhopal',
+    'Indore',
+    'Gwalior',
+    'Jabalpur',
+    'Ujjain',
+    'Sagar',
+    'Satna',
+    'Ratlam',
+    'Rewa',
+    'Dewas',
+  ],
+
+  'Maharashtra': [
+    'Mumbai',
+    'Pune',
+    'Nagpur',
+    'Nashik',
+    'Thane',
+    'Aurangabad',
+    'Kolhapur',
+    'Solapur',
+    'Amravati',
+    'Navi Mumbai',
+  ],
+
+  'Manipur': [
+    'Imphal',
+    'Thoubal',
+    'Bishnupur',
+    'Ukhrul',
+    'Churachandpur',
+    'Kakching',
+    'Senapati',
+    'Tamenglong',
+    'Jiribam',
+    'Moirang',
+  ],
+
+  'Meghalaya': [
+    'Shillong',
+    'Tura',
+    'Jowai',
+    'Nongpoh',
+    'Baghmara',
+    'Williamnagar',
+    'Resubelpara',
+    'Mawkyrwat',
+    'Nongstoin',
+    'Khliehriat',
+  ],
+
+  'Mizoram': [
+    'Aizawl',
+    'Lunglei',
+    'Champhai',
+    'Kolasib',
+    'Serchhip',
+    'Saiha',
+    'Mamit',
+    'Lawngtlai',
+    'Saitual',
+    'Khawzawl',
+  ],
+
+  'Nagaland': [
+    'Kohima',
+    'Dimapur',
+    'Mokokchung',
+    'Tuensang',
+    'Mon',
+    'Wokha',
+    'Zunheboto',
+    'Phek',
+    'Kiphire',
+    'Longleng',
+  ],
+
+  'Odisha': [
+    'Bhubaneswar',
+    'Cuttack',
+    'Rourkela',
+    'Puri',
+    'Sambalpur',
+    'Balasore',
+    'Berhampur',
+    'Jharsuguda',
+    'Baripada',
+    'Jeypore',
+  ],
+
+  'Punjab': [
+    'Ludhiana',
+    'Amritsar',
+    'Jalandhar',
+    'Patiala',
+    'Bathinda',
+    'Mohali',
+    'Pathankot',
+    'Moga',
+    'Hoshiarpur',
+    'Kapurthala',
+  ],
+
+  'Rajasthan': [
+    'Jaipur',
+    'Jodhpur',
+    'Udaipur',
+    'Kota',
+    'Ajmer',
+    'Bikaner',
+    'Alwar',
+    'Bharatpur',
+    'Sikar',
+    'Pali',
+  ],
+
+  'Sikkim': [
+    'Gangtok',
+    'Namchi',
+    'Gyalshing',
+    'Mangan',
+    'Rangpo',
+    'Singtam',
+    'Jorethang',
+    'Ravangla',
+    'Pakyong',
+    'Soreng',
+  ],
+
+  'Tamil Nadu': [
+    'Chennai',
+    'Coimbatore',
+    'Madurai',
+    'Salem',
+    'Tiruchirappalli',
+    'Tirunelveli',
+    'Erode',
+    'Vellore',
+    'Thoothukudi',
+    'Kanchipuram',
+  ],
+
+  'Telangana': [
+    'Hyderabad',
+    'Warangal',
+    'Karimnagar',
+    'Nizamabad',
+    'Khammam',
+    'Ramagundam',
+    'Mahbubnagar',
+    'Siddipet',
+    'Adilabad',
+    'Nalgonda',
+  ],
+
+  'Tripura': [
+    'Agartala',
+    'Udaipur',
+    'Dharmanagar',
+    'Kailasahar',
+    'Belonia',
+    'Ambassa',
+    'Khowai',
+    'Sabroom',
+    'Teliamura',
+    'Sonamura',
+  ],
+
+  'Uttar Pradesh': [
+    'Lucknow',
+    'Kanpur',
+    'Noida',
+    'Ghaziabad',
+    'Agra',
+    'Varanasi',
+    'Prayagraj',
+    'Meerut',
+    'Bareilly',
+    'Gorakhpur',
+  ],
+
+  'Uttarakhand': [
+    'Dehradun',
+    'Haridwar',
+    'Rishikesh',
+    'Haldwani',
+    'Roorkee',
+    'Nainital',
+    'Rudrapur',
+    'Kashipur',
+    'Almora',
+    'Pithoragarh',
+  ],
+
+  'West Bengal': [
+    'Kolkata',
+    'Howrah',
+    'Durgapur',
+    'Siliguri',
+    'Asansol',
+    'Kharagpur',
+    'Bardhaman',
+    'Malda',
+    'Haldia',
+    'Darjeeling',
+  ],
+};
 
 const _kAgeGroups = [
   'All Ages',
@@ -365,9 +513,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   List<_GeoResult> _geoResults = []; // multiple results
   bool _showResultPicker = false;
 
-  String? _selectedCategory;
-  String? _selectedCity;
-  DateTime? _selectedDate;
+String? _selectedCategory;
+String? _selectedState;
+String? _selectedCity;
+final String _selectedCountry = 'India';
+
+DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _isFree = true;
   bool _isLoading = false;
@@ -649,14 +800,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
         final normalizedCity = normalize(city);
 
-        final matchedCity = _kCities.firstWhere(
-          (c) {
-            final item = normalize(c);
+        final allCities = _stateCities.values.expand((cities) => cities).toList();
 
-            return item.startsWith(normalizedCity);
-          },
-          orElse: () => '',
-        );
+final matchedCity = allCities.firstWhere(
+  (c) {
+    final item = normalize(c);
+    return item.startsWith(normalizedCity);
+  },
+  orElse: () => '',
+);
 
         if (matchedCity.isNotEmpty) {
           _selectedCity = matchedCity;
@@ -1059,8 +1211,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
         'category': _selectedCategory ?? 'Other',
-        'city': _selectedCity ?? '',
-        'venue': _venueController.text.trim(),
+'state': _selectedState ?? '',
+'country': _selectedCountry,
+'city': _selectedCity ?? '',
+'venue': _venueController.text.trim(),
         'additionalAddress': _additionalAddressController.text.trim(),
         'dateTime': Timestamp.fromDate(dateTime),
         'creatorUid': user.uid,
@@ -1464,91 +1618,87 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 6,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _Label('House/Room/Floor/Additional'),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _additionalAddressController,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  decoration: const InputDecoration(
-                                    hintText: 'e.g. Room 4B, 3rd Floor',
-                                    prefixIcon: Icon(Icons.info_outline),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 5,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _Label('City'),
-                                const SizedBox(height: 8),
-                                _DropdownField<String>(
-                                  hint: 'Select city',
-                                  value: _selectedCity,
-                                  items: _kCities
-                                      .map((c) => DropdownMenuItem(
-                                          value: c,
-                                          child: Text(c,
-                                              style:
-                                                  TheyDiTextStyles.bodyMedium)))
-                                      .toList(),
-                                  onChanged: (v) {
-                                    setState(() => _selectedCity = v);
-                                    if (_venueController.text
-                                        .trim()
-                                        .isNotEmpty) {
-                                      _geocodeVenue(
-                                          _venueController.text.trim());
-                                    }
-                                  },
-                                  icon: Icons.location_city_outlined,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ).animate(delay: 120.ms).fade(duration: 300.ms),
+                      // House/Room + State
+// ── House / Room ─────────────────────────────────────
+const _Label('House/Room/Floor/Additional'),
+const SizedBox(height: 8),
 
-                      const SizedBox(height: 16),
+TextFormField(
+  controller: _additionalAddressController,
+  style: TheyDiTextStyles.bodyMedium,
+  decoration: const InputDecoration(
+    hintText: 'e.g. Room 4B, 3rd Floor',
+    prefixIcon: Icon(Icons.info_outline),
+  ),
+).animate(delay: 120.ms).fade(duration: 300.ms),
 
-                      // ── Venue ──
-                      const _Label('Venue *'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _venueController,
-                        style: TheyDiTextStyles.bodyMedium,
-                        decoration: InputDecoration(
-                          hintText: 'e.g. Sky Lounge, MG Road',
-                          prefixIcon: const Icon(Icons.place_outlined),
-                          suffixIcon: _isGeocoding
-                              ? const Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: TheyDiColors.primary)))
-                              : _pinnedLat != null
-                                  ? const Icon(Icons.check_circle,
-                                      color: Colors.green, size: 20)
-                                  : null,
+const SizedBox(height: 16),
+                      // ── Venue + Country ─────────────────────────────────────────────
+Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Label('Venue *'),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _venueController,
+            style: TheyDiTextStyles.bodyMedium,
+            decoration: InputDecoration(
+              hintText: 'e.g. Sky Lounge, MG Road',
+              prefixIcon: const Icon(Icons.place_outlined),
+              suffixIcon: _isGeocoding
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: TheyDiColors.primary,
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Venue is required'
-                            : null,
-                      ).animate(delay: 140.ms).fade(duration: 300.ms),
+                      ),
+                    )
+                  : _pinnedLat != null
+                      ? const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 20,
+                        )
+                      : null,
+            ),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty)
+                    ? 'Venue is required'
+                    : null,
+          ),
+        ],
+      ),
+    ),
+
+    const SizedBox(width: 16),
+
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Label('Country'),
+          const SizedBox(height: 8),
+          TextFormField(
+            initialValue: 'India',
+            enabled: false,
+            style: TheyDiTextStyles.bodyMedium,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.flag_outlined),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ],
+).animate(delay: 140.ms).fade(duration: 300.ms),
 
                       // ── Multiple results picker ──
                       if (_showResultPicker && _geoResults.isNotEmpty) ...[
@@ -1631,6 +1781,80 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       ],
 
                       const SizedBox(height: 12),
+
+                      const SizedBox(height: 16),
+
+Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Label('State'),
+          const SizedBox(height: 8),
+          _DropdownField<String>(
+            hint: 'Select state',
+            value: _selectedState,
+            items: _kStates.map((s) {
+              return DropdownMenuItem<String>(
+                value: s,
+                child: Text(
+                  s,
+                  style: TheyDiTextStyles.bodyMedium,
+                ),
+              );
+            }).toList(),
+            onChanged: (v) {
+              setState(() {
+                _selectedState = v;
+                _selectedCity = null;
+              });
+            },
+            icon: Icons.map_outlined,
+          ),
+        ],
+      ),
+    ),
+
+  const SizedBox(width: 12),
+
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Label('City'),
+          const SizedBox(height: 8),
+          _DropdownField<String>(
+            hint: 'Select city',
+            value: _selectedCity,
+            items: (_selectedState == null
+                    ? <String>[]
+                    : _stateCities[_selectedState] ?? [])
+                .map((city) => DropdownMenuItem<String>(
+                      value: city,
+                      child: Text(
+                        city,
+                        style: TheyDiTextStyles.bodyMedium,
+                      ),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              setState(() => _selectedCity = v);
+
+              if (_venueController.text.trim().isNotEmpty) {
+                _geocodeVenue(_venueController.text.trim());
+              }
+            },
+            icon: Icons.location_city_outlined,
+          ),
+        ],
+      ),
+    ),
+  ],
+).animate(delay: 150.ms).fade(duration: 300.ms),
+
+const SizedBox(height: 16),
 
                       // ── Location Section ──
                       const _Label('Pin Location *'),

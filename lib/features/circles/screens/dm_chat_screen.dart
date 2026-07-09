@@ -98,7 +98,7 @@ const _kReportReasons = [
 ];
 
 final _sharedPlayer = ap.AudioPlayer();
-
+bool _initialScrollDone = false;
 class DmChatScreen extends ConsumerStatefulWidget {
   final String otherUid;
   final String otherName;
@@ -571,13 +571,18 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(_scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-      }
-    });
-  }
+  if (!_scrollController.hasClients) return;
+
+  Future.delayed(const Duration(milliseconds: 100), () {
+    if (!_scrollController.hasClients) return;
+
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  });
+}
 
   void _openFriendInfo() => context.push(AppRoutes.friendInfo, extra: {
         'uid': widget.otherUid,
@@ -1438,8 +1443,13 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                                   TheyDiColors.textSecondary)),
                                 ]));
                           }
-                          WidgetsBinding.instance
-                              .addPostFrameCallback((_) => _scrollToBottom());
+                         if (!_initialScrollDone && docs.isNotEmpty) {
+  _initialScrollDone = true;
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _scrollToBottom();
+  });
+}
                           _queueReceiptUpdates(docs);
                           return ListView.builder(
                             controller: _scrollController,
