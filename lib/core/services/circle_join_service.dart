@@ -199,15 +199,16 @@ class CircleJoinService {
         await _db.collection('users').doc(uid).collection('friends').get();
     final friendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
-    final sentSnap = await _db
+    final pendingSnap = await _db
         .collection('users')
         .doc(uid)
         .collection('friendRequests')
+        .where('status', isEqualTo: 'pending')
         .get();
-    final sentUids =
-        sentSnap.docs.map((d) => (d.data()['fromUid'] ?? '') as String).toSet();
+    final pendingUids =
+        pendingSnap.docs.map((d) => (d.data()['fromUid'] ?? '') as String).toSet();
 
-    final excluded = {uid, ...friendUids, ...sentUids};
+    final excluded = {uid, ...friendUids, ...pendingUids};
 
     final userDoc = await _db.collection('users').doc(uid).get();
     final userData = userDoc.data() ?? {};

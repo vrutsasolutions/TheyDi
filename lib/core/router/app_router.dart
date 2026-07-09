@@ -51,6 +51,7 @@ import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
 import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
 import 'package:theydi/features/settings/screens/report_problem_screen.dart';
+import 'package:theydi/features/settings/screens/submit_report_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
@@ -102,7 +103,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 ),
 GoRoute(
   path: AppRoutes.reportProblem,
-  builder: (context, state) => const ReportProblemScreen(),
+  builder: (context, state) => const SubmitReportScreen(),
 ),
       GoRoute(
         path: AppRoutes.login,
