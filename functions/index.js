@@ -1,7 +1,9 @@
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { FieldValue } = require("firebase-admin/firestore");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
@@ -239,9 +241,9 @@ exports.verifyPayment = onCall(
 
       // 4. Update user event count
       const userRef = db.collection("users").doc(uid);
-      batch.update(userRef, {
+      batch.set(userRef, {
         eventsAttended: FieldValue.increment(1),
-      });
+      }, { merge: true });
 
       // 5. Create Payment history record in root 'payment' collection
       const globalPaymentRef = db.collection("payment").doc(razorpay_payment_id);
@@ -567,100 +569,174 @@ exports.createRazorpayXContact = onCall(
  * 5. releaseHostPayoutsX
  * Transfers the host's share of ticket revenue to their RazorpayX Fund Account.
  */
+async function processPayoutForEventId(eventId, merchantAccountNumber) {
+  if (!eventId) throw new HttpsError("invalid-argument", "Event ID required.");
+    
+  const db = admin.firestore();
+  logger.info(`[HostPayout] Starting payout process for event: ${eventId}`);
+  
+  const eventDoc = await db.collection("events").doc(eventId).get();
+  if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
+
+  const eventData = eventDoc.data();
+  if (eventData.payoutProcessed) {
+    logger.info(`[HostPayout] Event ${eventId} has already been processed for payouts.`);
+    return { success: true, transfersProcessed: 0, message: "Payout already processed." };
+  }
+
+  const hostUid = eventData.creatorUid;
+  logger.info(`[HostPayout] Event host UID: ${hostUid}`);
+  
+  const hostDoc = await db.collection("users").doc(hostUid).get();
+  const hostData = hostDoc.data() || {};
+  const fundAccountId = hostData.razorpayXFundAccountId;
+  const payoutMode = hostData.razorpayXPayoutMode || "IMPS";
+
+  if (!fundAccountId) throw new HttpsError("failed-precondition", "Host has no linked RazorpayX Fund Account.");
+  logger.info(`[HostPayout] Found host fund account: ${fundAccountId} with mode ${payoutMode}`);
+
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_SECRET_KEY;
+  const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+
+  const bookings = await db.collection("bookings").where("eventId", "==", eventId).where("status", "==", "confirmed").get();
+  logger.info(`[HostPayout] Found ${bookings.docs.length} confirmed bookings for this event.`);
+  
+  const attendeeUids = eventDoc.data().attendeeUids || [];
+  
+  let transferCount = 0;
+  const sourceAccount = merchantAccountNumber || process.env.RAZORPAYX_ACCOUNT_NUMBER;
+  if (!sourceAccount) throw new HttpsError("invalid-argument", "Missing Merchant RazorpayX Account Number.");
+  logger.info(`[HostPayout] Using source account: ${sourceAccount}`);
+  
+  for (const doc of bookings.docs) {
+    const bData = doc.data();
+    logger.info(`[HostPayout] Processing booking ID: ${doc.id} - payoutStatus: ${bData.payoutStatus}`);
+    if (bData.payoutStatus === "completed") continue;
+    
+    // Double check that the user is actually still in the event's attendee list!
+    // This protects against manual database deletions where the booking was left behind.
+    if (!attendeeUids.includes(bData.userId)) {
+      logger.info(`[HostPayout] Skipping booking ${doc.id} because user ${bData.userId} is no longer in the event attendee list.`);
+      continue;
+    }
+
+    const baseAmount = bData.amount !== undefined ? bData.amount : (bData.totalAmount - (bData.platformFee || 0));
+    const hostFee = bData.platformFee || 0; // Deduct same platform fee amount (5%) from host
+    const payoutAmount = Math.floor((baseAmount - hostFee) * 100);
+    logger.info(`[HostPayout] Calculated payout amount (in paise): ${payoutAmount} for booking ${doc.id}`);
+
+    try {
+      logger.info(`[HostPayout] Sending ${payoutMode} payout request for booking ${doc.id} to Razorpay...`);
+      const payoutRes = await fetch("https://api.razorpay.com/v1/payouts", {
+        method: "POST",
+        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_number: sourceAccount,
+          fund_account_id: fundAccountId,
+          amount: payoutAmount,
+          currency: "INR",
+          mode: payoutMode,
+          purpose: "payout",
+          reference_id: `theydi_payout_${doc.id}`,
+          notes: {
+            project: "theydi",
+            user_id: hostUid,
+            bookingId: doc.id,
+            eventId: eventId,
+          },
+        }),
+      });
+      const payoutData = await payoutRes.json();
+      logger.info(`[HostPayout] Razorpay response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
+      
+      if (!payoutData.id) throw new Error("Payout failed: " + JSON.stringify(payoutData));
+
+      await doc.ref.update({ 
+        payoutStatus: "processing", 
+        payoutId: payoutData.id 
+      });
+      transferCount++;
+      logger.info(`[HostPayout] Successfully queued payout for booking ${doc.id}`);
+    } catch (e) {
+      logger.error(`RazorpayX Payout failed for booking ${doc.id}`, e);
+    }
+  }
+
+  // Mark the event itself as completed and payoutProcessed
+  logger.info(`[HostPayout] Marking event ${eventId} as completed and payout processed.`);
+  await eventDoc.ref.update({ status: "completed", payoutProcessed: true });
+
+  // ── Email Notifications for Event Completion ──
+  try {
+    const transporter = getTransporter();
+    if (transporter) {
+      const eventTitle = eventDoc.data().title || "Your Event";
+      const hostName = eventDoc.data().creatorName || "The Host";
+
+      // Notify Host
+      if (hostDoc.exists && hostDoc.data().email) {
+        const hostEmail = hostDoc.data().email;
+        const hostBody = `
+          <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${hostName},</h2>
+          <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">Your event "${eventTitle}" has been successfully completed and payouts are being automatically processed.\n\nPlease check your bank account details in the TheyDi app immediately. You will receive your payout within 24 hours. If your account details are incorrect, you might lose the payment.\n\nThank you for hosting on TheyDi!</p>
+        `;
+        await transporter.sendMail({
+          from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+          to: hostEmail,
+          subject: `✅ Event Completed — ${eventTitle}`,
+          html: getBaseEmailHtml(`✅ Event Completed — ${eventTitle}`, hostBody),
+        });
+
+        await db.collection("users").doc(hostUid).collection("notifications").add({
+          title: '✅ Event completed',
+          body: `"${eventTitle}" is now marked as completed.`,
+          type: 'system',
+          eventId: eventId,
+          createdAt: FieldValue.serverTimestamp(),
+          isRead: false
+        });
+      }
+
+      // Notify Attendees
+      for (const uid of attendeeUids) {
+        const userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists && userDoc.data().email) {
+          const attendeeName = userDoc.data().displayName || "there";
+          const attendeeEmail = userDoc.data().email;
+          const attendeeBody = `
+            <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+            <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">"${eventTitle}" hosted by ${hostName} has ended.\n\nThank you for being there! We hope you had a wonderful experience.\n\nIf you enjoyed the event, consider leaving a review for the host on TheyDi.</p>
+          `;
+          await transporter.sendMail({
+            from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+            to: attendeeEmail,
+            subject: `🙌 "${eventTitle}" has ended`,
+            html: getBaseEmailHtml(`🙌 "${eventTitle}" has ended`, attendeeBody),
+          });
+
+          await db.collection("users").doc(uid).collection("notifications").add({
+            title: 'Event ended',
+            body: `Hope you enjoyed "${eventTitle}"!`,
+            type: 'system',
+            eventId: eventId,
+            createdAt: FieldValue.serverTimestamp(),
+            isRead: false
+          });
+        }
+      }
+    }
+  } catch (err) {
+    logger.error("[HostPayout] Error sending completion emails:", err);
+  }
+
+  return { success: true, transfersProcessed: transferCount };
+}
+
 exports.releaseHostPayoutsX = onCall(
   { region: REGION },
   async (request) => {
-    const { eventId, merchantAccountNumber } = request.data;
-    if (!eventId) throw new HttpsError("invalid-argument", "Event ID required.");
-    
-    const db = admin.firestore();
-    logger.info(`[HostPayout] Starting payout process for event: ${eventId}`);
-    
-    const eventDoc = await db.collection("events").doc(eventId).get();
-    if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
-
-    const hostUid = eventDoc.data().creatorUid;
-    logger.info(`[HostPayout] Event host UID: ${hostUid}`);
-    
-    const hostDoc = await db.collection("users").doc(hostUid).get();
-    const hostData = hostDoc.data() || {};
-    const fundAccountId = hostData.razorpayXFundAccountId;
-    const payoutMode = hostData.razorpayXPayoutMode || "IMPS";
-
-    if (!fundAccountId) throw new HttpsError("failed-precondition", "Host has no linked RazorpayX Fund Account.");
-    logger.info(`[HostPayout] Found host fund account: ${fundAccountId} with mode ${payoutMode}`);
-
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_SECRET_KEY;
-    const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
-
-    const bookings = await db.collection("bookings").where("eventId", "==", eventId).where("status", "==", "confirmed").get();
-    logger.info(`[HostPayout] Found ${bookings.docs.length} confirmed bookings for this event.`);
-    
-    const attendeeUids = eventDoc.data().attendeeUids || [];
-    
-    let transferCount = 0;
-    const sourceAccount = merchantAccountNumber || process.env.RAZORPAYX_ACCOUNT_NUMBER;
-    if (!sourceAccount) throw new HttpsError("invalid-argument", "Missing Merchant RazorpayX Account Number.");
-    logger.info(`[HostPayout] Using source account: ${sourceAccount}`);
-    
-    for (const doc of bookings.docs) {
-      const bData = doc.data();
-      logger.info(`[HostPayout] Processing booking ID: ${doc.id} - payoutStatus: ${bData.payoutStatus}`);
-      if (bData.payoutStatus === "completed") continue;
-      
-      // Double check that the user is actually still in the event's attendee list!
-      // This protects against manual database deletions where the booking was left behind.
-      if (!attendeeUids.includes(bData.userId)) {
-        logger.info(`[HostPayout] Skipping booking ${doc.id} because user ${bData.userId} is no longer in the event attendee list.`);
-        continue;
-      }
-
-      const payoutAmount = Math.floor((bData.totalAmount - (bData.platformFee || 0)) * 100);
-      logger.info(`[HostPayout] Calculated payout amount (in paise): ${payoutAmount} for booking ${doc.id}`);
-
-      try {
-        logger.info(`[HostPayout] Sending ${payoutMode} payout request for booking ${doc.id} to Razorpay...`);
-        const payoutRes = await fetch("https://api.razorpay.com/v1/payouts", {
-          method: "POST",
-          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            account_number: sourceAccount,
-            fund_account_id: fundAccountId,
-            amount: payoutAmount,
-            currency: "INR",
-            mode: payoutMode,
-            purpose: "payout",
-            reference_id: `theydi_payout_${doc.id}`,
-            notes: {
-              project: "theydi",
-              user_id: hostUid,
-              bookingId: doc.id,
-              eventId: eventId,
-            },
-          }),
-        });
-        const payoutData = await payoutRes.json();
-        logger.info(`[HostPayout] Razorpay response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
-        
-        if (!payoutData.id) throw new Error("Payout failed: " + JSON.stringify(payoutData));
-
-        await doc.ref.update({ 
-          payoutStatus: "processing", 
-          payoutId: payoutData.id 
-        });
-        transferCount++;
-        logger.info(`[HostPayout] Successfully queued payout for booking ${doc.id}`);
-      } catch (e) {
-        logger.error(`RazorpayX Payout failed for booking ${doc.id}`, e);
-      }
-    }
-
-    // Mark the event itself as completed so it can't be paid out again and UI updates
-    logger.info(`[HostPayout] Marking event ${eventId} as completed.`);
-    await eventDoc.ref.update({ status: "completed" });
-
-    return { success: true, transfersProcessed: transferCount };
+    return await processPayoutForEventId(request.data.eventId, request.data.merchantAccountNumber);
   }
 );
 
@@ -880,5 +956,256 @@ exports.sendSystemNotificationEmail = onCall({ region: REGION }, async (request)
   } catch (e) {
     logger.error("sendSystemNotificationEmail failed", e);
     throw new HttpsError("internal", e.message);
+  }
+});
+
+/**
+ * 12. processAutomaticPayouts
+ * Runs every 4 hours to find completed events that haven't been paid out yet and process their payouts.
+ */
+exports.processAutomaticPayouts = onSchedule("every 4 hours", async (event) => {
+  logger.info("[Cron] Starting processAutomaticPayouts...");
+  const db = admin.firestore();
+  const now = admin.firestore.Timestamp.now();
+
+  try {
+    const eventsSnap = await db.collection("events")
+      .where("payoutProcessed", "==", false)
+      .where("endTime", "<=", now)
+      .get();
+      
+    if (eventsSnap.empty) {
+      logger.info("[Cron] No completed events awaiting payout.");
+      return;
+    }
+
+    logger.info(`[Cron] Found ${eventsSnap.size} events awaiting automatic payout.`);
+
+    for (const doc of eventsSnap.docs) {
+      try {
+        await processPayoutForEventId(doc.id, null);
+      } catch (e) {
+        logger.error(`[Cron] Failed to process payout for event ${doc.id}:`, e);
+      }
+    }
+  } catch (e) {
+    logger.error("[Cron] Error querying events:", e);
+  }
+  
+  logger.info("[Cron] Finished processAutomaticPayouts.");
+});
+
+/**
+ * 13. cancelEventAndRefund
+ * Cancels an event, refunds all confirmed bookings via Razorpay, and sends notification emails.
+ */
+exports.cancelEventAndRefund = onCall(
+  { region: REGION },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
+    
+    const { eventId } = request.data;
+    if (!eventId) throw new HttpsError("invalid-argument", "Missing eventId.");
+    
+    const db = admin.firestore();
+    const eventRef = db.collection("events").doc(eventId);
+    const eventDoc = await eventRef.get();
+    
+    if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
+    
+    const eventData = eventDoc.data();
+    if (eventData.creatorUid !== request.auth.uid) {
+      throw new HttpsError("permission-denied", "Only the host can cancel this event.");
+    }
+    
+    if (eventData.status === "cancelled") {
+      throw new HttpsError("failed-precondition", "Event is already cancelled.");
+    }
+    
+    if (eventData.dateTime) {
+      let eventTime;
+      if (eventData.dateTime.toDate) {
+        eventTime = eventData.dateTime.toDate().getTime();
+      } else {
+        eventTime = new Date(eventData.dateTime).getTime();
+      }
+      
+      const now = Date.now();
+      const hoursDifference = (eventTime - now) / (1000 * 60 * 60);
+      
+      if (hoursDifference < 48) {
+        throw new HttpsError("failed-precondition", "Events can only be cancelled at least 48 hours before the start time.");
+      }
+    }
+    
+    const razorpay = getRazorpay();
+    const transporter = getTransporter();
+    
+    // Get all confirmed bookings
+    const bookingsSnap = await db.collection("bookings")
+      .where("eventId", "==", eventId)
+      .where("status", "==", "confirmed")
+      .get();
+      
+    let refundCount = 0;
+    
+    // Process refunds
+    for (const bookingDoc of bookingsSnap.docs) {
+      const bData = bookingDoc.data();
+      const transactionId = bData.transactionId;
+      
+      if (bData.totalAmount > 0 && transactionId && razorpay) {
+        try {
+          await razorpay.payments.refund(transactionId, {
+             speed: "normal",
+             notes: { reason: "Event cancelled by host", bookingId: bookingDoc.id }
+          });
+          
+          await bookingDoc.ref.update({ status: "refunded" });
+          refundCount++;
+          
+          // Send refund email
+          const userDoc = await db.collection("users").doc(bData.userId).get();
+          if (userDoc.exists && userDoc.data().email && transporter) {
+            const attendeeName = userDoc.data().displayName || "there";
+            const attendeeEmail = userDoc.data().email;
+            const refundBody = `
+              <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+              <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">The event "${eventData.title}" has been cancelled by the host.\n\nA full refund of ₹${bData.totalAmount} has been initiated and will reflect in your original payment method in 5-7 business days.</p>
+            `;
+            await transporter.sendMail({
+              from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+              to: attendeeEmail,
+              subject: `Event Cancelled & Refund Initiated — ${eventData.title}`,
+              html: getBaseEmailHtml(`Event Cancelled & Refund Initiated`, refundBody),
+            });
+            
+            await db.collection("users").doc(bData.userId).collection("notifications").add({
+              title: 'Refund Initiated',
+              body: `"${eventData.title}" was cancelled. ₹${bData.totalAmount} is being refunded.`,
+              type: 'system',
+              eventId: eventId,
+              createdAt: FieldValue.serverTimestamp(),
+              isRead: false
+            });
+          }
+        } catch (err) {
+          logger.error(`Refund failed for booking ${bookingDoc.id}`, err);
+        }
+      } else {
+        // Free event booking or missing transactionId
+        await bookingDoc.ref.update({ status: "cancelled" });
+        // Send simple cancellation email
+        const userDoc = await db.collection("users").doc(bData.userId).get();
+        if (userDoc.exists && userDoc.data().email && transporter) {
+          const attendeeName = userDoc.data().displayName || "there";
+          const attendeeEmail = userDoc.data().email;
+          const cancelBody = `
+            <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+            <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">The event "${eventData.title}" has been cancelled by the host.</p>
+          `;
+          await transporter.sendMail({
+            from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+            to: attendeeEmail,
+            subject: `Event Cancelled — ${eventData.title}`,
+            html: getBaseEmailHtml(`Event Cancelled`, cancelBody),
+          });
+          
+          await db.collection("users").doc(bData.userId).collection("notifications").add({
+            title: 'Event Cancelled',
+            body: `"${eventData.title}" has been cancelled.`,
+            type: 'system',
+            eventId: eventId,
+            createdAt: FieldValue.serverTimestamp(),
+            isRead: false
+          });
+        }
+      }
+    }
+    
+    // Update event status
+    await eventRef.update({ status: "cancelled" });
+    
+    return { success: true, refundsProcessed: refundCount };
+  }
+);
+
+/**
+ * Processes a refund when a new document is created in the refunds collection.
+ * This happens when an attendee leaves a paid event.
+ */
+exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", region: REGION }, async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const refundData = snapshot.data();
+  if (refundData.status !== "pending") return;
+
+  const razorpay = getRazorpay();
+  const transporter = getTransporter();
+
+  try {
+    // 1. Find the booking for this user and event
+    const bookingsSnap = await db.collection("bookings")
+      .where("eventId", "==", refundData.eventId)
+      .where("userId", "==", refundData.userId)
+      .get();
+
+    if (bookingsSnap.empty) {
+      logger.error(`No booking found for refund ${event.params.refundId}`);
+      await snapshot.ref.update({ status: "failed", error: "No booking found" });
+      return;
+    }
+
+    // Sort in memory to get the most recent booking without needing a composite index
+    const sortedDocs = bookingsSnap.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toMillis() || 0;
+      const bTime = b.data().createdAt?.toMillis() || 0;
+      return bTime - aTime;
+    });
+
+    const bookingDoc = sortedDocs[0];
+    const bookingData = bookingDoc.data();
+    const transactionId = bookingData.transactionId;
+
+    // 2. Process Razorpay Refund
+    if (transactionId && razorpay && refundData.refundAmount > 0) {
+      const refundAmountPaise = Math.round(refundData.refundAmount * 100);
+      
+      await razorpay.payments.refund(transactionId, {
+        amount: refundAmountPaise,
+        speed: "normal",
+        notes: { reason: "Attendee left event", refundId: event.params.refundId }
+      });
+    }
+
+    // 3. Update the refund and booking documents
+    await snapshot.ref.update({ status: "processed", processedAt: FieldValue.serverTimestamp() });
+    await bookingDoc.ref.update({ status: "cancelled_by_attendee" });
+
+    // 4. Send email to the attendee
+    const userDoc = await db.collection("users").doc(refundData.userId).get();
+    if (userDoc.exists && userDoc.data().email && transporter) {
+      const attendeeName = userDoc.data().displayName || "there";
+      const attendeeEmail = userDoc.data().email;
+      
+      const eventDoc = await db.collection("events").doc(refundData.eventId).get();
+      const eventTitle = eventDoc.exists ? eventDoc.data().title : "the event";
+      
+      const refundBody = `
+        <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+        <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 5% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
+      `;
+      await transporter.sendMail({
+        from: `"TheyDi" <${process.env.GMAIL_USER}>`,
+        to: attendeeEmail,
+        subject: `Event Cancellation & Refund — ${eventTitle}`,
+        html: getBaseEmailHtml(`Event Cancellation & Refund`, refundBody),
+      });
+    }
+  } catch (error) {
+    logger.error(`Error processing refund ${event.params.refundId}:`, error);
+    const errMsg = error.message || (error.error && error.error.description) || error.toString();
+    await snapshot.ref.update({ status: "failed", error: errMsg });
   }
 });

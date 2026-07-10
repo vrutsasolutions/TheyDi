@@ -6,12 +6,7 @@ import 'package:http/http.dart' as http;
 class ForgotPasswordService {
   // Automatically switches between Local Emulator and Live Server
   static String get baseUrl {
-    if (kDebugMode) {
-      if (!kIsWeb && Platform.isAndroid) {
-        return "http://10.0.2.2:5001/theydi-cefdf/asia-south1";
-      }
-      return "http://127.0.0.1:5001/theydi-cefdf/asia-south1";
-    }
+    // Return live URL directly since the Firebase Emulator is not running
     return "https://asia-south1-theydi-cefdf.cloudfunctions.net";
   }
 
@@ -31,9 +26,14 @@ class ForgotPasswordService {
         }),
       );
 
-      print("STATUS: ${response.statusCode}");
-      print("BODY: ${response.body}");
 
+
+      if (response.statusCode != 200) {
+        return {
+          "success": false,
+          "message": "Server error (${response.statusCode}): ${response.body}"
+        };
+      }
       return jsonDecode(response.body);
     } catch (e) {
       return {
@@ -63,9 +63,14 @@ class ForgotPasswordService {
         }),
       );
 
-      print("STATUS: ${response.statusCode}");
-      print("BODY: ${response.body}");
 
+
+      if (response.statusCode != 200) {
+        return {
+          "success": false,
+          "message": "Server error (${response.statusCode}): ${response.body}"
+        };
+      }
       return jsonDecode(response.body);
     } catch (e) {
       return {
@@ -95,9 +100,14 @@ class ForgotPasswordService {
         }),
       );
 
-      print("STATUS: ${response.statusCode}");
-      print("BODY: ${response.body}");
 
+
+      if (response.statusCode != 200) {
+        return {
+          "success": false,
+          "message": "Server error (${response.statusCode}): ${response.body}"
+        };
+      }
       return jsonDecode(response.body);
     } catch (e) {
       return {

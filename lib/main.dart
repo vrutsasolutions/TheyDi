@@ -23,10 +23,13 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  if (kDebugMode) {
-    // Connect to the local Cloud Functions Emulator to bypass CORS
-    FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator('localhost', 5001);
-  }
+  // if (kDebugMode) {
+  //   // Connect to the local Cloud Functions Emulator to bypass CORS
+  //   // 10.0.2.2 is required for Android emulators to reach the host's localhost
+  //   final host = !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
+  //   FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator(host, 5001);
+  //   FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+  // }
 
   // Run database mojibake migration in background
   _fixDatabaseMojibake();

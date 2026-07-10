@@ -158,6 +158,19 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
   }
 
   Future<void> _cancelEvent(EventModel event) async {
+    final hoursToStart = event.dateTime.difference(DateTime.now()).inHours;
+    if (hoursToStart < 48) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Events can only be cancelled at least 48 hours before start time.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -178,16 +191,12 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     try {
-      final hostName = FirebaseAuth.instance.currentUser?.displayName ?? 'The host';
-      if (event.attendeeUids.isNotEmpty) {
-        await NotificationService.notifyEventDeletedToAttendees(
-            attendeeUids: event.attendeeUids, eventTitle: event.title,
-            hostName: hostName, eventId: widget.eventId);
-      }
-      await FirebaseFirestore.instance.collection('events').doc(widget.eventId).delete();
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('cancelEventAndRefund');
+      await callable.call({'eventId': widget.eventId});
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Event cancelled and attendees notified'), backgroundColor: Colors.red));
+            content: Text('Event cancelled and refunds initiated securely.'), backgroundColor: Colors.red));
         context.pop();
       }
     } catch (e) {
@@ -242,14 +251,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
         totalAmount: totalTransferred,
       );
 
-      // ── Email: notify attendees + host event is completed ──
-      await NotificationService.notifyEventCompletedToAll(
-        attendeeUids: event.attendeeUids,
-        hostUid: hostUid,
-        eventTitle: event.title,
-        hostName: FirebaseAuth.instance.currentUser?.displayName ?? 'The host',
-        eventId: widget.eventId,
-      );
+
     } catch (e) {
       debugPrint('[HostPayout] Error: $e');
       if (mounted) {

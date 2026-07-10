@@ -327,29 +327,54 @@ class _BookingCard extends StatelessWidget {
           const SizedBox(height: 10),
 
           // Amount breakdown
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(isHost ? 'Ticket amount' : 'Ticket + fee',
-                  style: TheyDiTextStyles.caption
-                      .copyWith(color: TheyDiColors.textSecondary)),
-              Text(
-                isHost ? '₹${booking.amount.toStringAsFixed(0)}' : '₹${booking.amount.toStringAsFixed(0)} + ₹${booking.platformFee.toStringAsFixed(0)}',
-                style: TheyDiTextStyles.caption,
-              ),
-            ],
-          ),
+          if (isHost) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Ticket amount',
+                    style: TheyDiTextStyles.caption
+                        .copyWith(color: TheyDiColors.textSecondary)),
+                Text('₹${booking.amount.toStringAsFixed(0)}',
+                    style: TheyDiTextStyles.caption),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Platform cut (5%)',
+                    style: TheyDiTextStyles.caption
+                        .copyWith(color: TheyDiColors.textSecondary)),
+                Text('-₹${booking.platformFee.toStringAsFixed(0)}',
+                    style: TheyDiTextStyles.caption.copyWith(color: Colors.red)),
+              ],
+            ),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Ticket + fee',
+                    style: TheyDiTextStyles.caption
+                        .copyWith(color: TheyDiColors.textSecondary)),
+                Text(
+                  '₹${booking.amount.toStringAsFixed(0)} + ₹${booking.platformFee.toStringAsFixed(0)}',
+                  style: TheyDiTextStyles.caption,
+                ),
+              ],
+            ),
+          ],
+          
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(isHost ? 'Earnings' : 'Total', style: TheyDiTextStyles.labelMedium),
+              Text(isHost ? 'Net Earnings' : 'Total Paid', style: TheyDiTextStyles.labelMedium),
               Text(
-                '₹${(isHost ? booking.amount : booking.totalAmount).toStringAsFixed(0)}',
+                '₹${(isHost ? (booking.amount - booking.platformFee) : booking.totalAmount).toStringAsFixed(0)}',
                 style: TheyDiTextStyles.labelLarge.copyWith(
                   color: booking.isConfirmed
                       ? Colors.green
-                      : TheyDiColors.textSecondary,
+                      : TheyDiColors.textPrimary,
                 ),
               ),
             ],

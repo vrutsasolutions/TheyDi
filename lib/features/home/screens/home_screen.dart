@@ -112,9 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final token = await user.getIdToken(true);
-      print("========================================");
-      print("🔥 FIREBASE TOKEN: $token");
-      print("========================================");
+
     }
     // -------------------------------------
 

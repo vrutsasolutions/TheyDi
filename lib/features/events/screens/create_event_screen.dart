@@ -1246,6 +1246,8 @@ final matchedCity = allCities.firstWhere(
         'minAge': _isAdultParty ? 18 : 0,
         'approvalType': _approvalType,
         'amenities': _selectedAmenities.toList(),
+        'endTime': Timestamp.fromDate(dateTime.add(Duration(hours: _durationHours > 0 ? _durationHours : 2))),
+        'payoutProcessed': false,
       };
 
       final docRef = await FirebaseFirestore.instance.collection('events').add(eventData);
@@ -2701,8 +2703,29 @@ const SizedBox(height: 16),
                                   color: TheyDiColors.textMuted,
                                   fontSize: 11))),
 
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: TheyDiColors.primary.withValues(alpha: 0.1),
+                          border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.5)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.info_outline, color: TheyDiColors.primary, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'By creating this event, you agree to the Host Guidelines & Rules. Please check the Host Dashboard for important terms regarding payouts, cancellation limits, and platform fees.',
+                                style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textPrimary, fontSize: 12, height: 2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 32),
-
                       if (_isLoading)
                         const Center(
                             child: CircularProgressIndicator(

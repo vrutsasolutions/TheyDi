@@ -543,7 +543,7 @@ class _DashboardContent extends StatelessWidget {
                 children: [
                   _miniStat('Revenue', '₹${totalRevenue.toStringAsFixed(0)}'),
                   const SizedBox(width: 20),
-                  _miniStat('Platform fees', '₹${platformFees.toStringAsFixed(0)}'),
+                  _miniStat('Platform cut (-5%)', '₹${platformFees.toStringAsFixed(0)}'),
                 ],
               ),
             ],
@@ -551,6 +551,32 @@ class _DashboardContent extends StatelessWidget {
         ).animate(delay: 100.ms).fade(duration: 400.ms),
 
         const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: TheyDiColors.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: TheyDiColors.divider, width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Host Guidelines & Rules',
+                style: TheyDiTextStyles.labelLarge.copyWith(color: TheyDiColors.textPrimary),
+              ),
+              const SizedBox(height: 12),
+              _RuleItem(text: 'Payouts will be credited to your linked bank account within 24 hours after your event completes successfully.'),
+              const SizedBox(height: 8),
+              _RuleItem(text: 'Ensure your bank details are correct before event completion. Incorrect details may lead to payment loss.'),
+              const SizedBox(height: 8),
+              _RuleItem(text: 'Events can only be cancelled up to 48 hours prior to the scheduled start time.'),
+              const SizedBox(height: 8),
+              _RuleItem(text: 'A 5% platform convenience fee is deducted from your base ticket revenue.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
 
         // Stats grid
         Row(
@@ -819,6 +845,31 @@ class _EventPerformanceCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RuleItem extends StatelessWidget {
+  final String text;
+
+  const _RuleItem({Key? key, required this.text}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 4, right: 8),
+          child: Icon(Icons.circle, size: 6, color: TheyDiColors.primary),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -747,8 +747,9 @@ class NotificationService {
         toName: hostResolved.name,
         title: '✅ Event Completed — $eventTitle',
         message:
-            'Hi ${hostResolved.name}, your event "$eventTitle" has been marked as completed '
-            'and payouts are being processed.\n\n'
+            'Hi ${hostResolved.name}, your event "$eventTitle" has been successfully completed '
+            'and payouts are being automatically processed.\n\n'
+            'Please check your bank account details in the TheyDi app immediately. You will receive your payout within 24 hours. If your account details are incorrect, you might lose the payment.\n\n'
             'Thank you for hosting on TheyDi!',
       );
     }

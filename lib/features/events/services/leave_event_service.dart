@@ -20,7 +20,7 @@ class LeaveEventService {
   LeaveEventService._();
 
   static const double _trustPenalty = 2.0; // points deducted per leave
-  static const double _refundPercent = 0.50; // 50 % refund for paid events
+  static const double _refundPercent = 0.95; // 95% refund for paid events (5% fee deducted)
 
   /// Main entry point. Call this after the user confirms leaving.
   ///
@@ -114,6 +114,11 @@ class LeaveEventService {
           
       for (var doc in bookingQuery.docs) {
         batch.update(doc.reference, {'status': 'cancelled'});
+      }
+
+      if (!isFree) {
+        final paymentRef = eventRef.collection('attendeePayments').doc(uid);
+        batch.set(paymentRef, {'status': 'refunded'}, SetOptions(merge: true));
       }
 
       // 4. Leave activity log (for trust audit trail)

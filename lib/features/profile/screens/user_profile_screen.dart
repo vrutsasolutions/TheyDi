@@ -366,7 +366,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content:
-              Text('Report submitted. Thank you for helping keep TieIn safe.'),
+              Text('Report submitted. Thank you for helping keep TheyDi safe.'),
           backgroundColor: Colors.green));
     }
   }

@@ -45,7 +45,7 @@ class LeaveEventSheet extends StatefulWidget {
 class _LeaveEventSheetState extends State<LeaveEventSheet> {
   bool _leaving = false;
 
-  double get _refundAmount => widget.event.price * 0.50;
+  double get _refundAmount => widget.event.price * 0.95;
   bool get _isPaid => !widget.event.isFree && widget.event.price > 0;
   bool get _hasStarted => widget.event.isOngoing || widget.event.isCompleted;
 
@@ -70,16 +70,17 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
           SnackBar(
             content: Row(children: [
               const Icon(Icons.check_circle_outline,
-                  color: Colors.green, size: 18),
+                  color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Left event. ₹${result.refundAmount.toStringAsFixed(0)} refund '
                   'will arrive in 7 working days.',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
             ]),
-            backgroundColor: TheyDiColors.card,
+            backgroundColor: TheyDiColors.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
@@ -91,11 +92,14 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
           SnackBar(
             content: const Row(children: [
               Icon(Icons.check_circle_outline,
-                  color: Colors.green, size: 18),
+                  color: Colors.white, size: 20),
               SizedBox(width: 8),
-              Text('Successfully left event 🚪'),
+              Text(
+                'Successfully left event 🚪',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
             ]),
-            backgroundColor: TheyDiColors.card,
+            backgroundColor: TheyDiColors.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
@@ -187,7 +191,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
               icon: Icons.shield_outlined,
               color: Colors.amber,
               message: 'Leaving this free event will reduce your '
-                  'TieIn trust score by 2 points. Frequent cancellations '
+                  'TheyDi trust score by 2 points. Frequent cancellations '
                   'may limit your ability to join future events.',
             ).animate(delay: 60.ms).fade(duration: 300.ms),
             const SizedBox(height: 14),
@@ -301,13 +305,35 @@ class _RefundInfoCard extends StatelessWidget {
         ]),
         const SizedBox(height: 12),
         _RefundRow(
-          label: 'Amount paid',
+          label: 'Base Price',
           value: '₹${originalAmount.toStringAsFixed(0)}',
           color: TheyDiColors.textSecondary,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         _RefundRow(
-          label: 'Refund (50%)',
+          label: 'Convenience Fee (5%)',
+          value: '+₹${(originalAmount * 0.05).toStringAsFixed(0)}',
+          color: TheyDiColors.textSecondary,
+        ),
+        const SizedBox(height: 4),
+        _RefundRow(
+          label: 'Total Paid',
+          value: '₹${(originalAmount * 1.05).toStringAsFixed(0)}',
+          color: TheyDiColors.textPrimary,
+          bold: true,
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 6.0),
+          child: Divider(color: TheyDiColors.divider, height: 1),
+        ),
+        _RefundRow(
+          label: 'Cancellation Fee (10%)',
+          value: '-₹${(originalAmount * 0.10).toStringAsFixed(0)}',
+          color: Colors.redAccent,
+        ),
+        const SizedBox(height: 4),
+        _RefundRow(
+          label: 'Refund Amount',
           value: '₹${refundAmount.toStringAsFixed(0)}',
           color: Colors.green,
           bold: true,

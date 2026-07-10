@@ -180,6 +180,8 @@ class EventModel {
       'durationHours': durationHours,
       'ageGroup': ageGroup,
       'status': status,
+      'endTime': Timestamp.fromDate(endTime),
+      'payoutProcessed': false,
     };
   }
 
