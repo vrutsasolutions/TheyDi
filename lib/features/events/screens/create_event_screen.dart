@@ -119,6 +119,7 @@ final Map<String, List<String>> _stateCities = {
     'Muzaffarpur',
     'Bhagalpur',
     'Darbhanga',
+    'Aurangabad',
     'Purnia',
     'Ara',
     'Begusarai',
