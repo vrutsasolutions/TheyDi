@@ -47,7 +47,7 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       final sd = widget.signupData;
 
       // ── 1. Final username uniqueness guard ──────────────────────────────────
-      
+
       final usernameDoc = await FirebaseFirestore.instance
           .collection('usernames')
           .doc(sd.username.toLowerCase())
@@ -61,41 +61,35 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       }
 
       // ── 2. Create Firebase Auth account ────────────────────────────────────
-     
+
       final credential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: sd.email.trim(),
         password: sd.password,
       );
       createdUser = credential.user!;
-      
 
       // ── 3. Update display name ──────────────────────────────────────────────
-      
-      final displayName =
-          sd.displayName.isNotEmpty ? sd.displayName : sd.name;
+
+      final displayName = sd.displayName.isNotEmpty ? sd.displayName : sd.name;
       await createdUser.updateDisplayName(displayName);
 
       // ── 4. Write user profile to Firestore ─────────────────────────────────
-      
 
       // Write separately instead of batch — easier to debug which one fails
       await FirebaseFirestore.instance
           .collection('users')
           .doc(createdUser.uid)
           .set(sd.toFirestoreMap(createdUser.uid));
-   
 
       await FirebaseFirestore.instance
           .collection('usernames')
           .doc(sd.username.toLowerCase())
           .set({'uid': createdUser.uid, 'username': sd.username.toLowerCase()});
-      
 
       // ── 5. Navigate home ────────────────────────────────────────────────────
-     
-      if (mounted) context.go(AppRoutes.home);
 
+      if (mounted) context.go(AppRoutes.home);
     } on FirebaseAuthException catch (e) {
       debugPrint('[Signup] FirebaseAuthException: ${e.code} — ${e.message}');
       switch (e.code) {
@@ -116,7 +110,9 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       }
       // If auth was created but Firestore failed, clean up the auth account
       if (createdUser != null) {
-        try { await createdUser.delete(); } catch (_) {}
+        try {
+          await createdUser.delete();
+        } catch (_) {}
       }
     } on FirebaseException catch (e) {
       // This catches Firestore permission errors and other Firebase errors
@@ -131,7 +127,9 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       }
       // Clean up the auth account since Firestore write failed
       if (createdUser != null) {
-        try { await createdUser.delete(); } catch (_) {}
+        try {
+          await createdUser.delete();
+        } catch (_) {}
       }
     } catch (e, stack) {
       // Now we see the REAL error instead of hiding it
@@ -139,7 +137,9 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       debugPrint('[Signup] Stack: $stack');
       _showError('Error: ${e.toString()}');
       if (createdUser != null) {
-        try { await createdUser.delete(); } catch (_) {}
+        try {
+          await createdUser.delete();
+        } catch (_) {}
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -211,22 +211,67 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                         ),
                         child: Column(children: [
                           // Avatar
+                          // Avatar
                           Container(
                             width: 72,
                             height: 72,
                             decoration: BoxDecoration(
-                              gradient: TheyDiColors.gradientPrimary,
+                              gradient: (sd.profileImageUrl == null ||
+                                      sd.profileImageUrl!.isEmpty)
+                                  ? TheyDiColors.gradientPrimary
+                                  : null,
+                              color: (sd.profileImageUrl != null &&
+                                      sd.profileImageUrl!.isNotEmpty)
+                                  ? TheyDiColors.card
+                                  : null,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Center(
-                              child: Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : 'T',
-                                style: TheyDiTextStyles.displayMedium
-                                    .copyWith(color: Colors.white),
-                              ),
-                            ),
+                            child: (sd.profileImageUrl != null &&
+                                    sd.profileImageUrl!.isNotEmpty)
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Image.network(
+                                      sd.profileImageUrl!,
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder:
+                                          (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return const Center(
+                                          child: SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: TheyDiColors.primary,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (context, error, stack) =>
+                                          Center(
+                                        child: Text(
+                                          displayName.isNotEmpty
+                                              ? displayName[0].toUpperCase()
+                                              : 'T',
+                                          style: TheyDiTextStyles.displayMedium
+                                              .copyWith(
+                                                  color:
+                                                      TheyDiColors.textPrimary),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      displayName.isNotEmpty
+                                          ? displayName[0].toUpperCase()
+                                          : 'T',
+                                      style: TheyDiTextStyles.displayMedium
+                                          .copyWith(color: Colors.white),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(height: 12),
 
@@ -250,8 +295,7 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                                       .copyWith(color: TheyDiColors.primary)),
                             ),
 
-                          Text(sd.email,
-                              style: TheyDiTextStyles.bodySmall),
+                          Text(sd.email, style: TheyDiTextStyles.bodySmall),
 
                           const SizedBox(height: 16),
                           const Divider(color: TheyDiColors.divider),
@@ -342,12 +386,10 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                               ),
                             ),
                             child: Text('Let\'s Go',
-                                style: TheyDiTextStyles.labelLarge.copyWith(
-                                    color: Colors.white)),
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(color: Colors.white)),
                           ),
                         ).animate(delay: 350.ms).fade(duration: 300.ms),
-
-
                     ],
                   ),
                 ),
@@ -378,8 +420,8 @@ class _SummaryRow extends StatelessWidget {
       Icon(icon, size: 16, color: TheyDiColors.textMuted),
       const SizedBox(width: 8),
       Text('$label: ',
-          style: TheyDiTextStyles.caption
-              .copyWith(color: TheyDiColors.textMuted)),
+          style:
+              TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted)),
       Expanded(
         child: Text(value,
             style: TheyDiTextStyles.bodySmall.copyWith(

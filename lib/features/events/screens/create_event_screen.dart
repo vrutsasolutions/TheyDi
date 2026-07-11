@@ -44,6 +44,7 @@ const _kAdultAgeGroups = [
   'Middle Age (41–60)',
   'Seniors (60+)',
 ];
+
 const List<String> _kStates = [
   'Andhra Pradesh',
   'Arunachal Pradesh',
@@ -75,7 +76,6 @@ const List<String> _kStates = [
   'West Bengal',
 ];
 
-
 final Map<String, List<String>> _stateCities = {
   'Andhra Pradesh': [
     'Visakhapatnam',
@@ -89,7 +89,6 @@ final Map<String, List<String>> _stateCities = {
     'Anantapur',
     'Kadapa',
   ],
-
   'Arunachal Pradesh': [
     'Itanagar',
     'Naharlagun',
@@ -102,7 +101,6 @@ final Map<String, List<String>> _stateCities = {
     'Khonsa',
     'Along',
   ],
-
   'Assam': [
     'Guwahati',
     'Silchar',
@@ -115,7 +113,6 @@ final Map<String, List<String>> _stateCities = {
     'Bongaigaon',
     'Goalpara',
   ],
-
   'Bihar': [
     'Patna',
     'Gaya',
@@ -128,7 +125,6 @@ final Map<String, List<String>> _stateCities = {
     'Katihar',
     'Munger',
   ],
-
   'Chhattisgarh': [
     'Raipur',
     'Bhilai',
@@ -141,7 +137,6 @@ final Map<String, List<String>> _stateCities = {
     'Rajnandgaon',
     'Mahasamund',
   ],
-
   'Goa': [
     'Panaji',
     'Margao',
@@ -154,7 +149,6 @@ final Map<String, List<String>> _stateCities = {
     'Sanquelim',
     'Valpoi',
   ],
-
   'Gujarat': [
     'Ahmedabad',
     'Surat',
@@ -167,7 +161,6 @@ final Map<String, List<String>> _stateCities = {
     'Gandhinagar',
     'Morbi',
   ],
-
   'Haryana': [
     'Gurugram',
     'Faridabad',
@@ -180,7 +173,6 @@ final Map<String, List<String>> _stateCities = {
     'Yamunanagar',
     'Panchkula',
   ],
-
   'Himachal Pradesh': [
     'Shimla',
     'Manali',
@@ -193,7 +185,6 @@ final Map<String, List<String>> _stateCities = {
     'Kullu',
     'Chamba',
   ],
-
   'Jharkhand': [
     'Ranchi',
     'Jamshedpur',
@@ -206,7 +197,6 @@ final Map<String, List<String>> _stateCities = {
     'Chaibasa',
     'Medininagar',
   ],
-
   'Karnataka': [
     'Bengaluru',
     'Mysuru',
@@ -219,7 +209,6 @@ final Map<String, List<String>> _stateCities = {
     'Udupi',
     'Kalaburagi',
   ],
-
   'Kerala': [
     'Kochi',
     'Thiruvananthapuram',
@@ -232,7 +221,6 @@ final Map<String, List<String>> _stateCities = {
     'Kottayam',
     'Malappuram',
   ],
-
   'Madhya Pradesh': [
     'Bhopal',
     'Indore',
@@ -245,7 +233,6 @@ final Map<String, List<String>> _stateCities = {
     'Rewa',
     'Dewas',
   ],
-
   'Maharashtra': [
     'Mumbai',
     'Pune',
@@ -258,7 +245,6 @@ final Map<String, List<String>> _stateCities = {
     'Amravati',
     'Navi Mumbai',
   ],
-
   'Manipur': [
     'Imphal',
     'Thoubal',
@@ -271,7 +257,6 @@ final Map<String, List<String>> _stateCities = {
     'Jiribam',
     'Moirang',
   ],
-
   'Meghalaya': [
     'Shillong',
     'Tura',
@@ -284,7 +269,6 @@ final Map<String, List<String>> _stateCities = {
     'Nongstoin',
     'Khliehriat',
   ],
-
   'Mizoram': [
     'Aizawl',
     'Lunglei',
@@ -297,7 +281,6 @@ final Map<String, List<String>> _stateCities = {
     'Saitual',
     'Khawzawl',
   ],
-
   'Nagaland': [
     'Kohima',
     'Dimapur',
@@ -310,7 +293,6 @@ final Map<String, List<String>> _stateCities = {
     'Kiphire',
     'Longleng',
   ],
-
   'Odisha': [
     'Bhubaneswar',
     'Cuttack',
@@ -323,7 +305,6 @@ final Map<String, List<String>> _stateCities = {
     'Baripada',
     'Jeypore',
   ],
-
   'Punjab': [
     'Ludhiana',
     'Amritsar',
@@ -336,7 +317,6 @@ final Map<String, List<String>> _stateCities = {
     'Hoshiarpur',
     'Kapurthala',
   ],
-
   'Rajasthan': [
     'Jaipur',
     'Jodhpur',
@@ -349,7 +329,6 @@ final Map<String, List<String>> _stateCities = {
     'Sikar',
     'Pali',
   ],
-
   'Sikkim': [
     'Gangtok',
     'Namchi',
@@ -362,7 +341,6 @@ final Map<String, List<String>> _stateCities = {
     'Pakyong',
     'Soreng',
   ],
-
   'Tamil Nadu': [
     'Chennai',
     'Coimbatore',
@@ -375,7 +353,6 @@ final Map<String, List<String>> _stateCities = {
     'Thoothukudi',
     'Kanchipuram',
   ],
-
   'Telangana': [
     'Hyderabad',
     'Warangal',
@@ -388,7 +365,6 @@ final Map<String, List<String>> _stateCities = {
     'Adilabad',
     'Nalgonda',
   ],
-
   'Tripura': [
     'Agartala',
     'Udaipur',
@@ -401,7 +377,6 @@ final Map<String, List<String>> _stateCities = {
     'Teliamura',
     'Sonamura',
   ],
-
   'Uttar Pradesh': [
     'Lucknow',
     'Kanpur',
@@ -414,7 +389,6 @@ final Map<String, List<String>> _stateCities = {
     'Bareilly',
     'Gorakhpur',
   ],
-
   'Uttarakhand': [
     'Dehradun',
     'Haridwar',
@@ -427,7 +401,6 @@ final Map<String, List<String>> _stateCities = {
     'Almora',
     'Pithoragarh',
   ],
-
   'West Bengal': [
     'Kolkata',
     'Howrah',
@@ -441,6 +414,16 @@ final Map<String, List<String>> _stateCities = {
     'Darjeeling',
   ],
 };
+
+// Looks up which state a given city belongs to. Used to keep
+// `_selectedState` in sync whenever `_selectedCity` changes, either from
+// the dropdown or from reverse-geocoding a map tap.
+String? _stateForCity(String city) {
+  for (final entry in _stateCities.entries) {
+    if (entry.value.contains(city)) return entry.key;
+  }
+  return null;
+}
 
 const _kAgeGroups = [
   'All Ages',
@@ -513,12 +496,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   List<_GeoResult> _geoResults = []; // multiple results
   bool _showResultPicker = false;
 
-String? _selectedCategory;
-String? _selectedState;
-String? _selectedCity;
-final String _selectedCountry = 'India';
+  String? _selectedCategory;
+  String? _selectedState;
+  String? _selectedCity;
+  final String _selectedCountry = 'India';
 
-DateTime? _selectedDate;
+  DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _isFree = true;
   bool _isLoading = false;
@@ -684,7 +667,11 @@ DateTime? _selectedDate;
       _pinnedLat = result.lat;
       _pinnedLng = result.lng;
       _pinnedAddress = result.displayAddress;
+
+      _updatingVenueProgrammatically = true;
       _venueController.text = result.displayAddress;
+      _updatingVenueProgrammatically = false;
+
       _showMapPreview = true;
       _showResultPicker = false;
       _geoResults = [];
@@ -715,7 +702,6 @@ DateTime? _selectedDate;
           '&key=$apiKey';
 
       final response = await http.get(Uri.parse(url));
-     
 
       if (response.statusCode != 200) return;
 
@@ -779,12 +765,13 @@ DateTime? _selectedDate;
 
         _pinnedAddress = formattedAddress;
 
-        _venueController.text = venue.isNotEmpty ? venue : formattedAddress;
-
+        // IMPORTANT: only set the venue text ONCE, and only inside the
+        // programmatic-update guard. Setting it a second time outside the
+        // guard (as before) fired `_onVenueChanged`, which re-triggered a
+        // forward geocode of the address we just derived from the map tap —
+        // causing the pin to jump / fight with itself.
         _updatingVenueProgrammatically = true;
-
         _venueController.text = venue.isNotEmpty ? venue : formattedAddress;
-
         _updatingVenueProgrammatically = false;
 
         _additionalAddressController.text = additional;
@@ -800,26 +787,24 @@ DateTime? _selectedDate;
 
         final normalizedCity = normalize(city);
 
-        final allCities = _stateCities.values.expand((cities) => cities).toList();
+        final allCities =
+            _stateCities.values.expand((cities) => cities).toList();
 
-final matchedCity = allCities.firstWhere(
-  (c) {
-    final item = normalize(c);
-    return item.startsWith(normalizedCity);
-  },
-  orElse: () => '',
-);
-
-        if (matchedCity.isNotEmpty) {
-          _selectedCity = matchedCity;
-        }
+        final matchedCity = allCities.firstWhere(
+          (c) {
+            final item = normalize(c);
+            return item.startsWith(normalizedCity);
+          },
+          orElse: () => '',
+        );
 
         if (matchedCity.isNotEmpty) {
           _selectedCity = matchedCity;
+          _selectedState = _stateForCity(matchedCity);
         }
       });
     } catch (e) {
-      debugPrint(e.toString());
+      debugPrint('Reverse geocode error: $e');
     }
   }
 
@@ -987,23 +972,6 @@ final matchedCity = allCities.firstWhere(
 
       if (mounted) {
         setState(() {
-          final idx = _eventImages.indexWhere(
-            (img) => img.id == tempId,
-          );
-
-          if (idx != -1) {
-            _eventImages[idx] = _UploadedImage(
-              id: tempId,
-              bytes: bytes,
-              url: imageUrl,
-              isUploading: false,
-            );
-          }
-        });
-      }
-
-      if (mounted) {
-        setState(() {
           final idx = _eventImages.indexWhere((img) => img.id == tempId);
           if (idx != -1) {
             _eventImages[idx] = _UploadedImage(
@@ -1159,18 +1127,28 @@ final matchedCity = allCities.firstWhere(
     setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       if (!_isFree) {
         final data = userDoc.data() ?? {};
-        if (data['razorpayXFundAccountId'] == null || data['razorpayXFundAccountId'].toString().isEmpty) {
+        if (data['razorpayXFundAccountId'] == null ||
+            data['razorpayXFundAccountId'].toString().isEmpty) {
           Map<String, dynamic> bankData = {};
           try {
-            final bankDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('private').doc('bankDetails').get();
+            final bankDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .collection('private')
+                .doc('bankDetails')
+                .get();
             bankData = bankDoc.data() ?? {};
-            
+
             if (bankData.isEmpty) {
-              if (data['bankAccountName'] != null || data['bankAccountNumber'] != null) {
+              if (data['bankAccountName'] != null ||
+                  data['bankAccountNumber'] != null) {
                 bankData = {
                   'payoutMethod': 'bank',
                   'bankAccountName': data['bankAccountName'],
@@ -1211,10 +1189,10 @@ final matchedCity = allCities.firstWhere(
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
         'category': _selectedCategory ?? 'Other',
-'state': _selectedState ?? '',
-'country': _selectedCountry,
-'city': _selectedCity ?? '',
-'venue': _venueController.text.trim(),
+        'state': _selectedState ?? '',
+        'country': _selectedCountry,
+        'city': _selectedCity ?? '',
+        'venue': _venueController.text.trim(),
         'additionalAddress': _additionalAddressController.text.trim(),
         'dateTime': Timestamp.fromDate(dateTime),
         'creatorUid': user.uid,
@@ -1250,7 +1228,8 @@ final matchedCity = allCities.firstWhere(
         'payoutProcessed': false,
       };
 
-      final docRef = await FirebaseFirestore.instance.collection('events').add(eventData);
+      final docRef =
+          await FirebaseFirestore.instance.collection('events').add(eventData);
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -1285,9 +1264,9 @@ final matchedCity = allCities.firstWhere(
   void _showBankAccountSetupDialog({Map<String, dynamic>? existingData}) {
     String _payoutMethod = existingData?['payoutMethod'] ?? 'bank';
     final nameCtrl = TextEditingController(
-      text: existingData?['bankAccountName'] as String?
-          ?? FirebaseAuth.instance.currentUser?.displayName
-          ?? '',
+      text: existingData?['bankAccountName'] as String? ??
+          FirebaseAuth.instance.currentUser?.displayName ??
+          '',
     );
     final ifscCtrl = TextEditingController(
       text: (existingData?['bankIfsc'] ?? '') as String,
@@ -1304,20 +1283,28 @@ final matchedCity = allCities.firstWhere(
       context: context,
       isScrollControlled: true,
       backgroundColor: TheyDiColors.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Setup Host Payouts', style: TheyDiTextStyles.headlineMedium),
+                Text('Setup Host Payouts',
+                    style: TheyDiTextStyles.headlineMedium),
                 const SizedBox(height: 8),
-                Text('You are creating a paid event. Please add your payout details to receive earnings.', style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary)),
+                Text(
+                    'You are creating a paid event. Please add your payout details to receive earnings.',
+                    style: TheyDiTextStyles.bodySmall
+                        .copyWith(color: TheyDiColors.textSecondary)),
                 const SizedBox(height: 20),
-                
                 Container(
                   decoration: BoxDecoration(
                     color: TheyDiColors.divider.withValues(alpha: 0.3),
@@ -1327,40 +1314,52 @@ final matchedCity = allCities.firstWhere(
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => setModalState(() => _payoutMethod = 'bank'),
+                          onTap: () =>
+                              setModalState(() => _payoutMethod = 'bank'),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeInOut,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: _payoutMethod == 'bank' ? TheyDiColors.primary : Colors.transparent,
+                              color: _payoutMethod == 'bank'
+                                  ? TheyDiColors.primary
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
-                              child: Text('Bank Account', style: TextStyle(
-                                color: _payoutMethod == 'bank' ? Colors.white : TheyDiColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              )),
+                              child: Text('Bank Account',
+                                  style: TextStyle(
+                                    color: _payoutMethod == 'bank'
+                                        ? Colors.white
+                                        : TheyDiColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  )),
                             ),
                           ),
                         ),
                       ),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => setModalState(() => _payoutMethod = 'upi'),
+                          onTap: () =>
+                              setModalState(() => _payoutMethod = 'upi'),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeInOut,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: _payoutMethod == 'upi' ? TheyDiColors.primary : Colors.transparent,
+                              color: _payoutMethod == 'upi'
+                                  ? TheyDiColors.primary
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
-                              child: Text('UPI', style: TextStyle(
-                                color: _payoutMethod == 'upi' ? Colors.white : TheyDiColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              )),
+                              child: Text('UPI',
+                                  style: TextStyle(
+                                    color: _payoutMethod == 'upi'
+                                        ? Colors.white
+                                        : TheyDiColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  )),
                             ),
                           ),
                         ),
@@ -1369,11 +1368,14 @@ final matchedCity = allCities.firstWhere(
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
-                    return FadeTransition(opacity: animation, child: SizeTransition(sizeFactor: animation, child: child));
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                    return FadeTransition(
+                        opacity: animation,
+                        child: SizeTransition(
+                            sizeFactor: animation, child: child));
                   },
                   child: _payoutMethod == 'bank'
                       ? Column(
@@ -1382,20 +1384,28 @@ final matchedCity = allCities.firstWhere(
                             TextFormField(
                               controller: nameCtrl,
                               style: TheyDiTextStyles.bodyMedium,
-                              decoration: const InputDecoration(labelText: 'Account Holder Name', prefixIcon: Icon(Icons.person_outline)),
+                              decoration: const InputDecoration(
+                                  labelText: 'Account Holder Name',
+                                  prefixIcon: Icon(Icons.person_outline)),
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: ifscCtrl,
                               style: TheyDiTextStyles.bodyMedium,
-                              decoration: const InputDecoration(labelText: 'IFSC Code', hintText: 'e.g. HDFC0001234', prefixIcon: Icon(Icons.account_balance_outlined)),
+                              decoration: const InputDecoration(
+                                  labelText: 'IFSC Code',
+                                  hintText: 'e.g. HDFC0001234',
+                                  prefixIcon:
+                                      Icon(Icons.account_balance_outlined)),
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: accCtrl,
                               style: TheyDiTextStyles.bodyMedium,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Account Number', prefixIcon: Icon(Icons.numbers_outlined)),
+                              decoration: const InputDecoration(
+                                  labelText: 'Account Number',
+                                  prefixIcon: Icon(Icons.numbers_outlined)),
                             ),
                           ],
                         )
@@ -1405,69 +1415,99 @@ final matchedCity = allCities.firstWhere(
                             TextFormField(
                               controller: upiCtrl,
                               style: TheyDiTextStyles.bodyMedium,
-                              decoration: const InputDecoration(labelText: 'UPI ID (VPA)', hintText: 'e.g. username@bank', prefixIcon: Icon(Icons.payment)),
+                              decoration: const InputDecoration(
+                                  labelText: 'UPI ID (VPA)',
+                                  hintText: 'e.g. username@bank',
+                                  prefixIcon: Icon(Icons.payment)),
                             ),
                           ],
                         ),
                 ),
                 const SizedBox(height: 24),
-                
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: isSaving ? null : () async {
-                      if (_payoutMethod == 'bank') {
-                        if (nameCtrl.text.trim().isEmpty || ifscCtrl.text.trim().isEmpty || accCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please fill all bank fields')));
-                          return;
-                        }
-                      } else {
-                        if (upiCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please enter your UPI ID')));
-                          return;
-                        }
-                      }
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            if (_payoutMethod == 'bank') {
+                              if (nameCtrl.text.trim().isEmpty ||
+                                  ifscCtrl.text.trim().isEmpty ||
+                                  accCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please fill all bank fields')));
+                                return;
+                              }
+                            } else {
+                              if (upiCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Please enter your UPI ID')));
+                                return;
+                              }
+                            }
 
-                      setModalState(() => isSaving = true);
-                      try {
-                        final HttpsCallable callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createRazorpayXContact');
-                        await callable.call({
-                          'payoutMethod': _payoutMethod,
-                          'upiId': upiCtrl.text.trim(),
-                          'name': nameCtrl.text.trim(),
-                          'ifsc': ifscCtrl.text.trim(),
-                          'accountNumber': accCtrl.text.trim(),
-                        });
-                        
-                        final uid = FirebaseAuth.instance.currentUser?.uid;
-                        if (uid != null) {
-                          await FirebaseFirestore.instance.collection('users').doc(uid).collection('private').doc('bankDetails').set({
-                            'payoutMethod': _payoutMethod,
-                            'upiId': upiCtrl.text.trim(),
-                            'bankAccountName': nameCtrl.text.trim(),
-                            'bankIfsc': ifscCtrl.text.trim(),
-                            'bankAccountNumber': accCtrl.text.trim(),
-                          }, SetOptions(merge: true));
-                        }
-                        if (mounted) {
-                          Navigator.pop(ctx);
-                          _submit(); // Resume event creation
-                        }
-                      } catch (e) {
-                        setModalState(() => isSaving = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
-                      }
-                    },
+                            setModalState(() => isSaving = true);
+                            try {
+                              final HttpsCallable callable =
+                                  FirebaseFunctions.instanceFor(
+                                          region: 'asia-south1')
+                                      .httpsCallable('createRazorpayXContact');
+                              await callable.call({
+                                'payoutMethod': _payoutMethod,
+                                'upiId': upiCtrl.text.trim(),
+                                'name': nameCtrl.text.trim(),
+                                'ifsc': ifscCtrl.text.trim(),
+                                'accountNumber': accCtrl.text.trim(),
+                              });
+
+                              final uid =
+                                  FirebaseAuth.instance.currentUser?.uid;
+                              if (uid != null) {
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(uid)
+                                    .collection('private')
+                                    .doc('bankDetails')
+                                    .set({
+                                  'payoutMethod': _payoutMethod,
+                                  'upiId': upiCtrl.text.trim(),
+                                  'bankAccountName': nameCtrl.text.trim(),
+                                  'bankIfsc': ifscCtrl.text.trim(),
+                                  'bankAccountNumber': accCtrl.text.trim(),
+                                }, SetOptions(merge: true));
+                              }
+                              if (mounted) {
+                                Navigator.pop(ctx);
+                                _submit(); // Resume event creation
+                              }
+                            } catch (e) {
+                              setModalState(() => isSaving = false);
+                              if (mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')));
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: TheyDiColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: isSaving 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Save & Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Save & Continue',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -1502,10 +1542,10 @@ final matchedCity = allCities.firstWhere(
                     onPressed: () => context.pop()),
                 Expanded(
                     child: Text(
-  'Create Event',
-  style: TheyDiTextStyles.displayMedium,
-  textAlign: TextAlign.center,
-)),
+                  'Create Event',
+                  style: TheyDiTextStyles.displayMedium,
+                  textAlign: TextAlign.center,
+                )),
                 const SizedBox(width: 40),
               ]),
             ),
@@ -1620,87 +1660,86 @@ final matchedCity = allCities.firstWhere(
 
                       const SizedBox(height: 16),
 
-                      // House/Room + State
-// ── House / Room ─────────────────────────────────────
-const _Label('House/Room/Floor/Additional'),
-const SizedBox(height: 8),
+                      // ── House / Room ─────────────────────────────────────
+                      const _Label('House/Room/Floor/Additional'),
+                      const SizedBox(height: 8),
 
-TextFormField(
-  controller: _additionalAddressController,
-  style: TheyDiTextStyles.bodyMedium,
-  decoration: const InputDecoration(
-    hintText: 'e.g. Room 4B, 3rd Floor',
-    prefixIcon: Icon(Icons.info_outline),
-  ),
-).animate(delay: 120.ms).fade(duration: 300.ms),
-
-const SizedBox(height: 16),
-                      // ── Venue + Country ─────────────────────────────────────────────
-Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _Label('Venue *'),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _venueController,
-            style: TheyDiTextStyles.bodyMedium,
-            decoration: InputDecoration(
-              hintText: 'e.g. Sky Lounge, MG Road',
-              prefixIcon: const Icon(Icons.place_outlined),
-              suffixIcon: _isGeocoding
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: TheyDiColors.primary,
+                      TextFormField(
+                        controller: _additionalAddressController,
+                        style: TheyDiTextStyles.bodyMedium,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Room 4B, 3rd Floor',
+                          prefixIcon: Icon(Icons.info_outline),
                         ),
-                      ),
-                    )
-                  : _pinnedLat != null
-                      ? const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 20,
-                        )
-                      : null,
-            ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty)
-                    ? 'Venue is required'
-                    : null,
-          ),
-        ],
-      ),
-    ),
+                      ).animate(delay: 120.ms).fade(duration: 300.ms),
 
-    const SizedBox(width: 16),
+                      const SizedBox(height: 16),
 
-    Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _Label('Country'),
-          const SizedBox(height: 8),
-          TextFormField(
-            initialValue: 'India',
-            enabled: false,
-            style: TheyDiTextStyles.bodyMedium,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.flag_outlined),
-            ),
-          ),
-        ],
-      ),
-    ),
-  ],
-).animate(delay: 140.ms).fade(duration: 300.ms),
+                      // ── Venue + Country ───────────────────────────────────
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('Venue *'),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _venueController,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                  decoration: InputDecoration(
+                                    hintText: 'e.g. Sky Lounge, MG Road',
+                                    prefixIcon:
+                                        const Icon(Icons.place_outlined),
+                                    suffixIcon: _isGeocoding
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: TheyDiColors.primary,
+                                              ),
+                                            ),
+                                          )
+                                        : _pinnedLat != null
+                                            ? const Icon(
+                                                Icons.check_circle,
+                                                color: Colors.green,
+                                                size: 20,
+                                              )
+                                            : null,
+                                  ),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Venue is required'
+                                          : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('Country'),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  initialValue: 'India',
+                                  enabled: false,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.flag_outlined),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ).animate(delay: 140.ms).fade(duration: 300.ms),
 
                       // ── Multiple results picker ──
                       if (_showResultPicker && _geoResults.isNotEmpty) ...[
@@ -1786,77 +1825,79 @@ Row(
 
                       const SizedBox(height: 16),
 
-Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _Label('State'),
-          const SizedBox(height: 8),
-          _DropdownField<String>(
-            hint: 'Select state',
-            value: _selectedState,
-            items: _kStates.map((s) {
-              return DropdownMenuItem<String>(
-                value: s,
-                child: Text(
-                  s,
-                  style: TheyDiTextStyles.bodyMedium,
-                ),
-              );
-            }).toList(),
-            onChanged: (v) {
-              setState(() {
-                _selectedState = v;
-                _selectedCity = null;
-              });
-            },
-            icon: Icons.map_outlined,
-          ),
-        ],
-      ),
-    ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('State'),
+                                const SizedBox(height: 8),
+                                _DropdownField<String>(
+                                  hint: 'Select state',
+                                  value: _selectedState,
+                                  items: _kStates.map((s) {
+                                    return DropdownMenuItem<String>(
+                                      value: s,
+                                      child: Text(
+                                        s,
+                                        style: TheyDiTextStyles.bodyMedium,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _selectedState = v;
+                                      _selectedCity = null;
+                                    });
+                                  },
+                                  icon: Icons.map_outlined,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('City'),
+                                const SizedBox(height: 8),
+                                _DropdownField<String>(
+                                  hint: 'Select city',
+                                  value: _selectedCity,
+                                  items: (_selectedState == null
+                                          ? <String>[]
+                                          : _stateCities[_selectedState] ?? [])
+                                      .map((city) => DropdownMenuItem<String>(
+                                            value: city,
+                                            child: Text(
+                                              city,
+                                              style:
+                                                  TheyDiTextStyles.bodyMedium,
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (v) {
+                                    setState(() => _selectedCity = v);
 
-  const SizedBox(width: 12),
+                                    if (_venueController.text
+                                        .trim()
+                                        .isNotEmpty) {
+                                      _geocodeVenue(
+                                          _venueController.text.trim());
+                                    }
+                                  },
+                                  icon: Icons.location_city_outlined,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ).animate(delay: 150.ms).fade(duration: 300.ms),
 
-    Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _Label('City'),
-          const SizedBox(height: 8),
-          _DropdownField<String>(
-            hint: 'Select city',
-            value: _selectedCity,
-            items: (_selectedState == null
-                    ? <String>[]
-                    : _stateCities[_selectedState] ?? [])
-                .map((city) => DropdownMenuItem<String>(
-                      value: city,
-                      child: Text(
-                        city,
-                        style: TheyDiTextStyles.bodyMedium,
-                      ),
-                    ))
-                .toList(),
-            onChanged: (v) {
-              setState(() => _selectedCity = v);
-
-              if (_venueController.text.trim().isNotEmpty) {
-                _geocodeVenue(_venueController.text.trim());
-              }
-            },
-            icon: Icons.location_city_outlined,
-          ),
-        ],
-      ),
-    ),
-  ],
-).animate(delay: 150.ms).fade(duration: 300.ms),
-
-const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       // ── Location Section ──
                       const _Label('Pin Location *'),
