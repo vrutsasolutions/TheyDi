@@ -38,4 +38,27 @@ class CloudflareUpload {
       return null;
     }
   }
+
+  static Future<bool> deleteFile(String fileName) async {
+    try {
+      final uri = Uri.parse(
+        workerUrl,
+      ).replace(
+        queryParameters: {'file': fileName},
+      );
+
+      final response = await http.delete(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      return response.statusCode == 200 ||
+          response.statusCode == 204;
+    } catch (e) {
+      print('[CloudflareUpload] deleteFile error: $e');
+      return false;
+    }
+  }
 }

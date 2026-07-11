@@ -39,10 +39,14 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
   }
 
   Future<void> _startVerification() async {
-    setState(() => _step = _VerifyStep.scanning);
-    await Future.delayed(const Duration(milliseconds: 2200));
-    if (mounted) setState(() => _step = _VerifyStep.submitted);
-  }
+  await context.push(AppRoutes.faceVerification);
+
+  if (!mounted) return;
+
+  setState(() {
+    _step = _VerifyStep.submitted;
+  });
+}
 
   Future<void> _completeVerification() async {
     final user = FirebaseAuth.instance.currentUser;

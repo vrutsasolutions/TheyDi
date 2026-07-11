@@ -49,4 +49,6 @@ class AppRoutes {
 // ── Settings ──
 static const settings = '/settings';
 static const reportProblem = '/report-problem';
+
+static const faceVerification = '/face-verification';
 }

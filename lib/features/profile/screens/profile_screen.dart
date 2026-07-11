@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
+import '../../../features/auth/screens/face_verification_screen.dart';
+import '../../../core/services/face_verification_service.dart';
+
+
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
@@ -251,6 +254,104 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
+
+    Future<void> _showRemoveVerificationDialog(BuildContext context) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: TheyDiColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: TheyDiColors.error.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.verified_user_outlined,
+                color: TheyDiColors.error,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Remove Verification?',
+              style: TheyDiTextStyles.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Your verified badge will be removed.\nYou can verify again anytime.',
+              style: TheyDiTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: TheyDiColors.divider),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TheyDiColors.error,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Remove',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true || !context.mounted) return;
+
+    final removed = await FaceVerificationService.removeVerification(uid);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            removed ? 'Verification removed' : 'Failed to remove. Try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+          backgroundColor: removed ? TheyDiColors.primary : TheyDiColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'T';
@@ -385,21 +486,51 @@ class _ProfileContent extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              // if (isVerified) ...[
+                              //   const SizedBox(width: 6),
+                              //   Container(
+                              //     padding: const EdgeInsets.all(3),
+                              //     decoration: const BoxDecoration(
+                              //       color: TheyDiColors.warning,
+                              //       shape: BoxShape.circle,
+                              //     ),
+                              //     child: const Icon(
+                              //       Icons.check,
+                              //       size: 12,
+                              //       color: Colors.white,
+                              //     ),
+                              //   ),
+                              // ],
                               if (isVerified) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: TheyDiColors.warning,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+  const SizedBox(width: 6),
+  GestureDetector(
+    onLongPress: () => _showRemoveVerificationDialog(context),
+    child: Container(
+      padding: const EdgeInsets.all(3),
+      decoration: const BoxDecoration(
+        color: TheyDiColors.warning,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.check,
+        size: 12,
+        color: Colors.white,
+      ),
+    ),
+  ),
+]else ...[
+  const SizedBox(height: 6),
+  GestureDetector(
+    onTap: () => _showRemoveVerificationDialog(context),
+    child: Text(
+      'Remove verification',
+      style: TheyDiTextStyles.caption.copyWith(
+        color: TheyDiColors.textMuted,
+        decoration: TextDecoration.underline,
+      ),
+    ),
+  ),
+],
                             ],
                           ),
                         ),
