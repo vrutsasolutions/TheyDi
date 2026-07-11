@@ -305,39 +305,6 @@ class FaceVerificationService {
     return isUserVerified(uid);
   }
 
-  // ── Remove verification ───────────────────────────────
-  static Future<bool> removeVerification(String userId) async {
-    try {
-      await _firestore.collection('users').doc(userId).update({
-        'faceVerified': false,
-        'isVerified': false,
-        'verificationStatus': 'none',
-        'trustScore': 50,
-        'selfieUrl': '',
-        'liveSelfieUrl': '',
-        'faceMeasurements': {},
-        'faceVerifiedAt': null,
-        'faceVerification': {
-          'isVerified': false,
-          'status': 'none',
-          'selfieUrl': '',
-          'verifiedAt': null,
-          'faceMeasurements': {},
-        },
-      });
-
-      await _firestore.collection('verificationRequests').doc(userId).delete();
-
-      await CloudflareUpload.deleteFile('face_selfies/$userId.jpg');
-      await CloudflareUpload.deleteFile('face_selfies/${userId}_live.jpg');
-
-      return true;
-    } catch (e) {
-      print('[FaceVerificationService] removeVerification error: $e');
-      return false;
-    }
-  }
-
   // ── Payment gate ──────────────────────────────────────
   static Future<bool> checkVerifiedBeforePayment(BuildContext context) async {
     final verified = await isCurrentUserVerified();

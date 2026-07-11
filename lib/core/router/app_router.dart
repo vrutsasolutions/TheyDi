@@ -57,6 +57,7 @@ import 'package:theydi/features/auth/screens/face_verification_screen.dart';
 import '../../features/settings/screens/privacy_policy_screen.dart';
 import '../../features/settings/screens/terms_conditions_screen.dart';
 
+import '../../features/admin/screens/admin_verification_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
@@ -146,14 +147,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-  path: AppRoutes.privacyPolicy,
-  builder: (_, __) => const PrivacyPolicyScreen(),
-),
+        path: AppRoutes.privacyPolicy,
+        builder: (_, __) => const PrivacyPolicyScreen(),
+      ),
 
-GoRoute(
-  path: AppRoutes.termsConditions,
-  builder: (_, __) => const TermsConditionsScreen(),
-),
+      GoRoute(
+        path: AppRoutes.termsConditions,
+        builder: (_, __) => const TermsConditionsScreen(),
+      ),
 
       // ── Payment ─
       GoRoute(
@@ -376,6 +377,11 @@ GoRoute(
       GoRoute(
         path: AppRoutes.verifyProfile,
         builder: (context, state) => const VerifyProfileScreen(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.adminVerification,
+        builder: (context, state) => const AdminVerificationScreen(),
       ),
 
       // ── Shell routes ────────────────────────────────────────────────────────

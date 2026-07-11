@@ -46,6 +46,8 @@ import 'package:theydi/features/profile/screens/friends_hub_screen.dart';
 import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
 
+import '../../features/admin/screens/admin_verification_screen.dart';
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -262,6 +264,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => SignupStep5Screen(
           signupData: state.extra as SignupData,
         ),
+      ),
+
+      GoRoute(
+        path: AppRoutes.adminVerification,
+        builder: (context, state) => const AdminVerificationScreen(),
       ),
 
       // ── Shell routes ────────────────────────────────────────────────────────

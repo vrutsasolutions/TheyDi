@@ -13,6 +13,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
 
+import '../../../core/services/face_verification_service.dart';
+
 class SignupStep5Screen extends StatefulWidget {
   final SignupData signupData;
   const SignupStep5Screen({super.key, required this.signupData});
@@ -87,8 +89,26 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
           .doc(sd.username.toLowerCase())
           .set({'uid': createdUser.uid, 'username': sd.username.toLowerCase()});
 
-      // ── 5. Navigate home ────────────────────────────────────────────────────
+      // ── 5. If face verified in step4 — update Firestore with real uid ──────
+      if (sd.isVerified) {
+        debugPrint('[Signup] Step 5: Saving face verification to Firestore...');
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(createdUser!.uid)
+              .update({
+            'faceVerified': true,
+            'isVerified': true,
+            'verificationStatus': 'verified',
+            'trustScore': 90,
+            'faceVerifiedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('[Signup] Face verification save error (non-fatal): $e');
+        }
+      }
 
+      // ── 6. Navigate home ────────────────────────────────────────────────────
       if (mounted) context.go(AppRoutes.home);
     } on FirebaseAuthException catch (e) {
       debugPrint('[Signup] FirebaseAuthException: ${e.code} — ${e.message}');

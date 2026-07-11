@@ -47,11 +47,13 @@ class AppRoutes {
 
   // ── Settings ──
 // ── Settings ──
-static const settings = '/settings';
-static const reportProblem = '/report-problem';
+  static const settings = '/settings';
+  static const reportProblem = '/report-problem';
 
-static const faceVerification = '/face-verification';
+  static const faceVerification = '/face-verification';
 
-static const privacyPolicy = '/privacy-policy';
-static const termsConditions = '/terms-conditions';
+  static const privacyPolicy = '/privacy-policy';
+  static const termsConditions = '/terms-conditions';
+
+  static const String adminVerification = '/admin/verification';
 }

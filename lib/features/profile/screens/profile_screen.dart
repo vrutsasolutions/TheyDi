@@ -10,7 +10,9 @@ import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 import '../../../core/services/face_verification_service.dart';
 
-
+import '../../admin/screens/admin_verification_screen.dart';
+import '../../../features/auth/screens/face_verification_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
@@ -111,6 +113,7 @@ class ProfileScreen extends ConsumerWidget {
 
               final interests = List<String>.from(data['interests'] ?? []);
               final isVerified = (data['isVerified'] as bool?) ?? false;
+              final isAdmin = (data['isAdmin'] as bool?) ?? false;
               final age = data['age'];
               final gender = (data['gender'] as String?) ?? '';
 
@@ -138,6 +141,7 @@ class ProfileScreen extends ConsumerWidget {
                 isVerified: isVerified,
                 age: age != null ? int.tryParse(age.toString()) : null,
                 gender: gender,
+                isAdmin: isAdmin,
               );
             },
           ),
@@ -161,6 +165,7 @@ class _ProfileContent extends ConsumerWidget {
   final bool isVerified;
   final int? age;
   final String gender;
+  final bool isAdmin;
 
   const _ProfileContent({
     required this.displayName,
@@ -176,6 +181,7 @@ class _ProfileContent extends ConsumerWidget {
     required this.isVerified,
     required this.age,
     required this.gender,
+    this.isAdmin = false,
   });
 
   Future<void> _signOut(BuildContext context) async {
@@ -253,104 +259,6 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-
-    Future<void> _showRemoveVerificationDialog(BuildContext context) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TheyDiColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: TheyDiColors.error.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.verified_user_outlined,
-                color: TheyDiColors.error,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Remove Verification?',
-              style: TheyDiTextStyles.headlineMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Your verified badge will be removed.\nYou can verify again anytime.',
-              style: TheyDiTextStyles.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(false),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: TheyDiColors.divider),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TheyDiColors.error,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Remove',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (confirm != true || !context.mounted) return;
-
-    final removed = await FaceVerificationService.removeVerification(uid);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            removed ? 'Verification removed' : 'Failed to remove. Try again.',
-          ),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          backgroundColor: removed ? TheyDiColors.primary : TheyDiColors.error,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'T';
@@ -377,6 +285,7 @@ class _ProfileContent extends ConsumerWidget {
               ),
               const Spacer(),
               _SettingsMenuButton(
+                isAdmin: isAdmin, // ← ADD
                 onSelected: (value) {
                   switch (value) {
                     case 'myEvents':
@@ -393,6 +302,9 @@ class _ProfileContent extends ConsumerWidget {
                       break;
                     case 'signOut':
                       _signOut(context);
+                      break;
+                    case 'adminVerification':
+                      context.push(AppRoutes.adminVerification);
                       break;
                   }
                 },
@@ -426,12 +338,14 @@ class _ProfileContent extends ConsumerWidget {
                               errorBuilder: (_, __, ___) => Center(
                                     child: Text(initial,
                                         style: TheyDiTextStyles.displayLarge
-                                            .copyWith(fontSize: 36, color: Colors.white)),
+                                            .copyWith(
+                                                fontSize: 36,
+                                                color: Colors.white)),
                                   ))
                           : Center(
                               child: Text(initial,
-                                  style: TheyDiTextStyles.displayLarge
-                                      .copyWith(fontSize: 36, color: Colors.white)),
+                                  style: TheyDiTextStyles.displayLarge.copyWith(
+                                      fontSize: 36, color: Colors.white)),
                             ),
                     ),
                   ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
@@ -443,7 +357,8 @@ class _ProfileContent extends ConsumerWidget {
                     Center(
                       child: ElevatedButton.icon(
                         onPressed: () => context.push(AppRoutes.verifyProfile),
-                        icon: const Icon(Icons.check, size: 14, color: Colors.white),
+                        icon: const Icon(Icons.check,
+                            size: 14, color: Colors.white),
                         label: const Text('Verify Profile'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: TheyDiColors.primary,
@@ -460,9 +375,7 @@ class _ProfileContent extends ConsumerWidget {
                     ),
                 ],
               ),
-
               const SizedBox(width: 16),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,7 +389,8 @@ class _ProfileContent extends ConsumerWidget {
                               Flexible(
                                 child: Text(
                                   displayName,
-                                  style: TheyDiTextStyles.headlineMedium.copyWith(
+                                  style:
+                                      TheyDiTextStyles.headlineMedium.copyWith(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
                                     height: 1.15,
@@ -500,36 +414,67 @@ class _ProfileContent extends ConsumerWidget {
                               //     ),
                               //   ),
                               // ],
+
+                              // ── Verify button (only if not yet verified) ──
+                              if (!isVerified) ...[
+                                const SizedBox(height: 10),
+                                GestureDetector(
+                                  onTap: () {
+                                    final uid =
+                                        FirebaseAuth.instance.currentUser?.uid;
+                                    if (uid == null) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => FaceVerificationScreen(
+                                          userId: uid,
+                                          onComplete: () {
+                                            // Firestore already updated in service
+                                            // Profile will auto-refresh via StreamProvider
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      gradient: TheyDiColors.gradientPrimary,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.verified_user_outlined,
+                                            color: Colors.white, size: 14),
+                                        const SizedBox(width: 6),
+                                        Text('Get Verified',
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                               if (isVerified) ...[
-  const SizedBox(width: 6),
-  GestureDetector(
-    onLongPress: () => _showRemoveVerificationDialog(context),
-    child: Container(
-      padding: const EdgeInsets.all(3),
-      decoration: const BoxDecoration(
-        color: TheyDiColors.warning,
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(
-        Icons.check,
-        size: 12,
-        color: Colors.white,
-      ),
-    ),
-  ),
-]else ...[
-  const SizedBox(height: 6),
-  GestureDetector(
-    onTap: () => _showRemoveVerificationDialog(context),
-    child: Text(
-      'Remove verification',
-      style: TheyDiTextStyles.caption.copyWith(
-        color: TheyDiColors.textMuted,
-        decoration: TextDecoration.underline,
-      ),
-    ),
-  ),
-],
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: TheyDiColors.warning,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -608,7 +553,6 @@ class _ProfileContent extends ConsumerWidget {
 
                     const SizedBox(height: 10),
 
-
                     // Mobile: show buttons side-by-side with equal flexible width
                     LayoutBuilder(
                       builder: (context, constraints) {
@@ -618,15 +562,23 @@ class _ProfileContent extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () => context.push(AppRoutes.editprofile),
-                                icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+                                onPressed: () =>
+                                    context.push(AppRoutes.editprofile),
+                                icon: const Icon(Icons.edit,
+                                    size: 14, color: Colors.white),
                                 label: const Text('Edit'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: TheyDiColors.primary,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 12),
                                   elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  textStyle: TheyDiTextStyles.labelSmall
+                                      .copyWith(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700),
                                 ),
                               ),
                             ),
@@ -634,14 +586,21 @@ class _ProfileContent extends ConsumerWidget {
                             Expanded(
                               child: ElevatedButton.icon(
                                 onPressed: () => _openShareSheet(context),
-                                icon: const Icon(Icons.share, size: 14, color: Colors.white),
+                                icon: const Icon(Icons.share,
+                                    size: 14, color: Colors.white),
                                 label: const Text('Share'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: TheyDiColors.primary,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 12),
                                   elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  textStyle: TheyDiTextStyles.labelSmall
+                                      .copyWith(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700),
                                 ),
                               ),
                             ),
@@ -650,12 +609,7 @@ class _ProfileContent extends ConsumerWidget {
                       },
                     ),
 
-
-
-
 // Edit Profile + Share Profile
-
-
                   ],
                 ),
               ),
@@ -677,14 +631,20 @@ class _ProfileContent extends ConsumerWidget {
                       width: 170,
                       child: ElevatedButton.icon(
                         onPressed: () => context.push(AppRoutes.editprofile),
-                        icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+                        icon: const Icon(Icons.edit,
+                            size: 14, color: Colors.white),
                         label: const Text('Edit'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: TheyDiColors.primary,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                           elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          textStyle: TheyDiTextStyles.labelSmall.copyWith(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -693,14 +653,20 @@ class _ProfileContent extends ConsumerWidget {
                       width: 170,
                       child: ElevatedButton.icon(
                         onPressed: () => _openShareSheet(context),
-                        icon: const Icon(Icons.share, size: 14, color: Colors.white),
+                        icon: const Icon(Icons.share,
+                            size: 14, color: Colors.white),
                         label: const Text('Share'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: TheyDiColors.primary,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                           elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          textStyle: TheyDiTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          textStyle: TheyDiTextStyles.labelSmall.copyWith(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -760,9 +726,6 @@ class _ProfileContent extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-
-          
-
           // ══════════════════════════════════════
           // MENU ITEMS
           // ══════════════════════════════════════
@@ -803,8 +766,12 @@ class _ProfileContent extends ConsumerWidget {
 // ══════════════════════════════════════
 class _SettingsMenuButton extends StatelessWidget {
   final ValueChanged<String> onSelected;
+  final bool isAdmin; // ← ADD
 
-  const _SettingsMenuButton({required this.onSelected});
+  const _SettingsMenuButton({
+    required this.onSelected,
+    this.isAdmin = false, // ← ADD
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -836,6 +803,15 @@ class _SettingsMenuButton extends StatelessWidget {
           label: 'Help & Support',
         ),
         const PopupMenuDivider(height: 8),
+        if (isAdmin) ...[
+          _settingsItem(
+            value: 'adminVerification',
+            icon: Icons.admin_panel_settings_outlined,
+            label: 'Verification Requests',
+            color: TheyDiColors.primary,
+          ),
+          const PopupMenuDivider(height: 8),
+        ],
         _settingsItem(
           value: 'signOut',
           icon: Icons.logout,
@@ -902,44 +878,44 @@ class _ProfileButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-  width: double.infinity,
-  padding: const EdgeInsets.symmetric(
-    vertical: 10,
-    horizontal: 12,
-  ),
-  decoration: BoxDecoration(
-    color: TheyDiColors.primary,
-    borderRadius: BorderRadius.circular(10),
-    boxShadow: [
-      BoxShadow(
-        color: TheyDiColors.primary.withValues(alpha: 0.18),
-        blurRadius: 10,
-        offset: const Offset(0, 4),
-      ),
-    ],
-  ),
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Icon(
-        icon,
-        size: 15,
-        color: Colors.white,
-      ),
-      const SizedBox(width: 6),
-      Flexible(
-        child: Text(
-          label,
-          overflow: TextOverflow.ellipsis,
-          style: TheyDiTextStyles.labelSmall.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: 12,
+        ),
+        decoration: BoxDecoration(
+          color: TheyDiColors.primary,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: TheyDiColors.primary.withValues(alpha: 0.18),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TheyDiTextStyles.labelSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-),
     );
   }
 }

@@ -296,8 +296,8 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
         _status = 'Error: ${e.toString()}';
       });
     }
-  print('[FaceVerify] userId: ${widget.userId}'); // ← ADD THIS
-  print('[FaceVerify] userId empty: ${widget.userId.isEmpty}');
+    print('[FaceVerify] userId: ${widget.userId}'); // ← ADD THIS
+    print('[FaceVerify] userId empty: ${widget.userId.isEmpty}');
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -316,9 +316,16 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(
+          msg,
+          style: const TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: TheyDiColors.divider),
+        ),
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 2),
       ),
@@ -408,7 +415,9 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
 
           Text(
             'Verify your identity',
-            style: TheyDiTextStyles.displaySmall,
+            style: TheyDiTextStyles.displaySmall.copyWith(
+              color: TheyDiColors.textPrimary, // ← black
+            ),
             textAlign: TextAlign.center,
           ).animate(delay: 100.ms).fade(),
 
@@ -416,7 +425,9 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
 
           Text(
             'Takes less than a minute. Your face data stays private.',
-            style: TheyDiTextStyles.bodySmall,
+            style: TheyDiTextStyles.bodySmall.copyWith(
+              color: TheyDiColors.textSecondary, // ← dark grey
+            ),
             textAlign: TextAlign.center,
           ).animate(delay: 150.ms).fade(),
 
@@ -475,7 +486,9 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
         const SizedBox(height: 12),
         Text(
           'Position your face in the circle',
-          style: TheyDiTextStyles.bodySmall,
+          style: TheyDiTextStyles.bodySmall.copyWith(
+            color: TheyDiColors.textPrimary, // ← black
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
@@ -575,7 +588,7 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
           child: Text(
             instruction,
             style: TheyDiTextStyles.labelLarge.copyWith(
-              color: TheyDiColors.primary,
+              color: TheyDiColors.textPrimary, //
             ),
             textAlign: TextAlign.center,
           ),
@@ -921,8 +934,14 @@ class _StepCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TheyDiTextStyles.labelLarge),
-                Text(sub, style: TheyDiTextStyles.caption),
+                Text(title,
+                    style: TheyDiTextStyles.labelLarge.copyWith(
+                      color: TheyDiColors.textPrimary, // ← black
+                    )),
+                Text(sub,
+                    style: TheyDiTextStyles.caption.copyWith(
+                      color: TheyDiColors.textSecondary, // ← dark grey
+                    )),
               ],
             ),
           ),

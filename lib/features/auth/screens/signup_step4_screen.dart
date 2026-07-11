@@ -15,12 +15,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
-
-
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
+
+import '../../../features/auth/screens/face_verification_screen.dart';
 
 enum _VerifyStep { idle, scanning, submitted }
 
@@ -55,10 +55,28 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
   }
 
   void _startVerification() async {
-    setState(() => _step = _VerifyStep.scanning);
-    // Simulate a 2.5s "scan"
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (mounted) setState(() => _step = _VerifyStep.submitted);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    // If already logged in (shouldn't happen at signup step4, but safe)
+    // We use a temp approach: push screen, pass empty userId,
+    // step5 will save the result to Firestore after account creation.
+    // So here we just track locally in signupData.
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FaceVerificationScreen(
+          userId: 'pending', // account not created yet — step5 will save
+          onComplete: () {
+            // Called when verification succeeds
+            if (mounted) {
+              setState(() => _step = _VerifyStep.submitted);
+              widget.signupData!.isVerified = true;
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _proceed({required bool verified}) async {

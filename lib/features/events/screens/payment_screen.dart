@@ -15,6 +15,9 @@ import '../../../core/services/notification_service.dart';
 import '../models/booking_model.dart';
 import '../models/event_model.dart';
 
+import '../../../core/services/face_verification_service.dart';
+import '../../../features/auth/screens/face_verification_screen.dart';
+
 // ── PaymentScreen now accepts a Map<String,dynamic> as extra ─────────────────
 // extra = { 'event': EventModel, 'fromApproval': bool }
 // fromApproval = true  → PAID + Host Approval path (host already approved)
@@ -47,23 +50,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       'icon': Icons.account_balance,
       'desc': 'Google Pay, PhonePe, Paytm'
     },
-    {
-      'name': 'Card',
-      'icon': Icons.credit_card,
-      'desc': 'Credit or Debit card'
-    },
-    {
-      'name': 'Net Banking',
-      'icon': Icons.language,
-      'desc': 'All major banks'
-    },
+    {'name': 'Card', 'icon': Icons.credit_card, 'desc': 'Credit or Debit card'},
+    {'name': 'Net Banking', 'icon': Icons.language, 'desc': 'All major banks'},
   ];
 
   double get _eventPrice => widget.event.price;
-  double get _platformFee =>
-      BookingModel.calculatePlatformFee(_eventPrice);
-  double get _totalAmount =>
-      BookingModel.calculateTotal(_eventPrice);
+  double get _platformFee => BookingModel.calculatePlatformFee(_eventPrice);
+  double get _totalAmount => BookingModel.calculateTotal(_eventPrice);
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -97,7 +90,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   void _handlePaymentError(PaymentFailureResponse response) {
     if (mounted) {
-      setState(() { _isProcessing = false; _paymentFailed = true; });
+      setState(() {
+        _isProcessing = false;
+        _paymentFailed = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Payment failed: ${response.message}'),
         backgroundColor: Colors.red,
@@ -107,7 +103,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     if (mounted) {
-      setState(() { _isProcessing = false; _paymentFailed = true; });
+      setState(() {
+        _isProcessing = false;
+        _paymentFailed = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('External Wallet Selected: ${response.walletName}'),
         backgroundColor: Colors.orange,
@@ -119,7 +118,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser!;
       String userName = user.displayName ?? user.email!.split('@').first;
-      final verifyPaymentCallable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('verifyPayment');
+      final verifyPaymentCallable =
+          FirebaseFunctions.instanceFor(region: 'asia-south1')
+              .httpsCallable('verifyPayment');
       await verifyPaymentCallable.call({
         'razorpay_payment_id': response.paymentId,
         'razorpay_order_id': response.orderId,
@@ -134,7 +135,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         'fromApproval': widget.fromApproval,
       });
 
-      final txnId = response.paymentId ?? 'TXN${DateTime.now().millisecondsSinceEpoch}';
+      final txnId =
+          response.paymentId ?? 'TXN${DateTime.now().millisecondsSinceEpoch}';
 
       // ── Notify host (in-app) ──
       await NotificationService.notifyHostNewAttendeeEmail(
@@ -149,7 +151,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       await NotificationService.notifyPaymentReceivedEmail(
         userUid: user.uid,
         eventTitle: widget.event.title,
-        eventDate: DateFormat('EEE, MMM d · h:mm a').format(widget.event.dateTime),
+        eventDate:
+            DateFormat('EEE, MMM d · h:mm a').format(widget.event.dateTime),
         eventVenue: widget.event.venue,
         amount: _totalAmount.toStringAsFixed(0),
         transactionId: txnId,
@@ -170,7 +173,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       );
     } catch (e) {
       if (mounted) {
-        setState(() { _isProcessing = false; _paymentFailed = true; });
+        setState(() {
+          _isProcessing = false;
+          _paymentFailed = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Payment fulfillment failed: $e'),
           backgroundColor: Colors.red,
@@ -179,9 +185,109 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
   }
 
+  Future<void> _handlePayButton() async {
+    // 1. Check if user is face-verified
+    final verified = await FaceVerificationService.isUserVerified(_myUid);
+
+    if (!verified) {
+      // Show dialog explaining why verification needed
+      final goVerify = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: TheyDiColors.card,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: TheyDiColors.warning.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.verified_user_outlined,
+                  color: TheyDiColors.warning,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Verification Required',
+                style: TheyDiTextStyles.headlineMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Only verified users can make payments.\nVerify your face now — it takes less than a minute.',
+                style: TheyDiTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: TheyDiColors.divider),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: TheyDiColors.warning,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Verify Now',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (goVerify != true || !mounted) return;
+
+      // Open face verification
+      await context.push(
+        AppRoutes.faceVerification,
+        extra: {'userId': _myUid},
+      );
+// Check if verified after returning
+      if (!mounted) return;
+      final nowVerified = await FaceVerificationService.isUserVerified(_myUid);
+      if (nowVerified && mounted) _processPayment();
+      return;
+    }
+
+    // Already verified — go straight to payment
+    _processPayment();
+  }
+
   // ── Process payment ──────────────────────────────────────────────────────────
   Future<void> _processPayment() async {
-    setState(() { _isProcessing = true; _paymentFailed = false; });
+    setState(() {
+      _isProcessing = true;
+      _paymentFailed = false;
+    });
 
     try {
       // Duplicate payment guard
@@ -206,10 +312,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
       final amountInPaise = (_totalAmount * 100).toInt();
       final user = FirebaseAuth.instance.currentUser!;
-      print('Calling createOrder for amount: $amountInPaise, user: ${user.uid}');
+      print(
+          'Calling createOrder for amount: $amountInPaise, user: ${user.uid}');
 
       // ── Create Order securely via Backend ──
-      final createOrderCallable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createOrder');
+      final createOrderCallable =
+          FirebaseFunctions.instanceFor(region: 'asia-south1')
+              .httpsCallable('createOrder');
       print('Calling function in asia-south1...');
       final response = await createOrderCallable.call({
         'amount': amountInPaise,
@@ -235,12 +344,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         'order_id': orderId,
         'name': 'TheyDi',
         'description': widget.event.title,
-        'prefill': {
-          'contact': '',
-          'email': user.email ?? ''
-        },
+        'prefill': {'contact': '', 'email': user.email ?? ''},
       };
-      
+
       print('Opening Razorpay UI...');
       _razorpay.open(options);
     } catch (e, stackTrace) {
@@ -248,7 +354,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       print('Error: $e');
       print('Stack trace: $stackTrace');
       if (mounted) {
-        setState(() { _isProcessing = false; _paymentFailed = true; });
+        setState(() {
+          _isProcessing = false;
+          _paymentFailed = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Could not launch payment: $e'),
           backgroundColor: Colors.red,
@@ -260,8 +369,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final event = widget.event;
-    final dateStr =
-        DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
+    final dateStr = DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
 
     return Scaffold(
       body: Container(
@@ -281,9 +389,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
-                      onPressed:
-                          _isProcessing ? null : () => context.pop(),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
+                      onPressed: _isProcessing ? null : () => context.pop(),
                     ),
                     const SizedBox(width: 4),
                     Text('Checkout', style: TheyDiTextStyles.displayMedium),
@@ -297,7 +405,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-
                     // ── Approval context banner ──
                     if (widget.fromApproval) ...[
                       Container(
@@ -362,8 +469,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis),
                                 const SizedBox(height: 4),
-                                Text(dateStr,
-                                    style: TheyDiTextStyles.caption),
+                                Text(dateStr, style: TheyDiTextStyles.caption),
                                 const SizedBox(height: 2),
                                 Text(event.venue,
                                     style: TheyDiTextStyles.caption,
@@ -379,16 +485,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     const SizedBox(height: 24),
 
                     // ── Payment method ──
-                    Text('Payment method',
-                            style: TheyDiTextStyles.labelLarge)
+                    Text('Payment method', style: TheyDiTextStyles.labelLarge)
                         .animate(delay: 150.ms)
                         .fade(duration: 300.ms),
                     const SizedBox(height: 12),
 
                     ...List.generate(_paymentMethods.length, (index) {
                       final method = _paymentMethods[index];
-                      final isSelected =
-                          method['name'] == _selectedMethod;
+                      final isSelected = method['name'] == _selectedMethod;
                       return GestureDetector(
                         onTap: _isProcessing
                             ? null
@@ -418,12 +522,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(method['name'] as String,
-                                        style:
-                                            TheyDiTextStyles.labelMedium),
+                                        style: TheyDiTextStyles.labelMedium),
                                     Text(method['desc'] as String,
                                         style: TheyDiTextStyles.caption),
                                   ],
@@ -458,16 +560,15 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                           ),
                         ),
                       )
-                          .animate(delay: Duration(
-                              milliseconds: 200 + 50 * index))
+                          .animate(
+                              delay: Duration(milliseconds: 200 + 50 * index))
                           .fade(duration: 300.ms);
                     }),
 
                     const SizedBox(height: 24),
 
                     // ── Price breakdown ──
-                    Text('Price breakdown',
-                            style: TheyDiTextStyles.labelLarge)
+                    Text('Price breakdown', style: TheyDiTextStyles.labelLarge)
                         .animate(delay: 350.ms)
                         .fade(duration: 300.ms),
                     const SizedBox(height: 12),
@@ -490,15 +591,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                           Container(height: 1, color: TheyDiColors.divider),
                           const SizedBox(height: 12),
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Total',
-                                  style: TheyDiTextStyles.labelLarge),
+                              Text('Total', style: TheyDiTextStyles.labelLarge),
                               Text('₹${_totalAmount.toStringAsFixed(0)}',
                                   style: TheyDiTextStyles.displayMedium
-                                      .copyWith(
-                                          color: TheyDiColors.primary)),
+                                      .copyWith(color: TheyDiColors.primary)),
                             ],
                           ),
                         ],
@@ -565,8 +663,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 decoration: BoxDecoration(
                   color: TheyDiColors.dark,
-                  border:
-                      Border(top: BorderSide(color: TheyDiColors.divider)),
+                  border: Border(top: BorderSide(color: TheyDiColors.divider)),
                 ),
                 child: SizedBox(
                   width: double.infinity,
@@ -574,15 +671,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: _isProcessing
-                          ? null
-                          : TheyDiColors.gradientPrimary,
-                      color:
-                          _isProcessing ? Colors.grey[800] : null,
+                      gradient:
+                          _isProcessing ? null : TheyDiColors.gradientPrimary,
+                      color: _isProcessing ? Colors.grey[800] : null,
                     ),
                     child: ElevatedButton(
-                      onPressed:
-                          _isProcessing ? null : _processPayment,
+                      onPressed: _isProcessing ? null : _handlePayButton,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -591,15 +685,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       ),
                       child: _isProcessing
                           ? Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const SizedBox(
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5),
+                                      color: Colors.white, strokeWidth: 2.5),
                                 ),
                                 const SizedBox(width: 12),
                                 Text('Processing payment...',
@@ -611,8 +703,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                               _paymentFailed
                                   ? 'Retry Payment ₹${_totalAmount.toStringAsFixed(0)}'
                                   : 'Pay ₹${_totalAmount.toStringAsFixed(0)}',
-                              style: TheyDiTextStyles.labelLarge.copyWith(
-                                  color: Colors.white, fontSize: 16),
+                              style: TheyDiTextStyles.labelLarge
+                                  .copyWith(color: Colors.white, fontSize: 16),
                             ),
                     ),
                   ),
