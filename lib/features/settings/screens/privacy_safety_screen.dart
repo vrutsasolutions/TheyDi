@@ -10,6 +10,9 @@ import 'package:flutter/foundation.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 
+import 'package:go_router/go_router.dart';
+import '../../../core/router/app_routes.dart';
+
 // Stream user's privacy settings from Firestore
 final _privacySettingsProvider =
     StreamProvider.autoDispose<Map<String, dynamic>>((ref) {
@@ -375,7 +378,27 @@ onTap: () => context.push(AppRoutes.blockedUsers),
 
 
 
-                        const SizedBox(height: 24),
+                        // const SizedBox(height: 24),
+
+                        // const SizedBox(height: 12),
+
+_ActionTile(
+  icon: Icons.privacy_tip_outlined,
+  title: 'Privacy Policy',
+  subtitle: 'Read our privacy policy',
+  onTap: () {
+    context.push(AppRoutes.privacyPolicy);
+  },
+).animate(delay: 700.ms).fade(duration: 300.ms),
+
+_ActionTile(
+  icon: Icons.description_outlined,
+  title: 'Terms & Conditions',
+  subtitle: 'Read our terms and conditions',
+  onTap: () {
+    context.push(AppRoutes.termsConditions);
+  },
+).animate(delay: 800.ms).fade(duration: 300.ms),
 
                         // Danger zone
                         _SectionHeader(

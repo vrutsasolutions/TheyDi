@@ -24,6 +24,7 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
   final _confirmController  = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm  = true;
+  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -34,19 +35,40 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
     super.dispose();
   }
 
-  Future<void> _continue() async {
-    if (!_formKey.currentState!.validate()) return;
-    FocusScope.of(context).unfocus();
+Future<void> _continue() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    final signupData = SignupData(
-      email:    _emailController.text.trim(),
-      password: _passwordController.text,
-      name:     _nameController.text.trim(),
-    );
+  if (!_acceptedTerms) {
+    showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    title: const Text("Terms Required"),
+    content: const Text(
+      "Please accept the Terms & Conditions and Privacy Policy before continuing.",
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text("OK"),
+      ),
+    ],
+  ),
+);
 
-    // Go to OTP screen next
-    context.push(AppRoutes.signupOtp, extra: signupData);
+return;
+    return;
   }
+
+  FocusScope.of(context).unfocus();
+
+  final signupData = SignupData(
+    email: _emailController.text.trim(),
+    password: _passwordController.text,
+    name: _nameController.text.trim(),
+  );
+
+  context.push(AppRoutes.signupOtp, extra: signupData);
+}
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +213,58 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
                         ).animate(delay: 300.ms).fade(duration: 350.ms),
 
                         const SizedBox(height: 32),
+
+                        CheckboxListTile(
+  value: _acceptedTerms,
+  controlAffinity: ListTileControlAffinity.leading,
+  contentPadding: EdgeInsets.zero,
+  onChanged: (value) {
+    setState(() {
+      _acceptedTerms = value ?? false;
+    });
+  },
+  title: Wrap(
+    children: [
+      Text(
+        'I agree to the ',
+        style: TheyDiTextStyles.bodySmall,
+      ),
+
+      GestureDetector(
+        onTap: () {
+          context.push(AppRoutes.termsConditions);
+        },
+        child: Text(
+          'Terms & Conditions',
+          style: TheyDiTextStyles.bodySmall.copyWith(
+            color: TheyDiColors.primary,
+            decoration: TextDecoration.underline,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+
+      Text(
+        ' and ',
+        style: TheyDiTextStyles.bodySmall,
+      ),
+
+      GestureDetector(
+        onTap: () {
+          context.push(AppRoutes.privacyPolicy);
+        },
+        child: Text(
+          'Privacy Policy',
+          style: TheyDiTextStyles.bodySmall.copyWith(
+            color: TheyDiColors.primary,
+            decoration: TextDecoration.underline,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
 
                         GradientButton(
                           label: 'Continue →',

@@ -51,4 +51,7 @@ static const settings = '/settings';
 static const reportProblem = '/report-problem';
 
 static const faceVerification = '/face-verification';
+
+static const privacyPolicy = '/privacy-policy';
+static const termsConditions = '/terms-conditions';
 }

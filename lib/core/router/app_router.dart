@@ -53,6 +53,9 @@ import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
 import 'package:theydi/features/settings/screens/report_problem_screen.dart';
 import 'package:theydi/features/settings/screens/submit_report_screen.dart';
 import 'package:theydi/features/auth/screens/face_verification_screen.dart';
+import '../../features/settings/screens/privacy_policy_screen.dart';
+import '../../features/settings/screens/terms_conditions_screen.dart';
+
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
@@ -143,7 +146,17 @@ GoRoute(
         },
       ),
 
-      // ── Payment ──
+      GoRoute(
+  path: AppRoutes.privacyPolicy,
+  builder: (_, __) => const PrivacyPolicyScreen(),
+),
+
+GoRoute(
+  path: AppRoutes.termsConditions,
+  builder: (_, __) => const TermsConditionsScreen(),
+),
+
+      // ── Payment ─
       GoRoute(
         path: AppRoutes.payment,
         builder: (context, state) {
