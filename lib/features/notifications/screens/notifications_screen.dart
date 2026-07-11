@@ -655,11 +655,12 @@ class _NotificationCardState extends State<_NotificationCard> {
     setState(() => _processing = true);
     final requestId = await _findRequestId(fromUid);
     if (requestId == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _processing = false;
           _responded = true;
         });
+      }
       return;
     }
     await FriendsService.acceptFriendRequest(
@@ -681,11 +682,12 @@ class _NotificationCardState extends State<_NotificationCard> {
     setState(() => _processing = true);
     final requestId = await _findRequestId(fromUid);
     if (requestId == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _processing = false;
           _responded = true;
         });
+      }
       return;
     }
     await FriendsService.declineFriendRequest(
@@ -907,17 +909,20 @@ class _NavHint extends StatelessWidget {
         return 'Open Event';
       case 'review':
         return 'My Reviews';
-      case 'booking':if (t.contains('complete payment') || b.contains('tap to pay'))
-  return 'Open Event';
+      case 'booking':if (t.contains('complete payment') || b.contains('tap to pay')) {
+        return 'Open Event';
+      }
 
 if (t.contains("you're in") ||
-    (t.contains('approved') && !t.contains('join request')))
+    (t.contains('approved') && !t.contains('join request'))) {
   return 'My Events';
+}
 
 if (t.contains('join request') ||
     t.contains('spot cancelled') ||
-    t.contains('booking'))
+    t.contains('booking')) {
   return 'Manage Event';
+}
 
 return 'Open Event';
       case 'payment':
@@ -928,8 +933,9 @@ return 'Open Event';
       case 'message':
         return 'Open Chat';
       case 'social':
-        if (t.contains('accepted')) return 'Friends';if (t.contains('added to a circle') || t.contains('added you to'))
-  return 'Circles';
+        if (t.contains('accepted')) return 'Friends';if (t.contains('added to a circle') || t.contains('added you to')) {
+          return 'Circles';
+        }
         return 'Friend Requests';
       case 'suggested_friends':
         return 'Discover Friends';

@@ -23,14 +23,12 @@ import '../../../shared/screens/image_cropper_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/event_circle_service.dart';
 import '../models/circle_model.dart';
-import '../../../core/router/app_routes.dart';
 
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
 
 
 import '../../../shared/widgets/avatar_online_status_dot.dart';
-import 'package:theydi/shared/widgets/avatar_online_status_dot.dart';
 
 
 const _kCircleReportReasons = [

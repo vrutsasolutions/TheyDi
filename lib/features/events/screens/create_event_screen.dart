@@ -1262,7 +1262,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   void _showBankAccountSetupDialog({Map<String, dynamic>? existingData}) {
-    String _payoutMethod = existingData?['payoutMethod'] ?? 'bank';
+    String payoutMethod = existingData?['payoutMethod'] ?? 'bank';
     final nameCtrl = TextEditingController(
       text: existingData?['bankAccountName'] as String? ??
           FirebaseAuth.instance.currentUser?.displayName ??
@@ -1315,13 +1315,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () =>
-                              setModalState(() => _payoutMethod = 'bank'),
+                              setModalState(() => payoutMethod = 'bank'),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeInOut,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: _payoutMethod == 'bank'
+                              color: payoutMethod == 'bank'
                                   ? TheyDiColors.primary
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
@@ -1329,7 +1329,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                             child: Center(
                               child: Text('Bank Account',
                                   style: TextStyle(
-                                    color: _payoutMethod == 'bank'
+                                    color: payoutMethod == 'bank'
                                         ? Colors.white
                                         : TheyDiColors.textPrimary,
                                     fontWeight: FontWeight.w600,
@@ -1341,13 +1341,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () =>
-                              setModalState(() => _payoutMethod = 'upi'),
+                              setModalState(() => payoutMethod = 'upi'),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeInOut,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: _payoutMethod == 'upi'
+                              color: payoutMethod == 'upi'
                                   ? TheyDiColors.primary
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
@@ -1355,7 +1355,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                             child: Center(
                               child: Text('UPI',
                                   style: TextStyle(
-                                    color: _payoutMethod == 'upi'
+                                    color: payoutMethod == 'upi'
                                         ? Colors.white
                                         : TheyDiColors.textPrimary,
                                     fontWeight: FontWeight.w600,
@@ -1377,7 +1377,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         child: SizeTransition(
                             sizeFactor: animation, child: child));
                   },
-                  child: _payoutMethod == 'bank'
+                  child: payoutMethod == 'bank'
                       ? Column(
                           key: const ValueKey('bank'),
                           children: [
@@ -1431,7 +1431,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     onPressed: isSaving
                         ? null
                         : () async {
-                            if (_payoutMethod == 'bank') {
+                            if (payoutMethod == 'bank') {
                               if (nameCtrl.text.trim().isEmpty ||
                                   ifscCtrl.text.trim().isEmpty ||
                                   accCtrl.text.trim().isEmpty) {
@@ -1458,7 +1458,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                           region: 'asia-south1')
                                       .httpsCallable('createRazorpayXContact');
                               await callable.call({
-                                'payoutMethod': _payoutMethod,
+                                'payoutMethod': payoutMethod,
                                 'upiId': upiCtrl.text.trim(),
                                 'name': nameCtrl.text.trim(),
                                 'ifsc': ifscCtrl.text.trim(),
@@ -1474,7 +1474,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                     .collection('private')
                                     .doc('bankDetails')
                                     .set({
-                                  'payoutMethod': _payoutMethod,
+                                  'payoutMethod': payoutMethod,
                                   'upiId': upiCtrl.text.trim(),
                                   'bankAccountName': nameCtrl.text.trim(),
                                   'bankIfsc': ifscCtrl.text.trim(),

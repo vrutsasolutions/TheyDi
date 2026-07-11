@@ -16,6 +16,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -98,7 +100,7 @@ const _kReportReasons = [
 ];
 
 final _sharedPlayer = ap.AudioPlayer();
-bool _initialScrollDone = false;
+
 class DmChatScreen extends ConsumerStatefulWidget {
   final String otherUid;
   final String otherName;
@@ -122,6 +124,19 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   bool _selectionMode = false;
   final Set<String> _selectedMessageIds = {};
   final Set<String> _receiptWritesQueued = {};
+
+  // FIX: the messages stream is now created exactly once (inside _initChat)
+  // and cached here, instead of being built inline in `build()`. Building it
+  // inline meant every setState() call (typing, opening the emoji picker,
+  // sending a message, etc.) created a brand-new Stream instance, which made
+  // StreamBuilder tear down and resubscribe, showing the loading spinner and
+  // making the chat look like it was "reloading" constantly.
+  Stream<QuerySnapshot>? _messagesStream;
+
+  // FIX: this used to be a top-level global variable shared across every
+  // DmChatScreen instance in the whole app, which caused scroll glitches
+  // when switching between different chats. Now it's proper per-screen state.
+  bool _initialScrollDone = false;
 
   // ── Voice ──────────────────────────────────────────────────────────────────
   final AudioRecorder _recorder = AudioRecorder();
@@ -203,6 +218,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         _chatId = chatId;
         _chatLoading = false;
         _notificationsMuted = muteDoc.exists;
+        // FIX: create the stream ONE time here, not on every build().
+        _messagesStream =
+            chatRef.collection('messages').orderBy('timestamp').snapshots();
       });
     }
 
@@ -499,9 +517,11 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
       final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final audioUrl = await CloudflareUpload.uploadBytes(bytes, fileName);
-      
+
       if (audioUrl == null) {
-        if (mounted) _showSnack('Audio upload failed. Please try again.', Colors.red);
+        if (mounted) {
+          _showSnack('Audio upload failed. Please try again.', Colors.red);
+        }
         setState(() => _isUploading = false);
         return;
       }
@@ -571,18 +591,18 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   void _scrollToBottom() {
-  if (!_scrollController.hasClients) return;
-
-  Future.delayed(const Duration(milliseconds: 100), () {
     if (!_scrollController.hasClients) return;
 
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-  });
-}
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!_scrollController.hasClients) return;
+
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   void _openFriendInfo() => context.push(AppRoutes.friendInfo, extra: {
         'uid': widget.otherUid,
@@ -985,27 +1005,39 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
             'ppt',
             'pptx',
             'txt',
-            'zip'
+            'zip',
           ],
           withData: kIsWeb,
         );
+
         if (result != null && result.files.isNotEmpty) {
           final pickedFile = result.files.single;
-          String? path = pickedFile.path;
 
-          if (kIsWeb && pickedFile.bytes != null && path == null) {
-            // On web, path is null. We create a blob URL from bytes for compatibility with preview and storage.
-            path = XFile.fromData(pickedFile.bytes!).path;
-          }
+          type = 'file';
 
-          if (path != null) {
-            type = 'file';
+          if (kIsWeb) {
+            if (pickedFile.bytes == null) {
+              _showSnack('Unable to read file.', Colors.red);
+              return;
+            }
 
-            final xFile = XFile(path, name: pickedFile.name);
+            final xFile = XFile.fromData(
+              pickedFile.bytes!,
+              name: pickedFile.name,
+              mimeType: pickedFile.extension,
+            );
+
+            _confirmAndSendMedia(xFile, type);
+          } else {
+            final xFile = XFile(
+              pickedFile.path!,
+              name: pickedFile.name,
+            );
 
             _confirmAndSendMedia(xFile, type);
           }
         }
+
         return;
       }
 
@@ -1254,146 +1286,153 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                     ),
                   ])
                 : Row(children: [
-              IconButton(
-                  icon: const Icon(Icons.arrow_back,
-                      color: TheyDiColors.textPrimary),
-                  onPressed: () => context.pop()),
-              const SizedBox(width: 4),
-              Expanded(
-                  child: GestureDetector(
-                      onTap: _openFriendInfo,
-                      child: Row(children: [
-                        Stack(children: [
-                          StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(widget.otherUid)
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              final data = snapshot.data?.data()
-                                      as Map<String, dynamic>? ??
-                                  {};
+                    IconButton(
+                        icon: const Icon(Icons.arrow_back,
+                            color: TheyDiColors.textPrimary),
+                        onPressed: () => context.pop()),
+                    const SizedBox(width: 4),
+                    Expanded(
+                        child: GestureDetector(
+                            onTap: _openFriendInfo,
+                            child: Row(children: [
+                              Stack(children: [
+                                StreamBuilder<DocumentSnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(widget.otherUid)
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    final data = snapshot.data?.data()
+                                            as Map<String, dynamic>? ??
+                                        {};
 
-                              final photoUrl = data['profileImageUrl'] ??
-                                  data['photoUrl'] ??
-                                  '';
+                                    final photoUrl = data['profileImageUrl'] ??
+                                        data['photoUrl'] ??
+                                        '';
 
-                              return Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  gradient: photoUrl.isEmpty
-                                      ? TheyDiColors.gradientPrimary
-                                      : null,
-                                  image: photoUrl.isNotEmpty
-                                      ? DecorationImage(
-                                          image: NetworkImage(photoUrl),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
+                                    return Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        gradient: photoUrl.isEmpty
+                                            ? TheyDiColors.gradientPrimary
+                                            : null,
+                                        image: photoUrl.isNotEmpty
+                                            ? DecorationImage(
+                                                image: NetworkImage(photoUrl),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                      child: photoUrl.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                initial,
+                                                style: TheyDiTextStyles
+                                                    .labelLarge
+                                                    .copyWith(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : null,
+                                    );
+                                  },
                                 ),
-                                child: photoUrl.isEmpty
-                                    ? Center(
-                                        child: Text(
-                                          initial,
-                                          style: TheyDiTextStyles.labelLarge
-                                              .copyWith(
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                    : null,
-                              );
-                            },
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: AvatarOnlineStatusDot(
-                              uid: widget.otherUid,
-                              size: 12,
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                              Text(widget.otherName,
-                                  style: TheyDiTextStyles.labelLarge,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              StreamBuilder<DocumentSnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(widget.otherUid)
-                                    .snapshots(),
-                                builder: (ctx, snap) {
-                                  final data = snap.data?.data()
-                                      as Map<String, dynamic>?;
-                                  final isOnline = data?['isOnline'] == true;
-                                  final lastSeen =
-                                      data?['lastSeen'] as Timestamp?;
-                                  String label;
-                                  if (isOnline) {
-                                    label = 'Online';
-                                  } else if (lastSeen != null) {
-                                    final diff = DateTime.now()
-                                        .difference(lastSeen.toDate());
-                                    if (diff.inMinutes < 5) {
-                                      label = 'Last seen just now';
-                                    } else if (diff.inHours < 1)
-                                      label =
-                                          'Last seen ${diff.inMinutes}m ago';
-                                    else if (diff.inDays < 1)
-                                      label = 'Last seen ${diff.inHours}h ago';
-                                    else
-                                      label = 'Last seen ${diff.inDays}d ago';
-                                  } else {
-                                    label = 'Tap for info';
-                                  }
-                                  return Text(label,
-                                      style: TheyDiTextStyles.caption.copyWith(
-                                          color: isOnline
-                                              ? Colors.green
-                                              : TheyDiColors.textSecondary));
-                                },
-                              ),
-                            ])),
-                      ]))),
-              _ChatMenuButton(
-                muted: _notificationsMuted,
-                onSelected: (value) {
-                  switch (value) {
-                    case 'select':
-                      _enterSelectionMode();
-                      break;
-                    case 'viewProfile':
-                      _openUserProfile();
-                      break;
-                    case 'mute':
-                      _toggleMuteNotifications();
-                      break;
-                    case 'delete':
-                      _deleteChat();
-                      break;
-                    case 'report':
-                      _reportUser();
-                      break;
-                    case 'block':
-                      _blockUser();
-                      break;
-                  }
-                },
-              ),
-            ]),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: AvatarOnlineStatusDot(
+                                    uid: widget.otherUid,
+                                    size: 12,
+                                  ),
+                                ),
+                              ]),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(widget.otherName,
+                                        style: TheyDiTextStyles.labelLarge,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                    StreamBuilder<DocumentSnapshot>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(widget.otherUid)
+                                          .snapshots(),
+                                      builder: (ctx, snap) {
+                                        final data = snap.data?.data()
+                                            as Map<String, dynamic>?;
+                                        final isOnline =
+                                            data?['isOnline'] == true;
+                                        final lastSeen =
+                                            data?['lastSeen'] as Timestamp?;
+                                        String label;
+                                        if (isOnline) {
+                                          label = 'Online';
+                                        } else if (lastSeen != null) {
+                                          final diff = DateTime.now()
+                                              .difference(lastSeen.toDate());
+                                          if (diff.inMinutes < 5) {
+                                            label = 'Last seen just now';
+                                          } else if (diff.inHours < 1)
+                                            label =
+                                                'Last seen ${diff.inMinutes}m ago';
+                                          else if (diff.inDays < 1)
+                                            label =
+                                                'Last seen ${diff.inHours}h ago';
+                                          else
+                                            label =
+                                                'Last seen ${diff.inDays}d ago';
+                                        } else {
+                                          label = 'Tap for info';
+                                        }
+                                        return Text(label,
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: isOnline
+                                                        ? Colors.green
+                                                        : TheyDiColors
+                                                            .textSecondary));
+                                      },
+                                    ),
+                                  ])),
+                            ]))),
+                    _ChatMenuButton(
+                      muted: _notificationsMuted,
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'select':
+                            _enterSelectionMode();
+                            break;
+                          case 'viewProfile':
+                            _openUserProfile();
+                            break;
+                          case 'mute':
+                            _toggleMuteNotifications();
+                            break;
+                          case 'delete':
+                            _deleteChat();
+                            break;
+                          case 'report':
+                            _reportUser();
+                            break;
+                          case 'block':
+                            _blockUser();
+                            break;
+                        }
+                      },
+                    ),
+                  ]),
           ),
 
           // ── Messages ──
           Expanded(
-              child: _chatLoading
+              child: _chatLoading || _messagesStream == null
                   ? const Center(
                       child: CircularProgressIndicator(
                           color: TheyDiColors.primary))
@@ -1403,22 +1442,19 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                         _showAttachmentMenu = false;
                       }),
                       child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('chats')
-                            .doc(_chatId)
-                            .collection('messages')
-                            .orderBy('timestamp')
-                            .snapshots(),
+                        // FIX: using the cached stream field instead of
+                        // calling .snapshots() again here on every rebuild.
+                        stream: _messagesStream,
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
+                                  ConnectionState.waiting &&
+                              !snapshot.hasData) {
                             return const Center(
                                 child: CircularProgressIndicator(
                                     color: TheyDiColors.primary));
                           }
-                          var docs =
-                              List<QueryDocumentSnapshot<Object?>>.from(
-                                  snapshot.data?.docs ?? const []);
+                          var docs = List<QueryDocumentSnapshot<Object?>>.from(
+                              snapshot.data?.docs ?? const []);
                           if (_clearedAt != null) {
                             docs = docs.where((d) {
                               final ts = (d.data()
@@ -1443,13 +1479,13 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                                   TheyDiColors.textSecondary)),
                                 ]));
                           }
-                         if (!_initialScrollDone && docs.isNotEmpty) {
-  _initialScrollDone = true;
+                          if (!_initialScrollDone && docs.isNotEmpty) {
+                            _initialScrollDone = true;
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _scrollToBottom();
-  });
-}
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _scrollToBottom();
+                            });
+                          }
                           _queueReceiptUpdates(docs);
                           return ListView.builder(
                             controller: _scrollController,
@@ -1498,6 +1534,15 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                               } else if (msgType == 'video') {
                                 bubble = _DmVideoReceiptBubble(
                                   videoUrl: data['mediaUrl'] ?? '',
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
+                              } else if (msgType == 'file') {
+                                bubble = _DmDocumentBubble(
+                                  fileUrl: data['mediaUrl'] ?? '',
+                                  fileName: data['fileName'] ?? 'Document',
                                   isMine: isMine,
                                   timeLabel: timeLabel,
                                   seen: seen,
@@ -1789,7 +1834,8 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                         border: Border.all(color: TheyDiColors.divider),
                         boxShadow: [
                           BoxShadow(
-                              color: TheyDiColors.primary.withValues(alpha: 0.1),
+                              color:
+                                  TheyDiColors.primary.withValues(alpha: 0.1),
                               blurRadius: 8,
                               offset: const Offset(0, 2))
                         ]),
@@ -2048,16 +2094,15 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
               constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
               padding: const EdgeInsets.fromLTRB(10, 10, 12, 8),
               decoration: BoxDecoration(
-                  color: widget.isMine ? Colors.white : TheyDiColors.card,
+                  color: TheyDiColors.card,
                   borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
                       bottomLeft: Radius.circular(widget.isMine ? 16 : 4),
                       bottomRight: Radius.circular(widget.isMine ? 4 : 16)),
                   border: Border.all(
-                      color: widget.isMine
-                          ? const Color(0xFFE0E0E0)
-                          : TheyDiColors.divider)),
+                    color: const Color(0xFFE0E0E0),
+                  )),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2084,20 +2129,14 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                             const SizedBox(height: 4),
                             Text(_fmt(displaySecs),
                                 style: TheyDiTextStyles.caption.copyWith(
-                                    color: widget.isMine
-                                        ? Colors.black
-                                        : TheyDiColors.textMuted,
-                                    fontSize: 10)),
+                                    color: Colors.black54, fontSize: 10)),
                           ])),
                     ]),
                     const SizedBox(height: 4),
                     Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                       Text(widget.timeLabel,
-                          style: TheyDiTextStyles.caption.copyWith(
-                              color: widget.isMine
-                                  ? Colors.black54
-                                  : TheyDiColors.textMuted,
-                              fontSize: 10)),
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: Colors.black54, fontSize: 10)),
                       if (widget.isMine) ...[
                         const SizedBox(width: 4),
                         _ReadReceipt(
@@ -2251,113 +2290,6 @@ class _DmBubble extends StatelessWidget {
           )));
 }
 
-// ignore: unused_element
-class _DmImageBubble extends StatelessWidget {
-  final String imageUrl;
-  final bool isMine;
-  final String timeLabel;
-  final bool seen;
-  final bool delivered;
-
-  const _DmImageBubble({
-    required this.imageUrl,
-    required this.isMine,
-    required this.timeLabel,
-    required this.seen,
-    required this.delivered,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        constraints: const BoxConstraints(maxWidth: 280),
-        child: Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                },
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.broken_image, size: 80),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$timeLabel ${isMine ? (seen ? "✓✓" : "✓") : ""}',
-              style: TheyDiTextStyles.caption,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ignore: unused_element
-class _DmVideoBubble extends StatelessWidget {
-  final String videoUrl;
-  final bool isMine;
-  final String timeLabel;
-  final bool seen;
-  final bool delivered;
-
-  const _DmVideoBubble({
-    required this.videoUrl,
-    required this.isMine,
-    required this.timeLabel,
-    required this.seen,
-    required this.delivered,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        width: 220,
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: isMine
-              ? TheyDiColors.primary.withValues(alpha: 0.15)
-              : TheyDiColors.card,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.play_circle_fill,
-              size: 60,
-            ),
-            const SizedBox(height: 8),
-            const Text('Video'),
-            const SizedBox(height: 8),
-            Text(
-              '$timeLabel ${isMine ? (seen ? "✓✓" : "✓") : ""}',
-              style: TheyDiTextStyles.caption,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _DmImageReceiptBubble extends StatelessWidget {
   final String imageUrl;
   final bool isMine;
@@ -2470,13 +2402,123 @@ class _DmVideoReceiptBubble extends StatelessWidget {
   }
 }
 
+
+
+class _DmDocumentBubble extends StatelessWidget {
+  final String fileUrl;
+  final String fileName;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+  final bool delivered;
+
+  const _DmDocumentBubble({
+    required this.fileUrl,
+    required this.fileName,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+    required this.delivered,
+  });
+
+  Future<void> _openFile() async {
+    final uri = Uri.parse(fileUrl);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment:
+          isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: GestureDetector(
+        onTap: _openFile,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 280),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isMine
+                ? const Color(0xFFE8F0FE)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.insert_drive_file,
+                    color: Colors.red,
+                    size: 34,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    timeLabel,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  if (isMine) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      seen
+                          ? Icons.done_all
+                          : delivered
+                              ? Icons.done_all
+                              : Icons.done,
+                      size: 15,
+                      color: seen
+                          ? Colors.blue
+                          : Colors.grey,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ReadReceipt extends StatelessWidget {
   final bool seen;
   final bool delivered;
   const _ReadReceipt({required this.seen, required this.delivered});
   @override
   Widget build(BuildContext context) {
-    // UI-only change: adjust tick icon color + tighten spacing between the two checks.
     // Map tick colors per existing message model semantics:
     // - single grey tick: sent/offline/not delivered (seen==false AND message not read)
     // - double grey ticks: delivered but not seen
@@ -2487,7 +2529,7 @@ class _ReadReceipt extends StatelessWidget {
 
     final tickColor = seen ? Colors.blue : Colors.grey;
     return SizedBox(
-      width: 15, // Adjusted width to accommodate closer ticks
+      width: 15,
       height: 11,
       child: Stack(children: [
         Icon(Icons.check, size: 11, color: tickColor),

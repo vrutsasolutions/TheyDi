@@ -4,11 +4,14 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -102,6 +105,7 @@ class CircleChatScreen extends ConsumerStatefulWidget {
 
 class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     with WidgetsBindingObserver {
+  late final Stream<QuerySnapshot> _messagesStream;
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isSending = false;
@@ -127,6 +131,13 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     _messageController.addListener(() => setState(() {}));
     WidgetsBinding.instance.addObserver(this);
     _loadClearedAt();
+    _messagesStream = FirebaseFirestore.instance // BUILD ONCE
+        .collection('circles')
+        .doc(_circle.id)
+        .collection('messages')
+        .orderBy('createdAt')
+        .snapshots();
+
     FirebaseFirestore.instance
         .collection('circles')
         .doc(_circle.id)
@@ -462,9 +473,11 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
 
       final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final audioUrl = await CloudflareUpload.uploadBytes(bytes, fileName);
-      
+
       if (audioUrl == null) {
-        if (mounted) _showSnack('Audio upload failed. Please try again.', Colors.red);
+        if (mounted) {
+          _showSnack('Audio upload failed. Please try again.', Colors.red);
+        }
         setState(() => _isUploading = false);
         return;
       }
@@ -584,27 +597,39 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
             'ppt',
             'pptx',
             'txt',
-            'zip'
+            'zip',
           ],
           withData: kIsWeb,
         );
+
         if (result != null && result.files.isNotEmpty) {
           final pickedFile = result.files.single;
-          String? path = pickedFile.path;
 
-          if (kIsWeb && pickedFile.bytes != null && path == null) {
-            // On web, path is null. We create a blob URL from bytes for compatibility with preview and storage.
-            path = XFile.fromData(pickedFile.bytes!).path;
-          }
+          type = 'file';
 
-          if (path != null) {
-            type = 'file';
+          if (kIsWeb) {
+            if (pickedFile.bytes == null) {
+              _showSnack('Unable to read file.', Colors.red);
+              return;
+            }
 
-            final xFile = XFile(path, name: pickedFile.name);
+            final xFile = XFile.fromData(
+              pickedFile.bytes!,
+              name: pickedFile.name,
+              mimeType: pickedFile.extension,
+            );
+
+            _confirmAndSendMedia(xFile, type);
+          } else {
+            final xFile = XFile(
+              pickedFile.path!,
+              name: pickedFile.name,
+            );
 
             _confirmAndSendMedia(xFile, type);
           }
         }
+
         return;
       }
 
@@ -924,12 +949,13 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
               child: GestureDetector(
             onTap: () => setState(() => _showEmojiPicker = false),
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('circles')
-                  .doc(_circle.id)
-                  .collection('messages')
-                  .orderBy('createdAt')
-                  .snapshots(),
+              stream: _messagesStream,
+              // stream: FirebaseFirestore.instance
+              //     .collection('circles')
+              //     .doc(_circle.id)
+              //     .collection('messages')
+              //     .orderBy('createdAt')
+              //     .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -995,17 +1021,18 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                           timeLabel: timeLabel,
                           seen: seen,
                         )
-                      else if (msgType == 'image')
-                        _CircleImageBubble(
-                          imageUrl: mediaUrl ?? '',
+                      else if (msgType == 'video')
+                        _CircleVideoBubble(
+                          videoUrl: mediaUrl ?? '',
                           isMine: isMine,
                           senderName: senderName,
                           timeLabel: timeLabel,
                           seen: seen,
                         )
-                      else if (msgType == 'video')
-                        _CircleVideoBubble(
-                          videoUrl: mediaUrl ?? '',
+                      else if (msgType == 'file')
+                        _CircleDocumentBubble(
+                          fileUrl: mediaUrl ?? '',
+                          fileName: data['fileName'] ?? 'Document',
                           isMine: isMine,
                           senderName: senderName,
                           timeLabel: timeLabel,
@@ -1036,11 +1063,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: TheyDiColors.primary)),
                 const SizedBox(width: 10),
-
                 Text('Uploading media...',
-
-                
-
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary)),
               ]),
@@ -1489,9 +1512,15 @@ class _CircleImageBubble extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '$timeLabel ${isMine ? (seen ? "✓✓" : "✓") : ""}',
-              style: TheyDiTextStyles.caption,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(timeLabel, style: TheyDiTextStyles.caption),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  _ReadReceipt(seen: seen),
+                ],
+              ],
             ),
           ],
         ),
@@ -1550,13 +1579,7 @@ class _CircleVideoBubble extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    timeLabel,
-                    style: TheyDiTextStyles.caption.copyWith(
-                      color: TheyDiColors.textMuted,
-                      fontSize: 10,
-                    ),
-                  ),
+                  Text(timeLabel, style: TheyDiTextStyles.caption),
                   if (isMine) ...[
                     const SizedBox(width: 4),
                     _ReadReceipt(seen: seen),
@@ -1571,6 +1594,114 @@ class _CircleVideoBubble extends StatelessWidget {
   }
 }
 
+
+class _CircleDocumentBubble extends StatelessWidget {
+  final String fileUrl;
+  final String fileName;
+  final bool isMine;
+  final String senderName;
+  final String timeLabel;
+  final bool seen;
+
+  const _CircleDocumentBubble({
+    required this.fileUrl,
+    required this.fileName,
+    required this.isMine,
+    required this.senderName,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  Future<void> _openFile() async {
+    final uri = Uri.parse(fileUrl);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment:
+          isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: GestureDetector(
+        onTap: _openFile,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 280),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isMine
+                ? const Color(0xFFE8F0FE)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isMine)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    senderName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.insert_drive_file,
+                    color: Colors.red,
+                    size: 34,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    timeLabel,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  if (isMine) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      seen ? Icons.done_all : Icons.done,
+                      size: 14,
+                      color: seen ? Colors.blue : Colors.grey,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
   bool _isPlaying = false;
   double _progress = 0;
@@ -1651,18 +1782,13 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                 constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
                 padding: const EdgeInsets.fromLTRB(10, 10, 12, 8),
                 decoration: BoxDecoration(
-                    color: widget.isMine
-                        ? TheyDiColors.primary.withValues(alpha: 0.2)
-                        : TheyDiColors.card,
+                    color: TheyDiColors.card,
                     borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
                         bottomLeft: Radius.circular(widget.isMine ? 16 : 4),
                         bottomRight: Radius.circular(widget.isMine ? 4 : 16)),
-                    border: Border.all(
-                        color: widget.isMine
-                            ? TheyDiColors.primary.withValues(alpha: 0.3)
-                            : TheyDiColors.divider)),
+                    border: Border.all(color: const Color(0xFFE0E0E0))),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1689,15 +1815,14 @@ class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
                               const SizedBox(height: 4),
                               Text(_fmt(displaySecs),
                                   style: TheyDiTextStyles.caption.copyWith(
-                                      color: TheyDiColors.textMuted,
-                                      fontSize: 10)),
+                                      color: Colors.black54, fontSize: 10)),
                             ])),
                       ]),
                       const SizedBox(height: 4),
                       Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                         Text(widget.timeLabel,
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: TheyDiColors.textMuted, fontSize: 10)),
+                            style: TheyDiTextStyles.caption
+                                .copyWith(color: Colors.black54, fontSize: 10)),
                         if (widget.isMine) ...[
                           const SizedBox(width: 4),
                           _ReadReceipt(seen: widget.seen)

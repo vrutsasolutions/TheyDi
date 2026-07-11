@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
+
 import '../../../core/theme/app_theme.dart';
 
 enum _VerifyStep { idle, scanning, submitted }

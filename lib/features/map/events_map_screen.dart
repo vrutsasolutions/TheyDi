@@ -107,20 +107,6 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
 
   Future<void> _loadMarkers() async {
     final Set<Marker> markerSet = {};
-    if (widget.userLat != null && widget.userLng != null) {
-      markerSet.add(
-        Marker(
-          markerId: const MarkerId("user"),
-          position: LatLng(
-            widget.userLat!,
-            widget.userLng!,
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueAzure,
-          ),
-        ),
-      );
-    }
 
     for (final event in widget.events) {
       if (event.latitude == 0 || event.longitude == 0) continue;
@@ -180,7 +166,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
         isFree ? const Color(0xff2ECC71) : const Color(0xffFF4D6D);
 
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(.18)
+      ..color = Colors.black.withValues(alpha: .18)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
     final bgPaint = Paint()..color = Colors.white;
@@ -238,7 +224,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     );
 
     final dotShadowPaint = Paint()
-      ..color = Colors.black.withOpacity(.2)
+      ..color = Colors.black.withValues(alpha: .2)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
     canvas.drawCircle(
         Offset(centerX, dotCenterY + 0.5), dotRadius, dotShadowPaint);
@@ -616,7 +602,6 @@ class _MarkerPopupCard extends StatelessWidget {
       color: Colors.transparent,
       child: Column(
         children: [
-
           Container(
             width: 190,
             padding: const EdgeInsets.all(14),
@@ -626,7 +611,7 @@ class _MarkerPopupCard extends StatelessWidget {
               boxShadow: [
                 BoxShadow(
                   blurRadius: 16,
-                  color: Colors.black.withOpacity(.18),
+                  color: Colors.black.withValues(alpha: .18),
                 ),
               ],
             ),
@@ -634,7 +619,6 @@ class _MarkerPopupCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-
                 Text(
                   event.title,
                   style: const TextStyle(
@@ -644,17 +628,11 @@ class _MarkerPopupCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
-                  event.isFree
-                      ? "FREE"
-                      : "₹${event.price.toInt()}",
+                  event.isFree ? "FREE" : "₹${event.price.toInt()}",
                   style: TextStyle(
-                    color: event.isFree
-                        ? Colors.green
-                        : Colors.red,
+                    color: event.isFree ? Colors.green : Colors.red,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),

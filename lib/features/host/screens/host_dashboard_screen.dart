@@ -74,13 +74,13 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
       }
     }
 
-    String _payoutMethod = existingData['payoutMethod'] ?? 'bank';
+    String payoutMethod = existingData['payoutMethod'] ?? 'bank';
     final existingName    = (existingData['bankAccountName'] ?? '').toString();
     final existingIfsc    = (existingData['bankIfsc'] ?? '').toString();
     final existingAccount = (existingData['bankAccountNumber'] ?? '').toString();
     final existingUpi     = (existingData['upiId'] ?? '').toString();
     
-    final hasExisting = _payoutMethod == 'bank'
+    final hasExisting = payoutMethod == 'bank'
         ? (existingName.isNotEmpty && existingIfsc.isNotEmpty && existingAccount.isNotEmpty)
         : existingUpi.isNotEmpty;
 
@@ -162,18 +162,18 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                           children: [
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setInnerState(() => _payoutMethod = 'bank'),
+                                onTap: () => setInnerState(() => payoutMethod = 'bank'),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 250),
                                   curve: Curves.easeInOut,
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: _payoutMethod == 'bank' ? TheyDiColors.primary : Colors.transparent,
+                                    color: payoutMethod == 'bank' ? TheyDiColors.primary : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
                                     child: Text('Bank Account', style: TextStyle(
-                                      color: _payoutMethod == 'bank' ? Colors.white : TheyDiColors.textPrimary,
+                                      color: payoutMethod == 'bank' ? Colors.white : TheyDiColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                     )),
                                   ),
@@ -182,18 +182,18 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                             ),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setInnerState(() => _payoutMethod = 'upi'),
+                                onTap: () => setInnerState(() => payoutMethod = 'upi'),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 250),
                                   curve: Curves.easeInOut,
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: _payoutMethod == 'upi' ? TheyDiColors.primary : Colors.transparent,
+                                    color: payoutMethod == 'upi' ? TheyDiColors.primary : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
                                     child: Text('UPI', style: TextStyle(
-                                      color: _payoutMethod == 'upi' ? Colors.white : TheyDiColors.textPrimary,
+                                      color: payoutMethod == 'upi' ? Colors.white : TheyDiColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                     )),
                                   ),
@@ -211,7 +211,7 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                       transitionBuilder: (Widget child, Animation<double> animation) {
                         return FadeTransition(opacity: animation, child: SizeTransition(sizeFactor: animation, child: child));
                       },
-                      child: _payoutMethod == 'bank'
+                      child: payoutMethod == 'bank'
                           ? Column(
                               key: const ValueKey('bank'),
                               children: [
@@ -298,7 +298,7 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                           // EDIT MODE: save button
                           : ElevatedButton(
                               onPressed: isSaving ? null : () async {
-                                if (_payoutMethod == 'bank') {
+                                if (payoutMethod == 'bank') {
                                   if (nameCtrl.text.trim().isEmpty || ifscCtrl.text.trim().isEmpty || accCtrl.text.trim().isEmpty) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please fill all bank fields')));
                                     return;
@@ -314,7 +314,7 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                                 try {
                                   final callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createRazorpayXContact');
                                   await callable.call({
-                                    'payoutMethod': _payoutMethod,
+                                    'payoutMethod': payoutMethod,
                                     'upiId': upiCtrl.text.trim(),
                                     'name': nameCtrl.text.trim(),
                                     'ifsc': ifscCtrl.text.trim(),
@@ -323,7 +323,7 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                                   // Also cache the display values locally in Firestore
                                   if (uid != null) {
                                     await FirebaseFirestore.instance.collection('users').doc(uid).collection('private').doc('bankDetails').set({
-                                      'payoutMethod': _payoutMethod,
+                                      'payoutMethod': payoutMethod,
                                       'upiId': upiCtrl.text.trim(),
                                       'bankAccountName': nameCtrl.text.trim(),
                                       'bankIfsc': ifscCtrl.text.trim(),
@@ -852,7 +852,7 @@ class _EventPerformanceCard extends StatelessWidget {
 class _RuleItem extends StatelessWidget {
   final String text;
 
-  const _RuleItem({Key? key, required this.text}) : super(key: key);
+  const _RuleItem({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {

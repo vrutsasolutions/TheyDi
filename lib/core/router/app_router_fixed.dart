@@ -7,12 +7,12 @@ import 'package:theydi/features/auth/screens/login_screen.dart';
 import 'package:theydi/features/events/models/event_model.dart';
 import 'package:theydi/features/auth/models/signup_data.dart';
 import 'package:theydi/features/auth/screens/signup_step1_screen.dart';
-import 'package:theydi/features/auth/screens/signup_otp_screen.dart'; 
+import 'package:theydi/features/auth/screens/signup_otp_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step2_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step3_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step4_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step5_screen.dart';
-import 'package:theydi/features/auth/screens/forgot_password_screen.dart';  // ← NEW
+import 'package:theydi/features/auth/screens/forgot_password_screen.dart'; // ← NEW
 import 'package:theydi/features/events/screens/create_event_screen.dart';
 import 'package:theydi/shared/widgets/main_shell.dart';
 import 'package:theydi/features/home/screens/home_screen.dart';
@@ -63,7 +63,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.forgotPassword,
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
- 
+
       // ── Event detail ──
       GoRoute(
         path: '/event/:id',
@@ -72,7 +72,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return EventDetailScreen(event: event);
         },
       ),
- 
+
       // ── Payment ──
       GoRoute(
         path: AppRoutes.payment,
@@ -227,14 +227,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),
       ),
- 
+
       // ── Signup flow: 1 → otp → 2 → 3 → 4 → 5 ──────────────────────────────
       GoRoute(
         path: AppRoutes.signupStep1,
         builder: (context, state) => const SignupStep1Screen(),
       ),
       GoRoute(
-        path: AppRoutes.signupOtp,                                          // ← NEW
+        path: AppRoutes.signupOtp, // ← NEW
         builder: (context, state) => SignupOtpScreen(
           signupData: state.extra as SignupData,
         ),
@@ -252,18 +252,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.signupStep4,                                        // ← now Face Verify
+        path: AppRoutes.signupStep4, // ← now Face Verify
         builder: (context, state) => SignupStep4Screen(
           signupData: state.extra as SignupData,
         ),
       ),
       GoRoute(
-        path: AppRoutes.signupStep5,                                        // ← NEW: Review & Complete
+        path: AppRoutes.signupStep5, // ← NEW: Review & Complete
         builder: (context, state) => SignupStep5Screen(
           signupData: state.extra as SignupData,
         ),
       ),
- 
+
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
@@ -292,8 +292,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.editprofile,
-            builder: (context, state) =>
-                const EditProfileScreen(),
+            builder: (context, state) => const EditProfileScreen(),
           ),
           GoRoute(
             path: AppRoutes.createEvent,

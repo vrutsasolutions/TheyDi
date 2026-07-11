@@ -21,6 +21,7 @@ import 'package:theydi/shared/widgets/main_shell.dart';
 import 'package:theydi/features/home/screens/home_screen.dart';
 import 'package:theydi/features/profile/screens/profile_screen.dart';
 import 'package:theydi/features/profile/screens/verify_profile_screen.dart';
+
 import 'package:theydi/features/explore/screens/explore_screen.dart';
 import 'package:theydi/features/events/screens/my_events_screen.dart';
 import 'package:theydi/features/events/screens/event_detail_screen.dart';
@@ -102,13 +103,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
- path: AppRoutes.blockedUsers,
-  builder: (context, state) => const BlockedUsersScreen(),
-),
-GoRoute(
-  path: AppRoutes.reportProblem,
-  builder: (context, state) => const SubmitReportScreen(),
-),
+        path: AppRoutes.blockedUsers,
+        builder: (context, state) => const BlockedUsersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.reportProblem,
+        builder: (context, state) => const SubmitReportScreen(),
+      ),
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
@@ -117,8 +118,6 @@ GoRoute(
         path: AppRoutes.forgotPassword,
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-
-
 
       // ── Deep Links ──
       GoRoute(
@@ -378,19 +377,6 @@ GoRoute(
         path: AppRoutes.verifyProfile,
         builder: (context, state) => const VerifyProfileScreen(),
       ),
-      GoRoute(
-  path: AppRoutes.faceVerification,
-  builder: (context, state) {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-
-    return FaceVerificationScreen(
-      userId: userId,
-    );
-  },
-),
- 
-
-
 
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(
@@ -414,17 +400,16 @@ GoRoute(
               );
             },
           ),
-
           GoRoute(
-  path: AppRoutes.faceVerification,
-  builder: (context, state) {
-    final extra = state.extra as Map<String, dynamic>;
-    return FaceVerificationScreen(
-      userId: extra['userId'] as String,
-      onComplete: () {},
-    );
-  },
-),
+            path: AppRoutes.faceVerification,
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return FaceVerificationScreen(
+                userId: extra['userId'] as String,
+                onComplete: () {},
+              );
+            },
+          ),
           GoRoute(
             path: AppRoutes.profile,
             builder: (context, state) => const ProfileScreen(),

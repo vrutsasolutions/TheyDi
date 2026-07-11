@@ -30,7 +30,7 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
     with WidgetsBindingObserver {
   _Stage _stage = _Stage.intro;
   String _status = '';
-  int _fails = 0;
+  final int _fails = 0;
 
   // Camera
   CameraController? _cam;
@@ -560,9 +560,9 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
 
     // Current step
     String instruction;
-    if (!_blinkDone)
+    if (!_blinkDone) {
       instruction = '👁 Blink your eyes slowly';
-    else if (!_turnLeftDone)
+    } else if (!_turnLeftDone)
       instruction = '← Turn your head to the LEFT';
     else
       instruction = '→ Turn your head to the RIGHT';

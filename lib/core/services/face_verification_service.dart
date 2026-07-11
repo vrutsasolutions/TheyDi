@@ -7,10 +7,8 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import '../router/app_routes.dart';
 import 'cloudflare_upload.dart';
-import '../../features/auth/screens/face_verification_screen.dart';
 import 'notification_service.dart';
 import 'package:go_router/go_router.dart';
-import 'package:theydi/core/router/app_router.dart';
 
 class FaceVerificationService {
   FaceVerificationService._();
