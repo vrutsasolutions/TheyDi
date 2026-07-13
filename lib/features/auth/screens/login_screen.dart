@@ -133,6 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                           )),
+                        
                         ),
                       ),
                       const SizedBox(height: 28),

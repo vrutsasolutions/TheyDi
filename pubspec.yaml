@@ -79,3 +79,4 @@ flutter:
   assets:
     - .env
     - assets/city_icons/
+    - assets/images/

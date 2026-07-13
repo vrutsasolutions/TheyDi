@@ -129,27 +129,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
               // Loading bar
               Padding(
-                padding: const EdgeInsets.only(bottom: 48),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      child: LinearProgressIndicator(
-                        backgroundColor: TheyDiColors.divider,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          TheyDiColors.primary,
-                        ),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ).animate(delay: 600.ms).fade(duration: 400.ms),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Gathering your world...',
-                      style: TheyDiTextStyles.caption,
-                    ).animate(delay: 700.ms).fade(duration: 400.ms),
-                  ],
-                ),
-              ),
+  padding: const EdgeInsets.only(bottom: 40),
+  child: Column(
+  children: [
+    const SizedBox(
+      width: 22,
+      height: 22,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: TheyDiColors.primary,
+      ),
+    ),
+
+    const SizedBox(height: 24),
+
+    Text(
+      'From',
+      style: TheyDiTextStyles.bodyMedium.copyWith(
+        color: TheyDiColors.textMuted,
+      ),
+    ),
+
+    const SizedBox(height: 4),
+
+    Text(
+      'Vrutsa Solutions',
+      style: TheyDiTextStyles.headlineSmall.copyWith(
+        color: TheyDiColors.primary,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ],
+),
+),
             ],
           ),
         ),

@@ -599,18 +599,28 @@ class _ProfileContent extends ConsumerWidget {
                                     size: 14, color: Colors.white),
                                 label: const Text('Edit'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: TheyDiColors.primary,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 12),
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  textStyle: TheyDiTextStyles.labelSmall
-                                      .copyWith(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700),
-                                ),
+  backgroundColor: TheyDiColors.primary,
+  minimumSize: const Size(40, 45),
+  maximumSize: const Size(40, 45),
+  padding: const EdgeInsets.symmetric(
+    horizontal: 6,
+    vertical: 2,
+  ),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  visualDensity: const VisualDensity(
+    horizontal: -4,
+    vertical: -4,
+  ),
+  elevation: 2,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(10),
+  ),
+  textStyle: TheyDiTextStyles.labelSmall.copyWith(
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+  ),
+),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -621,18 +631,28 @@ class _ProfileContent extends ConsumerWidget {
                                     size: 14, color: Colors.white),
                                 label: const Text('Share'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: TheyDiColors.primary,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 12),
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  textStyle: TheyDiTextStyles.labelSmall
-                                      .copyWith(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700),
-                                ),
+  backgroundColor: TheyDiColors.primary,
+  minimumSize: const Size(40, 45),
+  maximumSize: const Size(40, 45),
+  padding: const EdgeInsets.symmetric(
+    horizontal: 6,
+    vertical: 2,
+  ),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  visualDensity: const VisualDensity(
+    horizontal: -4,
+    vertical: -4,
+  ),
+  elevation: 2,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(10),
+  ),
+  textStyle: TheyDiTextStyles.labelSmall.copyWith(
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+  ),
+),
                               ),
                             ),
                           ],
@@ -659,48 +679,76 @@ class _ProfileContent extends ConsumerWidget {
                   children: [
                     const SizedBox(width: 104),
                     SizedBox(
-                      width: 170,
-                      child: ElevatedButton.icon(
-                        onPressed: () => context.push(AppRoutes.editprofile),
-                        icon: const Icon(Icons.edit,
-                            size: 14, color: Colors.white),
-                        label: const Text('Edit'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: TheyDiColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          textStyle: TheyDiTextStyles.labelSmall.copyWith(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
+  width: 100,
+child: ElevatedButton.icon(
+  onPressed: () => context.push(AppRoutes.editprofile),
+  icon: const Icon(
+    Icons.edit,
+    size: 12,
+    color: Colors.white,
+  ),
+  label: const Text('Edit'),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: TheyDiColors.primary,
+    minimumSize: const Size(100, 50),
+    maximumSize: const Size(100, 50),
+    padding: const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 4,
+    ),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    visualDensity: const VisualDensity(
+      horizontal: -4,
+      vertical: -4,
+    ),
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    ),
+    textStyle: TheyDiTextStyles.labelSmall.copyWith(
+      color: Colors.white,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+    ),
+  ),
+),
+),
                     const SizedBox(width: 12),
                     SizedBox(
-                      width: 170,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _openShareSheet(context),
-                        icon: const Icon(Icons.share,
-                            size: 14, color: Colors.white),
-                        label: const Text('Share'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: TheyDiColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          textStyle: TheyDiTextStyles.labelSmall.copyWith(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
+  width: 100,
+  child: ElevatedButton.icon(
+    onPressed: () => _openShareSheet(context),
+    icon: const Icon(
+      Icons.share,
+      size: 12,
+      color: Colors.white,
+    ),
+    label: const Text('Share'),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: TheyDiColors.primary,
+      minimumSize: const Size(100, 50),
+      maximumSize: const Size(100, 50),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: const VisualDensity(
+        horizontal: -4,
+        vertical: -4,
+      ),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      textStyle: TheyDiTextStyles.labelSmall.copyWith(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  ),
+),
                   ],
                 ),
               );
@@ -909,44 +957,41 @@ class _ProfileButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          vertical: 10,
-          horizontal: 12,
-        ),
-        decoration: BoxDecoration(
-          color: TheyDiColors.primary,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: TheyDiColors.primary.withValues(alpha: 0.18),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TheyDiTextStyles.labelSmall.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
+  padding: const EdgeInsets.symmetric(
+    horizontal: 10,
+    vertical: 8,
+  ),
+  decoration: BoxDecoration(
+    color: TheyDiColors.primary,
+    borderRadius: BorderRadius.circular(8),
+    boxShadow: [
+      BoxShadow(
+        color: TheyDiColors.primary.withValues(alpha: 0.18),
+        blurRadius: 8,
+        offset: const Offset(0, 3),
+      ),
+    ],
+  ),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(
+        icon,
+        size: 14,
+        color: Colors.white,
+      ),
+      const SizedBox(width: 5),
+      Text(
+        label,
+        style: TheyDiTextStyles.labelSmall.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
         ),
       ),
+    ],
+  ),
+),
     );
   }
 }
