@@ -352,27 +352,115 @@ class _ProfileContent extends ConsumerWidget {
 
                   const SizedBox(height: 8),
 
+                  if (!isVerified) ...[
+
+                                const SizedBox(height: 10),
+
+                                GestureDetector(
+
+                                  onTap: () {
+
+                                    final uid =
+
+                                        FirebaseAuth.instance.currentUser?.uid;
+
+                                    if (uid == null) return;
+
+                                    Navigator.push(
+
+                                      context,
+
+                                      MaterialPageRoute(
+
+                                        builder: (_) => FaceVerificationScreen(
+
+                                          userId: uid,
+
+                                          onComplete: () {
+
+                                            // Firestore already updated in service
+
+                                            // Profile will auto-refresh via StreamProvider
+
+                                          },
+
+                                        ),
+
+                                      ),
+
+                                    );
+
+                                  },
+
+                                  child: Container(
+
+                                    padding: const EdgeInsets.symmetric(
+
+                                        horizontal: 14, vertical: 7),
+
+                                    decoration: BoxDecoration(
+
+                                      gradient: TheyDiColors.gradientPrimary,
+
+                                      borderRadius: BorderRadius.circular(20),
+
+                                    ),
+
+                                    child: Row(
+
+                                      mainAxisSize: MainAxisSize.min,
+
+                                      children: [
+
+                                        const Icon(Icons.verified_user_outlined,
+
+                                            color: Colors.white, size: 14),
+
+                                        const SizedBox(width: 6),
+
+                                        Text('Get Verified',
+
+                                            style: TheyDiTextStyles.caption
+
+                                                .copyWith(
+
+                                                    color: Colors.white,
+
+                                                    fontWeight:
+
+                                                        FontWeight.w600)),
+
+                                      ],
+
+                                    ),
+
+                                  ),
+
+                                ),
+
+                              ],
+
                   // Show verify button only when not verified
-                  if (!isVerified)
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: () => context.push(AppRoutes.verifyProfile),
-                        icon: const Icon(Icons.check,
-                            size: 14, color: Colors.white),
-                        label: const Text('Verify Profile'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: TheyDiColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          minimumSize: const Size(0, 36),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          textStyle: TheyDiTextStyles.labelSmall
-                              .copyWith(color: Colors.white, fontSize: 12),
-                        ),
-                      ),
-                    ),
+                  // if (!isVerified)
+                  //   Center(
+                  //     child: ElevatedButton.icon(
+                  //       onPressed: () => context.push(AppRoutes.verifyProfile),
+                  //       icon: const Icon(Icons.check,
+                  //           size: 14, color: Colors.white),
+                  //       label: const Text('Verify Profile'),
+                  //       style: ElevatedButton.styleFrom(
+                  //         backgroundColor: TheyDiColors.primary,
+                  //         padding: const EdgeInsets.symmetric(
+                  //             horizontal: 12, vertical: 8),
+                  //         minimumSize: const Size(0, 36),
+                  //         elevation: 2,
+                  //         shape: RoundedRectangleBorder(
+                  //             borderRadius: BorderRadius.circular(12)),
+                  //         textStyle: TheyDiTextStyles.labelSmall
+                  //             .copyWith(color: Colors.white, fontSize: 12),
+                  //       ),
+                  //     ),
+                  //   ),
                 ],
               ),
               const SizedBox(width: 16),
@@ -399,67 +487,10 @@ class _ProfileContent extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              // if (isVerified) ...[
-                              //   const SizedBox(width: 6),
-                              //   Container(
-                              //     padding: const EdgeInsets.all(3),
-                              //     decoration: const BoxDecoration(
-                              //       color: TheyDiColors.warning,
-                              //       shape: BoxShape.circle,
-                              //     ),
-                              //     child: const Icon(
-                              //       Icons.check,
-                              //       size: 12,
-                              //       color: Colors.white,
-                              //     ),
-                              //   ),
-                              // ],
+                              
 
                               // ── Verify button (only if not yet verified) ──
-                              if (!isVerified) ...[
-                                const SizedBox(height: 10),
-                                GestureDetector(
-                                  onTap: () {
-                                    final uid =
-                                        FirebaseAuth.instance.currentUser?.uid;
-                                    if (uid == null) return;
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => FaceVerificationScreen(
-                                          userId: uid,
-                                          onComplete: () {
-                                            // Firestore already updated in service
-                                            // Profile will auto-refresh via StreamProvider
-                                          },
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 7),
-                                    decoration: BoxDecoration(
-                                      gradient: TheyDiColors.gradientPrimary,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.verified_user_outlined,
-                                            color: Colors.white, size: 14),
-                                        const SizedBox(width: 6),
-                                        Text('Get Verified',
-                                            style: TheyDiTextStyles.caption
-                                                .copyWith(
-                                                    color: Colors.white,
-                                                    fontWeight:
-                                                        FontWeight.w600)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              
                               if (isVerified) ...[
                                 const SizedBox(width: 6),
                                 Container(

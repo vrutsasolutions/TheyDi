@@ -152,32 +152,34 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                           ),
                         ),
                         if (!widget.isSelectionMode) ...[
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: GestureDetector(
-                              onTap: () => context.push(AppRoutes.createCircle),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  gradient: TheyDiColors.gradientPrimary,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.add,
-                                        color: Colors.white, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text('New',
-                                        style: TheyDiTextStyles.labelMedium
-                                            .copyWith(color: Colors.white)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+  const SizedBox(width: 8),
+  GestureDetector(
+    onTap: () => context.push(AppRoutes.createCircle),
+    child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        gradient: TheyDiColors.gradientPrimary,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.add, color: Colors.white, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            'New',
+            style: TheyDiTextStyles.labelMedium.copyWith(
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+],
                       ],
                     );
                   },
