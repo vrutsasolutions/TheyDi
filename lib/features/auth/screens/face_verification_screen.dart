@@ -180,20 +180,23 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
         });
         _showSnack('✅ Blink detected! Now turn your head LEFT');
         await Future.delayed(const Duration(seconds: 2));
-      } else if (!_turnLeftDone) {
-        setState(() {
-          _turnLeftDone = true;
-          _livenessStep = 2;
-        });
-        _showSnack('✅ Left turn detected! Now turn your head RIGHT');
-        await Future.delayed(const Duration(seconds: 2));
       } else if (!_turnRightDone) {
         setState(() {
           _turnRightDone = true;
           _livenessStep = 3;
         });
-        _showSnack('✅ Right turn detected! Hold still…');
-        await Future.delayed(const Duration(milliseconds: 3500));
+
+        // Countdown so user knows when photo is taken
+        for (int i = 3; i > 0; i--) {
+          if (!mounted) return;
+          _showSnack('📸 Face forward — capturing in $i…');
+          await Future.delayed(const Duration(seconds: 1));
+        }
+
+        if (!mounted) return;
+        _showSnack('📸 Capturing now — look straight!');
+        await Future.delayed(const Duration(milliseconds: 800));
+
         if (mounted && _cam != null && _cam!.value.isInitialized) {
           await _captureLiveFace();
         }
@@ -685,7 +688,7 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
               : _GradientButton(
                   label: _livenessCapturing
                       ? 'Please wait…'
-                      : 'I did it — Detect ✓',
+                      : 'verify — Detect ✓',
                   onTap: (_livenessCapturing || _countingDown)
                       ? null
                       : _startCountdownThenConfirm,
