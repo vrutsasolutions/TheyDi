@@ -179,14 +179,14 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
           _livenessStep = 1;
         });
         _showSnack('✅ Blink detected! Now turn your head LEFT');
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 2));
       } else if (!_turnLeftDone) {
         setState(() {
           _turnLeftDone = true;
           _livenessStep = 2;
         });
         _showSnack('✅ Left turn detected! Now turn your head RIGHT');
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 2));
       } else if (!_turnRightDone) {
         setState(() {
           _turnRightDone = true;
@@ -195,7 +195,7 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen>
         for (int i = 3; i > 0; i--) {
           if (!mounted) return;
           _showSnack('📸 Face forward — capturing in $i…');
-          await Future.delayed(const Duration(seconds: 3));
+          await Future.delayed(const Duration(seconds: 1));
         }
 
         if (!mounted) return;
