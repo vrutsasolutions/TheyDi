@@ -56,4 +56,6 @@ class AppRoutes {
   static const termsConditions = '/terms-conditions';
 
   static const String adminVerification = '/admin/verification';
+
+  static const darlaChat = '/darla-chat';
 }

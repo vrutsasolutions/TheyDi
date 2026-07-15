@@ -54,6 +54,7 @@ import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
 import 'package:theydi/features/settings/screens/report_problem_screen.dart';
 import 'package:theydi/features/settings/screens/submit_report_screen.dart';
 import 'package:theydi/features/auth/screens/face_verification_screen.dart';
+import 'package:theydi/features/support/screens/darla_chat_screen.dart';
 import '../../features/settings/screens/privacy_policy_screen.dart';
 import '../../features/settings/screens/terms_conditions_screen.dart';
 
@@ -427,6 +428,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.createEvent,
             builder: (context, state) => const CreateEventScreen(),
+          ),
+
+          GoRoute(
+            path: AppRoutes.darlaChat,
+            builder: (context, state) => const DarlaChatScreen(),
           ),
         ],
       ),

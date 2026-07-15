@@ -30,6 +30,8 @@ import '../../../shared/widgets/notification_icon_button.dart';
 import '../../reviews/services/review_trigger_service.dart';
 import '../../reviews/widgets/review_popup.dart';
 
+import '../../support/screens/darla_chat_screen.dart';
+
 final _userCityProvider = StreamProvider.autoDispose<String>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value('');
@@ -338,6 +340,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final userCity = userCityAsync.asData?.value ?? '';
 
     return Scaffold(
+      floatingActionButton: GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DarlaChatScreen(),
+        ),
+      );
+    },
+    child: Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        gradient: TheyDiColors.gradientPrimary,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: TheyDiColors.primary.withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.support_agent_rounded,
+        color: Colors.white,
+        size: 30,
+      ),
+    ),
+  ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

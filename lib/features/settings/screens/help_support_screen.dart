@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../support/screens/darla_chat_screen.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -134,20 +135,20 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _ContactCard(
-                            icon: Icons.chat_outlined,
-                            label: 'Live Chat',
-                            subtitle: 'Coming soon',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Live chat — coming soon!'),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+  child: _ContactCard(
+    icon: Icons.chat_outlined,
+    label: 'Live Chat',
+    subtitle: 'Chat with Darla AI Support',
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DarlaChatScreen(),
+        ),
+      );
+    },
+  ),
+),
                       ],
                     ).animate(delay: 150.ms).fade(duration: 400.ms),
 
