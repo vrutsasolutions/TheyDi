@@ -10,7 +10,7 @@ import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +25,7 @@ import '../models/circle_model.dart';
 import '../models/message_model.dart';
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/utils/platform_helper.dart';
+import 'package:video_player/video_player.dart';
 
 const _kEmojis = [
   '😀',
@@ -578,9 +579,18 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
             maxDuration: const Duration(minutes: 5));
         type = 'video';
       } else if (action == 'gallery') {
-        file = await picker.pickImage(
-          source: ImageSource.gallery,
-        );
+        final XFile? picked = await picker.pickMedia();
+        if (picked != null) {
+          final lower = picked.name.toLowerCase();
+          type = lower.endsWith('.mp4') ||
+                  lower.endsWith('.mov') ||
+                  lower.endsWith('.avi') ||
+                  lower.endsWith('.mkv') ||
+                  lower.endsWith('.webm')
+              ? 'video'
+              : 'image';
+          file = picked;
+        }
       } else if (action == 'document') {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
@@ -1540,6 +1550,16 @@ class _CircleVideoBubble extends StatelessWidget {
     required this.seen,
   });
 
+  void _openVideo(BuildContext context) {
+    if (videoUrl.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _VideoPlayerScreen(videoUrl: videoUrl),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -1551,38 +1571,49 @@ class _CircleVideoBubble extends StatelessWidget {
       ),
       child: Align(
         alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isMine
-                ? TheyDiColors.primary.withValues(alpha: 0.15)
-                : TheyDiColors.card,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(
-                Icons.play_circle_fill,
-                size: 60,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Video',
-                style: TheyDiTextStyles.caption,
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(timeLabel, style: TheyDiTextStyles.caption),
-                  if (isMine) ...[
-                    const SizedBox(width: 4),
-                    _ReadReceipt(seen: seen),
+        child: GestureDetector(
+          onTap: () => _openVideo(context),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isMine
+                  ? TheyDiColors.primary.withValues(alpha: 0.15)
+                  : TheyDiColors.card,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!isMine)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6, right: 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        senderName,
+                        style: TheyDiTextStyles.caption.copyWith(
+                          color: TheyDiColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                const Icon(Icons.play_circle_fill, size: 60),
+                const SizedBox(height: 8),
+                Text('Video', style: TheyDiTextStyles.caption),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(timeLabel, style: TheyDiTextStyles.caption),
+                    if (isMine) ...[
+                      const SizedBox(width: 4),
+                      _ReadReceipt(seen: seen),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1590,6 +1621,78 @@ class _CircleVideoBubble extends StatelessWidget {
   }
 }
 
+class _VideoPlayerScreen extends StatefulWidget {
+  final String videoUrl;
+  const _VideoPlayerScreen({required this.videoUrl});
+
+  @override
+  State<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+}
+
+class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
+  late VideoPlayerController _controller;
+  bool _ready = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() => _ready = true);
+        _controller.play();
+      }).catchError((e) {
+        if (!mounted) return;
+        setState(() => _error = 'Could not load video');
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: _error != null
+            ? Text(_error!, style: const TextStyle(color: Colors.white))
+            : !_ready
+                ? const CircularProgressIndicator(color: Colors.white)
+                : AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        VideoPlayer(_controller),
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _controller.value.isPlaying
+                                ? _controller.pause()
+                                : _controller.play();
+                          }),
+                          child: AnimatedOpacity(
+                            opacity: _controller.value.isPlaying ? 0 : 1,
+                            duration: const Duration(milliseconds: 200),
+                            child: const Icon(Icons.play_arrow,
+                                color: Colors.white, size: 64),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+      ),
+    );
+  }
+}
 
 class _CircleDocumentBubble extends StatelessWidget {
   final String fileUrl;
@@ -1608,32 +1711,52 @@ class _CircleDocumentBubble extends StatelessWidget {
     required this.seen,
   });
 
-  Future<void> _openFile() async {
-    final uri = Uri.parse(fileUrl);
+  Future<void> _openFile(BuildContext context) async {
+    final viewableExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+    final ext =
+        fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(
+    Uri uri;
+    if (viewableExts.contains(ext)) {
+      final encoded = Uri.encodeComponent(fileUrl);
+      uri = Uri.parse(
+          'https://docs.google.com/viewer?url=$encoded&embedded=true');
+    } else {
+      uri = Uri.parse(fileUrl);
+    }
+
+    try {
+      final launched = await launchUrl(
         uri,
-        mode: LaunchMode.externalApplication,
+        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.inAppWebView,
+        webOnlyWindowName: kIsWeb ? '_blank' : null,
       );
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open file')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open file: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment:
-          isMine ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
-        onTap: _openFile,
+        onTap: () => _openFile(context),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 280),
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isMine
-                ? const Color(0xFFE8F0FE)
-                : Colors.white,
+            color: isMine ? const Color(0xFFE8F0FE) : Colors.white,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
@@ -1698,6 +1821,7 @@ class _CircleDocumentBubble extends StatelessWidget {
     );
   }
 }
+
 class _CircleVoiceBubbleState extends State<_CircleVoiceBubble> {
   bool _isPlaying = false;
   double _progress = 0;
