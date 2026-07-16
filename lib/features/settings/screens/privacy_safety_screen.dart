@@ -10,8 +10,6 @@ import 'package:flutter/foundation.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 
-import 'package:go_router/go_router.dart';
-import '../../../core/router/app_routes.dart';
 
 // Stream user's privacy settings from Firestore
 final _privacySettingsProvider =

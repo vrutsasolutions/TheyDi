@@ -14,6 +14,9 @@ import '../../admin/screens/admin_verification_screen.dart';
 import '../../../features/auth/screens/face_verification_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:flutter/foundation.dart';
+import '../../../shared/widgets/web_verification_dialog.dart';
+
 // ── Stream user profile doc ──
 final _userProfileProvider =
     StreamProvider.autoDispose<DocumentSnapshot<Map<String, dynamic>>>((ref) {
@@ -358,39 +361,19 @@ class _ProfileContent extends ConsumerWidget {
 
                                 GestureDetector(
 
-                                  onTap: () {
-
-                                    final uid =
-
-                                        FirebaseAuth.instance.currentUser?.uid;
-
-                                    if (uid == null) return;
-
-                                    Navigator.push(
-
-                                      context,
-
-                                      MaterialPageRoute(
-
-                                        builder: (_) => FaceVerificationScreen(
-
-                                          userId: uid,
-
-                                          onComplete: () {
-
-                                            // Firestore already updated in service
-
-                                            // Profile will auto-refresh via StreamProvider
-
-                                          },
-
-                                        ),
-
-                                      ),
-
-                                    );
-
-                                  },
+                                  onTap: () async {
+  if (kIsWeb) {
+    await WebVerificationDialog.show(context);
+    return;
+  }
+  final uid =
+      FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return;
+  context.push(
+    AppRoutes.faceVerification,
+    extra: {'userId': uid},
+  );
+},
 
                                   child: Container(
 

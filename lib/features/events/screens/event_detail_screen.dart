@@ -15,6 +15,9 @@ import 'package:theydi/features/events/widgets/event_share_sheet.dart';
 
 import '../../../core/services/face_verification_service.dart';
 
+import 'package:flutter/foundation.dart';
+import '../../../shared/widgets/web_verification_dialog.dart';
+
 // ─────────────────────────────────────────────────────────────
 // State machine:
 //   Free + FirstCome:        none → joined
@@ -108,8 +111,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         if (userDoc.exists) {
           final data = userDoc.data();
           if (data != null && data['age'] != null && data['age'] is num) {
-            if (mounted)
+            if (mounted) {
               setState(() => _userAge = (data['age'] as num).toInt());
+            }
           } else {
             final dob = userDoc.data()?['dob'];
             DateTime? birthDate;
@@ -121,8 +125,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               final today = DateTime.now();
               int age = today.year - birthDate.year;
               if (today.month < birthDate.month ||
-                  (today.month == birthDate.month && today.day < birthDate.day))
+                  (today.month == birthDate.month && today.day < birthDate.day)) {
                 age--;
+              }
               if (mounted) setState(() => _userAge = age);
             }
           }
@@ -138,8 +143,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return _BookingState.none;
     if (_event.attendeeUids.contains(uid)) return _BookingState.joined;
-    if (_event.approvedPendingPaymentUids.contains(uid))
+    if (_event.approvedPendingPaymentUids.contains(uid)) {
       return _BookingState.approvedAwaitPay;
+    }
     if (_event.pendingUids.contains(uid)) return _BookingState.pending;
     return _BookingState.none;
   }
@@ -166,9 +172,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       case _BookingState.pending:
         await _cancelRequest(uid);
       case _BookingState.approvedAwaitPay:
-        if (mounted)
+        if (mounted) {
           context.push(AppRoutes.payment,
               extra: {'event': _event, 'fromApproval': true});
+        }
 
       // ── CHANGED: joined → navigate to attendees screen ──
       case _BookingState.joined:
@@ -180,7 +187,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   Future<void> _handleJoinEvent(String uid) async {
-    final verified = await FaceVerificationService.isUserVerified(uid);
+  if (kIsWeb) {
+    await WebVerificationDialog.show(context);
+    return;
+  }
+  final verified = await FaceVerificationService.isUserVerified(uid);
 
     if (!verified) {
       final result = await showDialog<String>(
@@ -367,9 +378,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         }
       } else if (!isFree && !isHostApproval) {
         // Paid + First Come → straight to payment
-        if (mounted)
+        if (mounted) {
           context.push(AppRoutes.payment,
               extra: {'event': _event, 'fromApproval': false});
+        }
       } else {
         // Paid + Host Approval → request first, payment after approval
         await eventRef.update({
@@ -1281,7 +1293,9 @@ class _EventDetailsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!genderBalance.isNotEmpty &&
         !ageGroup.isNotEmpty &&
-        !approvalType.isNotEmpty) return const SizedBox.shrink();
+        !approvalType.isNotEmpty) {
+      return const SizedBox.shrink();
+    }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Event details', style: TheyDiTextStyles.displayLarge),
       const SizedBox(height: 12),

@@ -385,13 +385,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final b = notif.body.toLowerCase();
 
     Future<void> openEventDetail() async {
-      if (notif.eventId != null)
+      if (notif.eventId != null) {
         await _pushEventDetail(context, notif.eventId!);
+      }
     }
 
     void goManageEvent() {
-      if (notif.eventId != null)
+      if (notif.eventId != null) {
         context.push(AppRoutes.hostManage, extra: notif.eventId);
+      }
     }
 
     switch (notif.type) {
@@ -957,7 +959,9 @@ class _NavHint extends StatelessWidget {
         if (t.contains('payout')) return 'Host Dashboard';
         if (t.contains('new attendee') ||
             t.contains('new booking') ||
-            b.contains('booked')) return 'Manage Event';
+            b.contains('booked')) {
+          return 'Manage Event';
+        }
         return 'Payment History';
       case 'dm':
       case 'message':

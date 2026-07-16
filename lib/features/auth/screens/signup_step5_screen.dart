@@ -95,7 +95,7 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
         try {
           await FirebaseFirestore.instance
               .collection('users')
-              .doc(createdUser!.uid)
+              .doc(createdUser.uid)
               .update({
             'faceVerified': true,
             'isVerified': true,

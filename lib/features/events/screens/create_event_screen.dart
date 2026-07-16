@@ -24,6 +24,9 @@ import '../../../core/utils/picker_theme_helper.dart';
 import '../../../core/services/face_verification_service.dart';
 import '../../../core/router/app_routes.dart';
 
+import 'package:flutter/foundation.dart';
+import '../../../shared/widgets/web_verification_dialog.dart';
+
 const _kCategories = [
   'Music',
   'Tech',
@@ -1099,8 +1102,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _handleCreateEvent() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final verified = await FaceVerificationService.isUserVerified(uid);
+  if (kIsWeb) {
+    await WebVerificationDialog.show(context);
+    return;
+  }
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final verified = await FaceVerificationService.isUserVerified(uid);
 
     if (!verified) {
       final goVerify = await showDialog<bool>(

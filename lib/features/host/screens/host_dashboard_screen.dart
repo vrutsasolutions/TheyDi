@@ -852,7 +852,7 @@ class _EventPerformanceCard extends StatelessWidget {
 class _RuleItem extends StatelessWidget {
   final String text;
 
-  const _RuleItem({super.key, required this.text});
+  const _RuleItem({required this.text});
 
   @override
   Widget build(BuildContext context) {
