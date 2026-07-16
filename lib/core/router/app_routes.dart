@@ -58,4 +58,5 @@ class AppRoutes {
   static const String adminVerification = '/admin/verification';
 
   static const darlaChat = '/darla-chat';
+  
 }

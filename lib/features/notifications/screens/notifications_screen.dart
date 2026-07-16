@@ -525,8 +525,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         break;
 
       case 'suggested_friends':
-        context.push(AppRoutes.circleDiscovery);
-        break;
+  context.push(
+  AppRoutes.friendsHub,
+  extra: {'initialTab': 2},
+);
+  break;
 
       case 'suggested_circles':
       case 'circle_added':
