@@ -60,6 +60,8 @@ import '../../features/settings/screens/terms_conditions_screen.dart';
 
 import '../../features/admin/screens/admin_verification_screen.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
   const protectedRoutes = [
@@ -75,6 +77,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ];
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     redirect: (context, state) {
@@ -385,6 +388,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminVerificationScreen(),
       ),
 
+      GoRoute(
+        path: AppRoutes.darlaChat,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const DarlaChatScreen(),
+      ),
+
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
@@ -428,11 +437,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.createEvent,
             builder: (context, state) => const CreateEventScreen(),
-          ),
-
-          GoRoute(
-            path: AppRoutes.darlaChat,
-            builder: (context, state) => const DarlaChatScreen(),
           ),
         ],
       ),

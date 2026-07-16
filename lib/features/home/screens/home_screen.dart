@@ -18,6 +18,7 @@ import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -342,12 +343,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       floatingActionButton: GestureDetector(
     onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const DarlaChatScreen(),
-        ),
-      );
+      GoRouter.of(rootNavigatorKey.currentContext!).push(AppRoutes.darlaChat);
     },
     child: Container(
       width: 62,

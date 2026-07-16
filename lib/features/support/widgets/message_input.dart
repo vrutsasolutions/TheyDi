@@ -15,6 +15,8 @@ class MessageInput extends StatefulWidget {
 }
 
 class _MessageInputState extends State<MessageInput> {
+  final FocusNode _focusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +26,7 @@ class _MessageInputState extends State<MessageInput> {
   @override
   void dispose() {
     widget.controller.removeListener(_refresh);
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -52,12 +55,15 @@ class _MessageInputState extends State<MessageInput> {
             Expanded(
               child: TextField(
                 controller: widget.controller,
+                focusNode: _focusNode,
                 minLines: 1,
                 maxLines: 5,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) {
                   if (hasText) {
                     widget.onSend();
+                    // Re-request focus so keyboard stays open
+                    Future.microtask(() => _focusNode.requestFocus());
                   }
                 },
                 decoration: InputDecoration(
@@ -80,7 +86,13 @@ class _MessageInputState extends State<MessageInput> {
               radius: 24,
               backgroundColor: hasText ? Colors.green : Colors.grey.shade400,
               child: IconButton(
-                onPressed: hasText ? widget.onSend : null,
+                onPressed: hasText
+                  ? () {
+                      widget.onSend();
+                      // Keep focus on input after tapping send button
+                      Future.microtask(() => _focusNode.requestFocus());
+                    }
+                  : null,
                 icon: const Icon(
                   Icons.send,
                   color: Colors.white,

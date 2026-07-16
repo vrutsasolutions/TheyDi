@@ -3,8 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/router/app_router.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../support/screens/darla_chat_screen.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -140,12 +141,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     label: 'Live Chat',
     subtitle: 'Chat with Darla AI Support',
     onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const DarlaChatScreen(),
-        ),
-      );
+      GoRouter.of(rootNavigatorKey.currentContext!).push(AppRoutes.darlaChat);
     },
   ),
 ),
