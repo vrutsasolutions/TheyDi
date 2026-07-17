@@ -62,11 +62,13 @@ final _requestsProvider =
 class CirclesListScreen extends ConsumerStatefulWidget {
   final bool isSelectionMode;
   final String? eventId;
+  final int initialTab;
 
   const CirclesListScreen({
     super.key,
     this.isSelectionMode = false,
     this.eventId,
+    this.initialTab = 0,
   });
 
 
@@ -98,12 +100,18 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
   }
 }
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController =
-        TabController(length: widget.isSelectionMode ? 3 : 4, vsync: this);
-  }
+@override
+void initState() {
+  super.initState();
+
+  debugPrint('Initial tab = ${widget.initialTab}');
+
+  _tabController = TabController(
+    length: widget.isSelectionMode ? 3 : 4,
+    vsync: this,
+    initialIndex: widget.initialTab,
+  );
+}
 
   @override
   void dispose() {

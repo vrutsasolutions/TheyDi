@@ -531,14 +531,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 );
   break;
 
-      case 'suggested_circles':
-      case 'circle_added':
-      case 'circle_join_request':
-      case 'circle_approved':
-      case 'circle_rejected':
-      case 'circle_removed':
-        context.push(AppRoutes.circles);
-        break;
+     case 'suggested_circles':
+case 'circle_added':
+case 'circle_join_request':
+case 'circle_approved':
+case 'circle_rejected':
+case 'circle_removed':
+  debugPrint('Opening circles suggestions');
+
+  context.push('${AppRoutes.circles}?tab=2');
+  break;
 
       case 'admin_verification':
         context.push(AppRoutes.adminVerification);

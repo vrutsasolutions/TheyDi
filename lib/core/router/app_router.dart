@@ -21,6 +21,7 @@ import 'package:theydi/shared/widgets/main_shell.dart';
 import 'package:theydi/features/home/screens/home_screen.dart';
 import 'package:theydi/features/profile/screens/profile_screen.dart';
 import 'package:theydi/features/profile/screens/verify_profile_screen.dart';
+import 'package:theydi/features/profile/screens/personal_details_screen.dart';
 
 import 'package:theydi/features/explore/screens/explore_screen.dart';
 import 'package:theydi/features/events/screens/my_events_screen.dart';
@@ -60,8 +61,6 @@ import '../../features/settings/screens/terms_conditions_screen.dart';
 
 import '../../features/admin/screens/admin_verification_screen.dart';
 
-
-
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -73,6 +72,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     AppRoutes.profile,
     AppRoutes.editprofile,
     AppRoutes.verifyProfile,
+    AppRoutes.personalDetails,
     AppRoutes.createEvent,
     AppRoutes.hostDashboard,
     AppRoutes.circles,
@@ -220,10 +220,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.hostDashboard,
         builder: (context, state) => const HostDashboardScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.circles,
-        builder: (context, state) => const CirclesListScreen(),
-      ),
+
       GoRoute(
         path: AppRoutes.createCircle,
         builder: (context, state) => const CreateCircleScreen(),
@@ -437,10 +434,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const EditProfileScreen(),
           ),
           GoRoute(
+            path: AppRoutes.personalDetails,
+            builder: (context, state) => const PersonalDetailsScreen(),
+          ),
+          GoRoute(
             path: AppRoutes.createEvent,
             builder: (context, state) => const CreateEventScreen(),
           ),
-        
+          GoRoute(
+            path: AppRoutes.circles,
+            builder: (context, state) {
+              final initialTab =
+                  int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+
+              debugPrint('Tab from URL = $initialTab');
+
+              return CirclesListScreen(
+                initialTab: initialTab,
+              );
+            },
+          ),
         ],
       ),
     ],

@@ -1102,12 +1102,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _handleCreateEvent() async {
-  if (kIsWeb) {
-    await WebVerificationDialog.show(context);
-    return;
-  }
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final verified = await FaceVerificationService.isUserVerified(uid);
+    if (kIsWeb) {
+      await WebVerificationDialog.show(context);
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return;
+    final verified = await FaceVerificationService.isUserVerified(uid);
+    if (!mounted) return;
 
     if (!verified) {
       final goVerify = await showDialog<bool>(
@@ -1178,11 +1180,35 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
       if (!mounted) return;
       final nowVerified = await FaceVerificationService.isUserVerified(uid);
-      if (nowVerified && mounted) _submit();
+      if (nowVerified && mounted) {
+        final payoutReady = await _ensurePayoutSetup(uid);
+        if (payoutReady && mounted) {
+          _submit();
+        }
+      }
       return;
     }
 
+    final payoutReady = await _ensurePayoutSetup(uid);
+    if (!payoutReady || !mounted) return;
     _submit();
+  }
+
+  Future<bool> _ensurePayoutSetup(String uid) async {
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final payoutSetupCompleted =
+          (userDoc.data()?['payoutSetupCompleted'] as bool?) ?? false;
+      if (payoutSetupCompleted) return true;
+
+      if (!mounted) return false;
+      final completed = await context.push<bool>(AppRoutes.personalDetails);
+      return completed == true;
+    } catch (e) {
+      _showError('Failed to check payout setup. Please try again.');
+      return false;
+    }
   }
 
   Future<void> _submit() async {

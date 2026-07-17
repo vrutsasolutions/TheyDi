@@ -16,6 +16,7 @@ class AppRoutes {
   static const profile = '/profile';
   static const editprofile = '/edit-profile';
   static const verifyProfile = '/verify-profile';
+  static const personalDetails = '/personal-details';
   static const payment = '/payment';
   static const paymentsuccess = '/payment-success';
   static const paymenthistory = '/payment-history';
@@ -58,5 +59,4 @@ class AppRoutes {
   static const String adminVerification = '/admin/verification';
 
   static const darlaChat = '/darla-chat';
-  
 }
