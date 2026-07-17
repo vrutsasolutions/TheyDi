@@ -40,14 +40,14 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
   }
 
   Future<void> _startVerification() async {
-  await context.push(AppRoutes.faceVerification);
+    await context.push(AppRoutes.faceVerification);
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() {
-    _step = _VerifyStep.submitted;
-  });
-}
+    setState(() {
+      _step = _VerifyStep.submitted;
+    });
+  }
 
   Future<void> _completeVerification() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -58,7 +58,10 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
       _saveError = null;
     });
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
         'isVerified': true,
         'verificationStatus': 'verified',
         'trustScore': 80,
@@ -263,8 +266,8 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
               ),
             ),
             child: Text('Start Verification',
-                style: TheyDiTextStyles.labelLarge
-                    .copyWith(color: Colors.white)),
+                style:
+                    TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
           ),
         ).animate(delay: 300.ms).fade(duration: 300.ms),
         const SizedBox(height: 16),
@@ -274,11 +277,13 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
           decoration: BoxDecoration(
             color: TheyDiColors.warning.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: TheyDiColors.warning.withValues(alpha: 0.3)),
+            border:
+                Border.all(color: TheyDiColors.warning.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline, color: TheyDiColors.warning, size: 16),
+              const Icon(Icons.info_outline,
+                  color: TheyDiColors.warning, size: 16),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -295,7 +300,8 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
           onPressed: () => context.pop(),
           child: Text(
             'Skip for now — verify later',
-            style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted),
+            style: TheyDiTextStyles.caption
+                .copyWith(color: TheyDiColors.textMuted),
           ),
         ).animate(delay: 400.ms).fade(duration: 300.ms),
       ],
@@ -312,7 +318,8 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
         const SizedBox(height: 12),
         Text(
           'Keep your face centered and well-lit',
-          style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary),
+          style: TheyDiTextStyles.bodySmall
+              .copyWith(color: TheyDiColors.textSecondary),
         ).animate(delay: 100.ms).fade(duration: 300.ms),
         const SizedBox(height: 32),
         LinearProgressIndicator(
@@ -383,7 +390,8 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
 class _ScanBracket extends StatelessWidget {
   final double? top, left, right, bottom;
   final double rotate;
-  const _ScanBracket({this.top, this.left, this.right, this.bottom, required this.rotate});
+  const _ScanBracket(
+      {this.top, this.left, this.right, this.bottom, required this.rotate});
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +421,8 @@ class _BenefitRow extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String text;
-  const _BenefitRow({required this.icon, required this.color, required this.text});
+  const _BenefitRow(
+      {required this.icon, required this.color, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -438,7 +447,8 @@ class _BenefitRow extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(text, style: TheyDiTextStyles.bodySmall.copyWith(height: 1.4)),
+            child: Text(text,
+                style: TheyDiTextStyles.bodySmall.copyWith(height: 1.4)),
           ),
         ],
       ),

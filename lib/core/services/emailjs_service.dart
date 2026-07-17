@@ -10,7 +10,7 @@ class EmailJSService {
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
           .httpsCallable('sendSignupOtpEmail');
-          
+
       await callable.call({
         'toEmail': toEmail,
         'toName': toName,
@@ -35,7 +35,7 @@ class EmailJSService {
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
           .httpsCallable('sendSystemNotificationEmail');
-          
+
       await callable.call({
         'toEmail': toEmail,
         'toName': toName,

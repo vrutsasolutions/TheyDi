@@ -47,7 +47,10 @@ class OTPService {
 
       // OTP not found
       if (!doc.exists) {
-        return {'valid': false, 'message': 'OTP not found. Please request a new one.'};
+        return {
+          'valid': false,
+          'message': 'OTP not found. Please request a new one.'
+        };
       }
 
       final data = doc.data()!;
@@ -58,13 +61,19 @@ class OTPService {
       // Expired
       if (DateTime.now().isAfter(expiresAt)) {
         await _firestore.collection('otps').doc(email).delete();
-        return {'valid': false, 'message': 'OTP expired. Please request a new one.'};
+        return {
+          'valid': false,
+          'message': 'OTP expired. Please request a new one.'
+        };
       }
 
       // Too many attempts
       if (attempts >= 3) {
         await _firestore.collection('otps').doc(email).delete();
-        return {'valid': false, 'message': 'Too many attempts. Please request a new OTP.'};
+        return {
+          'valid': false,
+          'message': 'Too many attempts. Please request a new OTP.'
+        };
       }
 
       // Wrong OTP

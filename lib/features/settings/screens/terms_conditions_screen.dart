@@ -58,9 +58,7 @@ class TermsConditionsScreen extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: 25),
-
             const Text(
               "Welcome to TheyDi.",
               style: TextStyle(
@@ -68,9 +66,7 @@ class TermsConditionsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 10),
-
             const Text(
               "By creating an account or using TheyDi, you agree to comply with these Terms & Conditions. Please read them carefully before using our platform.",
               style: TextStyle(
@@ -78,9 +74,7 @@ class TermsConditionsScreen extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
-
             const SizedBox(height: 30),
-
             _section(
               "1. Eligibility",
               [
@@ -88,7 +82,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Age or identity verification may be required for certain services.",
               ],
             ),
-
             _section(
               "2. User Accounts",
               [
@@ -97,7 +90,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Notify us immediately if you suspect unauthorized access.",
               ],
             ),
-
             _section(
               "3. Events",
               [
@@ -108,7 +100,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Hosts are responsible for event accuracy.",
               ],
             ),
-
             _section(
               "4. Payments",
               [
@@ -117,7 +108,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Host payouts are released after successful event completion.",
               ],
             ),
-
             _section(
               "5. Face Verification",
               [
@@ -125,7 +115,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Verification is used only for identity confirmation.",
               ],
             ),
-
             _section(
               "6. Location Services",
               [
@@ -134,7 +123,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Permission can be disabled anytime.",
               ],
             ),
-
             _section(
               "7. Social Features",
               [
@@ -144,7 +132,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Users are responsible for their interactions.",
               ],
             ),
-
             _section(
               "8. Prohibited Activities",
               [
@@ -157,7 +144,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Sale of illegal substances.",
               ],
             ),
-
             _section(
               "9. Content Moderation",
               [
@@ -165,7 +151,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Accounts may be suspended without notice for serious violations.",
               ],
             ),
-
             _section(
               "10. Third-Party Services",
               [
@@ -175,7 +160,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "RazorpayX",
               ],
             ),
-
             _section(
               "11. Limitation of Liability",
               [
@@ -186,7 +170,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Indirect damages.",
               ],
             ),
-
             _section(
               "12. Suspension & Termination",
               [
@@ -196,14 +179,12 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Law enforcement requests.",
               ],
             ),
-
             _section(
               "13. Governing Law",
               [
                 "These Terms are governed by the laws of India.",
               ],
             ),
-
             _section(
               "14. Changes",
               [
@@ -211,9 +192,7 @@ class TermsConditionsScreen extends StatelessWidget {
                 "Continued use of TheyDi indicates acceptance of updated Terms.",
               ],
             ),
-
             const SizedBox(height: 30),
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
@@ -247,9 +226,7 @@ class TermsConditionsScreen extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: 30),
-
             Center(
               child: Text(
                 "By using TheyDi, you acknowledge that you have read,\nunderstood and agreed to these Terms & Conditions.",
@@ -261,7 +238,6 @@ class TermsConditionsScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 30),
           ],
         ),

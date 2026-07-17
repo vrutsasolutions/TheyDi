@@ -19,9 +19,8 @@ final _userBookingsProvider =
       .where('userId', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => BookingModel.fromFirestore(doc))
-          .toList());
+      .map((snapshot) =>
+          snapshot.docs.map((doc) => BookingModel.fromFirestore(doc)).toList());
 });
 
 // Stream host's bookings from Firestore
@@ -34,9 +33,8 @@ final _hostBookingsProvider =
       .where('hostUid', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => BookingModel.fromFirestore(doc))
-          .toList());
+      .map((snapshot) =>
+          snapshot.docs.map((doc) => BookingModel.fromFirestore(doc)).toList());
 });
 
 class PaymentHistoryScreen extends StatelessWidget {
@@ -65,8 +63,8 @@ class PaymentHistoryScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        icon:
-                            const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                        icon: const Icon(Icons.arrow_back,
+                            color: TheyDiColors.textPrimary),
                         onPressed: () => context.pop(),
                       ),
                       const SizedBox(width: 4),
@@ -128,8 +126,7 @@ class _HistoryTab extends ConsumerWidget {
       error: (e, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
-          child: Text('Failed to load: $e',
-              style: TheyDiTextStyles.bodySmall),
+          child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
         ),
       ),
       data: (bookings) {
@@ -141,8 +138,7 @@ class _HistoryTab extends ConsumerWidget {
         final totalAmount = bookings
             .where((b) => b.isConfirmed)
             .fold(0.0, (sum, b) => sum + (isHost ? b.amount : b.totalAmount));
-        final totalBookings =
-            bookings.where((b) => b.isConfirmed).length;
+        final totalBookings = bookings.where((b) => b.isConfirmed).length;
 
         return Column(
           children: [
@@ -195,11 +191,9 @@ class _HistoryTab extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.receipt_long_outlined,
-              size: 64, color: Colors.grey[700]),
+          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey[700]),
           const SizedBox(height: 16),
-          Text('No transactions yet',
-              style: TheyDiTextStyles.headlineMedium),
+          Text('No transactions yet', style: TheyDiTextStyles.headlineMedium),
           const SizedBox(height: 8),
           Text(
             'Your booking history will appear here',
@@ -285,7 +279,8 @@ class _BookingCard extends StatelessWidget {
                 const Icon(Icons.person,
                     size: 13, color: TheyDiColors.textMuted),
                 const SizedBox(width: 4),
-                Text('Attendee: ${booking.userName}', style: TheyDiTextStyles.caption),
+                Text('Attendee: ${booking.userName}',
+                    style: TheyDiTextStyles.caption),
               ],
             ),
             const SizedBox(height: 4),
@@ -308,8 +303,7 @@ class _BookingCard extends StatelessWidget {
               const Icon(Icons.payment,
                   size: 13, color: TheyDiColors.textMuted),
               const SizedBox(width: 4),
-              Text(booking.paymentMethod,
-                  style: TheyDiTextStyles.caption),
+              Text(booking.paymentMethod, style: TheyDiTextStyles.caption),
               const Spacer(),
               if (booking.transactionId != null)
                 Text(
@@ -346,7 +340,8 @@ class _BookingCard extends StatelessWidget {
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary)),
                 Text('-₹${booking.platformFee.toStringAsFixed(0)}',
-                    style: TheyDiTextStyles.caption.copyWith(color: Colors.red)),
+                    style:
+                        TheyDiTextStyles.caption.copyWith(color: Colors.red)),
               ],
             ),
           ] else ...[
@@ -363,12 +358,13 @@ class _BookingCard extends StatelessWidget {
               ],
             ),
           ],
-          
+
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(isHost ? 'Net Earnings' : 'Total Paid', style: TheyDiTextStyles.labelMedium),
+              Text(isHost ? 'Net Earnings' : 'Total Paid',
+                  style: TheyDiTextStyles.labelMedium),
               Text(
                 '₹${(isHost ? (booking.amount - booking.platformFee) : booking.totalAmount).toStringAsFixed(0)}',
                 style: TheyDiTextStyles.labelLarge.copyWith(

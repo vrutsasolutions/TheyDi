@@ -38,8 +38,8 @@ class MessageModel {
       senderUid: data['senderUid'] ?? '',
       senderName: data['senderName'] ?? '',
       text: data['text'] ?? '',
-      mediaUrl: data['mediaUrl'],        // ✅ FIXED
-      mediaType: data['mediaType'],      // ✅ FIXED
+      mediaUrl: data['mediaUrl'], // ✅ FIXED
+      mediaType: data['mediaType'], // ✅ FIXED
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -56,8 +56,8 @@ class MessageModel {
       'senderName': senderName,
       'text': text,
 
-      'mediaUrl': mediaUrl,      // ✅ FIXED
-      'mediaType': mediaType,    // ✅ FIXED
+      'mediaUrl': mediaUrl, // ✅ FIXED
+      'mediaType': mediaType, // ✅ FIXED
 
       'createdAt': Timestamp.fromDate(createdAt),
       'readBy': readBy,

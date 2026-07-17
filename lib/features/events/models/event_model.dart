@@ -161,10 +161,10 @@ class EventModel {
       'city': city,
       'latitude': latitude,
       'longitude': longitude,
-      'dateTime': Timestamp.fromDate(dateTime),  // always write as Timestamp
+      'dateTime': Timestamp.fromDate(dateTime), // always write as Timestamp
       'maxAttendees': maxAttendees,
       'creatorUid': creatorUid,
-      'organizerUid': creatorUid,   // ← write BOTH so rules & queries work
+      'organizerUid': creatorUid, // ← write BOTH so rules & queries work
       'creatorName': creatorName,
       'organizerName': creatorName, // ← write BOTH for consistency
       'imageUrl': imageUrl,
@@ -190,7 +190,8 @@ class EventModel {
     EventModel(
       id: '1',
       title: 'Sunset Rooftop Mixer',
-      description: 'Join us for an evening of networking and fun on the rooftop.',
+      description:
+          'Join us for an evening of networking and fun on the rooftop.',
       category: 'Social',
       venue: 'Sky Lounge, MG Road',
       city: 'Bangalore',

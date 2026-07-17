@@ -136,15 +136,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-  child: _ContactCard(
-    icon: Icons.chat_outlined,
-    label: 'Live Chat',
-    subtitle: 'Chat with Darla AI Support',
-    onTap: () {
-      GoRouter.of(rootNavigatorKey.currentContext!).push(AppRoutes.darlaChat);
-    },
-  ),
-),
+                          child: _ContactCard(
+                            icon: Icons.chat_outlined,
+                            label: 'Live Chat',
+                            subtitle: 'Chat with Darla AI Support',
+                            onTap: () {
+                              GoRouter.of(rootNavigatorKey.currentContext!)
+                                  .push(AppRoutes.darlaChat);
+                            },
+                          ),
+                        ),
                       ],
                     ).animate(delay: 150.ms).fade(duration: 400.ms),
 
@@ -167,8 +168,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       return GestureDetector(
                         onTap: () {
                           setState(() {
-                            _expandedIndex =
-                                isExpanded ? null : index;
+                            _expandedIndex = isExpanded ? null : index;
                           });
                         },
                         child: AnimatedContainer(
@@ -180,23 +180,20 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isExpanded
-                                  ? TheyDiColors.primary
-                                      .withValues(alpha: 0.4)
+                                  ? TheyDiColors.primary.withValues(alpha: 0.4)
                                   : TheyDiColors.divider,
                             ),
                           ),
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Expanded(
                                     child: Text(
                                       faq['q']!,
-                                      style: TheyDiTextStyles
-                                          .labelMedium
-                                          .copyWith(
+                                      style:
+                                          TheyDiTextStyles.labelMedium.copyWith(
                                         fontWeight: isExpanded
                                             ? FontWeight.w600
                                             : FontWeight.normal,
@@ -205,12 +202,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                                   ),
                                   AnimatedRotation(
                                     turns: isExpanded ? 0.5 : 0,
-                                    duration: const Duration(
-                                        milliseconds: 250),
+                                    duration: const Duration(milliseconds: 250),
                                     child: Icon(
                                       Icons.keyboard_arrow_down,
-                                      color:
-                                          TheyDiColors.textSecondary,
+                                      color: TheyDiColors.textSecondary,
                                       size: 20,
                                     ),
                                   ),
@@ -225,10 +220,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                                 const SizedBox(height: 10),
                                 Text(
                                   faq['a']!,
-                                  style: TheyDiTextStyles.bodySmall
-                                      .copyWith(
-                                    color:
-                                        TheyDiColors.textSecondary,
+                                  style: TheyDiTextStyles.bodySmall.copyWith(
+                                    color: TheyDiColors.textSecondary,
                                     height: 1.5,
                                   ),
                                 ),
@@ -238,8 +231,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                         ),
                       )
                           .animate(
-                            delay: Duration(
-                                milliseconds: 250 + 40 * index),
+                            delay: Duration(milliseconds: 250 + 40 * index),
                           )
                           .fade(duration: 300.ms);
                     }),
@@ -339,8 +331,7 @@ class _ContactCard extends StatelessWidget {
             Text(label, style: TheyDiTextStyles.labelMedium),
             const SizedBox(height: 2),
             Text(subtitle,
-                style: TheyDiTextStyles.caption,
-                textAlign: TextAlign.center),
+                style: TheyDiTextStyles.caption, textAlign: TextAlign.center),
           ],
         ),
       ),

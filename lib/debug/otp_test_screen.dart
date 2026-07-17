@@ -18,49 +18,52 @@
 // WIRE-UP NEEDED FROM YOU:
 //   Update the import path below to match wherever your actual
 //   otp_service.dart currently lives (e.g. 'package:theydi/services/otp_service.dart').
- 
+
 import 'package:flutter/material.dart';
 import '../core/services/otp_service.dart';
- 
+
 class OtpTestScreen extends StatefulWidget {
   const OtpTestScreen({super.key});
- 
+
   @override
   State<OtpTestScreen> createState() => _OtpTestScreenState();
 }
- 
+
 class _OtpTestScreenState extends State<OtpTestScreen> {
   final _emailController = TextEditingController();
   final _nameController = TextEditingController(text: 'Test User');
   final _otpController = TextEditingController();
- 
+
   String _log = '';
   bool _isLoading = false;
- 
+
   void _appendLog(String line) {
     setState(() {
-      _log = '$_log\n${DateTime.now().toIso8601String().substring(11, 19)}  $line';
+      _log =
+          '$_log\n${DateTime.now().toIso8601String().substring(11, 19)}  $line';
     });
   }
- 
+
   Future<void> _sendOtp() async {
     final email = _emailController.text.trim();
     final name = _nameController.text.trim();
- 
+
     if (email.isEmpty) {
       _appendLog('❌ Enter an email first.');
       return;
     }
- 
+
     setState(() => _isLoading = true);
     _appendLog('Sending OTP to $email ...');
- 
+
     try {
       final success = await OTPService.sendOTP(email: email, name: name);
       if (success) {
-        _appendLog('✅ sendOTP() returned true — check your inbox for the code.');
+        _appendLog(
+            '✅ sendOTP() returned true — check your inbox for the code.');
       } else {
-        _appendLog('❌ sendOTP() returned false — check console/logs for the error.');
+        _appendLog(
+            '❌ sendOTP() returned false — check console/logs for the error.');
       }
     } catch (e) {
       _appendLog('❌ sendOTP() threw an exception: $e');
@@ -68,19 +71,19 @@ class _OtpTestScreenState extends State<OtpTestScreen> {
       setState(() => _isLoading = false);
     }
   }
- 
+
   Future<void> _verifyOtp() async {
     final email = _emailController.text.trim();
     final otp = _otpController.text.trim();
- 
+
     if (email.isEmpty || otp.isEmpty) {
       _appendLog('❌ Enter both email and the code you received.');
       return;
     }
- 
+
     setState(() => _isLoading = true);
     _appendLog('Verifying code $otp for $email ...');
- 
+
     try {
       final result = await OTPService.verifyOTP(email: email, inputOtp: otp);
       final valid = result['valid'] == true;
@@ -92,19 +95,20 @@ class _OtpTestScreenState extends State<OtpTestScreen> {
       setState(() => _isLoading = false);
     }
   }
- 
+
   Future<void> _testWrongOtp() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       _appendLog('❌ Enter an email first.');
       return;
     }
- 
+
     setState(() => _isLoading = true);
     _appendLog('Trying an intentionally WRONG code (000000) for $email ...');
- 
+
     try {
-      final result = await OTPService.verifyOTP(email: email, inputOtp: '000000');
+      final result =
+          await OTPService.verifyOTP(email: email, inputOtp: '000000');
       final valid = result['valid'] == true;
       // We expect this to be false — if it's somehow true, that's a bug.
       _appendLog(valid
@@ -116,7 +120,7 @@ class _OtpTestScreenState extends State<OtpTestScreen> {
       setState(() => _isLoading = false);
     }
   }
- 
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -124,7 +128,7 @@ class _OtpTestScreenState extends State<OtpTestScreen> {
     _otpController.dispose();
     super.dispose();
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

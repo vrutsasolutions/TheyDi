@@ -125,7 +125,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               final today = DateTime.now();
               int age = today.year - birthDate.year;
               if (today.month < birthDate.month ||
-                  (today.month == birthDate.month && today.day < birthDate.day)) {
+                  (today.month == birthDate.month &&
+                      today.day < birthDate.day)) {
                 age--;
               }
               if (mounted) setState(() => _userAge = age);
@@ -187,11 +188,17 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   Future<void> _handleJoinEvent(String uid) async {
-  if (kIsWeb) {
-    await WebVerificationDialog.show(context);
-    return;
-  }
-  final verified = await FaceVerificationService.isUserVerified(uid);
+    if (kIsWeb) {
+      final verified = await FaceVerificationService.isUserVerified(uid);
+      if (!verified) {
+        await WebVerificationDialog.show(context);
+        return;
+      }
+      // Verified on web → proceed normally
+      _joinEvent(uid);
+      return;
+    }
+    final verified = await FaceVerificationService.isUserVerified(uid);
 
     if (!verified) {
       final result = await showDialog<String>(

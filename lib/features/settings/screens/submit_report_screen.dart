@@ -27,7 +27,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     final text = _descriptionController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a description of the problem.')),
+        const SnackBar(
+            content: Text('Please enter a description of the problem.')),
       );
       return;
     }
@@ -52,7 +53,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report submitted successfully. Thank you!')),
+        const SnackBar(
+            content: Text('Report submitted successfully. Thank you!')),
       );
       context.pop();
     } catch (e) {
@@ -155,7 +157,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                       )
                     : const Text(
                         'Submit Report',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),

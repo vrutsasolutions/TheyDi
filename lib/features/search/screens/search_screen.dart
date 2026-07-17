@@ -85,15 +85,13 @@ class _SearchScreenState extends State<SearchScreen> {
       // For production, consider Algolia or Typesense.
       final snapshot = await FirebaseFirestore.instance
           .collection('events')
-          .where('dateTime',
-              isGreaterThan: Timestamp.fromDate(DateTime.now()))
+          .where('dateTime', isGreaterThan: Timestamp.fromDate(DateTime.now()))
           .orderBy('dateTime')
           .limit(100)
           .get();
 
-      final allEvents = snapshot.docs
-          .map((doc) => EventModel.fromFirestore(doc))
-          .toList();
+      final allEvents =
+          snapshot.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
 
       final queryLower = query.toLowerCase();
       final filtered = allEvents.where((e) {
@@ -158,8 +156,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         decoration: BoxDecoration(
                           color: TheyDiColors.card,
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: TheyDiColors.divider),
+                          border: Border.all(color: TheyDiColors.divider),
                         ),
                         child: TextField(
                           controller: _searchController,
@@ -167,31 +164,25 @@ class _SearchScreenState extends State<SearchScreen> {
                           style: TheyDiTextStyles.bodyMedium,
                           onChanged: _onSearchChanged,
                           decoration: InputDecoration(
-                            hintText:
-                                'Search events, categories, cities...',
+                            hintText: 'Search events, categories, cities...',
                             hintStyle: TheyDiTextStyles.bodySmall
-                                .copyWith(
-                                    color: TheyDiColors.textMuted),
+                                .copyWith(color: TheyDiColors.textMuted),
                             prefixIcon: const Icon(Icons.search,
-                                color: TheyDiColors.textMuted,
-                                size: 20),
-                            suffixIcon:
-                                _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear,
-                                            color:
-                                                TheyDiColors.textMuted,
-                                            size: 20),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          _onSearchChanged('');
-                                        },
-                                      )
-                                    : null,
+                                color: TheyDiColors.textMuted, size: 20),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear,
+                                        color: TheyDiColors.textMuted,
+                                        size: 20),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      _onSearchChanged('');
+                                    },
+                                  )
+                                : null,
                             border: InputBorder.none,
                             contentPadding:
-                                const EdgeInsets.symmetric(
-                                    vertical: 13),
+                                const EdgeInsets.symmetric(vertical: 13),
                           ),
                         ),
                       ),
@@ -226,8 +217,7 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       children: [
         // Trending categories
-        Text('Trending categories',
-                style: TheyDiTextStyles.labelLarge)
+        Text('Trending categories', style: TheyDiTextStyles.labelLarge)
             .animate(delay: 100.ms)
             .fade(duration: 300.ms),
         const SizedBox(height: 12),
@@ -239,8 +229,8 @@ class _SearchScreenState extends State<SearchScreen> {
             return GestureDetector(
               onTap: () => _searchFor(cat['label'] as String),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: TheyDiColors.card,
                   borderRadius: BorderRadius.circular(14),
@@ -250,8 +240,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(cat['icon'] as IconData,
-                        size: 18,
-                        color: cat['color'] as Color),
+                        size: 18, color: cat['color'] as Color),
                     const SizedBox(width: 8),
                     Text(cat['label'] as String,
                         style: TheyDiTextStyles.labelMedium),
@@ -265,8 +254,7 @@ class _SearchScreenState extends State<SearchScreen> {
         const SizedBox(height: 28),
 
         // Recent searches
-        Text('Popular searches',
-                style: TheyDiTextStyles.labelLarge)
+        Text('Popular searches', style: TheyDiTextStyles.labelLarge)
             .animate(delay: 200.ms)
             .fade(duration: 300.ms),
         const SizedBox(height: 12),
@@ -277,8 +265,7 @@ class _SearchScreenState extends State<SearchScreen> {
             onTap: () => _searchFor(search),
             child: Container(
               margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: TheyDiColors.card,
                 borderRadius: BorderRadius.circular(12),
@@ -315,8 +302,7 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             Icon(Icons.search_off, size: 64, color: Colors.grey[700]),
             const SizedBox(height: 16),
-            Text('No events found',
-                style: TheyDiTextStyles.headlineMedium),
+            Text('No events found', style: TheyDiTextStyles.headlineMedium),
             const SizedBox(height: 8),
             Text(
               'Try different keywords or browse categories',
@@ -367,8 +353,7 @@ class _SearchResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr =
-        DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
+    final dateStr = DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
 
     return GestureDetector(
       onTap: () => context.push('/event/${event.id}', extra: event),
@@ -392,9 +377,7 @@ class _SearchResultCard extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  event.category.isNotEmpty
-                      ? event.category[0]
-                      : 'E',
+                  event.category.isNotEmpty ? event.category[0] : 'E',
                   style: TheyDiTextStyles.displayMedium
                       .copyWith(color: Colors.white, fontSize: 20),
                 ),
@@ -417,8 +400,7 @@ class _SearchResultCard extends StatelessWidget {
                       Icon(Icons.calendar_today_outlined,
                           size: 12, color: TheyDiColors.textMuted),
                       const SizedBox(width: 4),
-                      Text(dateStr,
-                          style: TheyDiTextStyles.caption),
+                      Text(dateStr, style: TheyDiTextStyles.caption),
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -445,8 +427,7 @@ class _SearchResultCard extends StatelessWidget {
 
             // Price badge
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: event.isFree
                     ? Colors.green.withValues(alpha: 0.15)
@@ -456,9 +437,7 @@ class _SearchResultCard extends StatelessWidget {
               child: Text(
                 event.isFree ? 'FREE' : '₹${event.price.toInt()}',
                 style: TheyDiTextStyles.caption.copyWith(
-                  color: event.isFree
-                      ? Colors.green
-                      : TheyDiColors.primary,
+                  color: event.isFree ? Colors.green : TheyDiColors.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),

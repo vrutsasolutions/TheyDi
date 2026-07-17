@@ -6,15 +6,15 @@ class SignupData {
   String name;
   String city;
   String displayName;
-  String username;       // ← NEW: unique @username
+  String username; // ← NEW: unique @username
   String bio;
   List<String> interests;
 
   DateTime? dateOfBirth;
   String gender;
   String? profileImageUrl;
-  bool emailVerified;    // ← NEW: set true after OTP
-  bool isVerified;       // ← NEW: set true after face verify
+  bool emailVerified; // ← NEW: set true after OTP
+  bool isVerified; // ← NEW: set true after face verify
 
   SignupData({
     required this.email,
@@ -53,9 +53,8 @@ class SignupData {
       'city': city,
       'bio': bio,
       'interests': interests,
-      'dateOfBirth': dateOfBirth != null
-          ? Timestamp.fromDate(dateOfBirth!)
-          : null,
+      'dateOfBirth':
+          dateOfBirth != null ? Timestamp.fromDate(dateOfBirth!) : null,
       'age': age,
       'gender': gender,
       'profileImageUrl': profileImageUrl ?? '',

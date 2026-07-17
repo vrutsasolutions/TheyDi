@@ -188,12 +188,18 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _handlePayButton() async {
-  if (kIsWeb) {
-    await WebVerificationDialog.show(context);
-    return;
-  }
-  // 1. Check if user is face-verified
-  final verified = await FaceVerificationService.isUserVerified(_myUid);
+    if (kIsWeb) {
+      final verified = await FaceVerificationService.isUserVerified(_myUid);
+      if (!verified) {
+        await WebVerificationDialog.show(context);
+        return;
+      }
+      // Verified on web → proceed normally
+      _processPayment();
+      return;
+    }
+    // 1. Check if user is face-verified
+    final verified = await FaceVerificationService.isUserVerified(_myUid);
 
     if (!verified) {
       // Show dialog explaining why verification needed

@@ -133,8 +133,7 @@ class EventCardCompact extends StatelessWidget {
                   child: Text(
                     event.isFree ? 'FREE' : '₹${event.price.toInt()}',
                     style: TheyDiTextStyles.caption.copyWith(
-                      color:
-                          event.isFree ? Colors.green : TheyDiColors.primary,
+                      color: event.isFree ? Colors.green : TheyDiColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -219,8 +218,8 @@ class EventCardLarge extends StatelessWidget {
                   top: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: event.isFree ? Colors.green : TheyDiColors.dark,
                       borderRadius: BorderRadius.circular(20),
@@ -238,8 +237,8 @@ class EventCardLarge extends StatelessWidget {
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(20),
@@ -333,6 +332,7 @@ class EventCardLarge extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _CardShareMenu extends StatelessWidget {
   final EventModel event;
+
   /// When true, uses a dark semi-transparent background (for image overlays).
   final bool dark;
 
@@ -348,9 +348,8 @@ class _CardShareMenu extends StatelessWidget {
         icon: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: dark
-                ? Colors.black.withValues(alpha: 0.45)
-                : TheyDiColors.card,
+            color:
+                dark ? Colors.black.withValues(alpha: 0.45) : TheyDiColors.card,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: dark

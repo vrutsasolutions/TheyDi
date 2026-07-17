@@ -1102,12 +1102,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _handleCreateEvent() async {
-  if (kIsWeb) {
-    await WebVerificationDialog.show(context);
-    return;
-  }
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final verified = await FaceVerificationService.isUserVerified(uid);
+    if (kIsWeb) {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final verified = await FaceVerificationService.isUserVerified(uid);
+      if (!verified) {
+        await WebVerificationDialog.show(context);
+        return;
+      }
+      // Verified on web → proceed normally
+      _submit();
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final verified = await FaceVerificationService.isUserVerified(uid);
 
     if (!verified) {
       final goVerify = await showDialog<bool>(

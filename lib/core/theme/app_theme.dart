@@ -36,52 +36,74 @@ class TheyDiTextStyles {
   TheyDiTextStyles._();
 
   static TextStyle get displayLarge => GoogleFonts.inter(
-      fontSize: 36, fontWeight: FontWeight.w700,
-      color: TheyDiColors.textPrimary, height: 1.15);
+      fontSize: 36,
+      fontWeight: FontWeight.w700,
+      color: TheyDiColors.textPrimary,
+      height: 1.15);
 
   static TextStyle get displayMedium => GoogleFonts.inter(
-      fontSize: 28, fontWeight: FontWeight.w700,
-      color: TheyDiColors.textPrimary, height: 1.2);
+      fontSize: 28,
+      fontWeight: FontWeight.w700,
+      color: TheyDiColors.textPrimary,
+      height: 1.2);
 
   static TextStyle get displaySmall => GoogleFonts.inter(
-      fontSize: 22, fontWeight: FontWeight.w600,
-      color: TheyDiColors.textPrimary, height: 1.25);
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      color: TheyDiColors.textPrimary,
+      height: 1.25);
 
   static TextStyle get headlineMedium => GoogleFonts.inter(
-      fontSize: 18, fontWeight: FontWeight.w600,
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
       color: TheyDiColors.textPrimary);
 
   static TextStyle get headlineSmall => GoogleFonts.inter(
-      fontSize: 16, fontWeight: FontWeight.w600,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
       color: TheyDiColors.textPrimary);
 
   static TextStyle get bodyLarge => GoogleFonts.roboto(
-      fontSize: 16, fontWeight: FontWeight.w400,
-      color: TheyDiColors.textPrimary, height: 1.5);
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      color: TheyDiColors.textPrimary,
+      height: 1.5);
 
   static TextStyle get bodyMedium => GoogleFonts.roboto(
-      fontSize: 14, fontWeight: FontWeight.w400,
-      color: TheyDiColors.textPrimary, height: 1.5);
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      color: TheyDiColors.textPrimary,
+      height: 1.5);
 
   static TextStyle get bodySmall => GoogleFonts.roboto(
-      fontSize: 12, fontWeight: FontWeight.w400,
-      color: TheyDiColors.textSecondary, height: 1.4);
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      color: TheyDiColors.textSecondary,
+      height: 1.4);
 
   static TextStyle get labelLarge => GoogleFonts.roboto(
-      fontSize: 14, fontWeight: FontWeight.w500,
-      color: TheyDiColors.textPrimary, letterSpacing: 0.1);
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: TheyDiColors.textPrimary,
+      letterSpacing: 0.1);
 
   static TextStyle get labelMedium => GoogleFonts.roboto(
-      fontSize: 12, fontWeight: FontWeight.w500,
-      color: TheyDiColors.textSecondary, letterSpacing: 0.2);
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      color: TheyDiColors.textSecondary,
+      letterSpacing: 0.2);
 
   static TextStyle get labelSmall => GoogleFonts.roboto(
-      fontSize: 11, fontWeight: FontWeight.w500,
-      color: TheyDiColors.textMuted, letterSpacing: 0.3);
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: TheyDiColors.textMuted,
+      letterSpacing: 0.3);
 
   static TextStyle get caption => GoogleFonts.roboto(
-      fontSize: 11, fontWeight: FontWeight.w400,
-      color: TheyDiColors.textMuted, height: 1.4);
+      fontSize: 11,
+      fontWeight: FontWeight.w400,
+      color: TheyDiColors.textMuted,
+      height: 1.4);
 }
 
 class TheyDiTheme {
@@ -144,8 +166,7 @@ class TheyDiTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: TheyDiColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: TheyDiColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -153,29 +174,28 @@ class TheyDiTheme {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: TheyDiColors.error, width: 1.5),
+          borderSide: const BorderSide(color: TheyDiColors.error, width: 1.5),
         ),
-        hintStyle: TheyDiTextStyles.bodyMedium
-            .copyWith(color: TheyDiColors.textMuted),
+        hintStyle:
+            TheyDiTextStyles.bodyMedium.copyWith(color: TheyDiColors.textMuted),
         prefixIconColor: TheyDiColors.textMuted,
         suffixIconColor: TheyDiColors.textMuted,
       ),
       dividerTheme: const DividerThemeData(
-        color: TheyDiColors.divider, thickness: 1, space: 1,
+        color: TheyDiColors.divider,
+        thickness: 1,
+        space: 1,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: TheyDiColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: TheyDiColors.cardLight,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
     );

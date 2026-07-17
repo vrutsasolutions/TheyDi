@@ -226,51 +226,53 @@ class _RequestCardState extends State<_RequestCard> {
                   children: [
                     // Avatar + online status dot
                     Stack(
-  clipBehavior: Clip.none,
-  children: [
-    Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        gradient: TheyDiColors.gradientPrimary,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: photoUrl.isNotEmpty
-            ? Image.network(
-                photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text(
-                    initial,
-                    style: TheyDiTextStyles.labelLarge.copyWith(
-                      color: Colors.white,
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            gradient: TheyDiColors.gradientPrimary,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(13),
+                            child: photoUrl.isNotEmpty
+                                ? Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Center(
+                                      child: Text(
+                                        initial,
+                                        style: TheyDiTextStyles.labelLarge
+                                            .copyWith(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      initial,
+                                      style:
+                                          TheyDiTextStyles.labelLarge.copyWith(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 2,
+                          right: 2,
+                          child: AvatarOnlineStatusDot(
+                            uid: widget.fromUid,
+                            size: 10,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              )
-            : Center(
-                child: Text(
-                  initial,
-                  style: TheyDiTextStyles.labelLarge.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-      ),
-    ),
-    Positioned(
-      bottom: 2,
-      right: 2,
-      child: AvatarOnlineStatusDot(
-        uid: widget.fromUid,
-        size: 10,
-      ),
-    ),
-  ],
-),
-const SizedBox(width: 12),
+                    const SizedBox(width: 12),
 
                     // Info
                     Expanded(

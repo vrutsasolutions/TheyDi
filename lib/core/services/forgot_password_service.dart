@@ -24,8 +24,6 @@ class ForgotPasswordService {
         }),
       );
 
-
-
       if (response.statusCode != 200) {
         return {
           "success": false,
@@ -34,10 +32,7 @@ class ForgotPasswordService {
       }
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        "success": false,
-        "message": "Connection error: ${e.toString()}"
-      };
+      return {"success": false, "message": "Connection error: ${e.toString()}"};
     }
   }
 
@@ -61,8 +56,6 @@ class ForgotPasswordService {
         }),
       );
 
-
-
       if (response.statusCode != 200) {
         return {
           "success": false,
@@ -71,10 +64,7 @@ class ForgotPasswordService {
       }
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        "success": false,
-        "message": "Connection error: ${e.toString()}"
-      };
+      return {"success": false, "message": "Connection error: ${e.toString()}"};
     }
   }
 
@@ -98,8 +88,6 @@ class ForgotPasswordService {
         }),
       );
 
-
-
       if (response.statusCode != 200) {
         return {
           "success": false,
@@ -108,10 +96,7 @@ class ForgotPasswordService {
       }
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        "success": false,
-        "message": "Connection error: ${e.toString()}"
-      };
+      return {"success": false, "message": "Connection error: ${e.toString()}"};
     }
   }
 }

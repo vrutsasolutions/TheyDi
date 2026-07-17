@@ -73,11 +73,9 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                       children: [
                         const SizedBox(width: 4),
                         Text(
-  'My Events',
-  style: TheyDiTextStyles.displayMedium,
-)
-                            .animate()
-                            .fade(duration: 400.ms),
+                          'My Events',
+                          style: TheyDiTextStyles.displayMedium,
+                        ).animate().fade(duration: 400.ms),
                         const Spacer(),
                         const NotificationIconButton(),
                       ],
@@ -99,7 +97,6 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                   ],
                 ),
               ),
-
               Expanded(
                 child: uid == null
                     ? const _EmptyState(emoji: '👤', message: 'Not signed in')
@@ -136,7 +133,8 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                                 .where('creatorUid', isEqualTo: uid)
                                 .snapshots(),
                             emptyEmoji: '🎪',
-                            emptyUpcomingMessage: 'You haven\'t created any events',
+                            emptyUpcomingMessage:
+                                'You haven\'t created any events',
                             emptyPastMessage: 'No past hosted events',
                             badgeLabel: 'Hosting',
                             currentUid: uid,
@@ -188,7 +186,8 @@ class _ActiveEventCard extends StatelessWidget {
         children: [
           // Category badge
           Container(
-            width: 56, height: 56,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               borderRadius: BorderRadius.circular(12),
@@ -196,7 +195,8 @@ class _ActiveEventCard extends StatelessWidget {
             child: Center(
               child: Text(
                 event.category.isNotEmpty ? event.category[0] : 'E',
-                style: TheyDiTextStyles.displaySmall.copyWith(color: Colors.white),
+                style:
+                    TheyDiTextStyles.displaySmall.copyWith(color: Colors.white),
               ),
             ),
           ),
@@ -210,8 +210,8 @@ class _ActiveEventCard extends StatelessWidget {
                 if (event.isOngoing)
                   Container(
                     margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
@@ -263,8 +263,7 @@ class _ActiveEventCard extends StatelessWidget {
             children: [
               // Status badge
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: TheyDiColors.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
@@ -281,8 +280,8 @@ class _ActiveEventCard extends StatelessWidget {
                   onTap: () =>
                       context.push(AppRoutes.eventAttendees, extra: event),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: TheyDiColors.divider,
                       borderRadius: BorderRadius.circular(8),
@@ -302,16 +301,15 @@ class _ActiveEventCard extends StatelessWidget {
                   onTap: () =>
                       context.push(AppRoutes.hostManage, extra: event.id),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.amber.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text('${event.pendingCount} pending',
                         style: TheyDiTextStyles.caption.copyWith(
-                            color: Colors.amber,
-                            fontWeight: FontWeight.w600)),
+                            color: Colors.amber, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -323,8 +321,8 @@ class _ActiveEventCard extends StatelessWidget {
                   onTap: () =>
                       context.push(AppRoutes.hostManage, extra: event.id),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: TheyDiColors.divider,
                       borderRadius: BorderRadius.circular(8),
@@ -381,9 +379,7 @@ class _EventsTab extends StatelessWidget {
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final events = docs
-            .map((d) => EventModel.fromFirestore(d))
-            .toList()
+        final events = docs.map((d) => EventModel.fromFirestore(d)).toList()
           ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
         final upcomingEvents = events.where((e) => !e.isCompleted).toList();
@@ -396,30 +392,32 @@ class _EventsTab extends StatelessWidget {
             _SectionHeader(title: 'Upcoming Events'),
             if (upcomingEvents.isEmpty)
               _SectionEmpty(message: emptyUpcomingMessage)
-            else ...upcomingEvents
-                .map((event) => _ActiveEventCard(
-                      event: event,
-                      badgeLabel: badgeLabel,
-                      currentUid: currentUid,
-                    )
-                        .animate(
-                            delay: Duration(milliseconds: 80 * upcomingEvents.indexOf(event)))
-                        .fade(duration: 300.ms)
-                        .slideX(begin: 0.08, end: 0)),
+            else
+              ...upcomingEvents.map((event) => _ActiveEventCard(
+                    event: event,
+                    badgeLabel: badgeLabel,
+                    currentUid: currentUid,
+                  )
+                      .animate(
+                          delay: Duration(
+                              milliseconds: 80 * upcomingEvents.indexOf(event)))
+                      .fade(duration: 300.ms)
+                      .slideX(begin: 0.08, end: 0)),
             const SizedBox(height: 24),
             _SectionHeader(title: 'Past Events'),
             if (pastEvents.isEmpty)
               _SectionEmpty(message: emptyPastMessage)
-            else ...pastEvents
-                .map((event) {
-                  return _PastEventCard(
-                    entry: _PastEventEntry(event: event, role: roleLabel),
-                  )
-                      .animate(
-                          delay: Duration(milliseconds: 80 * pastEvents.indexOf(event)))
-                      .fade(duration: 300.ms)
-                      .slideX(begin: 0.08, end: 0);
-                }),
+            else
+              ...pastEvents.map((event) {
+                return _PastEventCard(
+                  entry: _PastEventEntry(event: event, role: roleLabel),
+                )
+                    .animate(
+                        delay: Duration(
+                            milliseconds: 80 * pastEvents.indexOf(event)))
+                    .fade(duration: 300.ms)
+                    .slideX(begin: 0.08, end: 0);
+              }),
           ],
         );
       },
@@ -507,7 +505,8 @@ class _PastEventCard extends StatelessWidget {
         children: [
           // Category badge (greyed out = past)
           Container(
-            width: 56, height: 56,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: TheyDiColors.textMuted.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
@@ -571,8 +570,7 @@ class _PastEventCard extends StatelessWidget {
             children: [
               // Role badge — Hosted, Requested, Attended
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: badgeBackground,
                   borderRadius: BorderRadius.circular(8),
@@ -591,11 +589,10 @@ class _PastEventCard extends StatelessWidget {
 
               // View Summary button
               GestureDetector(
-                onTap: () =>
-                    context.push('/event/${event.id}', extra: event),
+                onTap: () => context.push('/event/${event.id}', extra: event),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: TheyDiColors.divider,
                     borderRadius: BorderRadius.circular(8),

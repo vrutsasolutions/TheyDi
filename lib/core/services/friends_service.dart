@@ -38,11 +38,7 @@ class FriendsService {
         .get();
     if (alreadyFriend.exists) return;
 
-    await _db
-        .collection('users')
-        .doc(toUid)
-        .collection('friendRequests')
-        .add({
+    await _db.collection('users').doc(toUid).collection('friendRequests').add({
       'fromUid': fromUid,
       'fromName': fromName,
       'status': 'pending',

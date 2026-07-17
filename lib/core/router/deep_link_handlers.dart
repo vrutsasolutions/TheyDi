@@ -15,13 +15,17 @@ class DeepLinkEventScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('events').doc(eventId).get(),
+        future:
+            FirebaseFirestore.instance.collection('events').doc(eventId).get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: TheyDiColors.primary));
+            return const Center(
+                child: CircularProgressIndicator(color: TheyDiColors.primary));
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Event not found', style: TextStyle(color: TheyDiColors.textPrimary)));
+            return const Center(
+                child: Text('Event not found',
+                    style: TextStyle(color: TheyDiColors.textPrimary)));
           }
           final event = EventModel.fromFirestore(snapshot.data!);
           return EventDetailScreen(event: event);
@@ -40,13 +44,19 @@ class DeepLinkCircleScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('circles').doc(circleId).get(),
+        future: FirebaseFirestore.instance
+            .collection('circles')
+            .doc(circleId)
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: TheyDiColors.primary));
+            return const Center(
+                child: CircularProgressIndicator(color: TheyDiColors.primary));
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Circle not found', style: TextStyle(color: TheyDiColors.textPrimary)));
+            return const Center(
+                child: Text('Circle not found',
+                    style: TextStyle(color: TheyDiColors.textPrimary)));
           }
           final circle = CircleModel.fromFirestore(snapshot.data!);
           return CircleInfoScreen(circle: circle);

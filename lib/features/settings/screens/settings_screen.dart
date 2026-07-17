@@ -92,7 +92,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
                             // ── Permissions Section ──
                             _SectionLabel(label: 'Permissions')
                                 .animate(delay: 60.ms)
@@ -110,8 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             _ToggleTile(
                               icon: Icons.location_on_outlined,
                               label: 'Location',
-                              subtitle:
-                                  'Used for nearby event suggestions',
+                              subtitle: 'Used for nearby event suggestions',
                               value: _locationEnabled,
                               onChanged: _setLocation,
                             ).animate(delay: 100.ms).fade(duration: 300.ms),
@@ -143,8 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             _SettingsTile(
                               icon: Icons.shield_outlined,
                               label: 'Privacy & Safety',
-                              subtitle:
-                                  'Control your visibility & data',
+                              subtitle: 'Control your visibility & data',
                               onTap: () =>
                                   context.push(AppRoutes.privacySafety),
                             ).animate(delay: 140.ms).fade(duration: 300.ms),
@@ -169,8 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.help_outline,
                               label: 'Help & Support',
                               subtitle: 'FAQs & contact us',
-                              onTap: () =>
-                                  context.push(AppRoutes.helpSupport),
+                              onTap: () => context.push(AppRoutes.helpSupport),
                             ).animate(delay: 200.ms).fade(duration: 300.ms),
 
                             const SizedBox(height: 40),

@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'emailjs_service.dart';
- 
+
 class NotificationService {
   NotificationService._();
- 
+
   static final _firestore = FirebaseFirestore.instance;
- 
+
   /// Send a notification to a specific user
   static Future<void> send({
     required String toUid,
@@ -27,7 +27,7 @@ class NotificationService {
           .get();
       if (muteDoc.exists) return;
     }
- 
+
     await _firestore
         .collection('users')
         .doc(toUid)
@@ -44,11 +44,11 @@ class NotificationService {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
- 
+
   // ─────────────────────────────────────────────────────────
   // EVENT NOTIFICATIONS
   // ─────────────────────────────────────────────────────────
- 
+
   static Future<void> notifyJoinRequest({
     required String hostUid,
     required String requesterName,
@@ -63,7 +63,7 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   static Future<void> notifyRequestApproved({
     required String userUid,
     required String eventTitle,
@@ -78,7 +78,7 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   static Future<void> notifyRequestRejected({
     required String userUid,
     required String eventTitle,
@@ -93,7 +93,7 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   static Future<void> notifyUserCancelledSpot({
     required String hostUid,
     required String userName,
@@ -108,7 +108,7 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   static Future<void> notifyEventCancelledToAttendees({
     required List<String> attendeeUids,
     required String eventTitle,
@@ -126,7 +126,7 @@ class NotificationService {
           )),
     );
   }
- 
+
   static Future<void> notifyFreeEventJoined({
     required String userUid,
     required String eventTitle,
@@ -140,7 +140,7 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   static Future<void> notifyPaymentConfirmed({
     required String userUid,
     required String eventTitle,
@@ -155,7 +155,7 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   static Future<void> notifyHostNewAttendeeEmail({
     required String hostUid,
     required String attendeeName,
@@ -166,7 +166,7 @@ class NotificationService {
     String? hostName,
   }) async {
     final isFree = amount == '0' || amount == '0.0';
-    
+
     // 1. In-app
     await send(
       toUid: hostUid,
@@ -180,21 +180,24 @@ class NotificationService {
 
     // 2. Email
     final resolved = await _resolveEmailAndName(
-      toUid: hostUid, userEmail: hostEmail, userName: hostName,
+      toUid: hostUid,
+      userEmail: hostEmail,
+      userName: hostName,
     );
     if (resolved == null) return;
 
     await EmailJSService.sendNotificationEmail(
       toEmail: resolved.email,
       toName: resolved.name,
-      title: isFree ? '🎉 New attendee joined — $eventTitle' : '💰 New booking received — $eventTitle',
-      message:
-          ''
+      title: isFree
+          ? '🎉 New attendee joined — $eventTitle'
+          : '💰 New booking received — $eventTitle',
+      message: ''
           'Great news! $attendeeName has just ${isFree ? 'joined' : 'booked a spot for'} your event "$eventTitle"${isFree ? '.' : ' for ₹$amount.'}\n\n'
           'You can view their details in your Host Dashboard.',
     );
   }
- 
+
   static Future<void> notifyEventReminder({
     required String userUid,
     required String eventTitle,
@@ -209,11 +212,11 @@ class NotificationService {
       eventId: eventId,
     );
   }
- 
+
   // ─────────────────────────────────────────────────────────
   // FRIEND NOTIFICATIONS
   // ─────────────────────────────────────────────────────────
- 
+
   static Future<void> notifyFriendRequest({
     required String toUid,
     required String fromUid,
@@ -241,7 +244,7 @@ class NotificationService {
           'Open the app to review and accept the request to start connecting!',
     );
   }
- 
+
   static Future<void> notifyFriendRequestAccepted({
     required String toUid,
     required String accepterName,
@@ -267,7 +270,7 @@ class NotificationService {
           'Open the app to say hi and start a conversation!',
     );
   }
- 
+
   /// Notify user about new suggested friends (batch — sent at most once per day)
   static Future<void> notifySuggestedFriends({
     required String toUid,
@@ -275,7 +278,7 @@ class NotificationService {
   }) async {
     final today = DateTime.now();
     final startOfDay = DateTime(today.year, today.month, today.day);
- 
+
     final existing = await _firestore
         .collection('users')
         .doc(toUid)
@@ -284,9 +287,9 @@ class NotificationService {
         .where('createdAt', isGreaterThan: Timestamp.fromDate(startOfDay))
         .limit(1)
         .get();
- 
+
     if (existing.docs.isNotEmpty) return;
- 
+
     await send(
       toUid: toUid,
       title: 'People you may know 👥',
@@ -294,11 +297,11 @@ class NotificationService {
       type: 'suggested_friends',
     );
   }
- 
+
   // ─────────────────────────────────────────────────────────
   // CIRCLE NOTIFICATIONS
   // ─────────────────────────────────────────────────────────
- 
+
   /// Notify circle admin when someone requests to join
   static Future<void> notifyCircleJoinRequest({
     required String toUid,
@@ -316,7 +319,7 @@ class NotificationService {
       circleId: circleId,
     );
   }
- 
+
   /// Notify user when their circle join request is approved
   static Future<void> notifyCircleJoinApproved({
     required String toUid,
@@ -331,7 +334,7 @@ class NotificationService {
       circleId: circleId,
     );
   }
- 
+
   /// Notify user when their circle join request is rejected
   static Future<void> notifyCircleJoinRejected({
     required String toUid,
@@ -344,7 +347,7 @@ class NotificationService {
       type: 'circle_rejected',
     );
   }
- 
+
   /// Notify user when removed from a circle
   static Future<void> notifyRemovedFromCircle({
     required String userUid,
@@ -360,7 +363,7 @@ class NotificationService {
       circleId: circleId,
     );
   }
- 
+
   /// Notify user about suggested circles (at most once per day)
   static Future<void> notifySuggestedCircles({
     required String toUid,
@@ -368,7 +371,7 @@ class NotificationService {
   }) async {
     final today = DateTime.now();
     final startOfDay = DateTime(today.year, today.month, today.day);
- 
+
     final existing = await _firestore
         .collection('users')
         .doc(toUid)
@@ -377,9 +380,9 @@ class NotificationService {
         .where('createdAt', isGreaterThan: Timestamp.fromDate(startOfDay))
         .limit(1)
         .get();
- 
+
     if (existing.docs.isNotEmpty) return;
- 
+
     await send(
       toUid: toUid,
       title: 'Circles you might like 🔵',
@@ -387,11 +390,11 @@ class NotificationService {
       type: 'suggested_circles',
     );
   }
- 
+
   // ─────────────────────────────────────────────────────────
   // ONLINE STATUS
   // ─────────────────────────────────────────────────────────
- 
+
   static Future<void> setOnlineStatus(bool isOnline) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -604,7 +607,9 @@ class NotificationService {
     );
     // 2. Email
     final resolved = await _resolveEmailAndName(
-      toUid: userUid, userEmail: userEmail, userName: userName,
+      toUid: userUid,
+      userEmail: userEmail,
+      userName: userName,
     );
     if (resolved == null) return;
     await EmailJSService.sendNotificationEmail(
@@ -638,12 +643,15 @@ class NotificationService {
     await send(
       toUid: hostUid,
       title: '💰 Payout processed!',
-      body: 'Your payout for "$eventTitle" ($bookingsProcessed bookings) is on its way.',
+      body:
+          'Your payout for "$eventTitle" ($bookingsProcessed bookings) is on its way.',
       type: 'payment',
     );
     // 2. Email
     final resolved = await _resolveEmailAndName(
-      toUid: hostUid, userEmail: hostEmail, userName: hostName,
+      toUid: hostUid,
+      userEmail: hostEmail,
+      userName: hostName,
     );
     if (resolved == null) return;
     await EmailJSService.sendNotificationEmail(
@@ -682,7 +690,9 @@ class NotificationService {
     );
     // 2. Email
     final resolved = await _resolveEmailAndName(
-      toUid: hostUid, userEmail: hostEmail, userName: hostName,
+      toUid: hostUid,
+      userEmail: hostEmail,
+      userName: hostName,
     );
     if (resolved == null) return;
     await EmailJSService.sendNotificationEmail(
@@ -782,8 +792,7 @@ class NotificationService {
         toEmail: resolved.email,
         toName: resolved.name,
         title: '😔 "$eventTitle" has been cancelled',
-        message:
-            'Hi ${resolved.name}, we\'re sorry to inform you that '
+        message: 'Hi ${resolved.name}, we\'re sorry to inform you that '
             '"$eventTitle" hosted by $hostName has been cancelled.\n\n'
             'If you paid for this event, a refund will be initiated. '
             'Please contact support if you have any questions.',
@@ -810,7 +819,10 @@ class NotificationService {
       final data = userDoc.data()!;
       final email = data['email'] as String?;
       if (email == null || email.isEmpty) return null;
-      final name = (data['displayName'] ?? data['fullName'] ?? data['name'] ?? 'there') as String;
+      final name = (data['displayName'] ??
+          data['fullName'] ??
+          data['name'] ??
+          'there') as String;
       return _EmailAndName(email, name);
     } catch (e) {
       // ignore: avoid_print

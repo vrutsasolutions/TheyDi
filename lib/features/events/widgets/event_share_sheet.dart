@@ -35,15 +35,14 @@ String _whatsAppUrl(EventModel event) {
   return 'https://wa.me/?text=$text';
 }
 
-
-
 String _facebookUrl(EventModel event) {
   final link = Uri.encodeComponent(_eventLink(event.id));
   return 'https://www.facebook.com/sharer/sharer.php?u=$link';
 }
 
 String _twitterUrl(EventModel event) {
-  final text = Uri.encodeComponent('${event.title} – Join me on TheyDi!\n${_eventLink(event.id)}');
+  final text = Uri.encodeComponent(
+      '${event.title} – Join me on TheyDi!\n${_eventLink(event.id)}');
   return 'https://twitter.com/intent/tweet?text=$text';
 }
 
@@ -65,8 +64,18 @@ Future<bool> _launchExternal(String url) async {
 
 String _formatShareDate(DateTime dt) {
   final months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
   final minute = dt.minute.toString().padLeft(2, '0');
@@ -74,13 +83,15 @@ String _formatShareDate(DateTime dt) {
   return '${_weekday(dt.weekday)}, ${months[dt.month - 1]} ${dt.day} · $hour:$minute $period';
 }
 
-String _weekday(int w) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][w - 1];
+String _weekday(int w) =>
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][w - 1];
 
 void _showCopyToast(BuildContext context, String message) {
   ScaffoldMessenger.of(context).clearSnackBars();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(message, style: const TextStyle(color: TheyDiColors.textPrimary)),
+      content: Text(message,
+          style: const TextStyle(color: TheyDiColors.textPrimary)),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -123,7 +134,8 @@ class _EventShareSheetState extends State<EventShareSheet> {
       await Clipboard.setData(ClipboardData(text: text));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Link copied! Paste it in Instagram.', style: TextStyle(color: TheyDiColors.textPrimary)),
+        content: const Text('Link copied! Paste it in Instagram.',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -134,7 +146,8 @@ class _EventShareSheetState extends State<EventShareSheet> {
     final launched = await _launchExternal(url);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not open $platformName', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        content: Text('Could not open $platformName',
+            style: const TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -152,7 +165,8 @@ class _EventShareSheetState extends State<EventShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Event shared successfully! 🚀', style: TextStyle(color: TheyDiColors.textPrimary)),
+        Text('Event shared successfully! 🚀',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,
@@ -209,7 +223,8 @@ class _EventShareSheetState extends State<EventShareSheet> {
 
           // ── Header ──
           Row(children: [
-            const Icon(Icons.share_outlined, color: TheyDiColors.primary, size: 22),
+            const Icon(Icons.share_outlined,
+                color: TheyDiColors.primary, size: 22),
             const SizedBox(width: 10),
             Text('Share Event', style: TheyDiTextStyles.displayMedium),
           ]).animate().fade(duration: 250.ms).slideY(begin: 0.2, end: 0),
@@ -265,18 +280,14 @@ class _EventShareSheetState extends State<EventShareSheet> {
                 assetLabel: 'WA',
                 label: 'WhatsApp',
                 color: const Color(0xFF25D366),
-                onTap: () => _shareExternal(
-                    _whatsAppUrl(event), 'WhatsApp'),
+                onTap: () => _shareExternal(_whatsAppUrl(event), 'WhatsApp'),
                 delay: 180,
               ),
-
-
               _ShareOption(
                 assetLabel: 'FB',
                 label: 'Facebook',
                 color: const Color(0xFF1877F2),
-                onTap: () => _shareExternal(
-                    _facebookUrl(event), 'Facebook'),
+                onTap: () => _shareExternal(_facebookUrl(event), 'Facebook'),
                 delay: 240,
               ),
               _ShareOption(
@@ -284,14 +295,13 @@ class _EventShareSheetState extends State<EventShareSheet> {
                 label: 'X / Twitter',
                 color: Colors.white,
                 bgColor: Colors.black,
-                onTap: () => _shareExternal(
-                    _twitterUrl(event), 'X'),
+                onTap: () => _shareExternal(_twitterUrl(event), 'X'),
                 delay: 270,
               ),
             ],
           ),
 
-      const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
           // ── Cancel ──
           SizedBox(
@@ -347,7 +357,8 @@ class _EventPreviewCard extends StatelessWidget {
         const SizedBox(width: 12),
         // Details
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(event.title,
                 style: TheyDiTextStyles.labelLarge,
                 maxLines: 1,
@@ -402,8 +413,18 @@ class _EventPreviewCard extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -518,8 +539,8 @@ class _ShareOption extends StatelessWidget {
             decoration: BoxDecoration(
               color: bgColor ?? color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: color.withValues(alpha: 0.25), width: 1),
+              border:
+                  Border.all(color: color.withValues(alpha: 0.25), width: 1),
             ),
             child: Center(
               child: icon != null
@@ -546,7 +567,6 @@ class _ShareOption extends StatelessWidget {
   }
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // In-App Share Sheet — sends event_share message to selected friends
 // ─────────────────────────────────────────────────────────────────────────────
@@ -559,7 +579,8 @@ class _InAppFriendEventShareSheet extends StatefulWidget {
       _InAppFriendEventShareSheetState();
 }
 
-class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet> {
+class _InAppFriendEventShareSheetState
+    extends State<_InAppFriendEventShareSheet> {
   List<Map<String, dynamic>> _friends = [];
   final Set<String> _selected = {};
   bool _loading = true;
@@ -584,7 +605,8 @@ class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet
     if (mounted) {
       setState(() {
         _friends = snap.docs
-            .map((d) => {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
+            .map((d) =>
+                {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
             .toList();
         _loading = false;
       });
@@ -609,8 +631,9 @@ class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet
 
     for (final friendUid in _selected) {
       final chatId = _generateChatId(myUid, friendUid);
-      final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
-      
+      final chatRef =
+          FirebaseFirestore.instance.collection('chats').doc(chatId);
+
       final chatSnap = await chatRef.get();
       if (!chatSnap.exists) {
         await chatRef.set({
@@ -628,7 +651,8 @@ class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet
         'eventId': widget.event.id,
         'eventName': widget.event.title,
         'eventLink': link,
-        'text': '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
+        'text':
+            '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
         'senderId': myUid,
         'senderName': senderName,
         'sentAt': Timestamp.now(),
@@ -648,7 +672,9 @@ class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet
         content: Row(children: [
           const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
-          Text('Event shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉', style: const TextStyle(color: TheyDiColors.textPrimary)),
+          Text(
+              'Event shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+              style: const TextStyle(color: TheyDiColors.textPrimary)),
         ]),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
@@ -665,8 +691,8 @@ class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet
         color: TheyDiColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
       child: Column(
         children: [
           const SizedBox(height: 12),
@@ -701,14 +727,14 @@ class _InAppFriendEventShareSheetState extends State<_InAppFriendEventShareSheet
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: TheyDiColors.primary.withAlpha(25),
-                      child: const Icon(Icons.person, color: TheyDiColors.primary),
+                      child:
+                          const Icon(Icons.person, color: TheyDiColors.primary),
                     ),
                     title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
                     trailing: isSelected
                         ? const Icon(Icons.check_circle,
                             color: TheyDiColors.primary)
-                        : const Icon(Icons.circle_outlined,
-                            color: Colors.grey),
+                        : const Icon(Icons.circle_outlined, color: Colors.grey),
                     onTap: () {
                       setState(() {
                         if (isSelected) {

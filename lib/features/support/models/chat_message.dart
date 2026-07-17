@@ -98,9 +98,8 @@ class ChatMessage {
     return ChatMessage(
       id: json['id'] as String,
       text: json['text'] as String,
-      sender: json['sender'] == 'user'
-          ? MessageSender.user
-          : MessageSender.darla,
+      sender:
+          json['sender'] == 'user' ? MessageSender.user : MessageSender.darla,
       timestamp: DateTime.parse(json['timestamp']),
       isTyping: json['isTyping'] ?? false,
       isHelpful: json['isHelpful'],

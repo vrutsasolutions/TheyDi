@@ -47,7 +47,8 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
       await Clipboard.setData(ClipboardData(text: text));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Link copied! Paste it in Instagram.', style: TextStyle(color: TheyDiColors.textPrimary)),
+        content: const Text('Link copied! Paste it in Instagram.',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -58,7 +59,8 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
     final launched = await CircleShareService.launchExternal(url);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not open $platformName', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        content: Text('Could not open $platformName',
+            style: const TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -76,7 +78,8 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Circle invite shared! 🚀', style: TextStyle(color: TheyDiColors.textPrimary)),
+        Text('Circle invite shared! 🚀',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,
@@ -126,7 +129,8 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
           // ── Handle ──
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: TheyDiColors.divider,
                 borderRadius: BorderRadius.circular(2),
@@ -137,7 +141,8 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
 
           // ── Header ──
           Row(children: [
-            const Icon(Icons.group_outlined, color: TheyDiColors.primary, size: 22),
+            const Icon(Icons.group_outlined,
+                color: TheyDiColors.primary, size: 22),
             const SizedBox(width: 10),
             Text('Invite to Circle', style: TheyDiTextStyles.displayMedium),
           ]).animate().fade(duration: 250.ms).slideY(begin: 0.2, end: 0),
@@ -197,8 +202,6 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
                     CircleShareService.whatsAppUrl(circle), 'WhatsApp'),
                 delay: 180,
               ),
-
-
               _ShareOption(
                 assetLabel: 'FB',
                 label: 'Facebook',
@@ -212,14 +215,14 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
                 label: 'X / Twitter',
                 color: Colors.white,
                 bgColor: Colors.black,
-                onTap: () => _shareExternal(
-                    CircleShareService.twitterUrl(circle), 'X'),
+                onTap: () =>
+                    _shareExternal(CircleShareService.twitterUrl(circle), 'X'),
                 delay: 270,
               ),
             ],
           ),
 
-      const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
           // ── Cancel ──
           SizedBox(
@@ -287,7 +290,8 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
     if (_selected.isEmpty) return;
     setState(() => _sending = true);
 
-    final senderName = FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+    final senderName =
+        FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
     final link = CircleShareService.circleLink(widget.circle.id);
 
     for (final circleId in _selected) {
@@ -300,7 +304,8 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
         'circleId': widget.circle.id,
         'circleName': widget.circle.name,
         'circleLink': link,
-        'text': '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
+        'text':
+            '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
         'senderId': FirebaseAuth.instance.currentUser?.uid ?? '',
         'senderName': senderName,
         'sentAt': Timestamp.now(),
@@ -314,7 +319,9 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
         content: Row(children: [
           const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
-          Text('Invite sent to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉', style: const TextStyle(color: TheyDiColors.textPrimary)),
+          Text(
+              'Invite sent to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
+              style: const TextStyle(color: TheyDiColors.textPrimary)),
         ]),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
@@ -340,7 +347,8 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
           // Handle
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                   color: TheyDiColors.divider,
                   borderRadius: BorderRadius.circular(2)),
@@ -359,15 +367,16 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
                 GestureDetector(
                   onTap: _sending ? null : _sendInvites,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
                       gradient: TheyDiColors.gradientPrimary,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: _sending
                         ? const SizedBox(
-                            width: 14, height: 14,
+                            width: 14,
+                            height: 14,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : Text('Send (${_selected.length})',
@@ -389,8 +398,7 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
             const Center(
                 child: Padding(
               padding: EdgeInsets.all(24),
-              child:
-                  CircularProgressIndicator(color: TheyDiColors.primary),
+              child: CircularProgressIndicator(color: TheyDiColors.primary),
             ))
           else if (_otherCircles.isEmpty)
             Center(
@@ -437,7 +445,8 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
                       ),
                       child: Row(children: [
                         Container(
-                          width: 38, height: 38,
+                          width: 38,
+                          height: 38,
                           decoration: BoxDecoration(
                             gradient: TheyDiColors.gradientPrimary,
                             borderRadius: BorderRadius.circular(10),
@@ -459,7 +468,8 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
                         ),
                         if (isSelected)
                           Container(
-                            width: 22, height: 22,
+                            width: 22,
+                            height: 22,
                             decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: TheyDiColors.primary),
@@ -468,11 +478,12 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
                           )
                         else
                           Container(
-                            width: 22, height: 22,
+                            width: 22,
+                            height: 22,
                             decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: TheyDiColors.divider)),
+                                border:
+                                    Border.all(color: TheyDiColors.divider)),
                           ),
                       ]),
                     ),
@@ -516,7 +527,8 @@ class _CirclePreviewCard extends StatelessWidget {
       child: Row(children: [
         // Avatar
         Container(
-          width: 54, height: 54,
+          width: 54,
+          height: 54,
           decoration: BoxDecoration(
             gradient: TheyDiColors.gradientPrimary,
             borderRadius: BorderRadius.circular(14),
@@ -528,8 +540,7 @@ class _CirclePreviewCard extends StatelessWidget {
                   child: Image.network(
                     circle.profileImageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        _Initial(circle.initials),
+                    errorBuilder: (_, __, ___) => _Initial(circle.initials),
                   ),
                 )
               : _Initial(circle.initials),
@@ -538,9 +549,8 @@ class _CirclePreviewCard extends StatelessWidget {
 
         // Details
         Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(
                 child: Text(circle.name,
@@ -551,8 +561,8 @@ class _CirclePreviewCard extends StatelessWidget {
               if (circle.isEventCircle) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.orange.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -688,12 +698,13 @@ class _ShareOption extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 52, height: 52,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: bgColor ?? color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: color.withValues(alpha: 0.25), width: 1),
+              border:
+                  Border.all(color: color.withValues(alpha: 0.25), width: 1),
             ),
             child: Center(
               child: icon != null
@@ -709,15 +720,13 @@ class _ShareOption extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(label,
-              style: TheyDiTextStyles.caption.copyWith(
-                  color: TheyDiColors.textSecondary, fontSize: 10)),
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary, fontSize: 10)),
         ],
       )
           .animate(delay: Duration(milliseconds: delay))
           .fade(duration: 250.ms)
-          .scale(
-              begin: const Offset(0.85, 0.85),
-              end: const Offset(1, 1)),
+          .scale(begin: const Offset(0.85, 0.85), end: const Offset(1, 1)),
     );
   }
 }
@@ -734,7 +743,8 @@ class _InAppFriendCircleShareSheet extends StatefulWidget {
       _InAppFriendCircleShareSheetState();
 }
 
-class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareSheet> {
+class _InAppFriendCircleShareSheetState
+    extends State<_InAppFriendCircleShareSheet> {
   List<Map<String, dynamic>> _friends = [];
   final Set<String> _selected = {};
   bool _loading = true;
@@ -759,7 +769,8 @@ class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareShe
     if (mounted) {
       setState(() {
         _friends = snap.docs
-            .map((d) => {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
+            .map((d) =>
+                {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
             .toList();
         _loading = false;
       });
@@ -784,8 +795,9 @@ class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareShe
 
     for (final friendUid in _selected) {
       final chatId = _generateChatId(myUid, friendUid);
-      final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
-      
+      final chatRef =
+          FirebaseFirestore.instance.collection('chats').doc(chatId);
+
       final chatSnap = await chatRef.get();
       if (!chatSnap.exists) {
         await chatRef.set({
@@ -803,7 +815,8 @@ class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareShe
         'circleId': widget.circle.id,
         'circleName': widget.circle.name,
         'circleLink': link,
-        'text': '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
+        'text':
+            '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
         'senderId': myUid,
         'senderName': senderName,
         'sentAt': Timestamp.now(),
@@ -823,7 +836,9 @@ class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareShe
         content: Row(children: [
           const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
-          Text('Invite sent to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉', style: const TextStyle(color: TheyDiColors.textPrimary)),
+          Text(
+              'Invite sent to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+              style: const TextStyle(color: TheyDiColors.textPrimary)),
         ]),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
@@ -840,8 +855,8 @@ class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareShe
         color: TheyDiColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
       child: Column(
         children: [
           const SizedBox(height: 12),
@@ -876,14 +891,14 @@ class _InAppFriendCircleShareSheetState extends State<_InAppFriendCircleShareShe
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: TheyDiColors.primary.withAlpha(25),
-                      child: const Icon(Icons.person, color: TheyDiColors.primary),
+                      child:
+                          const Icon(Icons.person, color: TheyDiColors.primary),
                     ),
                     title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
                     trailing: isSelected
                         ? const Icon(Icons.check_circle,
                             color: TheyDiColors.primary)
-                        : const Icon(Icons.circle_outlined,
-                            color: Colors.grey),
+                        : const Icon(Icons.circle_outlined, color: Colors.grey),
                     onTap: () {
                       setState(() {
                         if (isSelected) {

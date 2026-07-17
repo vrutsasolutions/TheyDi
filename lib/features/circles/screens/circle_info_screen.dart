@@ -27,9 +27,7 @@ import '../models/circle_model.dart';
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
 
-
 import '../../../shared/widgets/avatar_online_status_dot.dart';
-
 
 const _kCircleReportReasons = [
   'Spam or unwanted content',
@@ -868,7 +866,9 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                        name.isNotEmpty
+                                            ? name[0].toUpperCase()
+                                            : '?',
                                         style: TheyDiTextStyles.labelLarge
                                             .copyWith(color: Colors.white),
                                       ),
