@@ -498,13 +498,13 @@ class _AnimatedGradientHeaderState extends State<AnimatedGradientHeader>
 
     // Subtle dark/light breathing effect
     _color1 = ColorTween(
-      begin: TheyDiColors.primary, // 0xFF10B981
-      end: const Color(0xFF059669), // Slightly darker emerald
+      begin: const Color(0xFF065F46), // Deep dark green
+      end: TheyDiColors.primary,      // Normal green
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _color2 = ColorTween(
-      begin: TheyDiColors.secondary, // 0xFF34D399
-      end: const Color(0xFF6EE7B7), // Slightly lighter
+      begin: TheyDiColors.secondary,   // Mid green
+      end: const Color(0xFFA7F3D0),    // Very light mint
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 

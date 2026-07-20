@@ -46,7 +46,6 @@ class PrivacySafetyScreen extends ConsumerWidget {
   Future<void> _deleteAccount(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
     final isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
     final passwordController = TextEditingController();
 

@@ -480,7 +480,7 @@ exports.createRazorpayXContact = onCall(
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
 
     const uid = request.auth.uid;
-    const { payoutMethod, upiId, name, ifsc, accountNumber } = request.data;
+    const { payoutMethod, upiId, name, ifsc, accountNumber, email, mobile, legalName } = request.data;
     const mode = payoutMethod === 'upi' ? 'vpa' : 'bank_account';
     
     if (mode === 'vpa') {
@@ -489,11 +489,17 @@ exports.createRazorpayXContact = onCall(
       if (!name || !ifsc || !accountNumber) throw new HttpsError("invalid-argument", "Missing bank details.");
     }
 
+    const contactName = legalName || name || "Host";
+    const contactEmail = email || request.auth.token.email || "host@example.com";
+    const contactMobile = mobile || "";
+
     const userDoc = await db.collection("users").doc(uid).get();
     
     let contactId = null;
+    let oldFundAccountId = null;
     if (userDoc.exists) {
       contactId = userDoc.data().razorpayXContactId;
+      oldFundAccountId = userDoc.data().razorpayXFundAccountId;
     }
 
     const keyId = process.env.RAZORPAY_KEY_ID;
@@ -503,23 +509,51 @@ exports.createRazorpayXContact = onCall(
 
     try {
       if (!contactId) {
-        logger.info(`[RazorpayX] Attempting to create contact for UID: ${uid} with name: ${name || "Host"}`);
+        logger.info(`[RazorpayX] Attempting to create contact for UID: ${uid} with name: ${contactName}`);
         // 1. Create Contact
-        const contactRes = await fetch("https://api.razorpay.com/v1/contacts", {
+        let contactRes = await fetch("https://api.razorpay.com/v1/contacts", {
           method: "POST",
           headers: { "Authorization": authHeader, "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: name || "Host",
-            email: request.auth.token.email || "host@example.com",
+            name: contactName,
+            email: contactEmail,
+            contact: contactMobile,
             type: "vendor",
             reference_id: uid,
           })
         });
-        const contact = await contactRes.json();
-        logger.info(`[RazorpayX] Contact API Response: ${JSON.stringify(contact)}`);
+        let contact = await contactRes.json();
         
-        if (!contact.id) throw new Error("Failed to create contact: " + JSON.stringify(contact));
+        // Handle existing reference_id
+        if (contact.error && contact.error.description && contact.error.description.includes('reference_id already exists')) {
+          logger.info(`[RazorpayX] Contact with reference_id ${uid} exists. Fetching it...`);
+          const existingRes = await fetch(`https://api.razorpay.com/v1/contacts?reference_id=${uid}`, {
+            headers: { "Authorization": authHeader }
+          });
+          const existingData = await existingRes.json();
+          if (existingData.items && existingData.items.length > 0) {
+            contact = existingData.items[0];
+          } else {
+            throw new Error("Failed to fetch existing contact: " + JSON.stringify(existingData));
+          }
+        } else if (!contact.id) {
+          throw new Error("Failed to create contact: " + JSON.stringify(contact));
+        }
+        
+        logger.info(`[RazorpayX] Contact API Response: ${JSON.stringify(contact)}`);
         contactId = contact.id;
+      } else {
+        // Update existing contact
+        logger.info(`[RazorpayX] Updating existing contact ID: ${contactId}`);
+        await fetch(`https://api.razorpay.com/v1/contacts/${contactId}`, {
+          method: "PATCH",
+          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: contactName,
+            email: contactEmail,
+            contact: contactMobile,
+          })
+        });
       }
 
       logger.info(`[RazorpayX] Attempting to create fund account for Contact ID: ${contactId}`);
@@ -548,13 +582,28 @@ exports.createRazorpayXContact = onCall(
       
       if (!fundAccount.id) throw new Error("Failed to create fund account: " + JSON.stringify(fundAccount));
 
-      // 3. Save to Firestore
+      // 3. Deactivate old fund account if it exists
+      if (oldFundAccountId && oldFundAccountId !== fundAccount.id) {
+        logger.info(`[RazorpayX] Deactivating old fund account: ${oldFundAccountId}`);
+        await fetch(`https://api.razorpay.com/v1/fund_accounts/${oldFundAccountId}`, {
+          method: "PATCH",
+          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({ active: false })
+        }).catch(err => logger.error("Failed to deactivate old fund account", err));
+      }
+
+      // 4. Save to Firestore
       logger.info(`[RazorpayX] Saving RazorpayX IDs to Firestore for UID: ${uid}`);
       await db.collection("users").doc(uid).update({ 
         razorpayXContactId: contactId,
         razorpayXFundAccountId: fundAccount.id,
-        razorpayXPayoutMode: mode === 'vpa' ? 'UPI' : 'IMPS'
+        razorpayXPayoutMode: mode === 'vpa' ? 'UPI' : 'IMPS',
+        payoutSetupCompleted: true
       });
+
+      // 5. Delete temporary bank details
+      await db.collection("users").doc(uid).collection("private").doc("tempBankDetails").delete()
+        .catch(err => logger.error("Failed to delete tempBankDetails", err));
 
       logger.info(`[RazorpayX] Successfully onboarded UID: ${uid}`);
       return { success: true, fundAccountId: fundAccount.id };

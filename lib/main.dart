@@ -10,6 +10,8 @@ import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 
 void main() async {
@@ -21,13 +23,15 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // if (kDebugMode) {
-  //   // Connect to the local Cloud Functions Emulator to bypass CORS
-  //   // 10.0.2.2 is required for Android emulators to reach the host's localhost
-  //   final host = !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
-  //   FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator(host, 5001);
-  //   FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-  // }
+  if (kDebugMode) {
+    // Connect to the local Cloud Functions Emulator
+    // // 10.0.2.2 is required for Android emulators to reach the host's localhost
+    // final host = !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
+    // FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator(host, 5001);
+    
+    // Kept commented out to preserve live user data in Firestore
+    // FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+  }
 
   // Run database mojibake migration in background
   _fixDatabaseMojibake();

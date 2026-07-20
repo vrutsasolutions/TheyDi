@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -129,18 +130,37 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     setState(() => _isSaving = true);
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'payoutSetupCompleted': true,
-        'payoutDetails': {
-          'legalName': _legalNameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'mobile': _mobileController.text.trim(),
-          'accountHolderName': _accountHolderController.text.trim(),
-          'accountNumber': _accountNumberController.text.trim(),
-          'ifscCode': _ifscController.text.trim().toUpperCase(),
-          'bankName': _bankNameController.text.trim(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
+        'name': _legalNameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'mobile': _mobileController.text.trim(),
       }, SetOptions(merge: true));
+
+      // Save temporary bank details
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('private')
+          .doc('tempBankDetails')
+          .set({
+        'accountHolderName': _accountHolderController.text.trim(),
+        'accountNumber': _accountNumberController.text.trim(),
+        'ifscCode': _ifscController.text.trim().toUpperCase(),
+        'bankName': _bankNameController.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Trigger Cloud Function
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('createRazorpayXContact');
+      await callable.call({
+        'payoutMethod': 'bank',
+        'name': _accountHolderController.text.trim(),
+        'ifsc': _ifscController.text.trim().toUpperCase(),
+        'accountNumber': _accountNumberController.text.trim(),
+        'email': _emailController.text.trim(),
+        'mobile': _mobileController.text.trim(),
+        'legalName': _legalNameController.text.trim(),
+      });
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
