@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 
-
 // Stream user's privacy settings from Firestore
 final _privacySettingsProvider =
     StreamProvider.autoDispose<Map<String, dynamic>>((ref) {
@@ -47,7 +46,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
   Future<void> _deleteAccount(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    
+
     final isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
     final passwordController = TextEditingController();
 
@@ -90,8 +89,8 @@ class PrivacySafetyScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: TheyDiColors.divider),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
               ),
             ],
@@ -144,8 +143,10 @@ class PrivacySafetyScreen extends ConsumerWidget {
         if (kIsWeb) {
           await user.reauthenticateWithProvider(GoogleAuthProvider());
         } else {
-          final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
-          final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+          final GoogleSignInAccount googleUser =
+              await GoogleSignIn.instance.authenticate();
+          final GoogleSignInAuthentication googleAuth =
+              googleUser.authentication;
           final credential = GoogleAuthProvider.credential(
             idToken: googleAuth.idToken,
           );
@@ -361,9 +362,8 @@ class PrivacySafetyScreen extends ConsumerWidget {
                           icon: Icons.block_outlined,
                           title: 'Blocked users',
                           subtitle: 'Manage your blocked list',
-onTap: () => context.push(AppRoutes.blockedUsers),
+                          onTap: () => context.push(AppRoutes.blockedUsers),
                         ).animate(delay: 500.ms).fade(duration: 300.ms),
-
 
                         _ActionTile(
                           icon: Icons.history_outlined,
@@ -374,29 +374,27 @@ onTap: () => context.push(AppRoutes.blockedUsers),
                           },
                         ).animate(delay: 600.ms).fade(duration: 300.ms),
 
-
-
                         // const SizedBox(height: 24),
 
                         // const SizedBox(height: 12),
 
-_ActionTile(
-  icon: Icons.privacy_tip_outlined,
-  title: 'Privacy Policy',
-  subtitle: 'Read our privacy policy',
-  onTap: () {
-    context.push(AppRoutes.privacyPolicy);
-  },
-).animate(delay: 700.ms).fade(duration: 300.ms),
+                        _ActionTile(
+                          icon: Icons.privacy_tip_outlined,
+                          title: 'Privacy Policy',
+                          subtitle: 'Read our privacy policy',
+                          onTap: () {
+                            context.push(AppRoutes.privacyPolicy);
+                          },
+                        ).animate(delay: 700.ms).fade(duration: 300.ms),
 
-_ActionTile(
-  icon: Icons.description_outlined,
-  title: 'Terms & Conditions',
-  subtitle: 'Read our terms and conditions',
-  onTap: () {
-    context.push(AppRoutes.termsConditions);
-  },
-).animate(delay: 800.ms).fade(duration: 300.ms),
+                        _ActionTile(
+                          icon: Icons.description_outlined,
+                          title: 'Terms & Conditions',
+                          subtitle: 'Read our terms and conditions',
+                          onTap: () {
+                            context.push(AppRoutes.termsConditions);
+                          },
+                        ).animate(delay: 800.ms).fade(duration: 300.ms),
 
                         // Danger zone
                         _SectionHeader(

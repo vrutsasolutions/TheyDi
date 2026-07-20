@@ -61,15 +61,23 @@ String _cleanText(String text) {
 }
 
 Future<void> _fixDatabaseMojibake() async {
-  final collections = ['events', 'users', 'reviews', 'bookings', 'circles', 'notifications'];
+  final collections = [
+    'events',
+    'users',
+    'reviews',
+    'bookings',
+    'circles',
+    'notifications'
+  ];
   for (final colName in collections) {
     try {
-      final querySnapshot = await FirebaseFirestore.instance.collection(colName).get();
+      final querySnapshot =
+          await FirebaseFirestore.instance.collection(colName).get();
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
         var changed = false;
         final updatedData = <String, dynamic>{};
-        
+
         data.forEach((key, value) {
           if (value is String) {
             final cleaned = _cleanText(value);
@@ -99,7 +107,7 @@ Future<void> _fixDatabaseMojibake() async {
             }
           }
         });
-        
+
         if (changed) {
           await doc.reference.update(updatedData);
         }
@@ -111,7 +119,8 @@ Future<void> _fixDatabaseMojibake() async {
 
   // Collection group query for subcollection 'messages'
   try {
-    final messageDocs = await FirebaseFirestore.instance.collectionGroup('messages').get();
+    final messageDocs =
+        await FirebaseFirestore.instance.collectionGroup('messages').get();
     for (final doc in messageDocs.docs) {
       final data = doc.data();
       var changed = false;
@@ -141,7 +150,8 @@ class TheyDiApp extends ConsumerStatefulWidget {
   ConsumerState<TheyDiApp> createState() => _TheyDiAppState();
 }
 
-class _TheyDiAppState extends ConsumerState<TheyDiApp> with WidgetsBindingObserver {
+class _TheyDiAppState extends ConsumerState<TheyDiApp>
+    with WidgetsBindingObserver {
   StreamSubscription? _authSub;
 
   @override
@@ -150,7 +160,8 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp> with WidgetsBindingObserv
     WidgetsBinding.instance.addObserver(this);
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
-        if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed ||
+        if (WidgetsBinding.instance.lifecycleState ==
+                AppLifecycleState.resumed ||
             WidgetsBinding.instance.lifecycleState == null) {
           _updateOnlineStatus(true);
         }
@@ -171,7 +182,8 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _updateOnlineStatus(true);
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _updateOnlineStatus(false);
     }
   }

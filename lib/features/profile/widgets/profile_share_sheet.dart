@@ -66,8 +66,7 @@ void showProfileShareSheet(
                   photoUrl: photoUrl);
             },
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 gradient: TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(10),
@@ -157,7 +156,8 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       await Clipboard.setData(ClipboardData(text: text));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Link copied! Paste it in Instagram.', style: TextStyle(color: TheyDiColors.textPrimary)),
+        content: const Text('Link copied! Paste it in Instagram.',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -168,7 +168,8 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
     final launched = await ProfileShareService.launchExternal(url);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not open $platformName', style: const TextStyle(color: TheyDiColors.textPrimary)),
+        content: Text('Could not open $platformName',
+            style: const TextStyle(color: TheyDiColors.textPrimary)),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -186,7 +187,8 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Profile shared successfully! 🚀', style: TextStyle(color: TheyDiColors.textPrimary)),
+        Text('Profile shared successfully! 🚀',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
       behavior: SnackBarBehavior.floating,
@@ -323,15 +325,12 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
                 ),
                 delay: 180,
               ),
-
-
               _ShareOption(
                 assetLabel: 'FB',
                 label: 'Facebook',
                 color: const Color(0xFF1877F2),
                 onTap: () => _shareExternal(
-                    ProfileShareService.facebookUrl(widget.userId),
-                    'Facebook'),
+                    ProfileShareService.facebookUrl(widget.userId), 'Facebook'),
                 delay: 240,
               ),
               _ShareOption(
@@ -351,7 +350,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
             ],
           ),
 
-      const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
           SizedBox(
             width: double.infinity,
@@ -382,8 +381,7 @@ class _InAppProfileShareSheet extends StatefulWidget {
       _InAppProfileShareSheetState();
 }
 
-class _InAppProfileShareSheetState
-    extends State<_InAppProfileShareSheet> {
+class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
   List<Map<String, dynamic>> _circles = [];
   final Set<String> _selected = {};
   bool _loading = true;
@@ -432,8 +430,7 @@ class _InAppProfileShareSheetState
         'userId': widget.userId,
         'userName': widget.displayName,
         'profileLink': link,
-        'text':
-            '👤 $senderName shared ${widget.displayName}\'s profile\n$link',
+        'text': '👤 $senderName shared ${widget.displayName}\'s profile\n$link',
         'senderId': FirebaseAuth.instance.currentUser?.uid ?? '',
         'senderName': senderName,
         'sentAt': Timestamp.now(),
@@ -445,8 +442,7 @@ class _InAppProfileShareSheetState
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Row(children: [
-          const Icon(Icons.check_circle_outline,
-              color: Colors.green, size: 18),
+          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
           Text(
               'Profile shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
@@ -454,8 +450,7 @@ class _InAppProfileShareSheetState
         ]),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ));
     }
@@ -484,7 +479,6 @@ class _InAppProfileShareSheetState
             ),
           ),
           const SizedBox(height: 20),
-
           Row(children: [
             const Icon(Icons.send_outlined,
                 color: TheyDiColors.primary, size: 20),
@@ -495,8 +489,8 @@ class _InAppProfileShareSheetState
               GestureDetector(
                 onTap: _sending ? null : _send,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 7),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     gradient: TheyDiColors.gradientPrimary,
                     borderRadius: BorderRadius.circular(10),
@@ -518,7 +512,6 @@ class _InAppProfileShareSheetState
               style: TheyDiTextStyles.caption
                   .copyWith(color: TheyDiColors.textSecondary)),
           const SizedBox(height: 16),
-
           if (_loading)
             const Center(
                 child: Padding(
@@ -616,7 +609,6 @@ class _InAppProfileShareSheetState
                 }).toList(),
               ),
             ),
-
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -653,8 +645,7 @@ class _ProfilePreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -679,9 +670,8 @@ class _ProfilePreviewCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Center(
                             child: Text(initial,
-                                style: TheyDiTextStyles.displayMedium
-                                    .copyWith(
-                                        color: Colors.white, fontSize: 22)),
+                                style: TheyDiTextStyles.displayMedium.copyWith(
+                                    color: Colors.white, fontSize: 22)),
                           )),
                 )
               : Center(
@@ -724,8 +714,7 @@ class _ProfilePreviewCard extends StatelessWidget {
 
         // TheyDi badge
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: TheyDiColors.primary.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
@@ -852,15 +841,13 @@ class _ShareOption extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(label,
-              style: TheyDiTextStyles.caption.copyWith(
-                  color: TheyDiColors.textSecondary, fontSize: 10)),
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary, fontSize: 10)),
         ],
       )
           .animate(delay: Duration(milliseconds: delay))
           .fade(duration: 250.ms)
-          .scale(
-              begin: const Offset(0.85, 0.85),
-              end: const Offset(1, 1)),
+          .scale(begin: const Offset(0.85, 0.85), end: const Offset(1, 1)),
     );
   }
 }
@@ -879,7 +866,8 @@ class _InAppFriendProfileShareSheet extends StatefulWidget {
       _InAppFriendProfileShareSheetState();
 }
 
-class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareSheet> {
+class _InAppFriendProfileShareSheetState
+    extends State<_InAppFriendProfileShareSheet> {
   List<Map<String, dynamic>> _friends = [];
   final Set<String> _selected = {};
   bool _loading = true;
@@ -904,7 +892,8 @@ class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareS
     if (mounted) {
       setState(() {
         _friends = snap.docs
-            .map((d) => {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
+            .map((d) =>
+                {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
             .toList();
         _loading = false;
       });
@@ -929,8 +918,9 @@ class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareS
 
     for (final friendUid in _selected) {
       final chatId = _generateChatId(myUid, friendUid);
-      final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
-      
+      final chatRef =
+          FirebaseFirestore.instance.collection('chats').doc(chatId);
+
       final chatSnap = await chatRef.get();
       if (!chatSnap.exists) {
         await chatRef.set({
@@ -966,8 +956,7 @@ class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareS
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Row(children: [
-          const Icon(Icons.check_circle_outline,
-              color: Colors.green, size: 18),
+          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
           Text(
               'Profile shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
@@ -975,8 +964,7 @@ class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareS
         ]),
         backgroundColor: TheyDiColors.card,
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ));
     }
@@ -989,8 +977,8 @@ class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareS
         color: TheyDiColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
       child: Column(
         children: [
           const SizedBox(height: 12),
@@ -1025,14 +1013,14 @@ class _InAppFriendProfileShareSheetState extends State<_InAppFriendProfileShareS
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: TheyDiColors.primary.withAlpha(25),
-                      child: const Icon(Icons.person, color: TheyDiColors.primary),
+                      child:
+                          const Icon(Icons.person, color: TheyDiColors.primary),
                     ),
                     title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
                     trailing: isSelected
                         ? const Icon(Icons.check_circle,
                             color: TheyDiColors.primary)
-                        : const Icon(Icons.circle_outlined,
-                            color: Colors.grey),
+                        : const Icon(Icons.circle_outlined, color: Colors.grey),
                     onTap: () {
                       setState(() {
                         if (isSelected) {

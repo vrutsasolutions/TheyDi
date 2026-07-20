@@ -202,8 +202,7 @@ class JoinValidationService {
     int maxAttendees,
   ) {
     if (maxAttendees <= 0) return false;
-    final ratio =
-        (eventData['genderRatio'] as Map<String, dynamic>?) ?? {};
+    final ratio = (eventData['genderRatio'] as Map<String, dynamic>?) ?? {};
     double percent = 0.0;
     if (userGender == 'male') {
       percent = (ratio['male'] as num?)?.toDouble() ?? 50.0;
@@ -219,8 +218,7 @@ class JoinValidationService {
     // NOTE: gender is not stored on events, so this is a best-effort
     // approximation using the ratio. For production, store gender per
     // attendee uid in a sub-collection. Here we use the ratio proportion.
-    final int currentForGender =
-        (attendeeUids.length * percent / 100).round();
+    final int currentForGender = (attendeeUids.length * percent / 100).round();
 
     return currentForGender >= slotCapacity;
   }

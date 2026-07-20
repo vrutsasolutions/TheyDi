@@ -87,12 +87,12 @@ class _MessageInputState extends State<MessageInput> {
               backgroundColor: hasText ? Colors.green : Colors.grey.shade400,
               child: IconButton(
                 onPressed: hasText
-                  ? () {
-                      widget.onSend();
-                      // Keep focus on input after tapping send button
-                      Future.microtask(() => _focusNode.requestFocus());
-                    }
-                  : null,
+                    ? () {
+                        widget.onSend();
+                        // Keep focus on input after tapping send button
+                        Future.microtask(() => _focusNode.requestFocus());
+                      }
+                    : null,
                 icon: const Icon(
                   Icons.send,
                   color: Colors.white,

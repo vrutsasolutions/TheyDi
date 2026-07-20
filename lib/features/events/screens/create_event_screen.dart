@@ -1102,15 +1102,28 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _handleCreateEvent() async {
-    if (kIsWeb) {
+  if (kIsWeb) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final verified = await FaceVerificationService.isUserVerified(uid);
+
+    if (!verified) {
       await WebVerificationDialog.show(context);
       return;
     }
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    if (uid.isEmpty) return;
-    final verified = await FaceVerificationService.isUserVerified(uid);
-    if (!mounted) return;
 
+    // Verified on web → proceed normally
+    _submit();
+    return;
+  }
+
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  if (uid.isEmpty) return;
+
+  final verified = await FaceVerificationService.isUserVerified(uid);
+
+  if (!mounted) return;
+
+  // Keep the rest of your existing code below this line...
     if (!verified) {
       final goVerify = await showDialog<bool>(
         context: context,
@@ -1250,38 +1263,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           .get();
 
       if (!_isFree) {
-        final data = userDoc.data() ?? {};
-        if (data['razorpayXFundAccountId'] == null ||
-            data['razorpayXFundAccountId'].toString().isEmpty) {
-          Map<String, dynamic> bankData = {};
-          try {
-            final bankDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('private')
-                .doc('bankDetails')
-                .get();
-            bankData = bankDoc.data() ?? {};
+  final data = userDoc.data() ?? {};
 
-            if (bankData.isEmpty) {
-              if (data['bankAccountName'] != null ||
-                  data['bankAccountNumber'] != null) {
-                bankData = {
-                  'payoutMethod': 'bank',
-                  'bankAccountName': data['bankAccountName'],
-                  'bankIfsc': data['bankIfsc'],
-                  'bankAccountNumber': data['bankAccountNumber'],
-                };
-              }
-            }
-          } catch (e) {
-            debugPrint('Error fetching bank details: $e');
-          }
-          setState(() => _isLoading = false);
-          _showBankAccountSetupDialog(existingData: bankData);
-          return;
-        }
-      }
+  final payoutSetupCompleted =
+      (data['payoutSetupCompleted'] as bool?) ?? false;
+
+  if (!payoutSetupCompleted) {
+    setState(() => _isLoading = false);
+
+    final completed = await _ensurePayoutSetup(user.uid);
+
+    if (!mounted) return;
+
+    if (!completed) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+  }
+}
 
       final dateTime = DateTime(_selectedDate!.year, _selectedDate!.month,
           _selectedDate!.day, _selectedTime!.hour, _selectedTime!.minute);
@@ -1379,263 +1379,263 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     }
   }
 
-  void _showBankAccountSetupDialog({Map<String, dynamic>? existingData}) {
-    String payoutMethod = existingData?['payoutMethod'] ?? 'bank';
-    final nameCtrl = TextEditingController(
-      text: existingData?['bankAccountName'] as String? ??
-          FirebaseAuth.instance.currentUser?.displayName ??
-          '',
-    );
-    final ifscCtrl = TextEditingController(
-      text: (existingData?['bankIfsc'] ?? '') as String,
-    );
-    final accCtrl = TextEditingController(
-      text: (existingData?['bankAccountNumber'] ?? '') as String,
-    );
-    final upiCtrl = TextEditingController(
-      text: (existingData?['upiId'] ?? '') as String,
-    );
-    bool isSaving = false;
+  // void _showBankAccountSetupDialog({Map<String, dynamic>? existingData}) {
+  //   String payoutMethod = existingData?['payoutMethod'] ?? 'bank';
+  //   final nameCtrl = TextEditingController(
+  //     text: existingData?['bankAccountName'] as String? ??
+  //         FirebaseAuth.instance.currentUser?.displayName ??
+  //         '',
+  //   );
+  //   final ifscCtrl = TextEditingController(
+  //     text: (existingData?['bankIfsc'] ?? '') as String,
+  //   );
+  //   final accCtrl = TextEditingController(
+  //     text: (existingData?['bankAccountNumber'] ?? '') as String,
+  //   );
+  //   final upiCtrl = TextEditingController(
+  //     text: (existingData?['upiId'] ?? '') as String,
+  //   );
+  //   bool isSaving = false;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: TheyDiColors.card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return Padding(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Setup Host Payouts',
-                    style: TheyDiTextStyles.headlineMedium),
-                const SizedBox(height: 8),
-                Text(
-                    'You are creating a paid event. Please add your payout details to receive earnings.',
-                    style: TheyDiTextStyles.bodySmall
-                        .copyWith(color: TheyDiColors.textSecondary)),
-                const SizedBox(height: 20),
-                Container(
-                  decoration: BoxDecoration(
-                    color: TheyDiColors.divider.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () =>
-                              setModalState(() => payoutMethod = 'bank'),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeInOut,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: payoutMethod == 'bank'
-                                  ? TheyDiColors.primary
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text('Bank Account',
-                                  style: TextStyle(
-                                    color: payoutMethod == 'bank'
-                                        ? Colors.white
-                                        : TheyDiColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  )),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () =>
-                              setModalState(() => payoutMethod = 'upi'),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeInOut,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: payoutMethod == 'upi'
-                                  ? TheyDiColors.primary
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text('UPI',
-                                  style: TextStyle(
-                                    color: payoutMethod == 'upi'
-                                        ? Colors.white
-                                        : TheyDiColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  )),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return FadeTransition(
-                        opacity: animation,
-                        child: SizeTransition(
-                            sizeFactor: animation, child: child));
-                  },
-                  child: payoutMethod == 'bank'
-                      ? Column(
-                          key: const ValueKey('bank'),
-                          children: [
-                            TextFormField(
-                              controller: nameCtrl,
-                              style: TheyDiTextStyles.bodyMedium,
-                              decoration: const InputDecoration(
-                                  labelText: 'Account Holder Name',
-                                  prefixIcon: Icon(Icons.person_outline)),
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: ifscCtrl,
-                              style: TheyDiTextStyles.bodyMedium,
-                              decoration: const InputDecoration(
-                                  labelText: 'IFSC Code',
-                                  hintText: 'e.g. HDFC0001234',
-                                  prefixIcon:
-                                      Icon(Icons.account_balance_outlined)),
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: accCtrl,
-                              style: TheyDiTextStyles.bodyMedium,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                  labelText: 'Account Number',
-                                  prefixIcon: Icon(Icons.numbers_outlined)),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          key: const ValueKey('upi'),
-                          children: [
-                            TextFormField(
-                              controller: upiCtrl,
-                              style: TheyDiTextStyles.bodyMedium,
-                              decoration: const InputDecoration(
-                                  labelText: 'UPI ID (VPA)',
-                                  hintText: 'e.g. username@bank',
-                                  prefixIcon: Icon(Icons.payment)),
-                            ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: isSaving
-                        ? null
-                        : () async {
-                            if (payoutMethod == 'bank') {
-                              if (nameCtrl.text.trim().isEmpty ||
-                                  ifscCtrl.text.trim().isEmpty ||
-                                  accCtrl.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Please fill all bank fields')));
-                                return;
-                              }
-                            } else {
-                              if (upiCtrl.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                        content:
-                                            Text('Please enter your UPI ID')));
-                                return;
-                              }
-                            }
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     backgroundColor: TheyDiColors.card,
+  //     shape: const RoundedRectangleBorder(
+  //         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+  //     builder: (ctx) => StatefulBuilder(
+  //       builder: (context, setModalState) {
+  //         return Padding(
+  //           padding: EdgeInsets.only(
+  //               bottom: MediaQuery.of(ctx).viewInsets.bottom,
+  //               left: 24,
+  //               right: 24,
+  //               top: 24),
+  //           child: Column(
+  //             mainAxisSize: MainAxisSize.min,
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Text('Setup Host Payouts',
+  //                   style: TheyDiTextStyles.headlineMedium),
+  //               const SizedBox(height: 8),
+  //               Text(
+  //                   'You are creating a paid event. Please add your payout details to receive earnings.',
+  //                   style: TheyDiTextStyles.bodySmall
+  //                       .copyWith(color: TheyDiColors.textSecondary)),
+  //               const SizedBox(height: 20),
+  //               Container(
+  //                 decoration: BoxDecoration(
+  //                   color: TheyDiColors.divider.withValues(alpha: 0.3),
+  //                   borderRadius: BorderRadius.circular(12),
+  //                 ),
+  //                 child: Row(
+  //                   children: [
+  //                     Expanded(
+  //                       child: GestureDetector(
+  //                         onTap: () =>
+  //                             setModalState(() => payoutMethod = 'bank'),
+  //                         child: AnimatedContainer(
+  //                           duration: const Duration(milliseconds: 250),
+  //                           curve: Curves.easeInOut,
+  //                           padding: const EdgeInsets.symmetric(vertical: 12),
+  //                           decoration: BoxDecoration(
+  //                             color: payoutMethod == 'bank'
+  //                                 ? TheyDiColors.primary
+  //                                 : Colors.transparent,
+  //                             borderRadius: BorderRadius.circular(12),
+  //                           ),
+  //                           child: Center(
+  //                             child: Text('Bank Account',
+  //                                 style: TextStyle(
+  //                                   color: payoutMethod == 'bank'
+  //                                       ? Colors.white
+  //                                       : TheyDiColors.textPrimary,
+  //                                   fontWeight: FontWeight.w600,
+  //                                 )),
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                     Expanded(
+  //                       child: GestureDetector(
+  //                         onTap: () =>
+  //                             setModalState(() => payoutMethod = 'upi'),
+  //                         child: AnimatedContainer(
+  //                           duration: const Duration(milliseconds: 250),
+  //                           curve: Curves.easeInOut,
+  //                           padding: const EdgeInsets.symmetric(vertical: 12),
+  //                           decoration: BoxDecoration(
+  //                             color: payoutMethod == 'upi'
+  //                                 ? TheyDiColors.primary
+  //                                 : Colors.transparent,
+  //                             borderRadius: BorderRadius.circular(12),
+  //                           ),
+  //                           child: Center(
+  //                             child: Text('UPI',
+  //                                 style: TextStyle(
+  //                                   color: payoutMethod == 'upi'
+  //                                       ? Colors.white
+  //                                       : TheyDiColors.textPrimary,
+  //                                   fontWeight: FontWeight.w600,
+  //                                 )),
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 20),
+  //               AnimatedSwitcher(
+  //                 duration: const Duration(milliseconds: 300),
+  //                 transitionBuilder:
+  //                     (Widget child, Animation<double> animation) {
+  //                   return FadeTransition(
+  //                       opacity: animation,
+  //                       child: SizeTransition(
+  //                           sizeFactor: animation, child: child));
+  //                 },
+  //                 child: payoutMethod == 'bank'
+  //                     ? Column(
+  //                         key: const ValueKey('bank'),
+  //                         children: [
+  //                           TextFormField(
+  //                             controller: nameCtrl,
+  //                             style: TheyDiTextStyles.bodyMedium,
+  //                             decoration: const InputDecoration(
+  //                                 labelText: 'Account Holder Name',
+  //                                 prefixIcon: Icon(Icons.person_outline)),
+  //                           ),
+  //                           const SizedBox(height: 16),
+  //                           TextFormField(
+  //                             controller: ifscCtrl,
+  //                             style: TheyDiTextStyles.bodyMedium,
+  //                             decoration: const InputDecoration(
+  //                                 labelText: 'IFSC Code',
+  //                                 hintText: 'e.g. HDFC0001234',
+  //                                 prefixIcon:
+  //                                     Icon(Icons.account_balance_outlined)),
+  //                           ),
+  //                           const SizedBox(height: 16),
+  //                           TextFormField(
+  //                             controller: accCtrl,
+  //                             style: TheyDiTextStyles.bodyMedium,
+  //                             keyboardType: TextInputType.number,
+  //                             decoration: const InputDecoration(
+  //                                 labelText: 'Account Number',
+  //                                 prefixIcon: Icon(Icons.numbers_outlined)),
+  //                           ),
+  //                         ],
+  //                       )
+  //                     : Column(
+  //                         key: const ValueKey('upi'),
+  //                         children: [
+  //                           TextFormField(
+  //                             controller: upiCtrl,
+  //                             style: TheyDiTextStyles.bodyMedium,
+  //                             decoration: const InputDecoration(
+  //                                 labelText: 'UPI ID (VPA)',
+  //                                 hintText: 'e.g. username@bank',
+  //                                 prefixIcon: Icon(Icons.payment)),
+  //                           ),
+  //                         ],
+  //                       ),
+  //               ),
+  //               const SizedBox(height: 24),
+  //               SizedBox(
+  //                 width: double.infinity,
+  //                 height: 50,
+  //                 child: ElevatedButton(
+  //                   onPressed: isSaving
+  //                       ? null
+  //                       : () async {
+  //                           if (payoutMethod == 'bank') {
+  //                             if (nameCtrl.text.trim().isEmpty ||
+  //                                 ifscCtrl.text.trim().isEmpty ||
+  //                                 accCtrl.text.trim().isEmpty) {
+  //                               ScaffoldMessenger.of(ctx).showSnackBar(
+  //                                   const SnackBar(
+  //                                       content: Text(
+  //                                           'Please fill all bank fields')));
+  //                               return;
+  //                             }
+  //                           } else {
+  //                             if (upiCtrl.text.trim().isEmpty) {
+  //                               ScaffoldMessenger.of(ctx).showSnackBar(
+  //                                   const SnackBar(
+  //                                       content:
+  //                                           Text('Please enter your UPI ID')));
+  //                               return;
+  //                             }
+  //                           }
 
-                            setModalState(() => isSaving = true);
-                            try {
-                              final HttpsCallable callable =
-                                  FirebaseFunctions.instanceFor(
-                                          region: 'asia-south1')
-                                      .httpsCallable('createRazorpayXContact');
-                              await callable.call({
-                                'payoutMethod': payoutMethod,
-                                'upiId': upiCtrl.text.trim(),
-                                'name': nameCtrl.text.trim(),
-                                'ifsc': ifscCtrl.text.trim(),
-                                'accountNumber': accCtrl.text.trim(),
-                              });
+  //                           setModalState(() => isSaving = true);
+  //                           try {
+  //                             final HttpsCallable callable =
+  //                                 FirebaseFunctions.instanceFor(
+  //                                         region: 'asia-south1')
+  //                                     .httpsCallable('createRazorpayXContact');
+  //                             await callable.call({
+  //                               'payoutMethod': payoutMethod,
+  //                               'upiId': upiCtrl.text.trim(),
+  //                               'name': nameCtrl.text.trim(),
+  //                               'ifsc': ifscCtrl.text.trim(),
+  //                               'accountNumber': accCtrl.text.trim(),
+  //                             });
 
-                              final uid =
-                                  FirebaseAuth.instance.currentUser?.uid;
-                              if (uid != null) {
-                                await FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(uid)
-                                    .collection('private')
-                                    .doc('bankDetails')
-                                    .set({
-                                  'payoutMethod': payoutMethod,
-                                  'upiId': upiCtrl.text.trim(),
-                                  'bankAccountName': nameCtrl.text.trim(),
-                                  'bankIfsc': ifscCtrl.text.trim(),
-                                  'bankAccountNumber': accCtrl.text.trim(),
-                                }, SetOptions(merge: true));
-                              }
-                              if (mounted) {
-                                Navigator.pop(ctx);
-                                _submit(); // Resume event creation
-                              }
-                            } catch (e) {
-                              setModalState(() => isSaving = false);
-                              if (mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(content: Text('Error: $e')));
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TheyDiColors.primary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Text('Save & Continue',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600)),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
+  //                             final uid =
+  //                                 FirebaseAuth.instance.currentUser?.uid;
+  //                             if (uid != null) {
+  //                               await FirebaseFirestore.instance
+  //                                   .collection('users')
+  //                                   .doc(uid)
+  //                                   .collection('private')
+  //                                   .doc('bankDetails')
+  //                                   .set({
+  //                                 'payoutMethod': payoutMethod,
+  //                                 'upiId': upiCtrl.text.trim(),
+  //                                 'bankAccountName': nameCtrl.text.trim(),
+  //                                 'bankIfsc': ifscCtrl.text.trim(),
+  //                                 'bankAccountNumber': accCtrl.text.trim(),
+  //                               }, SetOptions(merge: true));
+  //                             }
+  //                             if (mounted) {
+  //                               Navigator.pop(ctx);
+  //                               _submit(); // Resume event creation
+  //                             }
+  //                           } catch (e) {
+  //                             setModalState(() => isSaving = false);
+  //                             if (mounted) {
+  //                               ScaffoldMessenger.of(ctx).showSnackBar(
+  //                                   SnackBar(content: Text('Error: $e')));
+  //                             }
+  //                           }
+  //                         },
+  //                   style: ElevatedButton.styleFrom(
+  //                     backgroundColor: TheyDiColors.primary,
+  //                     shape: RoundedRectangleBorder(
+  //                         borderRadius: BorderRadius.circular(12)),
+  //                   ),
+  //                   child: isSaving
+  //                       ? const SizedBox(
+  //                           width: 20,
+  //                           height: 20,
+  //                           child: CircularProgressIndicator(
+  //                               color: Colors.white, strokeWidth: 2))
+  //                       : const Text('Save & Continue',
+  //                           style: TextStyle(
+  //                               color: Colors.white,
+  //                               fontWeight: FontWeight.w600)),
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 24),
+  //             ],
+  //           ),
+  //         );
+  //       },
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {

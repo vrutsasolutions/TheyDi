@@ -13,17 +13,17 @@ class WebVerificationDialog {
       barrierDismissible: true,
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
-            width: 80, height: 80,
+            width: 80,
+            height: 80,
             decoration: const BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.phone_android,
-                color: Colors.white, size: 40),
+            child:
+                const Icon(Icons.phone_android, color: Colors.white, size: 40),
           ),
           const SizedBox(height: 20),
           Text('Download TheyDi App',

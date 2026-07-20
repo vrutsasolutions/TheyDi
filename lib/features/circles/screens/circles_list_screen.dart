@@ -71,7 +71,6 @@ class CirclesListScreen extends ConsumerStatefulWidget {
     this.initialTab = 0,
   });
 
-
   @override
   ConsumerState<CirclesListScreen> createState() => _CirclesListScreenState();
 }
@@ -81,24 +80,23 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
   late TabController _tabController;
   final Set<String> _selectedFriendUids = {};
   final Set<String> _selectedCircleIds = {};
-  
 
   Future<void> _sendEventShare({
-  required BuildContext context,
-  required String eventId,
-  required List<String> selectedFriendUids,
-  required List<String> selectedCircleIds,
-}) async {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Event Share feature is under development.'),
-    ),
-  );
+    required BuildContext context,
+    required String eventId,
+    required List<String> selectedFriendUids,
+    required List<String> selectedCircleIds,
+  }) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Event Share feature is under development.'),
+      ),
+    );
 
-  if (context.mounted) {
-    context.pop();
+    if (context.mounted) {
+      context.pop();
+    }
   }
-}
 
 @override
 void initState() {
@@ -123,7 +121,8 @@ void initState() {
   Widget build(BuildContext context) {
     final requestsAsync = ref.watch(_requestsProvider);
     final pendingCount = requestsAsync.asData?.value.length ?? 0;
-    final selectedCount = _selectedFriendUids.length + _selectedCircleIds.length;
+    final selectedCount =
+        _selectedFriendUids.length + _selectedCircleIds.length;
 
     return Scaffold(
       body: Container(
@@ -160,34 +159,36 @@ void initState() {
                           ),
                         ),
                         if (!widget.isSelectionMode) ...[
-  const SizedBox(width: 8),
-  GestureDetector(
-    onTap: () => context.push(AppRoutes.createCircle),
-    child: Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 8,
-      ),
-      decoration: BoxDecoration(
-        gradient: TheyDiColors.gradientPrimary,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add, color: Colors.white, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            'New',
-            style: TheyDiTextStyles.labelMedium.copyWith(
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    ),
-  ),
-],
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => context.push(AppRoutes.createCircle),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: TheyDiColors.gradientPrimary,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.add,
+                                      color: Colors.white, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'New',
+                                    style:
+                                        TheyDiTextStyles.labelMedium.copyWith(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     );
                   },
@@ -515,8 +516,7 @@ class _CirclesTab extends ConsumerWidget {
             icon: Icons.group_outlined,
             title: 'No circles yet',
             subtitle: 'Create a circle to start chatting with friends',
-            actionLabel:
-                isSelectionMode ? null : 'Create your first circle',
+            actionLabel: isSelectionMode ? null : 'Create your first circle',
             onAction: isSelectionMode
                 ? null
                 : (context) => context.push(AppRoutes.createCircle),
@@ -639,49 +639,48 @@ class _FriendCard extends StatelessWidget {
               children: [
                 // Avatar
                 // Avatar + Online Status Dot
-Stack(
-  children: [
-    Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        gradient: TheyDiColors.gradientPrimary,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: photoUrl.isNotEmpty
-            ? Image.network(
-                photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text(
-                    initial,
-                    style: TheyDiTextStyles.labelLarge
-                        .copyWith(color: Colors.white),
-                  ),
+                Stack(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: photoUrl.isNotEmpty
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    initial,
+                                    style: TheyDiTextStyles.labelLarge
+                                        .copyWith(color: Colors.white),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  initial,
+                                  style: TheyDiTextStyles.labelLarge
+                                      .copyWith(color: Colors.white),
+                                ),
+                              ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: AvatarOnlineStatusDot(
+                        uid: uid,
+                        size: 10,
+                      ),
+                    ),
+                  ],
                 ),
-              )
-            : Center(
-                child: Text(
-                  initial,
-                  style: TheyDiTextStyles.labelLarge
-                      .copyWith(color: Colors.white),
-                ),
-              ),
-      ),
-    ),
-
-    Positioned(
-      right: 0,
-      bottom: 0,
-      child: AvatarOnlineStatusDot(
-        uid: uid,
-        size: 10,
-      ),
-    ),
-  ],
-),
                 const SizedBox(width: 12),
 
                 // Info
@@ -791,7 +790,8 @@ class _CircleCard extends StatelessWidget {
                 gradient: TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: circle.profileImageUrl != null && circle.profileImageUrl!.isNotEmpty
+              child: circle.profileImageUrl != null &&
+                      circle.profileImageUrl!.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: Image.network(
@@ -992,51 +992,49 @@ class _EventShareSelectionBar extends StatelessWidget {
   }
 }
 
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Container(
-  //     padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-  //     decoration: BoxDecoration(
-  //       color: TheyDiColors.dark,
-  //       border: Border(top: BorderSide(color: TheyDiColors.divider)),
-  //     ),
-  //     child: SafeArea(
-  //       top: false,
-  //       child: Row(
-  //         children: [
-  //           TextButton(
-  //             onPressed: onCancel,
-  //             child: Text(
-  //               'Cancel',
-  //               style: TheyDiTextStyles.labelMedium
-  //                   .copyWith(color: TheyDiColors.textSecondary),
-  //             ),
-  //           ),
-  //           const Spacer(),
-  //           Text(
-  //             '$selectedCount selected',
-  //             style: TheyDiTextStyles.caption
-  //                 .copyWith(color: TheyDiColors.textSecondary),
-  //           ),
-  //           const SizedBox(width: 12),
-  //           ElevatedButton(
-  //             onPressed: onDone,
-  //             style: ElevatedButton.styleFrom(
-  //               backgroundColor: TheyDiColors.primary,
-  //               foregroundColor: Colors.white,
-  //               shape: RoundedRectangleBorder(
-  //                 borderRadius: BorderRadius.circular(12),
-  //               ),
-  //             ),
-  //             child: const Text('Done'),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
+// @override
+// Widget build(BuildContext context) {
+//   return Container(
+//     padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+//     decoration: BoxDecoration(
+//       color: TheyDiColors.dark,
+//       border: Border(top: BorderSide(color: TheyDiColors.divider)),
+//     ),
+//     child: SafeArea(
+//       top: false,
+//       child: Row(
+//         children: [
+//           TextButton(
+//             onPressed: onCancel,
+//             child: Text(
+//               'Cancel',
+//               style: TheyDiTextStyles.labelMedium
+//                   .copyWith(color: TheyDiColors.textSecondary),
+//             ),
+//           ),
+//           const Spacer(),
+//           Text(
+//             '$selectedCount selected',
+//             style: TheyDiTextStyles.caption
+//                 .copyWith(color: TheyDiColors.textSecondary),
+//           ),
+//           const SizedBox(width: 12),
+//           ElevatedButton(
+//             onPressed: onDone,
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: TheyDiColors.primary,
+//               foregroundColor: Colors.white,
+//               shape: RoundedRectangleBorder(
+//                 borderRadius: BorderRadius.circular(12),
+//               ),
+//             ),
+//             child: const Text('Done'),
+//           ),
+//         ],
+//       ),
+//     ),
+//   );
+// }
 
 class _RequestCard extends StatefulWidget {
   final String requestId;

@@ -20,7 +20,8 @@ class LeaveEventService {
   LeaveEventService._();
 
   static const double _trustPenalty = 2.0; // points deducted per leave
-  static const double _refundPercent = 0.95; // 95% refund for paid events (5% fee deducted)
+  static const double _refundPercent =
+      0.95; // 95% refund for paid events (5% fee deducted)
 
   /// Main entry point. Call this after the user confirms leaving.
   ///
@@ -34,8 +35,7 @@ class LeaveEventService {
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      return const LeaveEventResult(
-          success: false, message: 'Not signed in.');
+      return const LeaveEventResult(success: false, message: 'Not signed in.');
     }
 
     final db = FirebaseFirestore.instance;
@@ -97,13 +97,13 @@ class LeaveEventService {
           'originalAmount': price,
           'refundAmount': refundAmount,
           'refundPercent': (_refundPercent * 100).toInt(),
-          'status': 'pending',           // pending → processed by backend
+          'status': 'pending', // pending → processed by backend
           'reason': 'user_left_event',
           'createdAt': Timestamp.now(),
           'estimatedDays': 7,
         });
       }
-      
+
       // Find and update the booking to 'cancelled' (for both free and paid)
       final bookingQuery = await db
           .collection('bookings')
@@ -111,7 +111,7 @@ class LeaveEventService {
           .where('userId', isEqualTo: uid)
           .where('status', isEqualTo: 'confirmed')
           .get();
-          
+
       for (var doc in bookingQuery.docs) {
         batch.update(doc.reference, {'status': 'cancelled'});
       }
@@ -122,11 +122,8 @@ class LeaveEventService {
       }
 
       // 4. Leave activity log (for trust audit trail)
-      final logRef = db
-          .collection('users')
-          .doc(uid)
-          .collection('activityLog')
-          .doc();
+      final logRef =
+          db.collection('users').doc(uid).collection('activityLog').doc();
       batch.set(logRef, {
         'type': 'left_event',
         'eventId': eventId,
@@ -152,8 +149,7 @@ class LeaveEventService {
         message: 'You have successfully left the event.',
       );
     } catch (e) {
-      return LeaveEventResult(
-          success: false, message: 'Failed to leave: $e');
+      return LeaveEventResult(success: false, message: 'Failed to leave: $e');
     }
   }
 }

@@ -54,8 +54,7 @@ class CloudflareUpload {
         },
       );
 
-      return response.statusCode == 200 ||
-          response.statusCode == 204;
+      return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('[CloudflareUpload] deleteFile error: $e');
       return false;

@@ -24,7 +24,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
               color: Colors.teal,
             ),
             const SizedBox(height: 14),
-
             const Center(
               child: Text(
                 "Privacy Policy",
@@ -34,9 +33,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 8),
-
             Center(
               child: Text(
                 "Your privacy matters to us.",
@@ -46,18 +43,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 25),
-
             _buildCard(
               icon: Icons.info_outline,
               title: "Introduction",
-              content:
-                  "Welcome to TheyDi, operated by Vrutsa Solutions.\n\n"
+              content: "Welcome to TheyDi, operated by Vrutsa Solutions.\n\n"
                   "We value your privacy and are committed to protecting your personal information. "
                   "This Privacy Policy explains how we collect, use, store and protect your data when using TheyDi.",
             ),
-
             _buildCard(
               icon: Icons.person_outline,
               title: "Information We Collect",
@@ -78,7 +71,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "GPS Location (with permission)",
               ],
             ),
-
             _buildCard(
               icon: Icons.settings,
               title: "How We Use Your Information",
@@ -93,7 +85,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "Send important notifications",
               ],
             ),
-
             _buildCard(
               icon: Icons.face_retouching_natural,
               title: "Face Verification",
@@ -102,7 +93,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   "It is never used for advertising, profiling or surveillance.\n\n"
                   "You may request deletion of your face verification data at any time.",
             ),
-
             _buildCard(
               icon: Icons.share_outlined,
               title: "Information Sharing",
@@ -115,18 +105,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "Legal Authorities (when required by law)",
               ],
             ),
-
             _buildCard(
               icon: Icons.location_on_outlined,
               title: "Location Information",
-              content:
-                  "With your permission, TheyDi uses GPS location to:\n\n"
+              content: "With your permission, TheyDi uses GPS location to:\n\n"
                   "• Show nearby events\n"
                   "• Calculate event distance\n"
                   "• Improve recommendations\n\n"
                   "You can disable location permission anytime from your device settings.",
             ),
-
             _buildCard(
               icon: Icons.lock_outline,
               title: "Data Security",
@@ -138,7 +125,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "Access Controls",
               ],
             ),
-
             _buildCard(
               icon: Icons.storage,
               title: "Data Retention",
@@ -146,7 +132,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   "Your information is stored only as long as required to provide our services or comply with Indian laws.\n\n"
                   "Some financial records may be retained according to legal requirements.",
             ),
-
             _buildCard(
               icon: Icons.verified_user_outlined,
               title: "Your Rights",
@@ -158,7 +143,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "Contact our grievance officer",
               ],
             ),
-
             _buildCard(
               icon: Icons.cookie_outlined,
               title: "Cookies",
@@ -168,24 +152,19 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "User Preferences",
               ],
             ),
-
             _buildCard(
               icon: Icons.update,
               title: "Policy Updates",
               content:
                   "We may update this Privacy Policy from time to time. Significant changes will be communicated through the app or email.",
             ),
-
             _buildCard(
               icon: Icons.email_outlined,
               title: "Contact Us",
-              content:
-                  "Vrutsa Solutions\n\nEmail:\n\n"
+              content: "Vrutsa Solutions\n\nEmail:\n\n"
                   "theydi.app@gmail.com",
             ),
-
             const SizedBox(height: 25),
-
             Center(
               child: Text(
                 "By using TheyDi, you acknowledge that you have read and understood this Privacy Policy.",
@@ -196,7 +175,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 30),
           ],
         ),

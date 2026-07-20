@@ -37,11 +37,11 @@ class BookingModel {
 
   factory BookingModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Helper function to parse DateTime from either Timestamp or String
     DateTime parseDateTime(dynamic dateValue) {
       if (dateValue == null) return DateTime.now();
-      
+
       if (dateValue is Timestamp) {
         return dateValue.toDate();
       } else if (dateValue is String) {
@@ -55,11 +55,11 @@ class BookingModel {
       }
       return DateTime.now();
     }
-    
+
     // Helper function to parse nullable DateTime
     DateTime? parseNullableDateTime(dynamic dateValue) {
       if (dateValue == null) return null;
-      
+
       if (dateValue is Timestamp) {
         return dateValue.toDate();
       } else if (dateValue is String) {
@@ -73,7 +73,7 @@ class BookingModel {
       }
       return null;
     }
-    
+
     return BookingModel(
       id: doc.id,
       eventId: data['eventId'] ?? '',

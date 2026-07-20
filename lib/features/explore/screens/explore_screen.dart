@@ -40,8 +40,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final DateTime today = DateTime(now.year, now.month, now.day);
     final DateTime weekLater = today.add(const Duration(days: 7));
 
-    debugPrint('EXPLORE_DEBUG: _applyQuickFilter called. Filter: $_selectedFilter. Events count: ${events.length}');
-    
+    debugPrint(
+        'EXPLORE_DEBUG: _applyQuickFilter called. Filter: $_selectedFilter. Events count: ${events.length}');
+
     // Create a copy to reorder without mutating the source list
     final sorted = List<EventModel>.from(events);
 
@@ -51,14 +52,22 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       bool bMatchesQuick = false;
 
       if (_selectedFilter == 'Today') {
-        aMatchesQuick = a.dateTime.year == today.year && a.dateTime.month == today.month && a.dateTime.day == today.day;
-        bMatchesQuick = b.dateTime.year == today.year && b.dateTime.month == today.month && b.dateTime.day == today.day;
+        aMatchesQuick = a.dateTime.year == today.year &&
+            a.dateTime.month == today.month &&
+            a.dateTime.day == today.day;
+        bMatchesQuick = b.dateTime.year == today.year &&
+            b.dateTime.month == today.month &&
+            b.dateTime.day == today.day;
       } else if (_selectedFilter == 'Free') {
         aMatchesQuick = a.isFree;
         bMatchesQuick = b.isFree;
       } else if (_selectedFilter == 'This Week') {
-        aMatchesQuick = a.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) && a.dateTime.isBefore(weekLater);
-        bMatchesQuick = b.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) && b.dateTime.isBefore(weekLater);
+        aMatchesQuick =
+            a.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) &&
+                a.dateTime.isBefore(weekLater);
+        bMatchesQuick =
+            b.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) &&
+                b.dateTime.isBefore(weekLater);
       }
 
       if (aMatchesQuick != bMatchesQuick) return aMatchesQuick ? -1 : 1;
@@ -73,8 +82,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         if (b.category == _advancedFilters.category) bScore++;
       }
       if (_advancedFilters.city != null) {
-        if (a.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) aScore++;
-        if (b.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) bScore++;
+        if (a.city.toLowerCase() == _advancedFilters.city!.toLowerCase())
+          aScore++;
+        if (b.city.toLowerCase() == _advancedFilters.city!.toLowerCase())
+          bScore++;
       }
       if (_advancedFilters.freeOnly == true) {
         if (a.isFree) aScore++;
@@ -89,7 +100,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         if (b.dateTime.isAfter(_advancedFilters.dateFrom!)) bScore++;
       }
       if (_advancedFilters.dateTo != null) {
-        final endOfDay = _advancedFilters.dateTo!.add(const Duration(hours: 23, minutes: 59));
+        final endOfDay = _advancedFilters.dateTo!
+            .add(const Duration(hours: 23, minutes: 59));
         if (a.dateTime.isBefore(endOfDay)) aScore++;
         if (b.dateTime.isBefore(endOfDay)) bScore++;
       }
@@ -100,12 +112,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       return a.dateTime.compareTo(b.dateTime);
     });
 
-    debugPrint('EXPLORE_DEBUG: Sort finished. Top 3 titles: ${sorted.take(3).map((e) => e.title).toList()}');
+    debugPrint(
+        'EXPLORE_DEBUG: Sort finished. Top 3 titles: ${sorted.take(3).map((e) => e.title).toList()}');
     return sorted;
   }
 
   // Shared logic to ensure segments also respect the Quick Filter reordering/prioritization
-  List<EventModel> _sortSegment(List<EventModel> events, int Function(EventModel a, EventModel b) secondaryComparator) {
+  List<EventModel> _sortSegment(List<EventModel> events,
+      int Function(EventModel a, EventModel b) secondaryComparator) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final weekLater = today.add(const Duration(days: 7));
@@ -118,8 +132,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       bool bMatchesQuick = false;
 
       if (_selectedFilter == 'Today') {
-        aMatchesQuick = a.dateTime.year == today.year && a.dateTime.month == today.month && a.dateTime.day == today.day;
-        bMatchesQuick = b.dateTime.year == today.year && b.dateTime.month == today.month && b.dateTime.day == today.day;
+        aMatchesQuick = a.dateTime.year == today.year &&
+            a.dateTime.month == today.month &&
+            a.dateTime.day == today.day;
+        bMatchesQuick = b.dateTime.year == today.year &&
+            b.dateTime.month == today.month &&
+            b.dateTime.day == today.day;
       } else if (_selectedFilter == 'Free') {
         aMatchesQuick = a.isFree;
         bMatchesQuick = b.isFree;
@@ -139,24 +157,29 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   List<EventModel> _getTrending(List<EventModel> events) {
-    return _sortSegment(events, (a, b) => b.currentAttendees.compareTo(a.currentAttendees));
+    return _sortSegment(
+        events, (a, b) => b.currentAttendees.compareTo(a.currentAttendees));
   }
 
   List<EventModel> _getMostPopular(List<EventModel> events) {
     final popularCandidates = events.where((e) => !e.isFull).toList();
-    return _sortSegment(popularCandidates, (a, b) => b.currentAttendees.compareTo(a.currentAttendees));
+    return _sortSegment(popularCandidates,
+        (a, b) => b.currentAttendees.compareTo(a.currentAttendees));
   }
 
   List<EventModel> _getHouseParties(List<EventModel> events) {
-    final partyCandidates = events.where((e) =>
-        e.category.toLowerCase() == 'party' ||
-        e.category.toLowerCase() == 'social' ||
-        e.title.toLowerCase().contains('party') ||
-        e.description.toLowerCase().contains('party') ||
-        e.title.toLowerCase().contains('house') ||
-        e.description.toLowerCase().contains('house')).toList();
+    final partyCandidates = events
+        .where((e) =>
+            e.category.toLowerCase() == 'party' ||
+            e.category.toLowerCase() == 'social' ||
+            e.title.toLowerCase().contains('party') ||
+            e.description.toLowerCase().contains('party') ||
+            e.title.toLowerCase().contains('house') ||
+            e.description.toLowerCase().contains('house'))
+        .toList();
 
-    return _sortSegment(partyCandidates, (a, b) => a.dateTime.compareTo(b.dateTime));
+    return _sortSegment(
+        partyCandidates, (a, b) => a.dateTime.compareTo(b.dateTime));
   }
 
   List<EventModel> _getNewlyAdded(List<EventModel> events) {
@@ -175,7 +198,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color.fromARGB(255, 255, 255, 255), Color.fromARGB(255, 255, 255, 255)],
+            colors: [
+              Color.fromARGB(255, 255, 255, 255),
+              Color.fromARGB(255, 255, 255, 255)
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -183,12 +209,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         child: SafeArea(
           child: eventsAsync.when(
             loading: () => const Center(
-              child:
-                  CircularProgressIndicator(color: TheyDiColors.primary),
+              child: CircularProgressIndicator(color: TheyDiColors.primary),
             ),
             error: (e, _) => Center(
-              child: Text('Failed to load: $e',
-                  style: TheyDiTextStyles.bodySmall),
+              child:
+                  Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
             ),
             data: (allEvents) {
               final filtered = _applyQuickFilter(allEvents);
@@ -234,38 +259,33 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               decoration: BoxDecoration(
                                 color: TheyDiColors.card,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: TheyDiColors.divider),
+                                border: Border.all(color: TheyDiColors.divider),
                               ),
                               child: Row(
                                 children: [
                                   const SizedBox(width: 12),
                                   const Icon(Icons.search,
-                                      color: TheyDiColors.textMuted,
-                                      size: 20),
+                                      color: TheyDiColors.textMuted, size: 20),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       'Search events across India...',
-                                      style: TheyDiTextStyles.bodySmall
-                                          .copyWith(
+                                      style:
+                                          TheyDiTextStyles.bodySmall.copyWith(
                                         color: TheyDiColors.textMuted,
                                       ),
                                     ),
                                   ),
                                   Container(
-                                    margin:
-                                        const EdgeInsets.only(right: 8),
+                                    margin: const EdgeInsets.only(right: 8),
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color: TheyDiColors.primary
                                           .withValues(alpha: 0.15),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Icon(Icons.tune,
-                                        color: TheyDiColors.primary,
-                                        size: 16),
+                                        color: TheyDiColors.primary, size: 16),
                                   ),
                                 ],
                               ),
@@ -276,120 +296,137 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
                           // Filter chips + advanced filter
                           SingleChildScrollView(
-  scrollDirection: Axis.horizontal,
-  child: Row(
-    children: [
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  height: 32,
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _filters.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: 6),
+                                    itemBuilder: (context, index) {
+                                      final filter = _filters[index];
+                                      final isSelected =
+                                          filter == _selectedFilter;
 
-      SizedBox(
-        height: 32,
-        child: ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          scrollDirection: Axis.horizontal,
-          itemCount: _filters.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 6),
-          itemBuilder: (context, index) {
-            final filter = _filters[index];
-            final isSelected = filter == _selectedFilter;
-
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedFilter = filter;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  gradient:
-                      isSelected ? TheyDiColors.gradientPrimary : null,
-                  color:
-                      isSelected ? null : TheyDiColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isSelected
-                        ? Colors.transparent
-                        : TheyDiColors.divider,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    filter,
-                    style: TheyDiTextStyles.caption.copyWith(
-                      fontSize: 11,
-                      color: isSelected
-                          ? Colors.white
-                          : TheyDiColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-
-      const SizedBox(width: 8),
-
-      GestureDetector(
-        onTap: () {
-          FilterBottomSheet.show(
-            context: context,
-            filters: _advancedFilters,
-            onApply: (filters) {
-              setState(() {
-                _advancedFilters.category = filters.category;
-                _advancedFilters.city = filters.city;
-                _advancedFilters.freeOnly = filters.freeOnly;
-                _advancedFilters.maxPrice = filters.maxPrice;
-                _advancedFilters.dateFrom = filters.dateFrom;
-                _advancedFilters.dateTo = filters.dateTo;
-              });
-            },
-          );
-        },
-        child: Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: _advancedFilters.hasActiveFilters
-                ? TheyDiColors.primary.withValues(alpha: .15)
-                : TheyDiColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _advancedFilters.hasActiveFilters
-                  ? TheyDiColors.primary
-                  : TheyDiColors.divider,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.tune,
-                size: 15,
-                color: _advancedFilters.hasActiveFilters
-                    ? TheyDiColors.primary
-                    : TheyDiColors.textSecondary,
-              ),
-              if (_advancedFilters.activeCount > 0) ...[
-                const SizedBox(width: 4),
-                Text(
-                  "${_advancedFilters.activeCount}",
-                  style: TheyDiTextStyles.caption.copyWith(
-                    fontSize: 10,
-                    color: TheyDiColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    ],
-  ),
-),
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedFilter = filter;
+                                          });
+                                        },
+                                        child: AnimatedContainer(
+                                          duration:
+                                              const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            gradient: isSelected
+                                                ? TheyDiColors.gradientPrimary
+                                                : null,
+                                            color: isSelected
+                                                ? null
+                                                : TheyDiColors.card,
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? Colors.transparent
+                                                  : TheyDiColors.divider,
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              filter,
+                                              style: TheyDiTextStyles.caption
+                                                  .copyWith(
+                                                fontSize: 11,
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : TheyDiColors
+                                                        .textSecondary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () {
+                                    FilterBottomSheet.show(
+                                      context: context,
+                                      filters: _advancedFilters,
+                                      onApply: (filters) {
+                                        setState(() {
+                                          _advancedFilters.category =
+                                              filters.category;
+                                          _advancedFilters.city = filters.city;
+                                          _advancedFilters.freeOnly =
+                                              filters.freeOnly;
+                                          _advancedFilters.maxPrice =
+                                              filters.maxPrice;
+                                          _advancedFilters.dateFrom =
+                                              filters.dateFrom;
+                                          _advancedFilters.dateTo =
+                                              filters.dateTo;
+                                        });
+                                      },
+                                    );
+                                  },
+                                  child: Container(
+                                    height: 32,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: _advancedFilters.hasActiveFilters
+                                          ? TheyDiColors.primary
+                                              .withValues(alpha: .15)
+                                          : TheyDiColors.card,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: _advancedFilters.hasActiveFilters
+                                            ? TheyDiColors.primary
+                                            : TheyDiColors.divider,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.tune,
+                                          size: 15,
+                                          color:
+                                              _advancedFilters.hasActiveFilters
+                                                  ? TheyDiColors.primary
+                                                  : TheyDiColors.textSecondary,
+                                        ),
+                                        if (_advancedFilters.activeCount >
+                                            0) ...[
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "${_advancedFilters.activeCount}",
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                              fontSize: 10,
+                                              color: TheyDiColors.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                           const SizedBox(height: 20),
                         ],
@@ -408,9 +445,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         icon: Icons.local_fire_department,
                         iconColor: Colors.orange,
                         events: trending,
-                      )
-                          .animate(delay: 200.ms)
-                          .fade(duration: 400.ms),
+                      ).animate(delay: 200.ms).fade(duration: 400.ms),
                     ),
 
                   // Most Popular
@@ -422,9 +457,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         icon: Icons.star_rounded,
                         iconColor: Colors.amber,
                         events: popular.take(3).toList(),
-                      )
-                          .animate(delay: 300.ms)
-                          .fade(duration: 400.ms),
+                      ).animate(delay: 300.ms).fade(duration: 400.ms),
                     ),
 
                   // House Parties
@@ -436,9 +469,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         icon: Icons.celebration,
                         iconColor: Colors.pink,
                         events: parties,
-                      )
-                          .animate(delay: 400.ms)
-                          .fade(duration: 400.ms),
+                      ).animate(delay: 400.ms).fade(duration: 400.ms),
                     ),
 
                   // Newly Added
@@ -450,9 +481,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         icon: Icons.new_releases_outlined,
                         iconColor: Colors.green,
                         events: newEvents.take(3).toList(),
-                      )
-                          .animate(delay: 500.ms)
-                          .fade(duration: 400.ms),
+                      ).animate(delay: 500.ms).fade(duration: 400.ms),
                     ),
 
                   // All Events (filtered)
@@ -469,8 +498,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           const Spacer(),
                           Text(
                             '${filtered.length} result${filtered.length == 1 ? '' : 's'}',
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: TheyDiColors.textSecondary),
+                            style: TheyDiTextStyles.caption
+                                .copyWith(color: TheyDiColors.textSecondary),
                           ),
                         ],
                       ),
@@ -489,15 +518,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                   size: 56, color: Colors.grey[700]),
                               const SizedBox(height: 12),
                               Text('No events found',
-                                  style:
-                                      TheyDiTextStyles.headlineMedium),
+                                  style: TheyDiTextStyles.headlineMedium),
                               const SizedBox(height: 6),
-                              Text(
-                                  'Try a different filter or category',
-                                  style: TheyDiTextStyles.bodySmall
-                                      .copyWith(
-                                          color: TheyDiColors
-                                              .textSecondary)),
+                              Text('Try a different filter or category',
+                                  style: TheyDiTextStyles.bodySmall.copyWith(
+                                      color: TheyDiColors.textSecondary)),
                             ],
                           ),
                         ),
@@ -505,16 +530,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     )
                   else
                     SliverPadding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final event = filtered[index];
                             return _ExploreEventCard(event: event)
                                 .animate(
-                                  delay: Duration(
-                                      milliseconds: 50 * index),
+                                  delay: Duration(milliseconds: 50 * index),
                                 )
                                 .fade(duration: 300.ms)
                                 .slideX(begin: 0.05, end: 0);
@@ -524,8 +547,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       ),
                     ),
 
-                  const SliverToBoxAdapter(
-                      child: SizedBox(height: 100)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               );
             },
@@ -657,9 +679,8 @@ class _VerticalSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
-            children: events
-                .map((event) => _ExploreEventCard(event: event))
-                .toList(),
+            children:
+                events.map((event) => _ExploreEventCard(event: event)).toList(),
           ),
         ),
         const SizedBox(height: 24),
@@ -693,8 +714,8 @@ class _HorizontalEventCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
                   child: event.allImages.isNotEmpty
                       ? Image.network(
                           event.allImages.first,
@@ -719,8 +740,8 @@ class _HorizontalEventCard extends StatelessWidget {
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(10),
@@ -736,8 +757,8 @@ class _HorizontalEventCard extends StatelessWidget {
                   top: 8,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: event.isFree
                           ? Colors.green
@@ -799,8 +820,8 @@ class _HorizontalEventCard extends StatelessWidget {
                           size: 10, color: TheyDiColors.textMuted),
                       const SizedBox(width: 4),
                       Text(dateStr,
-                          style: TheyDiTextStyles.caption
-                              .copyWith(fontSize: 10)),
+                          style:
+                              TheyDiTextStyles.caption.copyWith(fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -813,8 +834,8 @@ class _HorizontalEventCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text('${event.venue}, ${event.city}',
-                            style: TheyDiTextStyles.caption
-                                .copyWith(fontSize: 10),
+                            style:
+                                TheyDiTextStyles.caption.copyWith(fontSize: 10),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                       ),
@@ -844,8 +865,7 @@ class _HorizontalEventCard extends StatelessWidget {
                         Text(
                           '${event.durationHours}h',
                           style: TheyDiTextStyles.caption.copyWith(
-                              fontSize: 10,
-                              color: TheyDiColors.textMuted),
+                              fontSize: 10, color: TheyDiColors.textMuted),
                         ),
                       ],
                       const Spacer(),
@@ -991,8 +1011,7 @@ class _ExploreEventCard extends StatelessWidget {
                   ),
 
                   // Age Group + Duration row
-                  if (event.ageGroup.isNotEmpty ||
-                      event.durationHours > 0) ...[
+                  if (event.ageGroup.isNotEmpty || event.durationHours > 0) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -1037,8 +1056,8 @@ class _ExploreEventCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: event.isFree
                         ? Colors.green.withValues(alpha: 0.15)
@@ -1048,9 +1067,7 @@ class _ExploreEventCard extends StatelessWidget {
                   child: Text(
                     event.isFree ? 'FREE' : '₹${event.price.toInt()}',
                     style: TheyDiTextStyles.caption.copyWith(
-                      color: event.isFree
-                          ? Colors.green
-                          : TheyDiColors.primary,
+                      color: event.isFree ? Colors.green : TheyDiColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

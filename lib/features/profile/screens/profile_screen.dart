@@ -8,11 +8,6 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
-import '../../../core/services/face_verification_service.dart';
-
-import '../../admin/screens/admin_verification_screen.dart';
-import '../../../features/auth/screens/face_verification_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter/foundation.dart';
 import '../../../shared/widgets/web_verification_dialog.dart';
@@ -356,72 +351,42 @@ class _ProfileContent extends ConsumerWidget {
                   const SizedBox(height: 8),
 
                   if (!isVerified) ...[
-
-                                const SizedBox(height: 10),
-
-                                GestureDetector(
-
-                                  onTap: () async {
-  if (kIsWeb) {
-    await WebVerificationDialog.show(context);
-    return;
-  }
-  final uid =
-      FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return;
-  context.push(
-    AppRoutes.faceVerification,
-    extra: {'userId': uid},
-  );
-},
-
-                                  child: Container(
-
-                                    padding: const EdgeInsets.symmetric(
-
-                                        horizontal: 14, vertical: 7),
-
-                                    decoration: BoxDecoration(
-
-                                      gradient: TheyDiColors.gradientPrimary,
-
-                                      borderRadius: BorderRadius.circular(20),
-
-                                    ),
-
-                                    child: Row(
-
-                                      mainAxisSize: MainAxisSize.min,
-
-                                      children: [
-
-                                        const Icon(Icons.verified_user_outlined,
-
-                                            color: Colors.white, size: 14),
-
-                                        const SizedBox(width: 6),
-
-                                        Text('Get Verified',
-
-                                            style: TheyDiTextStyles.caption
-
-                                                .copyWith(
-
-                                                    color: Colors.white,
-
-                                                    fontWeight:
-
-                                                        FontWeight.w600)),
-
-                                      ],
-
-                                    ),
-
-                                  ),
-
-                                ),
-
-                              ],
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: () async {
+                        if (kIsWeb) {
+                          await WebVerificationDialog.show(context);
+                          return;
+                        }
+                        final uid = FirebaseAuth.instance.currentUser?.uid;
+                        if (uid == null) return;
+                        context.push(
+                          AppRoutes.faceVerification,
+                          extra: {'userId': uid},
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.verified_user_outlined,
+                                color: Colors.white, size: 14),
+                            const SizedBox(width: 6),
+                            Text('Get Verified',
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // Show verify button only when not verified
                   // if (!isVerified)
@@ -470,10 +435,9 @@ class _ProfileContent extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              
 
                               // ── Verify button (only if not yet verified) ──
-                              
+
                               if (isVerified) ...[
                                 const SizedBox(width: 6),
                                 Container(
@@ -582,28 +546,30 @@ class _ProfileContent extends ConsumerWidget {
                                     size: 14, color: Colors.white),
                                 label: const Text('Edit'),
                                 style: ElevatedButton.styleFrom(
-  backgroundColor: TheyDiColors.primary,
-  minimumSize: const Size(40, 45),
-  maximumSize: const Size(40, 45),
-  padding: const EdgeInsets.symmetric(
-    horizontal: 6,
-    vertical: 2,
-  ),
-  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-  visualDensity: const VisualDensity(
-    horizontal: -4,
-    vertical: -4,
-  ),
-  elevation: 2,
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(10),
-  ),
-  textStyle: TheyDiTextStyles.labelSmall.copyWith(
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: FontWeight.w700,
-  ),
-),
+                                  backgroundColor: TheyDiColors.primary,
+                                  minimumSize: const Size(40, 45),
+                                  maximumSize: const Size(40, 45),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: const VisualDensity(
+                                    horizontal: -4,
+                                    vertical: -4,
+                                  ),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  textStyle:
+                                      TheyDiTextStyles.labelSmall.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -614,28 +580,30 @@ class _ProfileContent extends ConsumerWidget {
                                     size: 14, color: Colors.white),
                                 label: const Text('Share'),
                                 style: ElevatedButton.styleFrom(
-  backgroundColor: TheyDiColors.primary,
-  minimumSize: const Size(40, 45),
-  maximumSize: const Size(40, 45),
-  padding: const EdgeInsets.symmetric(
-    horizontal: 6,
-    vertical: 2,
-  ),
-  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-  visualDensity: const VisualDensity(
-    horizontal: -4,
-    vertical: -4,
-  ),
-  elevation: 2,
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(10),
-  ),
-  textStyle: TheyDiTextStyles.labelSmall.copyWith(
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: FontWeight.w700,
-  ),
-),
+                                  backgroundColor: TheyDiColors.primary,
+                                  minimumSize: const Size(40, 45),
+                                  maximumSize: const Size(40, 45),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: const VisualDensity(
+                                    horizontal: -4,
+                                    vertical: -4,
+                                  ),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  textStyle:
+                                      TheyDiTextStyles.labelSmall.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -662,76 +630,76 @@ class _ProfileContent extends ConsumerWidget {
                   children: [
                     const SizedBox(width: 104),
                     SizedBox(
-  width: 100,
-child: ElevatedButton.icon(
-  onPressed: () => context.push(AppRoutes.editprofile),
-  icon: const Icon(
-    Icons.edit,
-    size: 12,
-    color: Colors.white,
-  ),
-  label: const Text('Edit'),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: TheyDiColors.primary,
-    minimumSize: const Size(100, 50),
-    maximumSize: const Size(100, 50),
-    padding: const EdgeInsets.symmetric(
-      horizontal: 8,
-      vertical: 4,
-    ),
-    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    visualDensity: const VisualDensity(
-      horizontal: -4,
-      vertical: -4,
-    ),
-    elevation: 2,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    ),
-    textStyle: TheyDiTextStyles.labelSmall.copyWith(
-      color: Colors.white,
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-    ),
-  ),
-),
-),
+                      width: 100,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.push(AppRoutes.editprofile),
+                        icon: const Icon(
+                          Icons.edit,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                        label: const Text('Edit'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          minimumSize: const Size(100, 50),
+                          maximumSize: const Size(100, 50),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: const VisualDensity(
+                            horizontal: -4,
+                            vertical: -4,
+                          ),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: TheyDiTextStyles.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     SizedBox(
-  width: 100,
-  child: ElevatedButton.icon(
-    onPressed: () => _openShareSheet(context),
-    icon: const Icon(
-      Icons.share,
-      size: 12,
-      color: Colors.white,
-    ),
-    label: const Text('Share'),
-    style: ElevatedButton.styleFrom(
-      backgroundColor: TheyDiColors.primary,
-      minimumSize: const Size(100, 50),
-      maximumSize: const Size(100, 50),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: const VisualDensity(
-        horizontal: -4,
-        vertical: -4,
-      ),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      textStyle: TheyDiTextStyles.labelSmall.copyWith(
-        color: Colors.white,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-    ),
-  ),
-),
+                      width: 100,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openShareSheet(context),
+                        icon: const Icon(
+                          Icons.share,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                        label: const Text('Share'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          minimumSize: const Size(100, 50),
+                          maximumSize: const Size(100, 50),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: const VisualDensity(
+                            horizontal: -4,
+                            vertical: -4,
+                          ),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: TheyDiTextStyles.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -940,41 +908,41 @@ class _ProfileButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-  padding: const EdgeInsets.symmetric(
-    horizontal: 10,
-    vertical: 8,
-  ),
-  decoration: BoxDecoration(
-    color: TheyDiColors.primary,
-    borderRadius: BorderRadius.circular(8),
-    boxShadow: [
-      BoxShadow(
-        color: TheyDiColors.primary.withValues(alpha: 0.18),
-        blurRadius: 8,
-        offset: const Offset(0, 3),
-      ),
-    ],
-  ),
-  child: Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(
-        icon,
-        size: 14,
-        color: Colors.white,
-      ),
-      const SizedBox(width: 5),
-      Text(
-        label,
-        style: TheyDiTextStyles.labelSmall.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: TheyDiColors.primary,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: TheyDiColors.primary.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TheyDiTextStyles.labelSmall.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-),
     );
   }
 }

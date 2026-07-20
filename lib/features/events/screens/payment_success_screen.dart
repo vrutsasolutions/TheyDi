@@ -72,7 +72,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 Text('Booking confirmed!',
-                    style: TheyDiTextStyles.displayMedium)
+                        style: TheyDiTextStyles.displayMedium)
                     .animate(delay: 200.ms)
                     .fade(duration: 400.ms),
 
@@ -124,8 +124,8 @@ class PaymentSuccessScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Amount paid',
-                              style: TheyDiTextStyles.bodySmall.copyWith(
-                                  color: TheyDiColors.textSecondary)),
+                              style: TheyDiTextStyles.bodySmall
+                                  .copyWith(color: TheyDiColors.textSecondary)),
                           Text(
                             '₹${amount.toStringAsFixed(0)}',
                             style: TheyDiTextStyles.displayMedium.copyWith(
@@ -136,8 +136,10 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ).animate(delay: 400.ms).fade(duration: 400.ms).slideY(
-                    begin: 0.15, end: 0),
+                )
+                    .animate(delay: 400.ms)
+                    .fade(duration: 400.ms)
+                    .slideY(begin: 0.15, end: 0),
 
                 const Spacer(flex: 3),
 

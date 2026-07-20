@@ -22,8 +22,7 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       body: child,
       floatingActionButton: _CreateFAB(),
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _BottomBar(
         currentIndex: currentIndex < 0 ? 0 : currentIndex,
         onTap: (i) => context.go(_tabs[i]),
@@ -115,20 +114,15 @@ class _NavItem extends StatelessWidget {
             Icon(
               isSelected ? activeIcon : icon,
               size: 24,
-              color: isSelected
-                  ? TheyDiColors.primary
-                  : TheyDiColors.textMuted,
+              color: isSelected ? TheyDiColors.primary : TheyDiColors.textMuted,
             ),
             const SizedBox(height: 2),
             Text(
               label,
               style: TheyDiTextStyles.labelSmall.copyWith(
-                color: isSelected
-                    ? TheyDiColors.primary
-                    : TheyDiColors.textMuted,
-                fontWeight: isSelected
-                    ? FontWeight.w600
-                    : FontWeight.w400,
+                color:
+                    isSelected ? TheyDiColors.primary : TheyDiColors.textMuted,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],

@@ -11,7 +11,6 @@ import 'signup_step3_validation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../shared/screens/image_cropper_screen.dart';
 
@@ -388,7 +387,8 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
     final hasPhoto = _uploadedImageUrl != null ||
         (widget.signupData.profileImageUrl?.isNotEmpty == true);
     if (!hasPhoto) {
-      setState(() => _photoValidationError = 'Please upload your profile image.');
+      setState(
+          () => _photoValidationError = 'Please upload your profile image.');
       _showSnack('Please upload your profile image.', Colors.red);
       return;
     } else if (_photoValidationError != null) {
@@ -671,16 +671,11 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                                     color: TheyDiColors.textSecondary),
                               ),
                             ),
-                            
                             const SizedBox(height: 4),
                             Text(
-
-                              
-
                               _imageBytes != null
                                   ? 'Tap to change photo'
                                   : 'Add Photo (Required)',
-
                               style: TheyDiTextStyles.caption.copyWith(
                                 color: TheyDiColors.textMuted,
                               ),
@@ -777,12 +772,10 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                         const SizedBox(height: 24),
 
                         // ── Bio ────────────────────────────────────────────
-Text(
-  'Bio (required)',
-  style: TheyDiTextStyles.labelMedium,
-)
-                            .animate(delay: 200.ms)
-                            .fade(duration: 300.ms),
+                        Text(
+                          'Bio (required)',
+                          style: TheyDiTextStyles.labelMedium,
+                        ).animate(delay: 200.ms).fade(duration: 300.ms),
                         const SizedBox(height: 4),
                         Text(
                           'Write a short bio so people know who you are.',
@@ -801,17 +794,17 @@ Text(
                             counterStyle: TextStyle(
                                 color: TheyDiColors.textMuted, fontSize: 11),
                           ),
-validator: (value) {
-  if ((value ?? '').trim().isEmpty) {
-    return 'Bio is required';
-  }
+                          validator: (value) {
+                            if ((value ?? '').trim().isEmpty) {
+                              return 'Bio is required';
+                            }
 
-  if (value!.trim().length < 15) {
-    return 'Bio must be at least 15 characters';
-  }
+                            if (value!.trim().length < 15) {
+                              return 'Bio must be at least 15 characters';
+                            }
 
-  return null;
-},
+                            return null;
+                          },
                         ).animate(delay: 215.ms).fade(duration: 300.ms),
 
                         const SizedBox(height: 20),

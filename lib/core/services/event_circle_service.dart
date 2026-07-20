@@ -50,8 +50,7 @@ class EventCircleService {
     for (int i = 0; i < attendeeUids.length; i++) {
       final uid = attendeeUids[i];
       if (!memberMap.containsKey(uid)) {
-        memberMap[uid] =
-            i < attendeeNames.length ? attendeeNames[i] : 'Member';
+        memberMap[uid] = i < attendeeNames.length ? attendeeNames[i] : 'Member';
       }
     }
 

@@ -43,14 +43,13 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
   void initState() {
     super.initState();
     _rating = widget.initialRating; // ← NEW
-    _guardDuplicate();              // ← NEW
+    _guardDuplicate(); // ← NEW
   }
 
   // ── NEW: guard against duplicate submission ──
   Future<void> _guardDuplicate() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final alreadyReviewed =
-        await ReviewTriggerService.hasAlreadyReviewed(
+    final alreadyReviewed = await ReviewTriggerService.hasAlreadyReviewed(
       eventId: widget.event.id,
       reviewerUid: uid,
     );
@@ -96,8 +95,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
 
     // Final duplicate guard before write
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final alreadyReviewed =
-        await ReviewTriggerService.hasAlreadyReviewed(
+    final alreadyReviewed = await ReviewTriggerService.hasAlreadyReviewed(
       eventId: widget.event.id,
       reviewerUid: uid,
     );
@@ -119,16 +117,14 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser!;
 
-      String reviewerName =
-          user.displayName ?? user.email!.split('@').first;
+      String reviewerName = user.displayName ?? user.email!.split('@').first;
       try {
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
         if (userDoc.exists) {
-          reviewerName =
-              userDoc.data()?['displayName'] ?? reviewerName;
+          reviewerName = userDoc.data()?['displayName'] ?? reviewerName;
         }
       } catch (_) {}
 
@@ -180,8 +176,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Review submitted! Thanks for your feedback 🎉'),
+          content: Text('Review submitted! Thanks for your feedback 🎉'),
           backgroundColor: Colors.green,
         ),
       );
@@ -213,10 +208,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
     }
     final avgRating = totalRating / reviews.docs.length;
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(hostUid)
-        .update({
+    await FirebaseFirestore.instance.collection('users').doc(hostUid).update({
       'avgRating': double.parse(avgRating.toStringAsFixed(1)),
       'totalReviews': reviews.docs.length,
     });
@@ -236,8 +228,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
             ),
           ),
           child: const Center(
-              child: CircularProgressIndicator(
-                  color: TheyDiColors.primary)),
+              child: CircularProgressIndicator(color: TheyDiColors.primary)),
         ),
       );
     }
@@ -262,8 +253,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                     IconButton(
                       icon: const Icon(Icons.arrow_back,
                           color: TheyDiColors.textPrimary),
-                      onPressed:
-                          _isSubmitting ? null : () => context.pop(),
+                      onPressed: _isSubmitting ? null : () => context.pop(),
                     ),
                     const SizedBox(width: 4),
                     Text('Leave a Review',
@@ -276,8 +266,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
 
               Expanded(
                 child: ListView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   children: [
                     // Event info
                     Container(
@@ -285,8 +274,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                       decoration: BoxDecoration(
                         color: TheyDiColors.card,
                         borderRadius: BorderRadius.circular(14),
-                        border:
-                            Border.all(color: TheyDiColors.divider),
+                        border: Border.all(color: TheyDiColors.divider),
                       ),
                       child: Row(
                         children: [
@@ -295,38 +283,30 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                             height: 48,
                             decoration: BoxDecoration(
                               gradient: TheyDiColors.gradientPrimary,
-                              borderRadius:
-                                  BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
                               child: Text(
                                 widget.event.category.isNotEmpty
                                     ? widget.event.category[0]
                                     : 'E',
-                                style: TheyDiTextStyles.displayMedium
-                                    .copyWith(
-                                        color: Colors.white,
-                                        fontSize: 20),
+                                style: TheyDiTextStyles.displayMedium.copyWith(
+                                    color: Colors.white, fontSize: 20),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(widget.event.title,
-                                    style:
-                                        TheyDiTextStyles.labelLarge,
+                                    style: TheyDiTextStyles.labelLarge,
                                     maxLines: 1,
-                                    overflow:
-                                        TextOverflow.ellipsis),
+                                    overflow: TextOverflow.ellipsis),
                                 const SizedBox(height: 2),
-                                Text(
-                                    'Hosted by ${widget.event.creatorName}',
-                                    style:
-                                        TheyDiTextStyles.caption),
+                                Text('Hosted by ${widget.event.creatorName}',
+                                    style: TheyDiTextStyles.caption),
                               ],
                             ),
                           ),
@@ -340,16 +320,13 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                     Center(
                       child: Text(
                         _ratingLabel,
-                        style: TheyDiTextStyles.headlineMedium
-                            .copyWith(
+                        style: TheyDiTextStyles.headlineMedium.copyWith(
                           color: _rating > 0
                               ? Colors.amber
                               : TheyDiColors.textSecondary,
                         ),
                       ),
-                    )
-                        .animate(delay: 150.ms)
-                        .fade(duration: 300.ms),
+                    ).animate(delay: 150.ms).fade(duration: 300.ms),
 
                     const SizedBox(height: 16),
 
@@ -360,11 +337,10 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                         children: List.generate(5, (index) {
                           final starValue = index + 1.0;
                           return GestureDetector(
-                            onTap: () => setState(
-                                () => _rating = starValue),
+                            onTap: () => setState(() => _rating = starValue),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6),
                               child: Icon(
                                 starValue <= _rating
                                     ? Icons.star_rounded
@@ -378,12 +354,8 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                           );
                         }),
                       ),
-                    )
-                        .animate(delay: 200.ms)
-                        .fade(duration: 400.ms)
-                        .scale(
-                            begin: const Offset(0.8, 0.8),
-                            end: const Offset(1, 1)),
+                    ).animate(delay: 200.ms).fade(duration: 400.ms).scale(
+                        begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
 
                     const SizedBox(height: 32),
 
@@ -400,32 +372,27 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                       maxLines: 5,
                       maxLength: 500,
                       decoration: InputDecoration(
-                        hintText:
-                            'What did you enjoy? Any suggestions?',
-                        hintStyle:
-                            TheyDiTextStyles.bodySmall.copyWith(
+                        hintText: 'What did you enjoy? Any suggestions?',
+                        hintStyle: TheyDiTextStyles.bodySmall.copyWith(
                           color: TheyDiColors.textMuted,
                         ),
                         filled: true,
                         fillColor: TheyDiColors.card,
-                        counterStyle: TextStyle(
-                            color: TheyDiColors.textMuted),
+                        counterStyle: TextStyle(color: TheyDiColors.textMuted),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                              color: TheyDiColors.divider),
+                          borderSide: BorderSide(color: TheyDiColors.divider),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: TheyDiColors.primary),
+                          borderSide:
+                              const BorderSide(color: TheyDiColors.primary),
                         ),
-                        contentPadding:
-                            const EdgeInsets.all(14),
+                        contentPadding: const EdgeInsets.all(14),
                       ),
                     ).animate(delay: 350.ms).fade(duration: 300.ms),
 
@@ -441,36 +408,29 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                           gradient: _isSubmitting
                               ? null
                               : TheyDiColors.gradientPrimary,
-                          color: _isSubmitting
-                              ? Colors.grey[800]
-                              : null,
+                          color: _isSubmitting ? Colors.grey[800] : null,
                         ),
                         child: ElevatedButton(
-                          onPressed: _isSubmitting
-                              ? null
-                              : _submitReview,
+                          onPressed: _isSubmitting ? null : _submitReview,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
                           child: _isSubmitting
                               ? const SizedBox(
                                   height: 24,
                                   width: 24,
-                                  child:
-                                      CircularProgressIndicator(
+                                  child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2.5,
                                   ),
                                 )
                               : Text(
                                   'Submit Review',
-                                  style: TheyDiTextStyles.labelLarge
-                                      .copyWith(
+                                  style: TheyDiTextStyles.labelLarge.copyWith(
                                     color: Colors.white,
                                     fontSize: 16,
                                   ),

@@ -163,7 +163,8 @@ HOW TO RESPOND
 
     final text = message.toLowerCase().trim();
 
-    if (_contains(text, ['hi', 'hello', 'hey', 'good morning', 'good evening', 'darla'])) {
+    if (_contains(text,
+        ['hi', 'hello', 'hey', 'good morning', 'good evening', 'darla'])) {
       return "Hey 👋 I'm Darla. What do you need help with today?";
     }
 
@@ -177,7 +178,8 @@ HOW TO RESPOND
     }
 
     if (_contains(text, ['edit event', 'update event', 'change event']) ||
-        (_contains(text, ['edit', 'update', 'change']) && _contains(text, ['event']))) {
+        (_contains(text, ['edit', 'update', 'change']) &&
+            _contains(text, ['event']))) {
       return "To edit an event, go to Profile > My Events, open it, and tap Edit Event to update the details. Nearby users will see the changes right away.";
     }
 
@@ -193,11 +195,29 @@ HOW TO RESPOND
       return "You can check your payment history and ticket status, and request a refund for eligible events, from the payments section of the app. If a payment failed, double-check your connection and try again.";
     }
 
-    if (_contains(text, ['report', 'fake', 'abuse', 'spam', 'harass', 'block', 'safe', 'guideline'])) {
+    if (_contains(text, [
+      'report',
+      'fake',
+      'abuse',
+      'spam',
+      'harass',
+      'block',
+      'safe',
+      'guideline'
+    ])) {
       return "If someone's causing trouble, open their profile, tap the ⋮ menu, and choose Report or Block. Our moderation team reviews every report.";
     }
 
-    if (_contains(text, ['delete', 'account', 'profile', 'login', 'password', 'setting', 'notification', 'location'])) {
+    if (_contains(text, [
+      'delete',
+      'account',
+      'profile',
+      'login',
+      'password',
+      'setting',
+      'notification',
+      'location'
+    ])) {
       return "Profile, password, notifications, and location preferences can all be managed from Settings. For account deletion specifically, you'll need to contact support directly.";
     }
 

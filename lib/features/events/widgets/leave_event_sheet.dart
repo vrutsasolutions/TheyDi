@@ -76,14 +76,15 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
                 child: Text(
                   'Left event. ₹${result.refundAmount.toStringAsFixed(0)} refund '
                   'will arrive in 7 working days.',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
             ]),
             backgroundColor: TheyDiColors.primary,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             duration: const Duration(seconds: 4),
           ),
         );
@@ -91,18 +92,18 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(children: [
-              Icon(Icons.check_circle_outline,
-                  color: Colors.white, size: 20),
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
               SizedBox(width: 8),
               Text(
                 'Successfully left event 🚪',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
             ]),
             backgroundColor: TheyDiColors.primary,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -113,8 +114,8 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
           content: Text(result.message),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -153,22 +154,20 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
                 color: Colors.red.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.exit_to_app,
-                  color: Colors.red, size: 22),
+              child: const Icon(Icons.exit_to_app, color: Colors.red, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text('Leave Event',
-                    style: TheyDiTextStyles.displayMedium),
-                Text(widget.event.title,
-                    style: TheyDiTextStyles.caption.copyWith(
-                        color: TheyDiColors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ]),
+                    Text('Leave Event', style: TheyDiTextStyles.displayMedium),
+                    Text(widget.event.title,
+                        style: TheyDiTextStyles.caption
+                            .copyWith(color: TheyDiColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ]),
             ),
           ]).animate().fade(duration: 250.ms).slideY(begin: 0.2, end: 0),
 
@@ -226,8 +225,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
             // Cancel (keep spot)
             Expanded(
               child: OutlinedButton(
-                onPressed:
-                    _leaving ? null : () => Navigator.pop(context),
+                onPressed: _leaving ? null : () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: TheyDiColors.divider),
                   shape: RoundedRectangleBorder(
@@ -257,8 +255,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
                   label: Text(
                     _leaving ? 'Leaving...' : 'Leave Event',
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600),
+                        color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -300,8 +297,8 @@ class _RefundInfoCard extends StatelessWidget {
           const Icon(Icons.currency_rupee, color: Colors.green, size: 18),
           const SizedBox(width: 8),
           Text('Refund Policy',
-              style: TheyDiTextStyles.labelMedium
-                  .copyWith(color: Colors.green)),
+              style:
+                  TheyDiTextStyles.labelMedium.copyWith(color: Colors.green)),
         ]),
         const SizedBox(height: 12),
         _RefundRow(
@@ -340,8 +337,7 @@ class _RefundInfoCard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.green.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
@@ -353,8 +349,8 @@ class _RefundInfoCard extends StatelessWidget {
             Expanded(
               child: Text(
                 'Refund will be credited within 7 working days to your original payment method.',
-                style: TheyDiTextStyles.caption.copyWith(
-                    color: Colors.green, height: 1.4),
+                style: TheyDiTextStyles.caption
+                    .copyWith(color: Colors.green, height: 1.4),
               ),
             ),
           ]),
@@ -386,8 +382,7 @@ class _RefundRow extends StatelessWidget {
       Text(value,
           style: TheyDiTextStyles.labelMedium.copyWith(
               color: color,
-              fontWeight:
-                  bold ? FontWeight.w700 : FontWeight.w500)),
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
     ]);
   }
 }
@@ -418,8 +413,8 @@ class _WarningBanner extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(message,
-              style: TheyDiTextStyles.caption
-                  .copyWith(color: color, height: 1.5)),
+              style:
+                  TheyDiTextStyles.caption.copyWith(color: color, height: 1.5)),
         ),
       ]),
     );

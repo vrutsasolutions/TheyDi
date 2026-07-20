@@ -10,7 +10,7 @@ class TypingIndicator extends StatefulWidget {
   const TypingIndicator({super.key});
 
   @override
- State<TypingIndicator> createState() => _TypingIndicatorState();
+  State<TypingIndicator> createState() => _TypingIndicatorState();
 }
 
 class _TypingIndicatorState extends State<TypingIndicator>

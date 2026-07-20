@@ -72,7 +72,7 @@ class ProfileRatingBadge extends StatelessWidget {
         color: Colors.amber.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.amber.withValues(alpha:0.4),
+          color: Colors.amber.withValues(alpha: 0.4),
           width: 1,
         ),
       ),

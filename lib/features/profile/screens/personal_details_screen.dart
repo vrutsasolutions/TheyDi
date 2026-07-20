@@ -25,7 +25,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _confirmed = false;
+  // bool _confirmed = false;
   String? _autoFilledBankName;
 
   static const Map<String, String> _bankNamesByIfscPrefix = {
@@ -273,35 +273,33 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                     textInputAction: TextInputAction.done,
                   ),
                   const SizedBox(height: 8),
-                  CheckboxListTile(
-                    value: _confirmed,
-                    onChanged: _isSaving
-                        ? null
-                        : (value) =>
-                            setState(() => _confirmed = value ?? false),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: TheyDiColors.primary,
-                    title: Text(
-                      'I confirm this bank account belongs to me. Accepting terms & policy.',
-                      style: TheyDiTextStyles.bodySmall.copyWith(
-                        color: TheyDiColors.textSecondary,
-                      ),
-                    ),
-                  ),
+                  // CheckboxListTile(
+                  //   value: _confirmed,
+                  //   onChanged: _isSaving
+                  //       ? null
+                  //       : (value) =>
+                  //           setState(() => _confirmed = value ?? false),
+                  //   controlAffinity: ListTileControlAffinity.leading,
+                  //   contentPadding: EdgeInsets.zero,
+                  //   activeColor: TheyDiColors.primary,
+                  //   title: Text(
+                  //     'I confirm this bank account belongs to me. Accepting terms & policy.',
+                  //     style: TheyDiTextStyles.bodySmall.copyWith(
+                  //       color: TheyDiColors.textSecondary,
+                  //     ),
+                  //   ),
+                  // ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient:
-                            _confirmed ? TheyDiColors.gradientPrimary : null,
-                        color: _confirmed ? null : TheyDiColors.divider,
-                      ),
+  borderRadius: BorderRadius.circular(16),
+  gradient: TheyDiColors.gradientPrimary,
+),
                       child: ElevatedButton(
-                        onPressed: _confirmed && !_isSaving ? _save : null,
+                        onPressed: _isSaving ? null : _save,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           disabledBackgroundColor: Colors.transparent,

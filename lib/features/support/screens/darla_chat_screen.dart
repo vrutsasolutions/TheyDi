@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import 'dart:convert';
 
@@ -62,7 +61,8 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
     _messages.add(
       ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        text: "Hi 👋\n\nI'm Darla, your TheyDi AI Support Assistant.\n\nHow can I help today?",
+        text:
+            "Hi 👋\n\nI'm Darla, your TheyDi AI Support Assistant.\n\nHow can I help today?",
         sender: MessageSender.darla,
         timestamp: DateTime.now(),
       ),
@@ -88,7 +88,8 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
             _messages.clear();
             _messages.addAll(loaded);
           });
-          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _scrollToBottom());
           return;
         }
       } catch (_) {}
@@ -218,113 +219,121 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
               ),
               Column(
                 children: [
-              Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                  itemCount: _messages.length + (_isTyping ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (_isTyping && index == _messages.length) {
-                      return const Padding(
-                        padding: EdgeInsets.only(top: 8, bottom: 12),
-                        child: TypingIndicator(),
-                      );
-                    }
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                      itemCount: _messages.length + (_isTyping ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (_isTyping && index == _messages.length) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 8, bottom: 12),
+                            child: TypingIndicator(),
+                          );
+                        }
 
-                    final message = _messages[index];
-                    final isLatestDarlaMessage =
-                        message.sender == MessageSender.darla &&
-                            index == _latestDarlaMessageIndex;
+                        final message = _messages[index];
+                        final isLatestDarlaMessage =
+                            message.sender == MessageSender.darla &&
+                                index == _latestDarlaMessageIndex;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: ChatBubble(
-                            message: message,
-                            isWelcomeMessage: index == 0 && message.sender == MessageSender.darla,
-                            onFeedback: isLatestDarlaMessage && index != 0
-                                ? (isHelpful) => _setFeedback(message, isHelpful)
-                                : null,
-                          ),
-                        ),
-                        // Show suggested questions below the first message only
-                        if (index == 0 && _messages.length == 1)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12, bottom: 12),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: _aiService.suggestedQuestions.map((q) {
-                                return GestureDetector(
-                                  onTap: () => _sendSuggestedQuestion(q),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: TheyDiColors.primary.withValues(alpha: 0.4),
-                                        width: 1.2,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.04),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      q,
-                                      style: TheyDiTextStyles.bodySmall.copyWith(
-                                        color: TheyDiColors.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: ChatBubble(
+                                message: message,
+                                isWelcomeMessage: index == 0 &&
+                                    message.sender == MessageSender.darla,
+                                onFeedback: isLatestDarlaMessage && index != 0
+                                    ? (isHelpful) =>
+                                        _setFeedback(message, isHelpful)
+                                    : null,
+                              ),
                             ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              Container(
-                height: 62,
-                color: Colors.white,
-                alignment: Alignment.centerLeft,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+                            // Show suggested questions below the first message only
+                            if (index == 0 && _messages.length == 1)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 12, bottom: 12),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children:
+                                      _aiService.suggestedQuestions.map((q) {
+                                    return GestureDetector(
+                                      onTap: () => _sendSuggestedQuestion(q),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: TheyDiColors.primary
+                                                .withValues(alpha: 0.4),
+                                            width: 1.2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.04),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          q,
+                                          style: TheyDiTextStyles.bodySmall
+                                              .copyWith(
+                                            color: TheyDiColors.primary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _suggestedQuestions.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final question = _suggestedQuestions[index];
+                  Container(
+                    height: 62,
+                    color: Colors.white,
+                    alignment: Alignment.centerLeft,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _suggestedQuestions.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final question = _suggestedQuestions[index];
 
-                    return SuggestionChip(
-                      title: question,
-                      icon: Icons.help_outline_rounded,
-                      onTap: () => _sendSuggestedQuestion(question),
-                    );
-                  },
-                ),
+                        return SuggestionChip(
+                          title: question,
+                          icon: Icons.help_outline_rounded,
+                          onTap: () => _sendSuggestedQuestion(question),
+                        );
+                      },
+                    ),
+                  ),
+                  MessageInput(
+                    controller: _controller,
+                    onSend: () => _sendMessage(_controller.text),
+                  ),
+                ],
               ),
-              MessageInput(
-                controller: _controller,
-                onSend: () => _sendMessage(_controller.text),
-              ),
-            ],
-          ),
             ],
           ),
         ),
@@ -521,7 +530,8 @@ class _AnimatedGradientHeaderState extends State<AnimatedGradientHeader>
               end: Alignment.bottomRight,
             ),
           ),
-          child: const FloatingDotsBackground(color: Colors.white, dotSizeMultiplier: 1.8),
+          child: const FloatingDotsBackground(
+              color: Colors.white, dotSizeMultiplier: 1.8),
         );
       },
     );
@@ -531,7 +541,8 @@ class _AnimatedGradientHeaderState extends State<AnimatedGradientHeader>
 class FloatingDotsBackground extends StatefulWidget {
   final Color? color;
   final double dotSizeMultiplier;
-  const FloatingDotsBackground({super.key, this.color, this.dotSizeMultiplier = 1.0});
+  const FloatingDotsBackground(
+      {super.key, this.color, this.dotSizeMultiplier = 1.0});
 
   @override
   State<FloatingDotsBackground> createState() => _FloatingDotsBackgroundState();
@@ -555,7 +566,8 @@ class _FloatingDotsBackgroundState extends State<FloatingDotsBackground>
         y: random.nextDouble(),
         speedX: (random.nextDouble() - 0.5) * 0.04, // Very slow moving
         speedY: (random.nextDouble() - 0.5) * 0.04,
-        size: (random.nextDouble() * 2 + 1.5) * widget.dotSizeMultiplier, // Size scaled by multiplier
+        size: (random.nextDouble() * 2 + 1.5) *
+            widget.dotSizeMultiplier, // Size scaled by multiplier
         opacity: random.nextDouble() * 0.15 + 0.05, // Very light (0.05 to 0.2)
       ),
     );

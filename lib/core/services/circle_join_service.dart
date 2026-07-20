@@ -205,8 +205,9 @@ class CircleJoinService {
         .collection('friendRequests')
         .where('status', isEqualTo: 'pending')
         .get();
-    final pendingUids =
-        pendingSnap.docs.map((d) => (d.data()['fromUid'] ?? '') as String).toSet();
+    final pendingUids = pendingSnap.docs
+        .map((d) => (d.data()['fromUid'] ?? '') as String)
+        .toSet();
 
     final excluded = {uid, ...friendUids, ...pendingUids};
 

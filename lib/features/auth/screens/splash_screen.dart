@@ -44,7 +44,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [TheyDiColors.dark, TheyDiColors.surface, TheyDiColors.dark],
+            colors: [
+              TheyDiColors.dark,
+              TheyDiColors.surface,
+              TheyDiColors.dark
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -104,10 +108,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                             color: Colors.white,
                           ),
                         ),
-                      )
-                          .animate(delay: 300.ms)
-                          .fade(duration: 500.ms)
-                          .slideY(
+                      ).animate(delay: 300.ms).fade(duration: 500.ms).slideY(
                             begin: 0.3,
                             end: 0,
                             duration: 500.ms,
@@ -129,39 +130,35 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
               // Loading bar
               Padding(
-  padding: const EdgeInsets.only(bottom: 40),
-  child: Column(
-  children: [
-    const SizedBox(
-      width: 22,
-      height: 22,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: TheyDiColors.primary,
-      ),
-    ),
-
-    const SizedBox(height: 24),
-
-    Text(
-      'From',
-      style: TheyDiTextStyles.bodyMedium.copyWith(
-        color: TheyDiColors.textMuted,
-      ),
-    ),
-
-    const SizedBox(height: 4),
-
-    Text(
-      'Vrutsa Solutions',
-      style: TheyDiTextStyles.headlineSmall.copyWith(
-        color: TheyDiColors.primary,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-  ],
-),
-),
+                padding: const EdgeInsets.only(bottom: 40),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: TheyDiColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'From',
+                      style: TheyDiTextStyles.bodyMedium.copyWith(
+                        color: TheyDiColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Vrutsa Solutions',
+                      style: TheyDiTextStyles.headlineSmall.copyWith(
+                        color: TheyDiColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

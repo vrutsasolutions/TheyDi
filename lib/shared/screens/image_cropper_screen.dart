@@ -28,7 +28,7 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
   // Zoom & Pan states
   double _scale = 1.0;
   Offset _offset = Offset.zero;
-  
+
   double _baseScale = 1.0;
   Offset _baseOffset = Offset.zero;
   Offset _localFocalPoint = Offset.zero;
@@ -40,7 +40,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
   @override
   void initState() {
     super.initState();
-    _currentAspectRatio = widget.aspectRatio ?? 1.0; // Default to 1:1 if not provided
+    _currentAspectRatio =
+        widget.aspectRatio ?? 1.0; // Default to 1:1 if not provided
     _loadImage();
   }
 
@@ -73,7 +74,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       // Get viewport and layout measurements
       final size = MediaQuery.of(context).size;
       final screenWidth = size.width;
-      final screenHeight = size.height - 240; // height of viewport container (leaving room for controls)
+      final screenHeight = size.height -
+          240; // height of viewport container (leaving room for controls)
 
       final imgAspect = _image!.width / _image!.height;
       final viewAspect = screenWidth / screenHeight;
@@ -126,8 +128,10 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       // Clamp coordinates to stay within image boundaries
       final srcLeft = origLeft.clamp(0.0, _image!.width.toDouble());
       final srcTop = origTop.clamp(0.0, _image!.height.toDouble());
-      final srcRight = (origLeft + origWidth).clamp(0.0, _image!.width.toDouble());
-      final srcBottom = (origTop + origHeight).clamp(0.0, _image!.height.toDouble());
+      final srcRight =
+          (origLeft + origWidth).clamp(0.0, _image!.width.toDouble());
+      final srcBottom =
+          (origTop + origHeight).clamp(0.0, _image!.height.toDouble());
 
       final srcWidth = srcRight - srcLeft;
       final srcHeight = srcBottom - srcTop;
@@ -149,8 +153,10 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       );
 
       final picture = recorder.endRecording();
-      final croppedUiImage = await picture.toImage(srcWidth.toInt(), srcHeight.toInt());
-      final byteData = await croppedUiImage.toByteData(format: ui.ImageByteFormat.png);
+      final croppedUiImage =
+          await picture.toImage(srcWidth.toInt(), srcHeight.toInt());
+      final byteData =
+          await croppedUiImage.toByteData(format: ui.ImageByteFormat.png);
       final croppedBytes = byteData!.buffer.asUint8List();
 
       if (mounted) {
@@ -204,7 +210,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
     // Determine sizes
     final size = MediaQuery.of(context).size;
     final screenWidth = size.width;
-    final screenHeight = size.height - 240; // Leave room for top/bottom bar & zoom controls
+    final screenHeight =
+        size.height - 240; // Leave room for top/bottom bar & zoom controls
 
     final imgAspect = _image!.width / _image!.height;
     final viewAspect = screenWidth / screenHeight;
@@ -238,7 +245,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
     final cy = screenHeight / 2;
 
     // Minimum scale required to fully cover the crop window
-    final minScale = max(cropWidth / imageDisplayWidth, cropHeight / imageDisplayHeight);
+    final minScale =
+        max(cropWidth / imageDisplayWidth, cropHeight / imageDisplayHeight);
     final maxScale = max(minScale + 4.0, 8.0);
 
     // Initial scale/offset set up
@@ -259,7 +267,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
 
       double txMin = cropLeft + cropWidth - cx - _scale * imageDisplayWidth / 2;
       double txMax = cropLeft - cx + _scale * imageDisplayWidth / 2;
-      double tyMin = cropTop + cropHeight - cy - _scale * imageDisplayHeight / 2;
+      double tyMin =
+          cropTop + cropHeight - cy - _scale * imageDisplayHeight / 2;
       double tyMax = cropTop - cy + _scale * imageDisplayHeight / 2;
 
       // Handle edge cases
@@ -299,7 +308,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.check, color: TheyDiColors.primary, size: 28),
+            icon:
+                const Icon(Icons.check, color: TheyDiColors.primary, size: 28),
             onPressed: _cropImage,
           ),
         ],
@@ -318,7 +328,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                 onScaleUpdate: (details) {
                   setState(() {
                     _scale = _baseScale * details.scale;
-                    _offset = _baseOffset + (details.localFocalPoint - _localFocalPoint);
+                    _offset = _baseOffset +
+                        (details.localFocalPoint - _localFocalPoint);
                     clampConstraints();
                   });
                 },
@@ -355,7 +366,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                         child: CustomPaint(
                           painter: CropOverlayPainter(
                             cropRect: cropRect,
-                            isCircular: widget.aspectRatio == 1.0, // circular if 1:1 (profile)
+                            isCircular: widget.aspectRatio ==
+                                1.0, // circular if 1:1 (profile)
                           ),
                         ),
                       ),
@@ -365,7 +377,7 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
               ),
             ),
           ),
-          
+
           // Controls area
           Container(
             color: Colors.black,
@@ -377,14 +389,17 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                 children: [
                   // Zoom Slider
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.zoom_out, color: Colors.white, size: 22),
+                          icon: const Icon(Icons.zoom_out,
+                              color: Colors.white, size: 22),
                           onPressed: () {
                             setState(() {
-                              _scale = (_scale - 0.25).clamp(minScale, maxScale);
+                              _scale =
+                                  (_scale - 0.25).clamp(minScale, maxScale);
                               clampConstraints();
                             });
                           },
@@ -405,10 +420,12 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.zoom_in, color: Colors.white, size: 22),
+                          icon: const Icon(Icons.zoom_in,
+                              color: Colors.white, size: 22),
                           onPressed: () {
                             setState(() {
-                              _scale = (_scale + 0.25).clamp(minScale, maxScale);
+                              _scale =
+                                  (_scale + 0.25).clamp(minScale, maxScale);
                               clampConstraints();
                             });
                           },
@@ -435,7 +452,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                   ],
                   Text(
                     'Pinch to zoom or use slider • Drag to position',
-                    style: TheyDiTextStyles.bodySmall.copyWith(color: Colors.grey[500]),
+                    style: TheyDiTextStyles.bodySmall
+                        .copyWith(color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -461,7 +479,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
         if (selected) {
           setState(() {
             _currentAspectRatio = ratio;
-            _isInit = false; // trigger re-initialization for the new aspect ratio
+            _isInit =
+                false; // trigger re-initialization for the new aspect ratio
           });
         }
       },
@@ -478,10 +497,12 @@ class CropOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.5) // Reduced overlay opacity to make image clearly visible
+      ..color = Colors.black.withValues(
+          alpha: 0.5) // Reduced overlay opacity to make image clearly visible
       ..style = PaintingStyle.fill;
 
-    final pathScreen = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final pathScreen = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     final pathCutout = Path();
     if (isCircular) {
       pathCutout.addOval(cropRect);
@@ -489,7 +510,8 @@ class CropOverlayPainter extends CustomPainter {
       pathCutout.addRect(cropRect);
     }
 
-    final pathOverlay = Path.combine(PathOperation.difference, pathScreen, pathCutout);
+    final pathOverlay =
+        Path.combine(PathOperation.difference, pathScreen, pathCutout);
     canvas.drawPath(pathOverlay, paint);
 
     final borderPaint = Paint()
@@ -537,6 +559,7 @@ class CropOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CropOverlayPainter oldDelegate) {
-    return oldDelegate.cropRect != cropRect || oldDelegate.isCircular != isCircular;
+    return oldDelegate.cropRect != cropRect ||
+        oldDelegate.isCircular != isCircular;
   }
 }

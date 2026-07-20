@@ -19,8 +19,7 @@ final _receivedReviewsProvider =
       .where('hostUid', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((s) =>
-          s.docs.map((d) => ReviewModel.fromFirestore(d)).toList());
+      .map((s) => s.docs.map((d) => ReviewModel.fromFirestore(d)).toList());
 });
 
 // Reviews given (as attendee)
@@ -33,8 +32,7 @@ final _givenReviewsProvider =
       .where('reviewerUid', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((s) =>
-          s.docs.map((d) => ReviewModel.fromFirestore(d)).toList());
+      .map((s) => s.docs.map((d) => ReviewModel.fromFirestore(d)).toList());
 });
 
 class MyReviewsScreen extends ConsumerWidget {
@@ -68,8 +66,7 @@ class MyReviewsScreen extends ConsumerWidget {
                         onPressed: () => context.pop(),
                       ),
                       const SizedBox(width: 4),
-                      Text('My Reviews',
-                          style: TheyDiTextStyles.displayMedium),
+                      Text('My Reviews', style: TheyDiTextStyles.displayMedium),
                     ],
                   ),
                 ).animate().fade(duration: 300.ms),
@@ -97,8 +94,16 @@ class MyReviewsScreen extends ConsumerWidget {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _ReviewList(provider: _receivedReviewsProvider, emptyMessage: 'No reviews received yet', emptySubtitle: 'Host events to get reviews from attendees'),
-                      _ReviewList(provider: _givenReviewsProvider, emptyMessage: 'No reviews given yet', emptySubtitle: 'Attend events and share your feedback'),
+                      _ReviewList(
+                          provider: _receivedReviewsProvider,
+                          emptyMessage: 'No reviews received yet',
+                          emptySubtitle:
+                              'Host events to get reviews from attendees'),
+                      _ReviewList(
+                          provider: _givenReviewsProvider,
+                          emptyMessage: 'No reviews given yet',
+                          emptySubtitle:
+                              'Attend events and share your feedback'),
                     ],
                   ),
                 ),
@@ -152,8 +157,8 @@ class _RatingSummary extends ConsumerWidget {
                   children: [
                     Text(
                       avgRating.toStringAsFixed(1),
-                      style: TheyDiTextStyles.displayLarge
-                          .copyWith(fontSize: 36),
+                      style:
+                          TheyDiTextStyles.displayLarge.copyWith(fontSize: 36),
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -184,31 +189,25 @@ class _RatingSummary extends ConsumerWidget {
                     children: List.generate(5, (i) {
                       final star = 5 - i;
                       final count = starCounts[star - 1];
-                      final fraction = reviews.isNotEmpty
-                          ? count / reviews.length
-                          : 0.0;
+                      final fraction =
+                          reviews.isNotEmpty ? count / reviews.length : 0.0;
                       return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Row(
                           children: [
-                            Text('$star',
-                                style: TheyDiTextStyles.caption),
+                            Text('$star', style: TheyDiTextStyles.caption),
                             const SizedBox(width: 4),
                             const Icon(Icons.star_rounded,
                                 size: 12, color: Colors.amber),
                             const SizedBox(width: 6),
                             Expanded(
                               child: ClipRRect(
-                                borderRadius:
-                                    BorderRadius.circular(3),
+                                borderRadius: BorderRadius.circular(3),
                                 child: LinearProgressIndicator(
                                   value: fraction,
-                                  backgroundColor:
-                                      TheyDiColors.divider,
-                                  valueColor:
-                                      const AlwaysStoppedAnimation(
-                                          Colors.amber),
+                                  backgroundColor: TheyDiColors.divider,
+                                  valueColor: const AlwaysStoppedAnimation(
+                                      Colors.amber),
                                   minHeight: 6,
                                 ),
                               ),
@@ -255,12 +254,10 @@ class _ReviewList extends ConsumerWidget {
 
     return reviewsAsync.when(
       loading: () => const Center(
-        child:
-            CircularProgressIndicator(color: TheyDiColors.primary),
+        child: CircularProgressIndicator(color: TheyDiColors.primary),
       ),
       error: (e, _) => Center(
-        child: Text('Failed to load: $e',
-            style: TheyDiTextStyles.bodySmall),
+        child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
       ),
       data: (reviews) {
         if (reviews.isEmpty) {
@@ -271,12 +268,11 @@ class _ReviewList extends ConsumerWidget {
                 Icon(Icons.rate_review_outlined,
                     size: 64, color: Colors.grey[700]),
                 const SizedBox(height: 16),
-                Text(emptyMessage,
-                    style: TheyDiTextStyles.headlineMedium),
+                Text(emptyMessage, style: TheyDiTextStyles.headlineMedium),
                 const SizedBox(height: 8),
                 Text(emptySubtitle,
-                    style: TheyDiTextStyles.bodySmall.copyWith(
-                        color: TheyDiColors.textSecondary),
+                    style: TheyDiTextStyles.bodySmall
+                        .copyWith(color: TheyDiColors.textSecondary),
                     textAlign: TextAlign.center),
               ],
             ),
@@ -288,8 +284,7 @@ class _ReviewList extends ConsumerWidget {
           itemCount: reviews.length,
           itemBuilder: (context, index) {
             return _ReviewCard(review: reviews[index])
-                .animate(
-                    delay: Duration(milliseconds: 50 * index))
+                .animate(delay: Duration(milliseconds: 50 * index))
                 .fade(duration: 300.ms)
                 .slideY(begin: 0.1, end: 0);
           },
@@ -306,8 +301,7 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr =
-        DateFormat('MMM d, yyyy').format(review.createdAt);
+    final dateStr = DateFormat('MMM d, yyyy').format(review.createdAt);
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final isReceived = review.hostUid == uid;
 
@@ -353,9 +347,7 @@ class _ReviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isReceived
-                          ? review.reviewerName
-                          : review.hostName,
+                      isReceived ? review.reviewerName : review.hostName,
                       style: TheyDiTextStyles.labelMedium,
                     ),
                     Text(dateStr, style: TheyDiTextStyles.caption),
@@ -382,8 +374,7 @@ class _ReviewCard extends StatelessWidget {
 
           // Event name
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: TheyDiColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),

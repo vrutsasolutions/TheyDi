@@ -64,7 +64,8 @@ class _ReviewPopupState extends State<ReviewPopup> {
           // ── Handle ──
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                   color: TheyDiColors.divider,
                   borderRadius: BorderRadius.circular(2)),
@@ -74,7 +75,8 @@ class _ReviewPopupState extends State<ReviewPopup> {
 
           // ── Confetti-style icon ──
           Container(
-            width: 64, height: 64,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               shape: BoxShape.circle,
@@ -82,13 +84,11 @@ class _ReviewPopupState extends State<ReviewPopup> {
             child: const Center(
               child: Text('🎉', style: TextStyle(fontSize: 30)),
             ),
-          )
-              .animate()
-              .scale(
-                  begin: const Offset(0.5, 0.5),
-                  end: const Offset(1, 1),
-                  duration: 400.ms,
-                  curve: Curves.elasticOut),
+          ).animate().scale(
+              begin: const Offset(0.5, 0.5),
+              end: const Offset(1, 1),
+              duration: 400.ms,
+              curve: Curves.elasticOut),
 
           const SizedBox(height: 16),
 
@@ -150,16 +150,14 @@ class _ReviewPopupState extends State<ReviewPopup> {
                 onTap: () {
                   setState(() => _selectedStar = starValue);
                   // Short delay then open full review screen
-                  Future.delayed(const Duration(milliseconds: 300),
-                      _goToFullReview);
+                  Future.delayed(
+                      const Duration(milliseconds: 300), _goToFullReview);
                 },
                 child: MouseRegion(
-                  onEnter: (_) =>
-                      setState(() => _hoveredStar = starValue),
+                  onEnter: (_) => setState(() => _hoveredStar = starValue),
                   onExit: (_) => setState(() => _hoveredStar = 0),
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Icon(
                       isFilled
                           ? Icons.star_rounded
@@ -169,8 +167,7 @@ class _ReviewPopupState extends State<ReviewPopup> {
                     )
                         .animate(
                             target: isFilled ? 1 : 0,
-                            delay: Duration(
-                                milliseconds: 200 + index * 40))
+                            delay: Duration(milliseconds: 200 + index * 40))
                         .scale(
                           begin: const Offset(0.8, 0.8),
                           end: const Offset(1, 1),
@@ -203,8 +200,8 @@ class _ReviewPopupState extends State<ReviewPopup> {
                 ),
                 child: Text(
                   'Write a Review ✍️',
-                  style: TheyDiTextStyles.labelLarge
-                      .copyWith(color: Colors.white),
+                  style:
+                      TheyDiTextStyles.labelLarge.copyWith(color: Colors.white),
                 ),
               ),
             ),

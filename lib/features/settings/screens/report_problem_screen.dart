@@ -15,13 +15,13 @@ class ReportProblemScreen extends StatelessWidget {
       builder: (context, authSnapshot) {
         if (authSnapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
-  appBar: AppBar(
-    title: const Text('Report History'),
-  ),
-  body: const Center(
-    child: CircularProgressIndicator(),
-  ),
-);
+            appBar: AppBar(
+              title: const Text('Report History'),
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         final user = authSnapshot.data;
@@ -46,7 +46,8 @@ class ReportProblemScreen extends StatelessWidget {
 
         // Log the query path and uid
         // ignore: avoid_print
-        print('ReportHistory: Firestore query -> reports where reporterUid=${user.uid}');
+        print(
+            'ReportHistory: Firestore query -> reports where reporterUid=${user.uid}');
 
         return Scaffold(
           appBar: AppBar(
@@ -60,7 +61,8 @@ class ReportProblemScreen extends StatelessWidget {
                 if (error is FirebaseException) {
                   // Log firebase exception
                   // ignore: avoid_print
-                  print('ReportHistory: FirebaseException code=${error.code} message=${error.message}');
+                  print(
+                      'ReportHistory: FirebaseException code=${error.code} message=${error.message}');
 
                   if (error.code == 'permission-denied') {
                     return const Center(

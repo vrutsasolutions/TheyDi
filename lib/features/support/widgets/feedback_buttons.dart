@@ -50,13 +50,11 @@ class _FeedbackButtonsState extends State<FeedbackButtons> {
             ),
             decoration: BoxDecoration(
               color: _isHelpful == true
-                  ? Colors.green.withOpacity(0.15)
+                  ? Colors.green.withValues(alpha: 0.15)
                   : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isHelpful == true
-                    ? Colors.green
-                    : Colors.grey.shade300,
+                color: _isHelpful == true ? Colors.green : Colors.grey.shade300,
               ),
             ),
             child: Row(
@@ -64,9 +62,8 @@ class _FeedbackButtonsState extends State<FeedbackButtons> {
                 Icon(
                   Icons.thumb_up_alt_outlined,
                   size: 16,
-                  color: _isHelpful == true
-                      ? Colors.green
-                      : Colors.grey.shade700,
+                  color:
+                      _isHelpful == true ? Colors.green : Colors.grey.shade700,
                 ),
                 const SizedBox(width: 5),
                 Text(
@@ -102,12 +99,11 @@ class _FeedbackButtonsState extends State<FeedbackButtons> {
             ),
             decoration: BoxDecoration(
               color: _isHelpful == false
-                  ? Colors.red.withOpacity(0.12)
+                  ? Colors.red.withValues(alpha: 0.12)
                   : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color:
-                    _isHelpful == false ? Colors.red : Colors.grey.shade300,
+                color: _isHelpful == false ? Colors.red : Colors.grey.shade300,
               ),
             ),
             child: Row(
@@ -115,9 +111,8 @@ class _FeedbackButtonsState extends State<FeedbackButtons> {
                 Icon(
                   Icons.thumb_down_alt_outlined,
                   size: 16,
-                  color: _isHelpful == false
-                      ? Colors.red
-                      : Colors.grey.shade700,
+                  color:
+                      _isHelpful == false ? Colors.red : Colors.grey.shade700,
                 ),
                 const SizedBox(width: 5),
                 Text(
@@ -125,9 +120,8 @@ class _FeedbackButtonsState extends State<FeedbackButtons> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _isHelpful == false
-                        ? Colors.red
-                        : Colors.grey.shade700,
+                    color:
+                        _isHelpful == false ? Colors.red : Colors.grey.shade700,
                   ),
                 ),
               ],

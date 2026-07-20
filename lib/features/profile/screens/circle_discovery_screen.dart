@@ -31,10 +31,8 @@ final _pendingCircleRequestsProvider =
   if (uid == null) return [];
 
   // Find circles where user has a pending join request
-  final circlesSnap = await FirebaseFirestore.instance
-      .collection('circles')
-      .limit(100)
-      .get();
+  final circlesSnap =
+      await FirebaseFirestore.instance.collection('circles').limit(100).get();
 
   final pending = <Map<String, dynamic>>[];
   for (final doc in circlesSnap.docs) {
@@ -51,8 +49,7 @@ final _pendingCircleRequestsProvider =
         'id': doc.id,
         'name': data['name'] ?? '',
         'description': data['description'] ?? '',
-        'memberCount':
-            (data['memberUids'] as List?)?.length ?? 0,
+        'memberCount': (data['memberUids'] as List?)?.length ?? 0,
         'creatorName': data['creatorName'] ?? '',
       });
     }
@@ -77,8 +74,7 @@ class CircleDiscoveryScreen extends ConsumerStatefulWidget {
       _CircleDiscoveryScreenState();
 }
 
-class _CircleDiscoveryScreenState
-    extends ConsumerState<CircleDiscoveryScreen>
+class _CircleDiscoveryScreenState extends ConsumerState<CircleDiscoveryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -131,7 +127,8 @@ class _CircleDiscoveryScreenState
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back,
+                          color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
                     const SizedBox(width: 4),
@@ -216,8 +213,8 @@ class _JoinedTab extends ConsumerWidget {
     final joinedAsync = ref.watch(_joinedCirclesProvider);
 
     return joinedAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
       error: (e, _) =>
           Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
       data: (circles) {
@@ -253,8 +250,8 @@ class _PendingCirclesTab extends ConsumerWidget {
     final pendingAsync = ref.watch(_pendingCircleRequestsProvider);
 
     return pendingAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
       error: (e, _) =>
           Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
       data: (pending) {
@@ -300,8 +297,8 @@ class _SuggestedCirclesTab extends ConsumerWidget {
     final suggestedAsync = ref.watch(_suggestedCirclesProvider);
 
     return suggestedAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
       error: (e, _) =>
           Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
       data: (suggestions) {
@@ -459,8 +456,7 @@ class _PendingCircleCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: TheyDiColors.primary.withValues(alpha: 0.3)),
+        border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -497,8 +493,7 @@ class _PendingCircleCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: TheyDiColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
@@ -549,7 +544,11 @@ class _SuggestedCircleCardState extends State<_SuggestedCircleCard> {
       circleName: widget.circleName,
       adminUid: widget.creatorUid,
     );
-    if (mounted) setState(() {_loading = false; _requested = true;});
+    if (mounted)
+      setState(() {
+        _loading = false;
+        _requested = true;
+      });
   }
 
   @override
@@ -594,11 +593,12 @@ class _SuggestedCircleCardState extends State<_SuggestedCircleCard> {
                     Text(widget.circleName, style: TheyDiTextStyles.labelLarge),
                     if (widget.description.isNotEmpty)
                       Text(widget.description,
-                          style: TheyDiTextStyles.caption.copyWith(
-                              color: TheyDiColors.textSecondary),
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: TheyDiColors.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
-                    Text('${widget.memberCount} members · By ${widget.creatorName}',
+                    Text(
+                        '${widget.memberCount} members · By ${widget.creatorName}',
                         style: TheyDiTextStyles.caption
                             .copyWith(color: TheyDiColors.textMuted)),
                   ],
@@ -702,8 +702,8 @@ class _EmptyState extends StatelessWidget {
               GestureDetector(
                 onTap: onAction,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: TheyDiColors.gradientPrimary,
                     borderRadius: BorderRadius.circular(24),

@@ -13,8 +13,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
 
-import '../../../core/services/face_verification_service.dart';
-
 class SignupStep5Screen extends StatefulWidget {
   final SignupData signupData;
   const SignupStep5Screen({super.key, required this.signupData});

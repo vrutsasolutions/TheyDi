@@ -32,8 +32,7 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   // ── 6 individual digit controllers ──
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes =
-      List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   int _secondsLeft = 30;
   Timer? _timer;
@@ -46,8 +45,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     _sendOtp(); // real async send — fire and forget on init
     _startTimer();
     // Auto-focus first box
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _focusNodes[0].requestFocus());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _focusNodes[0].requestFocus());
 
     // Listen to focus changes
     for (final f in _focusNodes) {
@@ -84,7 +83,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Failed to send OTP. Please check your email and try again.'),
+          content: Text(
+              '❌ Failed to send OTP. Please check your email and try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -96,7 +96,10 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     _canResend = false;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       setState(() {
         if (_secondsLeft > 0) {
           _secondsLeft--;
@@ -133,8 +136,7 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     setState(() {});
   }
 
-  String get _enteredOtp =>
-      _controllers.map((c) => c.text).join();
+  String get _enteredOtp => _controllers.map((c) => c.text).join();
 
   // ── Verify via Firestore ───────────────────────────────────────────────────
   Future<void> _verify() async {
@@ -169,7 +171,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
         _focusNodes[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ ${result['message'] ?? 'Incorrect OTP. Please try again.'}'),
+            content: Text(
+                '❌ ${result['message'] ?? 'Incorrect OTP. Please try again.'}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -218,7 +221,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                     children: [
                       // Icon
                       Container(
-                        width: 80, height: 80,
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           gradient: TheyDiColors.gradientPrimary,
                           shape: BoxShape.circle,
@@ -227,8 +231,7 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                             color: Colors.white, size: 38),
                       )
                           .animate()
-                          .scale(
-                              duration: 500.ms, curve: Curves.elasticOut),
+                          .scale(duration: 500.ms, curve: Curves.elasticOut),
 
                       const SizedBox(height: 28),
 
@@ -244,11 +247,9 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                         textAlign: TextAlign.center,
                         text: TextSpan(
                           style: TheyDiTextStyles.bodySmall.copyWith(
-                              color: TheyDiColors.textSecondary,
-                              height: 1.5),
+                              color: TheyDiColors.textSecondary, height: 1.5),
                           children: [
-                            const TextSpan(
-                                text: 'We sent a 6-digit code to\n'),
+                            const TextSpan(text: 'We sent a 6-digit code to\n'),
                             TextSpan(
                               text: widget.signupData.email,
                               style: TheyDiTextStyles.labelMedium
@@ -266,8 +267,10 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                           final spacing = 8.0;
                           final totalSpacing = spacing * 5;
                           final availableWidth =
-                              (constraints.maxWidth - totalSpacing).clamp(0.0, double.infinity);
-                          final boxWidth = (availableWidth / 6).clamp(36.0, 46.0);
+                              (constraints.maxWidth - totalSpacing)
+                                  .clamp(0.0, double.infinity);
+                          final boxWidth =
+                              (availableWidth / 6).clamp(36.0, 46.0);
 
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -275,7 +278,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                               return Container(
                                 width: boxWidth,
                                 height: 56,
-                                margin: EdgeInsets.symmetric(horizontal: spacing / 2),
+                                margin: EdgeInsets.symmetric(
+                                    horizontal: spacing / 2),
                                 decoration: BoxDecoration(
                                   color: TheyDiColors.inputFill,
                                   borderRadius: BorderRadius.circular(12),
@@ -321,7 +325,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                                 ),
                               )
                                   .animate(
-                                      delay: Duration(milliseconds: 200 + i * 50))
+                                      delay:
+                                          Duration(milliseconds: 200 + i * 50))
                                   .fade(duration: 250.ms)
                                   .slideY(begin: 0.3, end: 0);
                             }),
@@ -340,9 +345,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                                     color: TheyDiColors.primary))
                             : GradientButton(
                                 label: 'Verify & Continue →',
-                                onPressed: _enteredOtp.length == 6
-                                    ? _verify
-                                    : () {},
+                                onPressed:
+                                    _enteredOtp.length == 6 ? _verify : () {},
                               ),
                       ).animate(delay: 500.ms).fade(duration: 300.ms),
 
@@ -354,8 +358,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                           if (!_canResend)
                             Text(
                               'Resend code in $_secondsLeft s',
-                              style: TheyDiTextStyles.caption.copyWith(
-                                  color: TheyDiColors.textMuted),
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: TheyDiColors.textMuted),
                             )
                           else
                             TextButton(
@@ -371,8 +375,8 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                             onPressed: () => context.pop(),
                             child: Text(
                               'Change email address',
-                              style: TheyDiTextStyles.caption.copyWith(
-                                  color: TheyDiColors.textSecondary),
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: TheyDiColors.textSecondary),
                             ),
                           ),
                         ],

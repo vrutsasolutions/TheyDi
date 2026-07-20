@@ -103,7 +103,8 @@ class AuthNotifier extends AsyncNotifier<User?> {
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
         // ANDROID / IOS: Use GoogleSignIn plugin
-        final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+        final GoogleSignInAccount googleUser =
+            await GoogleSignIn.instance.authenticate();
         final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
         final credential = GoogleAuthProvider.credential(

@@ -75,8 +75,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
 
   // ── Toggle friend selection ──
   void _toggleFriend(Map<String, String> friend) {
-    final alreadyAdded =
-        _invitedMembers.any((m) => m['uid'] == friend['uid']);
+    final alreadyAdded = _invitedMembers.any((m) => m['uid'] == friend['uid']);
     setState(() {
       if (alreadyAdded) {
         _invitedMembers.removeWhere((m) => m['uid'] == friend['uid']);
@@ -95,7 +94,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
     }
 
     final currentUser = FirebaseAuth.instance.currentUser!;
-    final currentUserName = currentUser.displayName ?? currentUser.email!.split('@').first;
+    final currentUserName =
+        currentUser.displayName ?? currentUser.email!.split('@').first;
     if (username == currentUserName) {
       setState(() => _searchError = 'You\'ll be added automatically');
       return;
@@ -146,8 +146,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser!;
 
-      String creatorName =
-          user.displayName ?? user.email!.split('@').first;
+      String creatorName = user.displayName ?? user.email!.split('@').first;
       try {
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
@@ -167,9 +166,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
         ..._invitedMembers.map((m) => m['name']!),
       ];
 
-      final circleRef = await FirebaseFirestore.instance
-          .collection('circles')
-          .add({
+      final circleRef =
+          await FirebaseFirestore.instance.collection('circles').add({
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'creatorUid': user.uid,
@@ -192,8 +190,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
             .collection('notifications')
             .add({
           'title': 'Added to a circle 👥',
-          'body':
-              '$creatorName added you to "${_nameController.text.trim()}"',
+          'body': '$creatorName added you to "${_nameController.text.trim()}"',
           'type': 'social',
           'isRead': false,
           'createdAt': Timestamp.now(),
@@ -204,8 +201,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Circle created! 🎉'),
-            backgroundColor: Colors.green),
+            content: Text('Circle created! 🎉'), backgroundColor: Colors.green),
       );
 
       // Navigate to the new circle's chat
@@ -220,8 +216,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Failed to create: $e'),
-            backgroundColor: Colors.red),
+            content: Text('Failed to create: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -266,20 +261,17 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     children: [
                       // ── Circle Name ──
-                      Text('Circle name',
-                              style: TheyDiTextStyles.labelMedium)
+                      Text('Circle name', style: TheyDiTextStyles.labelMedium)
                           .animate(delay: 100.ms)
                           .fade(duration: 300.ms),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _nameController,
                         style: TheyDiTextStyles.bodyMedium,
-                        validator: (val) =>
-                            (val == null || val.trim().isEmpty)
-                                ? 'Name is required'
-                                : null,
-                        decoration:
-                            _inputDecoration('e.g. Weekend Explorers'),
+                        validator: (val) => (val == null || val.trim().isEmpty)
+                            ? 'Name is required'
+                            : null,
+                        decoration: _inputDecoration('e.g. Weekend Explorers'),
                       ).animate(delay: 120.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 20),
@@ -314,8 +306,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                           if (_invitedMembers.isNotEmpty)
                             Text(
                               '${_invitedMembers.length} selected',
-                              style: TheyDiTextStyles.caption.copyWith(
-                                  color: TheyDiColors.primary),
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: TheyDiColors.primary),
                             ),
                         ],
                       ).animate(delay: 200.ms).fade(duration: 300.ms),
@@ -425,8 +417,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                                                 decoration: BoxDecoration(
                                                   shape: BoxShape.circle,
                                                   border: Border.all(
-                                                      color: TheyDiColors
-                                                          .divider),
+                                                      color:
+                                                          TheyDiColors.divider),
                                                 ),
                                               ),
                                           ],
@@ -438,8 +430,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
 
                       const SizedBox(height: 20),
 
-                            // ── Search by username (fallback) ──
-                            Text('Or add by username',
+                      // ── Search by username (fallback) ──
+                      Text('Or add by username',
                               style: TheyDiTextStyles.labelMedium)
                           .animate(delay: 230.ms)
                           .fade(duration: 300.ms),
@@ -457,8 +449,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                               controller: _usernameController,
                               style: TheyDiTextStyles.bodyMedium,
                               keyboardType: TextInputType.text,
-                              decoration:
-                                  _inputDecoration('friend_username'),
+                              decoration: _inputDecoration('friend_username'),
                               onSubmitted: (_) => _searchAndAddByUsername(),
                             ),
                           ),
@@ -515,9 +506,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                                         color: Colors.white, strokeWidth: 2.5),
                                   )
                                 : Text('Create Circle',
-                                    style: TheyDiTextStyles.labelLarge
-                                        .copyWith(
-                                            color: Colors.white, fontSize: 16)),
+                                    style: TheyDiTextStyles.labelLarge.copyWith(
+                                        color: Colors.white, fontSize: 16)),
                           ),
                         ),
                       ).animate(delay: 300.ms).fade(duration: 300.ms),
@@ -557,8 +547,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.red),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 }

@@ -45,13 +45,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String _getErrorMessage(String code) {
     switch (code) {
-      case 'user-not-found':      return 'No account found with this email.';
-      case 'wrong-password':      return 'Incorrect password. Please try again.';
-      case 'invalid-credential':  return 'Invalid email or password. Please try again.';
-      case 'invalid-email':       return 'Please enter a valid email address.';
-      case 'user-disabled':       return 'This account has been disabled.';
-      case 'too-many-requests':   return 'Too many attempts. Please try again later.';
-      default:                    return 'Sign in failed. Please try again.';
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'invalid-credential':
+        return 'Invalid email or password. Please try again.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      default:
+        return 'Sign in failed. Please try again.';
     }
   }
 
@@ -89,7 +96,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       _showError(e.message ?? 'Google sign in failed.');
     } catch (e) {
-      if (e.toString().contains('sign_in_canceled') || e.toString().contains('canceled')) {
+      if (e.toString().contains('sign_in_canceled') ||
+          e.toString().contains('canceled')) {
         return;
       }
       _showError('Google Sign-In failed: $e');
@@ -122,22 +130,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 48, height: 48,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
                           gradient: TheyDiColors.gradientPrimary,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Center(
-                          child: Text('T', style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          )),
-                        
+                          child: Text('T',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              )),
                         ),
                       ),
                       const SizedBox(height: 28),
-                      Text('Welcome back', style: TheyDiTextStyles.displayMedium),
+                      Text('Welcome back',
+                          style: TheyDiTextStyles.displayMedium),
                       const SizedBox(height: 8),
                       Text(
                         'Sign in to discover gatherings near you',
@@ -202,7 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       SizedBox(
                         height: 24,
-                        width: 24, 
+                        width: 24,
                         child: Checkbox(
                           value: _keepMeSignedIn,
                           activeColor: TheyDiColors.primary,
@@ -267,11 +277,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('G', style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: TheyDiColors.primary,
-                          )),
+                          const Text('G',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: TheyDiColors.primary,
+                              )),
                           const SizedBox(width: 12),
                           Text('Continue with Google',
                               style: TheyDiTextStyles.labelLarge),
