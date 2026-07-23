@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/notification_icon_button.dart';
+
 import '../../events/models/event_model.dart';
 
 class MyEventsScreen extends ConsumerStatefulWidget {
@@ -76,8 +76,6 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                           'My Events',
                           style: TheyDiTextStyles.displayMedium,
                         ).animate().fade(duration: 400.ms),
-                        const Spacer(),
-                        const NotificationIconButton(),
                       ],
                     ),
                     const SizedBox(height: 16),
