@@ -129,22 +129,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Center(
-                          child: Text('T',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              )),
-                        ),
-                      ),
+                      Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    Image.asset(
+      'assets/images/theydi_logo.png',
+      width: 56,
+      height: 56,
+      fit: BoxFit.contain,
+    ),
+    const SizedBox(width: 6),
+    Text(
+      'TheyDi',
+      style: TheyDiTextStyles.displaySmall.copyWith(
+        fontSize: 23,
+        fontWeight: FontWeight.w800,
+        color: TheyDiColors.primary,
+        letterSpacing: -0.5,
+      ),
+    ),
+  ],
+),
                       const SizedBox(height: 28),
                       Text('Welcome back',
                           style: TheyDiTextStyles.displayMedium),

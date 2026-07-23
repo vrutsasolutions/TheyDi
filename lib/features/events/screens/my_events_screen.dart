@@ -70,14 +70,15 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: [
-                        const SizedBox(width: 4),
-                        Text(
-                          'My Events',
-                          style: TheyDiTextStyles.displayMedium,
-                        ).animate().fade(duration: 400.ms),
-                      ],
-                    ),
+children: [
+  const SizedBox(width: 4),
+  Text(
+    'My Events',
+    style: TheyDiTextStyles.displayMedium,
+  ).animate().fade(duration: 400.ms),
+  const Spacer(),
+],
+),
                     const SizedBox(height: 16),
                     TabBar(
                       controller: _tabController,

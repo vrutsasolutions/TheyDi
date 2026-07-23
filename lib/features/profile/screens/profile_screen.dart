@@ -388,27 +388,7 @@ class _ProfileContent extends ConsumerWidget {
                     ),
                   ],
 
-                  // Show verify button only when not verified
-                  // if (!isVerified)
-                  //   Center(
-                  //     child: ElevatedButton.icon(
-                  //       onPressed: () => context.push(AppRoutes.verifyProfile),
-                  //       icon: const Icon(Icons.check,
-                  //           size: 14, color: Colors.white),
-                  //       label: const Text('Verify Profile'),
-                  //       style: ElevatedButton.styleFrom(
-                  //         backgroundColor: TheyDiColors.primary,
-                  //         padding: const EdgeInsets.symmetric(
-                  //             horizontal: 12, vertical: 8),
-                  //         minimumSize: const Size(0, 36),
-                  //         elevation: 2,
-                  //         shape: RoundedRectangleBorder(
-                  //             borderRadius: BorderRadius.circular(12)),
-                  //         textStyle: TheyDiTextStyles.labelSmall
-                  //             .copyWith(color: Colors.white, fontSize: 12),
-                  //       ),
-                  //     ),
-                  //   ),
+                  
                 ],
               ),
               const SizedBox(width: 16),
