@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:theydi/core/theme/app_theme.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -29,41 +30,29 @@ class PrivacyPolicyScreen extends StatelessWidget {
     borderRadius: BorderRadius.circular(18),
   ),
   child: Column(
-    children: [
-      Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.teal.withOpacity(0.12),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.privacy_tip_rounded,
-          color: Colors.teal,
-          size: 46,
-        ),
+  children: [
+    Container(
+      width: 90,
+      height: 90,
+      decoration: BoxDecoration(
+        color: TheyDiColors.primary.withOpacity(.08),
+        shape: BoxShape.circle,
       ),
-      const SizedBox(height: 18),
-      const Text(
-        "Privacy Policy",
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 30,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.3,
-        ),
+      child: const Icon(
+        Icons.privacy_tip_rounded,
+        size: 42,
+        color: TheyDiColors.primary,
       ),
-      const SizedBox(height: 8),
-      Text(
-        "Your privacy matters to us.",
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 15,
-          color: Colors.grey.shade700,
-          height: 1.4,
-        ),
+    ),
+    const SizedBox(height: 16),
+    Text(
+      'Your privacy matters to us.',
+      style: TheyDiTextStyles.bodyLarge.copyWith(
+        color: TheyDiColors.textSecondary,
       ),
-    ],
-  ),
+    ),
+  ],
+),
 ),
 const SizedBox(height: 24),
             _buildCard(

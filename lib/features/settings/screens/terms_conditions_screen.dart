@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:theydi/core/theme/app_theme.dart';
 
 class TermsConditionsScreen extends StatelessWidget {
   const TermsConditionsScreen({super.key});
@@ -33,48 +34,38 @@ class TermsConditionsScreen extends StatelessWidget {
     border: Border.all(color: Colors.green.shade100),
   ),
   child: Column(
-    children: [
-      Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.12),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.gavel_rounded,
-          color: Colors.green,
-          size: 46,
-        ),
+  children: [
+    Container(
+      width: 90,
+      height: 90,
+      decoration: BoxDecoration(
+        color: TheyDiColors.primary.withOpacity(.08),
+        shape: BoxShape.circle,
       ),
-      const SizedBox(height: 18),
-      const Text(
-        "Terms & Conditions",
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 30,
-          fontWeight: FontWeight.bold,
-        ),
+      child: const Icon(
+        Icons.gavel_rounded,
+        size: 42,
+        color: TheyDiColors.primary,
       ),
-      const SizedBox(height: 8),
-      const Text(
-        "Please read these terms carefully before using TheyDi.",
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 15,
-          color: Colors.black54,
-        ),
+    ),
+    const SizedBox(height: 16),
+    Text(
+      'Please read these terms carefully before using TheyDi.',
+      textAlign: TextAlign.center,
+      style: TheyDiTextStyles.bodyLarge.copyWith(
+        color: TheyDiColors.textSecondary,
       ),
-      const SizedBox(height: 14),
-      const Text(
-        "Effective Date: [Launch Date]\nLast Updated: [Last Updated Date]",
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey,
-        ),
+    ),
+    const SizedBox(height: 12),
+    Text(
+      'Effective Date: [Launch Date]\nLast Updated: [Last Updated Date]',
+      textAlign: TextAlign.center,
+      style: TheyDiTextStyles.bodySmall.copyWith(
+        color: TheyDiColors.textMuted,
       ),
-    ],
-  ),
+    ),
+  ],
+),
 ),
 
 const SizedBox(height: 24),
