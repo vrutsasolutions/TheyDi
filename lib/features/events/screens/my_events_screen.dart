@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/notification_icon_button.dart';
+
 import '../../events/models/event_model.dart';
 
 class MyEventsScreen extends ConsumerStatefulWidget {
@@ -70,16 +70,15 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: [
-                        const SizedBox(width: 4),
-                        Text(
-                          'My Events',
-                          style: TheyDiTextStyles.displayMedium,
-                        ).animate().fade(duration: 400.ms),
-                        const Spacer(),
-                        const NotificationIconButton(),
-                      ],
-                    ),
+children: [
+  const SizedBox(width: 4),
+  Text(
+    'My Events',
+    style: TheyDiTextStyles.displayMedium,
+  ).animate().fade(duration: 400.ms),
+  const Spacer(),
+],
+),
                     const SizedBox(height: 16),
                     TabBar(
                       controller: _tabController,

@@ -63,30 +63,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     children: [
                       // Logo
                       Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x6610B981),
-                              blurRadius: 32,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            'T',
-                            style: TheyDiTextStyles.displayLarge.copyWith(
-                              fontSize: 52,
-                              color: Colors.white,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      )
+  width: 96,
+  height: 96,
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(28),
+    boxShadow: const [
+      BoxShadow(
+        color: Color(0x2210B981),
+        blurRadius: 20,
+        offset: Offset(0, 6),
+      ),
+    ],
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(8),
+    child: Image.asset(
+      'assets/images/theydi_logo.png',
+      fit: BoxFit.contain,
+    ),
+  ),
+)
                           .animate()
                           .scale(
                             begin: const Offset(0.6, 0.6),

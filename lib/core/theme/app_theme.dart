@@ -52,6 +52,26 @@ class TheyDiTextStyles {
       fontWeight: FontWeight.w600,
       color: TheyDiColors.textPrimary,
       height: 1.25);
+      static TextStyle get headlineLarge => GoogleFonts.inter(
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+      color: TheyDiColors.textPrimary,
+      height: 1.25,
+);
+
+static TextStyle get titleLarge => GoogleFonts.inter(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: TheyDiColors.textPrimary,
+      height: 1.3,
+);
+
+static TextStyle get titleMedium => GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: TheyDiColors.textPrimary,
+      height: 1.3,
+);
 
   static TextStyle get headlineMedium => GoogleFonts.inter(
       fontSize: 18,

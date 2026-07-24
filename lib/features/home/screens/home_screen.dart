@@ -394,24 +394,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
-                                        width: 34,
-                                        height: 34,
+                                        width: 90,
+                                        height: 60,
                                         decoration: BoxDecoration(
-                                          color: TheyDiColors.primary,
+                                          // color: TheyDiColors.primary,
                                           borderRadius:
                                               BorderRadius.circular(12),
                                         ),
                                         child: Center(
-                                          child: Text('T',
-                                              style: TheyDiTextStyles
-                                                  .headlineSmall
-                                                  .copyWith(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w900)),
+                                          child: Image.asset(
+  'assets/images/theydi_logo.png',
+  height: 56,
+  fit: BoxFit.contain,
+),
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
+                                      // const SizedBox(width: 10),
                                       Text(
                                         'Hey there 👋',
                                         style: TheyDiTextStyles.headlineSmall

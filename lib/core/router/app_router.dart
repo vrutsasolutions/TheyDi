@@ -311,10 +311,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return FriendsHubScreen(initialTab: initialTab);
         },
       ),
-      GoRoute(
-        path: AppRoutes.blockedUsers,
-        builder: (context, state) => const BlockedUsersScreen(),
-      ),
+      // GoRoute(
+      //   path: AppRoutes.blockedUsers,
+      //   builder: (context, state) => const BlockedUsersScreen(),
+      // ),
       GoRoute(
         path: AppRoutes.reportHistory,
         builder: (context, state) => const ReportProblemScreen(),

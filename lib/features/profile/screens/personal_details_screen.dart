@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/theme/app_theme.dart';
+// import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
   const PersonalDetailsScreen({super.key});
@@ -47,11 +48,19 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     'AUBL': 'AU Small Finance Bank',
   };
 
+
+
+
   @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
+void initState() {
+  super.initState();
+
+  // FlutterWindowManager.addFlags(
+  //   FlutterWindowManager.FLAG_SECURE,
+  // );
+
+  _loadProfile();
+}
 
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -90,6 +99,9 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   @override
   void dispose() {
+  //    FlutterWindowManager.clearFlags(
+  //   FlutterWindowManager.FLAG_SECURE,
+  // );
     _legalNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
