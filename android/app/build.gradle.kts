@@ -42,10 +42,6 @@ android {
     }
 }
 
-dependencies {
-    implementation("com.google.mlkit:face-detection:16.1.5")
-}
-
 flutter {
     source = "../.."
 }

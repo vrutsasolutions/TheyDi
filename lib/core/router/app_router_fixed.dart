@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_routes.dart';
 import 'package:theydi/features/auth/screens/splash_screen.dart';
@@ -12,11 +14,15 @@ import 'package:theydi/features/auth/screens/signup_step2_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step3_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step4_screen.dart';
 import 'package:theydi/features/auth/screens/signup_step5_screen.dart';
-import 'package:theydi/features/auth/screens/forgot_password_screen.dart'; // ← NEW
+import 'package:theydi/features/auth/screens/forgot_password_screen.dart';
+import 'package:theydi/core/router/deep_link_handlers.dart';
 import 'package:theydi/features/events/screens/create_event_screen.dart';
 import 'package:theydi/shared/widgets/main_shell.dart';
 import 'package:theydi/features/home/screens/home_screen.dart';
 import 'package:theydi/features/profile/screens/profile_screen.dart';
+import 'package:theydi/features/profile/screens/verify_profile_screen.dart';
+import 'package:theydi/features/profile/screens/personal_details_screen.dart';
+
 import 'package:theydi/features/explore/screens/explore_screen.dart';
 import 'package:theydi/features/events/screens/my_events_screen.dart';
 import 'package:theydi/features/events/screens/event_detail_screen.dart';
@@ -45,17 +51,71 @@ import 'package:theydi/features/profile/screens/friend_info_screen.dart';
 import 'package:theydi/features/profile/screens/friends_hub_screen.dart';
 import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
+import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
+import 'package:theydi/features/settings/screens/report_problem_screen.dart';
+import 'package:theydi/features/settings/screens/submit_report_screen.dart';
+import 'package:theydi/features/auth/screens/face_verification_screen.dart';
+import 'package:theydi/features/support/screens/darla_chat_screen.dart';
+import '../../features/settings/screens/privacy_policy_screen.dart';
+import '../../features/settings/screens/terms_conditions_screen.dart';
 
 import '../../features/admin/screens/admin_verification_screen.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Routes that require the user to be signed in
+  const protectedRoutes = [
+    AppRoutes.home,
+    AppRoutes.explore,
+    AppRoutes.myEvents,
+    AppRoutes.profile,
+    AppRoutes.editprofile,
+    AppRoutes.verifyProfile,
+    AppRoutes.personalDetails,
+    AppRoutes.createEvent,
+    AppRoutes.hostDashboard,
+    AppRoutes.circles,
+  ];
+
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    redirect: (context, state) {
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoggedIn = user != null;
+      final path = state.matchedLocation;
+
+      // Auth-only pages (exact match — '/' would break startsWith)
+      final isOnAuthPage = path == AppRoutes.splash ||
+          path == AppRoutes.login ||
+          path.startsWith('/signup');
+
+      // If logged in and on an auth-only page, go home
+      if (isLoggedIn && isOnAuthPage) {
+        return AppRoutes.home;
+      }
+
+      // If not logged in and trying to access a protected page, go to login
+      if (!isLoggedIn && protectedRoutes.any((r) => path.startsWith(r))) {
+        return AppRoutes.login;
+      }
+
+      return null; // no redirect needed
+    },
     routes: [
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.blockedUsers,
+        builder: (context, state) => const BlockedUsersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.reportProblem,
+        builder: (context, state) => const SubmitReportScreen(),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -66,16 +126,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
-      // ── Event detail ──
+      // ── Deep Links ──
       GoRoute(
         path: '/event/:id',
         builder: (context, state) {
-          final event = state.extra as EventModel;
-          return EventDetailScreen(event: event);
+          if (state.extra != null && state.extra is EventModel) {
+            return EventDetailScreen(event: state.extra as EventModel);
+          }
+          final eventId = state.pathParameters['id']!;
+          return DeepLinkEventScreen(eventId: eventId);
+        },
+      ),
+      GoRoute(
+        path: '/circle/:id',
+        builder: (context, state) {
+          final circleId = state.pathParameters['id']!;
+          return DeepLinkCircleScreen(circleId: circleId);
+        },
+      ),
+      GoRoute(
+        path: '/user/:id',
+        builder: (context, state) {
+          final userId = state.pathParameters['id']!;
+          return UserProfileScreen(uid: userId);
         },
       ),
 
-      // ── Payment ──
+      GoRoute(
+        path: AppRoutes.privacyPolicy,
+        builder: (_, __) => const PrivacyPolicyScreen(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.termsConditions,
+        builder: (_, __) => const TermsConditionsScreen(),
+      ),
+
+      // ── Payment ─
       GoRoute(
         path: AppRoutes.payment,
         builder: (context, state) {
@@ -133,10 +220,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.hostDashboard,
         builder: (context, state) => const HostDashboardScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.circles,
-        builder: (context, state) => const CirclesListScreen(),
-      ),
+
       GoRoute(
         path: AppRoutes.createCircle,
         builder: (context, state) => const CreateCircleScreen(),
@@ -219,11 +303,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.friendsHub,
-        builder: (context, state) => const FriendsHubScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final initialTab = extra is Map<String, dynamic>
+              ? (extra['initialTab'] as int? ?? 0)
+              : 0;
+          return FriendsHubScreen(initialTab: initialTab);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.blockedUsers,
+        builder: (context, state) => const BlockedUsersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.reportHistory,
+        builder: (context, state) => const ReportProblemScreen(),
       ),
       GoRoute(
         path: AppRoutes.circleDiscovery,
-        builder: (context, state) => const CircleDiscoveryScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final initialTab = extra is Map<String, dynamic>
+              ? (extra['initialTab'] as int? ?? 0)
+              : 0;
+          return CircleDiscoveryScreen(initialTab: initialTab);
+        },
       ),
       GoRoute(
         path: AppRoutes.settings,
@@ -255,9 +359,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.signupStep4, // ← now Face Verify
-        builder: (context, state) => SignupStep4Screen(
-          signupData: state.extra as SignupData,
-        ),
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic> && extra['fromProfile'] == true) {
+            return const SignupStep4Screen(fromProfile: true);
+          }
+          if (extra is SignupData) {
+            return SignupStep4Screen(signupData: extra);
+          }
+          return const SignupStep4Screen();
+        },
       ),
       GoRoute(
         path: AppRoutes.signupStep5, // ← NEW: Review & Complete
@@ -267,9 +378,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
+        path: AppRoutes.verifyProfile,
+        builder: (context, state) => const VerifyProfileScreen(),
+      ),
+
+      GoRoute(
         path: AppRoutes.adminVerification,
         builder: (context, state) => const AdminVerificationScreen(),
       ),
+
+      GoRoute(
+        path: AppRoutes.darlaChat,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const DarlaChatScreen(),
+      ),
+
+      GoRoute(
+  path: AppRoutes.faceVerification,
+  parentNavigatorKey: rootNavigatorKey,
+  builder: (context, state) {
+    final extra = state.extra as Map<String, dynamic>;
+    return FaceVerificationScreen(
+      userId: extra['userId'] as String,
+      onComplete: () {},
+    );
+  },
+),
 
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(
@@ -302,8 +436,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const EditProfileScreen(),
           ),
           GoRoute(
+            path: AppRoutes.personalDetails,
+            builder: (context, state) => const PersonalDetailsScreen(),
+          ),
+          GoRoute(
             path: AppRoutes.createEvent,
             builder: (context, state) => const CreateEventScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.circles,
+            builder: (context, state) {
+              final initialTab =
+                  int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+
+              debugPrint('Tab from URL = $initialTab');
+
+              return CirclesListScreen(
+                initialTab: initialTab,
+              );
+            },
           ),
         ],
       ),

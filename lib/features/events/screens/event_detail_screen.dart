@@ -16,7 +16,6 @@ import 'package:theydi/features/events/widgets/event_share_sheet.dart';
 import '../../../core/services/face_verification_service.dart';
 
 import 'package:flutter/foundation.dart';
-import '../../../shared/widgets/web_verification_dialog.dart';
 
 // ─────────────────────────────────────────────────────────────
 // State machine:
@@ -188,16 +187,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   Future<void> _handleJoinEvent(String uid) async {
-    if (kIsWeb) {
-      final verified = await FaceVerificationService.isUserVerified(uid);
-      if (!verified) {
-        await WebVerificationDialog.show(context);
-        return;
-      }
-      // Verified on web → proceed normally
-      _joinEvent(uid);
-      return;
-    }
     final verified = await FaceVerificationService.isUserVerified(uid);
 
     if (!verified) {

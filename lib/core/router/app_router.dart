@@ -393,6 +393,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DarlaChatScreen(),
       ),
 
+      GoRoute(
+  path: AppRoutes.faceVerification,
+  parentNavigatorKey: rootNavigatorKey,
+  builder: (context, state) {
+    final extra = state.extra as Map<String, dynamic>;
+    return FaceVerificationScreen(
+      userId: extra['userId'] as String,
+      onComplete: () {},
+    );
+  },
+),
+
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
@@ -412,16 +424,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return MyEventsScreen(
                 initialTab: args?['tab'] as int? ?? 0,
                 initialFilter: args?['filter'] as String? ?? 'All',
-              );
-            },
-          ),
-          GoRoute(
-            path: AppRoutes.faceVerification,
-            builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>;
-              return FaceVerificationScreen(
-                userId: extra['userId'] as String,
-                onComplete: () {},
               );
             },
           ),

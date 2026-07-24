@@ -18,7 +18,6 @@ import '../models/event_model.dart';
 import '../../../core/services/face_verification_service.dart';
 
 import 'package:flutter/foundation.dart';
-import '../../../shared/widgets/web_verification_dialog.dart';
 
 // ── PaymentScreen now accepts a Map<String,dynamic> as extra ─────────────────
 // extra = { 'event': EventModel, 'fromApproval': bool }
@@ -188,16 +187,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _handlePayButton() async {
-    if (kIsWeb) {
-      final verified = await FaceVerificationService.isUserVerified(_myUid);
-      if (!verified) {
-        await WebVerificationDialog.show(context);
-        return;
-      }
-      // Verified on web → proceed normally
-      _processPayment();
-      return;
-    }
     // 1. Check if user is face-verified
     final verified = await FaceVerificationService.isUserVerified(_myUid);
 

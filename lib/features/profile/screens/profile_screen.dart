@@ -10,7 +10,6 @@ import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 
 import 'package:flutter/foundation.dart';
-import '../../../shared/widgets/web_verification_dialog.dart';
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
@@ -353,18 +352,14 @@ class _ProfileContent extends ConsumerWidget {
                   if (!isVerified) ...[
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onTap: () async {
-                        if (kIsWeb) {
-                          await WebVerificationDialog.show(context);
-                          return;
-                        }
-                        final uid = FirebaseAuth.instance.currentUser?.uid;
-                        if (uid == null) return;
-                        context.push(
-                          AppRoutes.faceVerification,
-                          extra: {'userId': uid},
-                        );
-                      },
+                      onTap: () {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return;
+  context.push(
+    AppRoutes.faceVerification,
+    extra: {'userId': uid},
+  );
+},
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 7),

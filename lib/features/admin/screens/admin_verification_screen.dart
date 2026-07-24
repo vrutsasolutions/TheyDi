@@ -156,28 +156,35 @@ class _RequestCardState extends State<_RequestCard> {
               ],
             ),
             const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (_, child, progress) {
-                    if (progress == null) return child;
-                    return const SizedBox(
-                      height: 300,
-                      child: Center(
-                        child: CircularProgressIndicator(color: Colors.white),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return const SizedBox(
+                          height: 300,
+                          child: Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        height: 200,
+                        child: Center(
+                          child: Icon(Icons.broken_image,
+                              color: Colors.white, size: 48),
+                        ),
                       ),
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => const SizedBox(
-                    height: 200,
-                    child: Center(
-                      child: Icon(Icons.broken_image,
-                          color: Colors.white, size: 48),
                     ),
                   ),
                 ),
