@@ -378,6 +378,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   //  10. social accepted           → Friends Hub › Connected tab
   //  11. social friend request     → Friends Hub › Pending tab
   //  12. circle_added / circle_*   → Circles list → Circle Info
+  //
+  // NOTE: AppRoutes.circles, .home, .explore, .myEvents, and .profile all
+  // live inside the app's ShellRoute. Always navigate to them with
+  // context.go(...) instead of context.push(...) — pushing a route that
+  // already exists on the shell Navigator's page stack causes a duplicate
+  // GlobalKey / duplicate Page assertion crash. Routes declared outside the
+  // shell (hostManage, dmChat, paymenthistory, myReviews, friendsHub, etc.)
+  // are safe to context.push(...) since they live on a separate Navigator.
   // ─────────────────────────────────────────────────────────
   Future<void> _handleNavigation(
       BuildContext context, NotificationModel notif) async {
@@ -397,6 +405,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
 
     switch (notif.type) {
+      // ── 1. System / event lifecycle ──────────────────────────────────────
       case 'system':
         if (t.contains('completed') || t.contains('ended')) {
           if (b.contains('marked as completed') ||
@@ -415,42 +424,17 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         }
         break;
 
-      case 'payment':
-        if (t.contains('payout')) {
-          context.push(AppRoutes.hostDashboard);
-        } else if (t.contains('new attendee') ||
-            t.contains('new booking') ||
-            b.contains('booked') ||
-            b.contains('joined')) {
-          goManageEvent();
-        } else {
-          context.push(AppRoutes.paymenthistory);
-        }
-        break;
-
-      case 'booking':
-        if (t.contains('you\'re in') ||
-            (t.contains('approved') && !t.contains('join request'))) {
-          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
-        } else if (t.contains('join request') || t.contains('spot cancelled')) {
-          goManageEvent();
-        } else {
-          await openEventDetail();
-        }
-        break;
-
       case 'suggested_event':
       case 'reminder':
         await openEventDetail();
         break;
 
-      // ── 1. Event ended ──────────────────────────────────────────────────────
-
+      // ── 2. Reviews ────────────────────────────────────────────────────────
       case 'review':
         context.push(AppRoutes.myReviews);
         break;
 
-// ── 3–7. Booking-type notifications ────────────────────────────────────
+      // ── 3–7. Booking-type notifications ─────────────────────────────────
       case 'booking':
         final isCompletePayment =
             t.contains('complete payment') || b.contains('tap to pay');
@@ -473,16 +457,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         } else if (notif.eventId != null) {
           await _pushEventDetail(context, notif.eventId!);
         }
+        break;
 
-// ── Payment confirmed → Payment History ────────────────────────────────
+      // ── Payment notifications ───────────────────────────────────────────
       case 'payment':
-        context.push(AppRoutes.paymenthistory);
+        if (t.contains('payout')) {
+          context.push(AppRoutes.hostDashboard);
+        } else if (t.contains('new attendee') ||
+            t.contains('new booking') ||
+            b.contains('booked') ||
+            b.contains('joined')) {
+          goManageEvent();
+        } else {
+          context.push(AppRoutes.paymenthistory);
+        }
+        break;
 
-// ── 8 & 9. Messages (DM or Circle) ─────────────────────────────────────
+      // ── 8 & 9. Messages (DM or Circle) ──────────────────────────────────
       case 'dm':
       case 'message':
         if (notif.circleId != null) {
-          context.push(AppRoutes.circles);
+          context.go(AppRoutes.circles);
         } else if (notif.fromUid != null) {
           final senderName = _extractSenderName(notif.title);
           context.push(AppRoutes.dmChat, extra: {
@@ -490,10 +485,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             'otherName': senderName,
           });
         } else {
-          context.push(AppRoutes.circles);
+          context.go(AppRoutes.circles);
         }
         break;
 
+      // ── 10 & 11. Social (friends / circles) ─────────────────────────────
       case 'social':
         final isAccepted = t.contains('accepted');
         final isFriendRequest = t.contains('friend request') && !isAccepted;
@@ -506,16 +502,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           context.push(AppRoutes.myReviews);
         } else if (isAddedToCircle) {
           // Added to circle → Circles list
-          context.push(AppRoutes.circles);
+          context.go(AppRoutes.circles);
         } else if (isAccepted && notif.fromUid != null) {
           context.push(AppRoutes.friendsHub);
-        } else if (t.contains('friend request')) {
+        } else if (isFriendRequest) {
           context.push(AppRoutes.friendRequests);
-        } else if (notif.type == 'suggested_friends') {
-          context.push(
-            AppRoutes.friendsHub,
-            extra: {'initialTab': 2},
-          );
         } else if (notif.fromUid != null) {
           context.push(AppRoutes.userProfile, extra: {
             'uid': notif.fromUid!,
@@ -525,28 +516,37 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         break;
 
       case 'suggested_friends':
-  context.push(
-  AppRoutes.friendsHub,
-  extra: {'initialTab': 2},
-);
-  break;
+        context.push(
+          AppRoutes.friendsHub,
+          extra: {'initialTab': 2},
+        );
+        break;
 
-     case 'suggested_circles':
-case 'circle_added':
-case 'circle_join_request':
-case 'circle_approved':
-case 'circle_rejected':
-case 'circle_removed':
-  debugPrint('Opening circles suggestions');
+      // ── 12. Circles ──────────────────────────────────────────────────────
+      // ── 12a. Suggested circles → Circle Discovery screen, Suggested tab ────
+      case 'suggested_circles':
+        context.push(
+          AppRoutes.circleDiscovery,
+          extra: {'initialTab': 2}, // Joined=0, Pending=1, Suggested=2
+        );
+        break;
 
-  context.push('${AppRoutes.circles}?tab=2');
-  break;
+      // ── 12b. Circle membership/lifecycle → my circles list ─────────────────
+      case 'circle_added':
+      case 'circle_join_request':
+      case 'circle_approved':
+      case 'circle_rejected':
+      case 'circle_removed':
+        context.go('${AppRoutes.circles}?tab=2');
+        break;
 
       case 'admin_verification':
         context.push(AppRoutes.adminVerification);
+        break;
 
       case 'verification':
         context.go(AppRoutes.profile);
+        break;
 
       default:
         if (notif.eventId != null) {
@@ -980,6 +980,7 @@ class _NavHint extends StatelessWidget {
       case 'suggested_friends':
         return 'Discover Friends';
       case 'suggested_circles':
+        return 'Discover Circles';
       case 'circle_added':
       case 'circle_join_request':
       case 'circle_approved':

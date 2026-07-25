@@ -26,35 +26,26 @@ final _joinedCirclesProvider =
 });
 
 final _pendingCircleRequestsProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+    StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return [];
-
-  // Find circles where user has a pending join request
-  final circlesSnap =
-      await FirebaseFirestore.instance.collection('circles').limit(100).get();
-
-  final pending = <Map<String, dynamic>>[];
-  for (final doc in circlesSnap.docs) {
-    final requestDoc = await FirebaseFirestore.instance
-        .collection('circles')
-        .doc(doc.id)
-        .collection('joinRequests')
-        .doc(uid)
-        .get();
-    if (requestDoc.exists &&
-        (requestDoc.data()?['status'] as String?) == 'pending') {
-      final data = doc.data();
-      pending.add({
-        'id': doc.id,
-        'name': data['name'] ?? '',
-        'description': data['description'] ?? '',
-        'memberCount': (data['memberUids'] as List?)?.length ?? 0,
-        'creatorName': data['creatorName'] ?? '',
-      });
-    }
-  }
-  return pending;
+  if (uid == null) return Stream.value([]);
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('pendingCircleRequests')
+      .where('status', isEqualTo: 'pending')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) {
+            final data = d.data();
+            return {
+              'id': data['circleId'] ?? d.id,
+              'name': data['circleName'] ?? '',
+              'description': data['description'] ?? '',
+              'memberCount': data['memberCount'] ?? 0,
+              'creatorName': data['creatorName'] ?? '',
+            };
+          }).toList());
 });
 
 final _suggestedCirclesProvider =
@@ -536,19 +527,22 @@ class _SuggestedCircleCard extends StatefulWidget {
 class _SuggestedCircleCardState extends State<_SuggestedCircleCard> {
   bool _loading = false;
   bool _requested = false;
-
   Future<void> _requestToJoin() async {
     setState(() => _loading = true);
     await CircleJoinService.sendJoinRequest(
       circleId: widget.circleId,
       circleName: widget.circleName,
       adminUid: widget.creatorUid,
+      circleDescription: widget.description,
+      circleMemberCount: widget.memberCount,
+      creatorName: widget.creatorName,
     );
-    if (mounted)
+    if (mounted) {
       setState(() {
         _loading = false;
         _requested = true;
       });
+    }
   }
 
   @override

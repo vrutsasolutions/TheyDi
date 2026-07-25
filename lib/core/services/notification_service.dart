@@ -302,7 +302,7 @@ class NotificationService {
   // CIRCLE NOTIFICATIONS
   // ─────────────────────────────────────────────────────────
 
-  /// Notify circle admin when someone requests to join
+/// Notify circle admin when someone requests to join
   static Future<void> notifyCircleJoinRequest({
     required String toUid,
     required String fromUid,
@@ -310,6 +310,7 @@ class NotificationService {
     required String circleName,
     required String circleId,
   }) async {
+    // 1. In-app notification
     await send(
       toUid: toUid,
       title: 'Circle join request 🔵',
@@ -318,14 +319,28 @@ class NotificationService {
       fromUid: fromUid,
       circleId: circleId,
     );
+
+    // 2. Email notification
+    final resolved = await _resolveEmailAndName(toUid: toUid);
+    if (resolved == null) return;
+
+    await EmailJSService.sendNotificationEmail(
+      toEmail: resolved.email,
+      toName: resolved.name,
+      title: '🔵 New Join Request for "$circleName"',
+      message: ''
+          '$fromName has requested to join your circle "$circleName" on TheyDi.\n\n'
+          'Open the app to review and respond to the request.',
+    );
   }
 
-  /// Notify user when their circle join request is approved
+/// Notify user when their circle join request is approved
   static Future<void> notifyCircleJoinApproved({
     required String toUid,
     required String circleName,
     required String circleId,
   }) async {
+    // 1. In-app notification
     await send(
       toUid: toUid,
       title: 'Welcome to the circle! 🎉',
@@ -333,18 +348,45 @@ class NotificationService {
       type: 'circle_approved',
       circleId: circleId,
     );
+
+    // 2. Email notification
+    final resolved = await _resolveEmailAndName(toUid: toUid);
+    if (resolved == null) return;
+
+    await EmailJSService.sendNotificationEmail(
+      toEmail: resolved.email,
+      toName: resolved.name,
+      title: '🎉 You\'re In! Welcome to "$circleName"',
+      message: ''
+          'Great news! Your request to join "$circleName" has been approved.\n\n'
+          'Open the app to start chatting with your new circle.',
+    );
   }
 
-  /// Notify user when their circle join request is rejected
+/// Notify user when their circle join request is rejected
   static Future<void> notifyCircleJoinRejected({
     required String toUid,
     required String circleName,
   }) async {
+    // 1. In-app notification
     await send(
       toUid: toUid,
       title: 'Circle request declined',
       body: 'Your request to join "$circleName" was not approved',
       type: 'circle_rejected',
+    );
+
+    // 2. Email notification
+    final resolved = await _resolveEmailAndName(toUid: toUid);
+    if (resolved == null) return;
+
+    await EmailJSService.sendNotificationEmail(
+      toEmail: resolved.email,
+      toName: resolved.name,
+      title: 'Update on your "$circleName" request',
+      message: ''
+          'Your request to join "$circleName" was not approved this time.\n\n'
+          'Feel free to explore other circles in the app that match your interests.',
     );
   }
 

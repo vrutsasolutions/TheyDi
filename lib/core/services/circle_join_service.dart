@@ -14,6 +14,9 @@ class CircleJoinService {
     required String circleId,
     required String circleName,
     required String adminUid,
+    String? circleDescription,
+    int? circleMemberCount,
+    String? creatorName,
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -43,6 +46,22 @@ class CircleJoinService {
       'createdAt': Timestamp.now(),
     });
 
+// Mirror under the user for fast "my pending requests" lookups
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('pendingCircleRequests')
+        .doc(circleId)
+        .set({
+      'circleId': circleId,
+      'circleName': circleName,
+      'description': circleDescription ?? '',
+      'memberCount': circleMemberCount ?? 0,
+      'creatorName': creatorName ?? '',
+      'status': 'pending',
+      'createdAt': Timestamp.now(),
+    });
+
     // Notify admin
     await NotificationService.notifyCircleJoinRequest(
       toUid: adminUid,
@@ -50,10 +69,9 @@ class CircleJoinService {
       fromName: userName,
       circleName: circleName,
       circleId: circleId,
-    );
-  }
+    );  }
 
-  // ── Approve a join request ───────────────────────────────────────────────
+// ── Approve a join request ───────────────────────────────────────────────
   static Future<void> approveJoinRequest({
     required String circleId,
     required String circleName,
@@ -64,6 +82,11 @@ class CircleJoinService {
 
     final circleRef = _db.collection('circles').doc(circleId);
     final requestRef = circleRef.collection('joinRequests').doc(requesterUid);
+    final mirrorRef = _db
+        .collection('users')
+        .doc(requesterUid)
+        .collection('pendingCircleRequests')
+        .doc(circleId);
 
     // Add user to circle members
     batch.update(circleRef, {
@@ -74,6 +97,9 @@ class CircleJoinService {
     // Mark request as approved
     batch.update(requestRef, {'status': 'approved'});
 
+    // Remove from user's pending mirror (now a member)
+    batch.delete(mirrorRef);
+
     await batch.commit();
 
     // Notify requester
@@ -83,19 +109,29 @@ class CircleJoinService {
       circleId: circleId,
     );
   }
-
-  // ── Reject a join request ────────────────────────────────────────────────
+// ── Reject a join request ────────────────────────────────────────────────
   static Future<void> rejectJoinRequest({
     required String circleId,
     required String circleName,
     required String requesterUid,
   }) async {
-    await _db
+    final batch = _db.batch();
+
+    final requestRef = _db
         .collection('circles')
         .doc(circleId)
         .collection('joinRequests')
+        .doc(requesterUid);
+    final mirrorRef = _db
+        .collection('users')
         .doc(requesterUid)
-        .update({'status': 'rejected'});
+        .collection('pendingCircleRequests')
+        .doc(circleId);
+
+    batch.update(requestRef, {'status': 'rejected'});
+    batch.delete(mirrorRef);
+
+    await batch.commit();
 
     await NotificationService.notifyCircleJoinRejected(
       toUid: requesterUid,
