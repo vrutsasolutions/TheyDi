@@ -1,36 +1,22 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 
 class ForgotPasswordService {
-  // Automatically switches between Local Emulator and Live Server
-  static String get baseUrl {
-    // Return live URL directly since the Firebase Emulator is not running
-    return "https://asia-south1-theydi-cefdf.cloudfunctions.net";
-  }
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   /// Sends a 6-digit OTP code to the user's email address
   Future<Map<String, dynamic>> sendOtp(String email) async {
-    final url = Uri.parse("$baseUrl/sendOtp");
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: jsonEncode({
-          "email": email.trim(),
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        return {
-          "success": false,
-          "message": "Server error (${response.statusCode}): ${response.body}"
-        };
-      }
-      return jsonDecode(response.body);
+      final callable = _functions.httpsCallable('sendOtp');
+      final result = await callable.call({
+        "email": email.trim(),
+      });
+      return Map<String, dynamic>.from(result.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        "success": false,
+        "message": e.message ?? "Failed to send OTP. Please check your email address."
+      };
     } catch (e) {
       return {"success": false, "message": "Connection error: ${e.toString()}"};
     }
@@ -41,28 +27,18 @@ class ForgotPasswordService {
     required String email,
     required String otp,
   }) async {
-    final url = Uri.parse("$baseUrl/verifyOtp");
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: jsonEncode({
-          "email": email.trim(),
-          "otp": otp.trim(),
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        return {
-          "success": false,
-          "message": "Server error (${response.statusCode}): ${response.body}"
-        };
-      }
-      return jsonDecode(response.body);
+      final callable = _functions.httpsCallable('verifyOtp');
+      final result = await callable.call({
+        "email": email.trim(),
+        "otp": otp.trim(),
+      });
+      return Map<String, dynamic>.from(result.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        "success": false,
+        "message": e.message ?? "Invalid or expired OTP."
+      };
     } catch (e) {
       return {"success": false, "message": "Connection error: ${e.toString()}"};
     }
@@ -73,30 +49,21 @@ class ForgotPasswordService {
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse("$baseUrl/resetPassword");
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: jsonEncode({
-          "email": email.trim(),
-          "password": password,
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        return {
-          "success": false,
-          "message": "Server error (${response.statusCode}): ${response.body}"
-        };
-      }
-      return jsonDecode(response.body);
+      final callable = _functions.httpsCallable('resetPassword');
+      final result = await callable.call({
+        "email": email.trim(),
+        "password": password,
+      });
+      return Map<String, dynamic>.from(result.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        "success": false,
+        "message": e.message ?? "Failed to reset password."
+      };
     } catch (e) {
       return {"success": false, "message": "Connection error: ${e.toString()}"};
     }
   }
 }
+

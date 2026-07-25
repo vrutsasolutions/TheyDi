@@ -81,6 +81,44 @@ function getTransporter() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Cashfree Payout Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the Cashfree Payout API base URL based on the CASHFREE_ENVIRONMENT env variable.
+ */
+function getCashfreeBaseUrl() {
+  return process.env.CASHFREE_ENVIRONMENT === "PRODUCTION"
+    ? "https://payout-api.cashfree.com/payout/v1"
+    : "https://payout-gamma.cashfree.com/payout/v1";
+}
+
+/**
+ * Fetches a fresh Cashfree Payout bearer token.
+ * Cashfree tokens are short-lived; always request a new one per operation.
+ */
+async function getCashfreePayoutToken() {
+  const clientId = process.env.CASHFREE_PAYOUT_CLIENT_ID;
+  const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error("Cashfree Payout credentials are not configured in environment variables.");
+  }
+  const res = await fetch(`${getCashfreeBaseUrl()}/authorize`, {
+    method: "POST",
+    headers: {
+      "X-Client-Id": clientId,
+      "X-Client-Secret": clientSecret,
+      "Content-Type": "application/json",
+    },
+  });
+  const data = await res.json();
+  if (data.status !== "SUCCESS" || !data.data?.token) {
+    throw new Error("Cashfree Payout authorization failed: " + JSON.stringify(data));
+  }
+  return data.data.token;
+}
+
 /**
  * 1. createOrder
  * Called from Flutter to create a Razorpay Order ID securely.
@@ -387,79 +425,6 @@ exports.razorpayWebhook = onRequest(
 
         await batch.commit();
         logger.info("Webhook processed payment successfully", { orderId: order.id });
-      } else if (event.event === "payout.processed") {
-        const payout = event.payload.payout.entity;
-        const notes = payout.notes || {};
-        const { eventId, bookingId } = notes;
-
-        if (eventId && bookingId) {
-          logger.info(`[Webhook] Payout processed successfully for event ${eventId}, booking ${bookingId}`);
-          await db.collection("events").doc(eventId).collection("attendeePayments").doc(bookingId).update({
-            payoutStatus: "completed",
-            payoutCompletedAt: FieldValue.serverTimestamp()
-          });
-        }
-      } else if (event.event === "payout.failed" || event.event === "payout.reversed" || event.event === "payout.rejected") {
-        const payout = event.payload.payout.entity;
-        const notes = payout.notes || {};
-        const { eventId, bookingId } = notes;
-
-        if (eventId && bookingId) {
-          logger.warn(`[Webhook] Payout failed/reversed for event ${eventId}, booking ${bookingId}`);
-          await db.collection("events").doc(eventId).collection("attendeePayments").doc(bookingId).update({
-            payoutStatus: "failed",
-            payoutFailedAt: FieldValue.serverTimestamp(),
-            payoutFailureReason: payout.failure_reason || "Unknown reason"
-          });
-
-          // Send Email & Notification to Host
-          const hostUid = notes.user_id;
-          if (hostUid) {
-            try {
-              const hostDoc = await db.collection("users").doc(hostUid).get();
-              const hostData = hostDoc.data();
-              if (hostData) {
-                // 1. Send Email
-                if (hostData.email) {
-                  const transporter = getTransporter();
-                  if (transporter) {
-                    const emailBody = `
-                      <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${hostData.displayName || 'Host'},</h2>
-                      <h3 style="color: #10B981; font-size: 18px; margin: 0 0 10px 0;">Action Required: Payout Failed ⚠️</h3>
-                      <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0;">
-                        Unfortunately, your payout for a booking in your event failed.<br><br>
-                        <strong>Reason from bank:</strong> ${payout.failure_reason || 'Incorrect bank details'}.<br><br>
-                        Please update your bank details in the TheyDi app as soon as possible so we can safely retry your payment.
-                      </p>
-                    `;
-                    const html = getBaseEmailHtml("Action Required: Payout Failed", emailBody);
-
-                    await transporter.sendMail({
-                      from: `"TheyDi Team" <${process.env.GMAIL_USER}>`,
-                      to: hostData.email,
-                      subject: "Action Required: Payout Failed ⚠️",
-                      text: `Hi ${hostData.displayName || 'Host'},\n\nUnfortunately, your payout for a booking in your event failed. \n\nReason from bank: ${payout.failure_reason || 'Incorrect bank details'}.\n\nPlease update your bank details in the TheyDi app as soon as possible so we can safely retry your payment.\n\nThank you,\nTheyDi Team`,
-                      html: html
-                    });
-                  }
-                }
-                
-                // 2. In-App Notification
-                await db.collection("notifications").add({
-                  toUid: hostUid,
-                  title: "Payout Failed ⚠️",
-                  body: `Your bank rejected a payout. Reason: ${payout.failure_reason || 'Incorrect bank details'}. Please update your account details.`,
-                  type: "payout_failed",
-                  eventId: eventId,
-                  createdAt: FieldValue.serverTimestamp(),
-                  isRead: false
-                });
-              }
-            } catch (notifyErr) {
-              logger.error("[Webhook] Failed to send failure notification to host:", notifyErr);
-            }
-          }
-        }
       }
 
       return res.status(200).send("OK");
@@ -471,257 +436,323 @@ exports.razorpayWebhook = onRequest(
 );
 
 /**
- * 4. createRazorpayXContact
- * Creates a RazorpayX Contact and Fund Account using provided bank details.
+ * 4. cashfreePayoutWebhook
+ * Receives payout status events from Cashfree and updates booking records in Firestore.
+ * Register this URL in your Cashfree Merchant Dashboard → Payouts → Webhooks.
  */
-exports.createRazorpayXContact = onCall(
+exports.cashfreePayoutWebhook = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
+
+    if (clientSecret) {
+      const signature = req.headers["x-webhook-signature"];
+      if (!signature) {
+        return res.status(400).send("No signature found");
+      }
+      const expectedSignature = crypto
+        .createHmac("sha256", clientSecret)
+        .update(req.rawBody)
+        .digest("base64");
+      if (expectedSignature !== signature) {
+        logger.error("[Cashfree Webhook] Signature verification failed");
+        return res.status(400).send("Invalid signature");
+      }
+    } else {
+      logger.warn("[Cashfree Webhook] CASHFREE_PAYOUT_CLIENT_SECRET not set. Skipping signature check (not safe for production).");
+    }
+
+    try {
+      const event = req.body;
+      const eventType = event.event;
+      const transferData = event.data || {};
+      // Cashfree may nest the transferId under data.transfer or at the top level of data
+      const transferId = transferData.transfer?.transferId || transferData.transferId;
+
+      logger.info(`[Cashfree Webhook] Event: ${eventType}, transferId: ${transferId}`);
+
+      if (!transferId) {
+        return res.status(200).send("OK");
+      }
+
+      // Find the booking using the transferId stored at payout initiation
+      const bookingsSnap = await db.collection("bookings")
+        .where("cashfreeTransferId", "==", transferId)
+        .limit(1)
+        .get();
+
+      if (bookingsSnap.empty) {
+        logger.warn(`[Cashfree Webhook] No booking found for transferId: ${transferId}`);
+        return res.status(200).send("OK");
+      }
+
+      const bookingDoc = bookingsSnap.docs[0];
+      const bookingData = bookingDoc.data();
+
+      if (eventType === "TRANSFER_SUCCESS") {
+        await bookingDoc.ref.update({
+          payoutStatus: "completed",
+          payoutCompletedAt: FieldValue.serverTimestamp(),
+        });
+        logger.info(`[Cashfree Webhook] Payout completed for booking: ${bookingDoc.id}`);
+
+      } else if (eventType === "TRANSFER_FAILED" || eventType === "TRANSFER_REVERSED") {
+        const failureReason = transferData.transfer?.reason || transferData.reason || "Unknown reason";
+
+        await bookingDoc.ref.update({
+          payoutStatus: "failed",
+          payoutFailedAt: FieldValue.serverTimestamp(),
+          payoutFailureReason: failureReason,
+        });
+        logger.warn(`[Cashfree Webhook] Payout ${eventType} for booking: ${bookingDoc.id}. Reason: ${failureReason}`);
+
+        // Notify the host via email and in-app notification
+        const hostUid = bookingData.hostUid;
+        if (hostUid) {
+          try {
+            const hostDoc = await db.collection("users").doc(hostUid).get();
+            const hostData = hostDoc.data();
+            if (hostData) {
+              if (hostData.email) {
+                const transporter = getTransporter();
+                if (transporter) {
+                  const emailBody = `
+                    <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${hostData.displayName || "Host"},</h2>
+                    <h3 style="color: #10B981; font-size: 18px; margin: 0 0 10px 0;">Action Required: Payout Failed ⚠️</h3>
+                    <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0;">
+                      Unfortunately, your payout for a booking in your event failed.<br><br>
+                      <strong>Reason from bank:</strong> ${failureReason}.<br><br>
+                      Please update your bank details in the TheyDi app as soon as possible so we can safely retry your payment.
+                    </p>
+                  `;
+                  await transporter.sendMail({
+                    from: `"TheyDi Team" <${process.env.GMAIL_USER}>`,
+                    to: hostData.email,
+                    subject: "Action Required: Payout Failed ⚠️",
+                    text: `Hi ${hostData.displayName || "Host"},\n\nYour payout for a booking failed.\n\nReason: ${failureReason}.\n\nPlease update your bank details in the TheyDi app.\n\nThank you,\nTheyDi Team`,
+                    html: getBaseEmailHtml("Action Required: Payout Failed", emailBody),
+                  });
+                }
+              }
+
+              await db.collection("notifications").add({
+                toUid: hostUid,
+                title: "Payout Failed ⚠️",
+                body: `Your bank rejected a payout. Reason: ${failureReason}. Please update your account details.`,
+                type: "payout_failed",
+                eventId: bookingData.eventId,
+                createdAt: FieldValue.serverTimestamp(),
+                isRead: false,
+              });
+            }
+          } catch (notifyErr) {
+            logger.error("[Cashfree Webhook] Failed to send host failure notification:", notifyErr);
+          }
+        }
+      }
+
+      return res.status(200).send("OK");
+    } catch (error) {
+      logger.error("[Cashfree Webhook] Error processing event:", error);
+      return res.status(500).send("Internal Server Error");
+    }
+  }
+);
+
+/**
+ * 5. setupHostCashfreeBeneficiary
+ * Registers a host as a Cashfree Payout beneficiary using their bank or UPI details.
+ * Replaces the former createRazorpayXContact function.
+ */
+exports.setupHostCashfreeBeneficiary = onCall(
   { region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
 
     const uid = request.auth.uid;
     const { payoutMethod, upiId, name, ifsc, accountNumber, email, mobile, legalName } = request.data;
-    const mode = payoutMethod === 'upi' ? 'vpa' : 'bank_account';
-    
-    if (mode === 'vpa') {
+    const isUpi = payoutMethod === "upi";
+
+    if (isUpi) {
       if (!upiId) throw new HttpsError("invalid-argument", "Missing UPI ID.");
     } else {
       if (!name || !ifsc || !accountNumber) throw new HttpsError("invalid-argument", "Missing bank details.");
     }
 
-    const contactName = legalName || name || "Host";
-    const contactEmail = email || request.auth.token.email || "host@example.com";
-    const contactMobile = mobile || "";
+    // Use the Firebase UID as the Cashfree beneId — guaranteed unique per host
+    const beneId = uid;
+    const beneName = legalName || name || "Host";
+    const beneEmail = email || request.auth.token.email || "host@example.com";
+    const benePhone = mobile || "9999999999";
+    const transferMode = isUpi ? "upi" : "imps";
 
-    const userDoc = await db.collection("users").doc(uid).get();
-    
-    let contactId = null;
-    let oldFundAccountId = null;
-    if (userDoc.exists) {
-      contactId = userDoc.data().razorpayXContactId;
-      oldFundAccountId = userDoc.data().razorpayXFundAccountId;
+    const payload = {
+      beneId,
+      name: beneName,
+      email: beneEmail,
+      phone: benePhone,
+      address1: "India",
+    };
+
+    if (isUpi) {
+      payload.vpa = upiId;
+    } else {
+      payload.bankAccount = accountNumber;
+      payload.ifsc = ifsc;
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_SECRET_KEY;
-    if (!keyId || !keySecret) throw new HttpsError("internal", "Razorpay not configured.");
-    const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
-
     try {
-      if (!contactId) {
-        logger.info(`[RazorpayX] Attempting to create contact for UID: ${uid} with name: ${contactName}`);
-        // 1. Create Contact
-        let contactRes = await fetch("https://api.razorpay.com/v1/contacts", {
-          method: "POST",
-          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: contactName,
-            email: contactEmail,
-            contact: contactMobile,
-            type: "vendor",
-            reference_id: uid,
-          })
-        });
-        let contact = await contactRes.json();
-        
-        // Handle existing reference_id
-        if (contact.error && contact.error.description && contact.error.description.includes('reference_id already exists')) {
-          logger.info(`[RazorpayX] Contact with reference_id ${uid} exists. Fetching it...`);
-          const existingRes = await fetch(`https://api.razorpay.com/v1/contacts?reference_id=${uid}`, {
-            headers: { "Authorization": authHeader }
-          });
-          const existingData = await existingRes.json();
-          if (existingData.items && existingData.items.length > 0) {
-            contact = existingData.items[0];
-          } else {
-            throw new Error("Failed to fetch existing contact: " + JSON.stringify(existingData));
-          }
-        } else if (!contact.id) {
-          throw new Error("Failed to create contact: " + JSON.stringify(contact));
-        }
-        
-        logger.info(`[RazorpayX] Contact API Response: ${JSON.stringify(contact)}`);
-        contactId = contact.id;
-      } else {
-        // Update existing contact
-        logger.info(`[RazorpayX] Updating existing contact ID: ${contactId}`);
-        await fetch(`https://api.razorpay.com/v1/contacts/${contactId}`, {
-          method: "PATCH",
-          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: contactName,
-            email: contactEmail,
-            contact: contactMobile,
-          })
-        });
-      }
+      const token = await getCashfreePayoutToken();
+      const baseUrl = getCashfreeBaseUrl();
 
-      logger.info(`[RazorpayX] Attempting to create fund account for Contact ID: ${contactId}`);
-      // 2. Create Fund Account
-      const fundAccountPayload = {
-        contact_id: contactId,
-        account_type: mode,
-      };
-      if (mode === 'vpa') {
-        fundAccountPayload.vpa = { address: upiId };
-      } else {
-        fundAccountPayload.bank_account = {
-          name: name,
-          ifsc: ifsc,
-          account_number: accountNumber
-        };
-      }
-
-      const fundRes = await fetch("https://api.razorpay.com/v1/fund_accounts", {
+      logger.info(`[Cashfree] Adding beneficiary for UID: ${uid}`);
+      const res = await fetch(`${baseUrl}/addBeneficiary`, {
         method: "POST",
-        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-        body: JSON.stringify(fundAccountPayload)
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-      const fundAccount = await fundRes.json();
-      logger.info(`[RazorpayX] Fund Account API Response: ${JSON.stringify(fundAccount)}`);
-      
-      if (!fundAccount.id) throw new Error("Failed to create fund account: " + JSON.stringify(fundAccount));
+      const data = await res.json();
+      logger.info(`[Cashfree] addBeneficiary response: ${JSON.stringify(data)}`);
 
-      // 3. Deactivate old fund account if it exists
-      if (oldFundAccountId && oldFundAccountId !== fundAccount.id) {
-        logger.info(`[RazorpayX] Deactivating old fund account: ${oldFundAccountId}`);
-        await fetch(`https://api.razorpay.com/v1/fund_accounts/${oldFundAccountId}`, {
-          method: "PATCH",
-          headers: { "Authorization": authHeader, "Content-Type": "application/json" },
-          body: JSON.stringify({ active: false })
-        }).catch(err => logger.error("Failed to deactivate old fund account", err));
+      // Treat "beneficiary already exists" as success — the beneId is already registered
+      const isSuccess = data.status === "SUCCESS";
+      const alreadyExists = data.message?.toLowerCase().includes("already");
+
+      if (!isSuccess && !alreadyExists) {
+        throw new Error("Failed to add Cashfree beneficiary: " + JSON.stringify(data));
       }
 
-      // 4. Save to Firestore
-      logger.info(`[RazorpayX] Saving RazorpayX IDs to Firestore for UID: ${uid}`);
-      await db.collection("users").doc(uid).update({ 
-        razorpayXContactId: contactId,
-        razorpayXFundAccountId: fundAccount.id,
-        razorpayXPayoutMode: mode === 'vpa' ? 'UPI' : 'IMPS',
-        payoutSetupCompleted: true
+      // Persist Cashfree beneficiary details to Firestore
+      await db.collection("users").doc(uid).update({
+        cashfreeBeneId: beneId,
+        payoutMode: transferMode,
+        payoutSetupCompleted: true,
       });
 
-      // 5. Delete temporary bank details
+      // Clean up the temporary bank details document submitted from the app
       await db.collection("users").doc(uid).collection("private").doc("tempBankDetails").delete()
-        .catch(err => logger.error("Failed to delete tempBankDetails", err));
+        .catch(err => logger.error("[Cashfree] Failed to delete tempBankDetails:", err));
 
-      logger.info(`[RazorpayX] Successfully onboarded UID: ${uid}`);
-      return { success: true, fundAccountId: fundAccount.id };
+      logger.info(`[Cashfree] Successfully onboarded beneficiary for UID: ${uid}`);
+      return { success: true, beneId };
     } catch (e) {
-      logger.error("Error creating RazorpayX Contact/Fund Account", e);
-      throw new HttpsError("internal", e.message || "Failed to create RazorpayX details");
+      logger.error("[Cashfree] Error setting up beneficiary:", e);
+      throw new HttpsError("internal", e.message || "Failed to set up Cashfree beneficiary.");
     }
   }
 );
 
 /**
- * 5. releaseHostPayoutsX
- * Transfers the host's share of ticket revenue to their RazorpayX Fund Account.
+ * 6. processPayoutForEventId (internal helper)
+ * Processes Cashfree payouts for all confirmed bookings of a given event.
+ * Called by both processCashfreePayout (manual trigger) and processAutomaticPayouts (cron).
  */
-async function processPayoutForEventId(eventId, merchantAccountNumber) {
+async function processPayoutForEventId(eventId) {
   if (!eventId) throw new HttpsError("invalid-argument", "Event ID required.");
-    
-  const db = admin.firestore();
-  logger.info(`[HostPayout] Starting payout process for event: ${eventId}`);
-  
+
+  logger.info(`[CashfreePayout] Starting payout process for event: ${eventId}`);
+
   const eventDoc = await db.collection("events").doc(eventId).get();
   if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
 
   const eventData = eventDoc.data();
   if (eventData.payoutProcessed) {
-    logger.info(`[HostPayout] Event ${eventId} has already been processed for payouts.`);
+    logger.info(`[CashfreePayout] Event ${eventId} already processed.`);
     return { success: true, transfersProcessed: 0, message: "Payout already processed." };
   }
 
   const hostUid = eventData.creatorUid;
-  logger.info(`[HostPayout] Event host UID: ${hostUid}`);
-  
   const hostDoc = await db.collection("users").doc(hostUid).get();
   const hostData = hostDoc.data() || {};
-  const fundAccountId = hostData.razorpayXFundAccountId;
-  const payoutMode = hostData.razorpayXPayoutMode || "IMPS";
+  const beneId = hostData.cashfreeBeneId;
+  const transferMode = hostData.payoutMode || "imps";
 
-  if (!fundAccountId) throw new HttpsError("failed-precondition", "Host has no linked RazorpayX Fund Account.");
-  logger.info(`[HostPayout] Found host fund account: ${fundAccountId} with mode ${payoutMode}`);
+  if (!beneId) throw new HttpsError("failed-precondition", "Host has not set up a Cashfree payout account.");
+  logger.info(`[CashfreePayout] Host beneId: ${beneId}, transferMode: ${transferMode}`);
 
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_SECRET_KEY;
-  const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+  // Get a fresh auth token for this batch of transfers
+  const token = await getCashfreePayoutToken();
+  const baseUrl = getCashfreeBaseUrl();
 
-  const bookings = await db.collection("bookings").where("eventId", "==", eventId).where("status", "==", "confirmed").get();
-  logger.info(`[HostPayout] Found ${bookings.docs.length} confirmed bookings for this event.`);
-  
-  const attendeeUids = eventDoc.data().attendeeUids || [];
-  
+  const bookingsSnap = await db.collection("bookings")
+    .where("eventId", "==", eventId)
+    .where("status", "==", "confirmed")
+    .get();
+  logger.info(`[CashfreePayout] Found ${bookingsSnap.docs.length} confirmed bookings.`);
+
+  const attendeeUids = eventData.attendeeUids || [];
   let transferCount = 0;
-  const sourceAccount = merchantAccountNumber || process.env.RAZORPAYX_ACCOUNT_NUMBER;
-  if (!sourceAccount) throw new HttpsError("invalid-argument", "Missing Merchant RazorpayX Account Number.");
-  logger.info(`[HostPayout] Using source account: ${sourceAccount}`);
-  
-  for (const doc of bookings.docs) {
+
+  for (const doc of bookingsSnap.docs) {
     const bData = doc.data();
-    logger.info(`[HostPayout] Processing booking ID: ${doc.id} - payoutStatus: ${bData.payoutStatus}`);
     if (bData.payoutStatus === "completed") continue;
-    
-    // Double check that the user is actually still in the event's attendee list!
-    // This protects against manual database deletions where the booking was left behind.
+
+    // Guard: ensure the user is still in the event's attendee list
     if (!attendeeUids.includes(bData.userId)) {
-      logger.info(`[HostPayout] Skipping booking ${doc.id} because user ${bData.userId} is no longer in the event attendee list.`);
+      logger.info(`[CashfreePayout] Skipping booking ${doc.id} — user no longer in attendee list.`);
       continue;
     }
 
     const baseAmount = bData.amount !== undefined ? bData.amount : (bData.totalAmount - (bData.platformFee || 0));
-    const hostFee = bData.platformFee || 0; // Deduct same platform fee amount (5%) from host
-    const payoutAmount = Math.floor((baseAmount - hostFee) * 100);
-    logger.info(`[HostPayout] Calculated payout amount (in paise): ${payoutAmount} for booking ${doc.id}`);
+    const hostFee = bData.platformFee || 0;
+    // Cashfree expects amount as exact decimal in INR — NOT in paise
+    const payoutAmount = parseFloat((baseAmount - hostFee).toFixed(2));
+
+    if (payoutAmount <= 0) {
+      logger.info(`[CashfreePayout] Skipping booking ${doc.id} — payout amount is ₹${payoutAmount}.`);
+      continue;
+    }
+
+    // Unique transferId for idempotency (bookingId + timestamp)
+    const transferId = `theydi_${doc.id}_${Date.now()}`;
 
     try {
-      logger.info(`[HostPayout] Sending ${payoutMode} payout request for booking ${doc.id} to Razorpay...`);
-      const payoutRes = await fetch("https://api.razorpay.com/v1/payouts", {
+      logger.info(`[CashfreePayout] Initiating ₹${payoutAmount} ${transferMode} transfer for booking ${doc.id}`);
+      const payoutRes = await fetch(`${baseUrl}/requestTransfer`, {
         method: "POST",
-        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          account_number: sourceAccount,
-          fund_account_id: fundAccountId,
-          amount: payoutAmount,
-          currency: "INR",
-          mode: payoutMode,
-          purpose: "payout",
-          reference_id: `theydi_payout_${doc.id}`,
-          notes: {
-            project: "theydi",
-            user_id: hostUid,
-            bookingId: doc.id,
-            eventId: eventId,
-          },
+          beneId,
+          amount: payoutAmount.toString(),
+          transferId,
+          transferMode,
+          remarks: `TheyDi payout for event: ${eventData.title || eventId}`,
         }),
       });
       const payoutData = await payoutRes.json();
-      logger.info(`[HostPayout] Razorpay response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
-      
-      if (!payoutData.id) throw new Error("Payout failed: " + JSON.stringify(payoutData));
+      logger.info(`[CashfreePayout] Transfer response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
 
-      await doc.ref.update({ 
-        payoutStatus: "processing", 
-        payoutId: payoutData.id 
+      if (payoutData.status !== "SUCCESS") {
+        throw new Error("Transfer request failed: " + JSON.stringify(payoutData));
+      }
+
+      await doc.ref.update({
+        payoutStatus: "processing",
+        cashfreeTransferId: transferId,
       });
       transferCount++;
-      logger.info(`[HostPayout] Successfully queued payout for booking ${doc.id}`);
+      logger.info(`[CashfreePayout] Transfer queued for booking ${doc.id}, transferId: ${transferId}`);
     } catch (e) {
-      logger.error(`RazorpayX Payout failed for booking ${doc.id}`, e);
+      logger.error(`[CashfreePayout] Transfer failed for booking ${doc.id}:`, e);
     }
   }
 
-  // Mark the event itself as completed and payoutProcessed
-  logger.info(`[HostPayout] Marking event ${eventId} as completed and payout processed.`);
+  // Mark event as completed
+  logger.info(`[CashfreePayout] Marking event ${eventId} as completed.`);
   await eventDoc.ref.update({ status: "completed", payoutProcessed: true });
 
-  // ── Email Notifications for Event Completion ──
+  // ── Email & In-App Notifications for Event Completion ──
   try {
     const transporter = getTransporter();
     if (transporter) {
-      const eventTitle = eventDoc.data().title || "Your Event";
-      const hostName = eventDoc.data().creatorName || "The Host";
+      const eventTitle = eventData.title || "Your Event";
+      const hostName = eventData.creatorName || "The Host";
 
       // Notify Host
       if (hostDoc.exists && hostDoc.data().email) {
@@ -738,12 +769,12 @@ async function processPayoutForEventId(eventId, merchantAccountNumber) {
         });
 
         await db.collection("users").doc(hostUid).collection("notifications").add({
-          title: '✅ Event completed',
+          title: "✅ Event completed",
           body: `"${eventTitle}" is now marked as completed.`,
-          type: 'system',
-          eventId: eventId,
+          type: "system",
+          eventId,
           createdAt: FieldValue.serverTimestamp(),
-          isRead: false
+          isRead: false,
         });
       }
 
@@ -765,27 +796,28 @@ async function processPayoutForEventId(eventId, merchantAccountNumber) {
           });
 
           await db.collection("users").doc(uid).collection("notifications").add({
-            title: 'Event ended',
+            title: "Event ended",
             body: `Hope you enjoyed "${eventTitle}"!`,
-            type: 'system',
-            eventId: eventId,
+            type: "system",
+            eventId,
             createdAt: FieldValue.serverTimestamp(),
-            isRead: false
+            isRead: false,
           });
         }
       }
     }
   } catch (err) {
-    logger.error("[HostPayout] Error sending completion emails:", err);
+    logger.error("[CashfreePayout] Error sending completion emails:", err);
   }
 
   return { success: true, transfersProcessed: transferCount };
 }
 
-exports.releaseHostPayoutsX = onCall(
+exports.processCashfreePayout = onCall(
   { region: REGION },
   async (request) => {
-    return await processPayoutForEventId(request.data.eventId, request.data.merchantAccountNumber);
+    if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
+    return await processPayoutForEventId(request.data.eventId);
   }
 );
 
@@ -798,21 +830,21 @@ const MAX_OTP_ATTEMPTS = 5;
 /**
  * 6. sendOtp
  */
-exports.sendOtp = onRequest({ cors: true, region: REGION }, async (req, res) => {
+exports.sendOtp = onCall({ region: REGION }, async (request) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+    const { email } = request.data || {};
+    if (!email) throw new HttpsError("invalid-argument", "Email is required");
     const emailTrimmed = email.trim().toLowerCase();
 
     try {
       await admin.auth().getUserByEmail(emailTrimmed);
     } catch {
-      return res.status(404).json({ success: false, message: "No account found with this email" });
+      throw new HttpsError("not-found", "No account found with this email");
     }
 
     const transporter = getTransporter();
     if (!transporter) {
-      return res.status(500).json({ success: false, message: "Email service is not configured." });
+      throw new HttpsError("internal", "Email service is not configured.");
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -852,62 +884,64 @@ exports.sendOtp = onRequest({ cors: true, region: REGION }, async (req, res) => 
       html: html,
     });
 
-    return res.status(200).json({ success: true, message: "OTP sent" });
+    return { success: true, message: "OTP sent" };
   } catch (error) {
     logger.error("Error sending OTP", error);
-    return res.status(500).json({ success: false, message: error.message });
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", error.message || "Error sending OTP");
   }
 });
 
 /**
  * 7. verifyOtp
  */
-exports.verifyOtp = onRequest({ cors: true, region: REGION }, async (req, res) => {
+exports.verifyOtp = onCall({ region: REGION }, async (request) => {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp) return res.status(400).json({ success: false, message: "Missing fields" });
+    const { email, otp } = request.data || {};
+    if (!email || !otp) throw new HttpsError("invalid-argument", "Missing fields");
 
     const emailTrimmed = email.trim().toLowerCase();
     const docRef = db.collection("password_reset_otps").doc(emailTrimmed);
     const doc = await docRef.get();
-    if (!doc.exists) return res.status(400).json({ success: false, message: "No active OTP request" });
+    if (!doc.exists) throw new HttpsError("not-found", "No active OTP request");
 
     const data = doc.data();
     if (data.expiresAt.toDate() < new Date()) {
-      return res.status(400).json({ success: false, message: "OTP expired" });
+      throw new HttpsError("deadline-exceeded", "OTP expired");
     }
 
     if ((data.attempts || 0) >= MAX_OTP_ATTEMPTS) {
-      return res.status(429).json({ success: false, message: "Too many attempts. Please request a new OTP." });
+      throw new HttpsError("resource-exhausted", "Too many attempts. Please request a new OTP.");
     }
 
     if (data.otp !== otp.trim()) {
       await docRef.update({ attempts: FieldValue.increment(1) });
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
+      throw new HttpsError("invalid-argument", "Invalid OTP");
     }
 
     const verifiedExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await docRef.update({ verified: true, verifiedExpiresAt });
 
-    return res.status(200).json({ success: true, message: "OTP verified" });
+    return { success: true, message: "OTP verified" };
   } catch (error) {
     logger.error("Error verifying OTP", error);
-    return res.status(500).json({ success: false, message: error.message });
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", error.message || "Error verifying OTP");
   }
 });
 
 /**
  * 8. resetPassword
  */
-exports.resetPassword = onRequest({ cors: true, region: REGION }, async (req, res) => {
+exports.resetPassword = onCall({ region: REGION }, async (request) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: "Missing fields" });
+    const { email, password } = request.data || {};
+    if (!email || !password) throw new HttpsError("invalid-argument", "Missing fields");
 
     const emailTrimmed = email.trim().toLowerCase();
     const docRef = db.collection("password_reset_otps").doc(emailTrimmed);
     const doc = await docRef.get();
-    if (!doc.exists) return res.status(400).json({ success: false, message: "Session not found" });
+    if (!doc.exists) throw new HttpsError("not-found", "Session not found");
 
     const data = doc.data();
     if (!data.verified || data.verifiedExpiresAt.toDate() < new Date()) {
@@ -917,7 +951,7 @@ exports.resetPassword = onRequest({ cors: true, region: REGION }, async (req, re
         success: false,
         reason: "Verification expired or invalid",
       });
-      return res.status(400).json({ success: false, message: "Verification expired or invalid" });
+      throw new HttpsError("failed-precondition", "Verification expired or invalid");
     }
 
     const user = await admin.auth().getUserByEmail(emailTrimmed);
@@ -931,10 +965,11 @@ exports.resetPassword = onRequest({ cors: true, region: REGION }, async (req, re
 
     await docRef.delete();
 
-    return res.status(200).json({ success: true, message: "Password updated" });
+    return { success: true, message: "Password updated" };
   } catch (error) {
     logger.error("Error resetting password", error);
-    return res.status(500).json({ success: false, message: error.message });
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", error.message || "Error resetting password");
   }
 });
 
@@ -1032,7 +1067,7 @@ exports.processAutomaticPayouts = onSchedule("every 4 hours", async (event) => {
 
     for (const doc of eventsSnap.docs) {
       try {
-        await processPayoutForEventId(doc.id, null);
+        await processPayoutForEventId(doc.id);
       } catch (e) {
         logger.error(`[Cron] Failed to process payout for event ${doc.id}:`, e);
       }
