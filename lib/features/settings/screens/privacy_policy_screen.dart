@@ -62,8 +62,7 @@ const SizedBox(height: 24),
       "Application: TheyDi\n"
       "Operated by: Vrutsa Solutions\n"
       "Contact Email: theydi.app@gmail.com\n"
-      "Effective Date: [Insert Launch Date]\n"
-      "Last Updated: [Insert Date]\n\n"
+      
       "Vrutsa Solutions (\"we\", \"us\", \"our\") operates the TheyDi mobile application, web application, and related services (collectively, the \"Platform\"). This Privacy Policy explains how we collect, use, disclose, store and protect your personal data when you use TheyDi.\n\n"
       "This Privacy Policy is issued in compliance with:\n\n"
       "• Information Technology Act, 2000\n"
@@ -105,24 +104,24 @@ _buildCard(
     "• Password (stored in encrypted, hashed form)",
     "• Profile photo and additional photos",
     "• Face verification data (biometric)",
-    "",
+  
     "Event Data",
     "• Events you create (location, description, images, pricing, capacity)",
     "• Events you book, attend or express interest in",
     "• Reviews, ratings and feedback",
-    "",
+  
     "Payment Data",
     "• Billing name and address",
-    "• UPI ID, card or bank details (processed securely through Razorpay/RazorpayX)",
+    "• UPI ID, card or bank details (processed securely through Razorpay/razorpayX or Cashfree)",
     "• Transaction history",
     "• PAN, IFSC, bank account and KYC documents for Hosts",
-    "",
+
     "Social Interactions",
     "• Friend connections",
     "• Circle memberships",
     "• Direct messages and chat content",
     "• Circle posts",
-    "",
+
     "Support Communications",
     "• Messages sent to customer support",
     "• Grievance reports",
@@ -151,7 +150,7 @@ _buildCard(
   title: "3.3 Information from Third Parties",
   bullets: const [
     "Firebase Authentication (Google)",
-    "Razorpay & RazorpayX transaction status",
+    "Razorpay & razorpayX or Cashfree transaction status",
     "Google Maps Platform services",
     "Future social login providers (if enabled)",
   ],
@@ -325,7 +324,7 @@ _buildCard(
     "Google Firebase (Authentication, Firestore, Storage, Cloud Functions, Analytics, Crashlytics)",
     "Google Cloud Platform (Maps, Directions, Geocoding, Places APIs)",
     "Razorpay (Payment Processing)",
-    "RazorpayX (Host Payouts)",
+    "razorpayX or Cashfree(Host Payouts)",
     "Cloud hosting, email delivery, SMS/OTP and analytics providers",
     "These providers are contractually obligated to protect your information.",
   ],
@@ -376,26 +375,7 @@ _buildCard(
     "We continue to ensure the security and protection of your personal information.",
   ],
 ),
-            // _buildCard(
-            //   icon: Icons.face_retouching_natural,
-            //   title: "Face Verification",
-            //   content:
-            //       "Facial data is collected only for identity verification.\n\n"
-            //       "It is never used for advertising, profiling or surveillance.\n\n"
-            //       "You may request deletion of your face verification data at any time.",
-            // ),
-            // _buildCard(
-            //   icon: Icons.share_outlined,
-            //   title: "Information Sharing",
-            //   bullets: const [
-            //     "Firebase",
-            //     "Google Maps",
-            //     "Razorpay",
-            //     "RazorpayX",
-            //     "Cloud Providers",
-            //     "Legal Authorities (when required by law)",
-            //   ],
-            // ),
+           
             _buildCard(
   icon: Icons.lock_outline,
   title: "8. Data Security",
@@ -464,11 +444,10 @@ _buildCard(
     "Right to Withdraw Consent at any time",
     "Right to Nominate another individual to exercise your rights",
     "Right to Grievance Redressal",
-    "",
+    
     "Exercise your rights through:",
     "• Settings → Privacy → Data Requests",
     "• Email: theydi.app@gmail.com",
-    "",
     "We will respond within 30 days of a valid request. Identity verification may be required.",
   ],
 ),

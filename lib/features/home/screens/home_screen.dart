@@ -394,8 +394,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
-                                        width: 90,
-                                        height: 60,
+                                        width: 48,
+                                        height: 48,
                                         decoration: BoxDecoration(
                                           // color: TheyDiColors.primary,
                                           borderRadius:
@@ -404,12 +404,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         child: Center(
                                           child: Image.asset(
   'assets/images/theydi_logo.png',
-  height: 56,
+  height: 37,
   fit: BoxFit.contain,
 ),
                                         ),
                                       ),
-                                      // const SizedBox(width: 10),
+                                      const SizedBox(width: 4),
                                       Text(
                                         'Hey there 👋',
                                         style: TheyDiTextStyles.headlineSmall

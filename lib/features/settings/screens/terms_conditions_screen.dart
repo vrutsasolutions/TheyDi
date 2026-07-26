@@ -57,13 +57,13 @@ class TermsConditionsScreen extends StatelessWidget {
       ),
     ),
     const SizedBox(height: 12),
-    Text(
-      'Effective Date: [Launch Date]\nLast Updated: [Last Updated Date]',
-      textAlign: TextAlign.center,
-      style: TheyDiTextStyles.bodySmall.copyWith(
-        color: TheyDiColors.textMuted,
-      ),
-    ),
+    // Text(
+    //   'Effective Date: [Launch Date]\nLast Updated: [Last Updated Date]',
+    //   textAlign: TextAlign.center,
+    //   style: TheyDiTextStyles.bodySmall.copyWith(
+    //     color: TheyDiColors.textMuted,
+    //   ),
+    // ),
   ],
 ),
 ),
@@ -157,7 +157,7 @@ _section(
   "8. Payments, Ticketing & Refunds",
   [
     "Payments are securely processed using Razorpay.",
-    "Host payouts are processed through RazorpayX.",
+    "Host payouts are processed through razorpayX or Cashfree.",
     "Platform fee (~10%) and payment gateway charges apply.",
     "Attendee cancellations receive a 90% refund before the event starts.",
     "Host cancellations within the allowed period receive a full attendee refund.",
