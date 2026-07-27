@@ -173,19 +173,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               fromApproval: (extra['fromApproval'] as bool?) ?? false,
             );
           }
-          return PaymentScreen(event: extra as EventModel, fromApproval: false);
+          if (extra is EventModel) {
+            return PaymentScreen(event: extra, fromApproval: false);
+          }
+          return const Scaffold(
+            body: Center(child: Text('Event details missing')),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.paymentsuccess,
         builder: (context, state) {
-          final data = state.extra as Map<String, dynamic>;
+          final data = state.extra as Map<String, dynamic>?;
+          if (data == null) {
+            return const Scaffold(
+              body: Center(child: Text('Payment details missing')),
+            );
+          }
           return PaymentSuccessScreen(
-            eventTitle: data['eventTitle'] as String,
-            amount: data['amount'] as double,
-            transactionId: data['transactionId'] as String,
-            dateTime: data['dateTime'] as DateTime,
-            venue: data['venue'] as String,
+            eventTitle: (data['eventTitle'] as String?) ?? '',
+            amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
+            transactionId: (data['transactionId'] as String?) ?? '',
+            dateTime: (data['dateTime'] as DateTime?) ?? DateTime.now(),
+            venue: (data['venue'] as String?) ?? '',
           );
         },
       ),
@@ -208,7 +218,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.submitReview,
         builder: (context, state) {
-          final event = state.extra as EventModel;
+          final event = state.extra as EventModel?;
+          if (event == null) {
+            return const Scaffold(
+              body: Center(child: Text('Event missing')),
+            );
+          }
           return SubmitReviewScreen(event: event);
         },
       ),
@@ -240,7 +255,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.hostManage,
         builder: (context, state) {
-          final eventId = state.extra as String;
+          final eventId = state.extra as String?;
+          if (eventId == null || eventId.isEmpty) {
+            return const Scaffold(
+              body: Center(child: Text('Event ID missing')),
+            );
+          }
           return HostManageScreen(eventId: eventId);
         },
       ),
@@ -340,25 +360,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SignupStep1Screen(),
       ),
       GoRoute(
-        path: AppRoutes.signupOtp, // ← NEW
+        path: AppRoutes.signupOtp,
         builder: (context, state) => SignupOtpScreen(
-          signupData: state.extra as SignupData,
+          signupData: (state.extra as SignupData?) ??
+              SignupData(name: '', email: '', password: ''),
         ),
       ),
       GoRoute(
         path: AppRoutes.signupStep2,
         builder: (context, state) => SignupStep2Screen(
-          signupData: state.extra as SignupData,
+          signupData: (state.extra as SignupData?) ??
+              SignupData(name: '', email: '', password: ''),
         ),
       ),
       GoRoute(
         path: AppRoutes.signupStep3,
         builder: (context, state) => SignupStep3Screen(
-          signupData: state.extra as SignupData,
+          signupData: (state.extra as SignupData?) ??
+              SignupData(name: '', email: '', password: ''),
         ),
       ),
       GoRoute(
-        path: AppRoutes.signupStep4, // ← now Face Verify
+        path: AppRoutes.signupStep4, // Face Verify
         builder: (context, state) {
           final extra = state.extra;
           if (extra is Map<String, dynamic> && extra['fromProfile'] == true) {
@@ -371,9 +394,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.signupStep5, // ← NEW: Review & Complete
+        path: AppRoutes.signupStep5, // Review & Complete
         builder: (context, state) => SignupStep5Screen(
-          signupData: state.extra as SignupData,
+          signupData: (state.extra as SignupData?) ??
+              SignupData(name: '', email: '', password: ''),
         ),
       ),
 
