@@ -232,29 +232,6 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileActionButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 14, color: Colors.white),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: TheyDiColors.primary,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: TheyDiTextStyles.labelSmall.copyWith(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -867,6 +844,7 @@ class _SettingsMenuButton extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _ProfileButton extends StatelessWidget {
   final IconData icon;
   final String label;

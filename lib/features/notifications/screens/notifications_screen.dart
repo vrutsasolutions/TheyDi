@@ -492,6 +492,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       // ── 10 & 11. Social (friends / circles) ─────────────────────────────
       case 'social':
         final isAccepted = t.contains('accepted');
+        // ignore: unused_local_variable
         final isFriendRequest = t.contains('friend request') && !isAccepted;
         final isAddedToCircle =
             t.contains('added to a circle') || t.contains('added you to');

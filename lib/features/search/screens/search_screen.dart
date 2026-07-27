@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants/search_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../events/models/event_model.dart';
 
@@ -23,23 +24,6 @@ class _SearchScreenState extends State<SearchScreen> {
   List<EventModel> _results = [];
   bool _isSearching = false;
   bool _hasSearched = false;
-
-  static const List<String> _recentSearches = [
-    'Music',
-    'Tech meetup',
-    'Free events',
-    'Party',
-    'Networking',
-  ];
-
-  static const List<Map<String, dynamic>> _trendingCategories = [
-    {'label': 'Music', 'icon': Icons.music_note, 'color': Colors.purple},
-    {'label': 'Tech', 'icon': Icons.computer, 'color': Colors.blue},
-    {'label': 'Food', 'icon': Icons.restaurant, 'color': Colors.orange},
-    {'label': 'Sports', 'icon': Icons.sports_soccer, 'color': Colors.green},
-    {'label': 'Art', 'icon': Icons.palette, 'color': Colors.pink},
-    {'label': 'Party', 'icon': Icons.nightlife, 'color': Colors.red},
-  ];
 
   @override
   void initState() {
@@ -225,7 +209,7 @@ class _SearchScreenState extends State<SearchScreen> {
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: _trendingCategories.map((cat) {
+          children: SearchConstants.trendingCategories.map((cat) {
             return GestureDetector(
               onTap: () => _searchFor(cat['label'] as String),
               child: Container(
@@ -259,8 +243,8 @@ class _SearchScreenState extends State<SearchScreen> {
             .fade(duration: 300.ms),
         const SizedBox(height: 12),
 
-        ...List.generate(_recentSearches.length, (index) {
-          final search = _recentSearches[index];
+        ...List.generate(SearchConstants.recentSearches.length, (index) {
+          final search = SearchConstants.recentSearches[index];
           return GestureDetector(
             onTap: () => _searchFor(search),
             child: Container(

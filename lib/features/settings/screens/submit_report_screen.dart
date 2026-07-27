@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/support_constants.dart';
+
 class SubmitReportScreen extends StatefulWidget {
   const SubmitReportScreen({super.key});
 
@@ -14,14 +16,6 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   final _descriptionController = TextEditingController();
   String _selectedType = 'Technical Bug';
   bool _isSubmitting = false;
-
-  final List<String> _reportTypes = [
-    'Technical Bug',
-    'Inappropriate Behavior',
-    'Spam',
-    'Payment Issue',
-    'Other'
-  ];
 
   Future<void> _submitReport() async {
     final text = _descriptionController.text.trim();
@@ -103,7 +97,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                 child: DropdownButton<String>(
                   value: _selectedType,
                   isExpanded: true,
-                  items: _reportTypes
+                  items: SupportConstants.reportTypes
                       .map((type) => DropdownMenuItem(
                             value: type,
                             child: Text(type),

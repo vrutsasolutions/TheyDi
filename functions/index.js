@@ -89,22 +89,24 @@ function getTransporter() {
  * Returns the Cashfree Payout API base URL based on the CASHFREE_ENVIRONMENT env variable.
  */
 function getCashfreeBaseUrl() {
-  return process.env.CASHFREE_ENVIRONMENT === "PRODUCTION"
-    ? "https://payout-api.cashfree.com/payout/v1"
-    : "https://payout-gamma.cashfree.com/payout/v1";
+  const env = (process.env.CASHFREE_ENVIRONMENT || process.env.CASHFREE_PAYOUT_ENV || "").toUpperCase();
+  return env === "PRODUCTION"
+    ? "https://api.cashfree.com/payout"
+    : "https://sandbox.cashfree.com/payout";
 }
 
 /**
- * Fetches a fresh Cashfree Payout bearer token.
- * Cashfree tokens are short-lived; always request a new one per operation.
+ * Fetches a Cashfree Payout bearer token for v1 endpoints like addBeneficiary.
  */
 async function getCashfreePayoutToken() {
   const clientId = process.env.CASHFREE_PAYOUT_CLIENT_ID;
   const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error("Cashfree Payout credentials are not configured in environment variables.");
-  }
-  const res = await fetch(`${getCashfreeBaseUrl()}/authorize`, {
+  const env = (process.env.CASHFREE_ENVIRONMENT || process.env.CASHFREE_PAYOUT_ENV || "").toUpperCase();
+  const authUrl = env === "PRODUCTION"
+    ? "https://payout-api.cashfree.com/payout/v1/authorize"
+    : "https://payout-gamma.cashfree.com/payout/v1/authorize";
+
+  const res = await fetch(authUrl, {
     method: "POST",
     headers: {
       "X-Client-Id": clientId,
@@ -114,9 +116,27 @@ async function getCashfreePayoutToken() {
   });
   const data = await res.json();
   if (data.status !== "SUCCESS" || !data.data?.token) {
-    throw new Error("Cashfree Payout authorization failed: " + JSON.stringify(data));
+    throw new Error("Cashfree authorization failed: " + (data.message || JSON.stringify(data)));
   }
   return data.data.token;
+}
+
+/**
+ * Returns Cashfree Payout v2 headers including client ID, client secret, and API version.
+ */
+function getCashfreeHeaders() {
+  const clientId = process.env.CASHFREE_PAYOUT_CLIENT_ID;
+  const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
+  const apiVersion = process.env.CASHFREE_PAYOUT_API_VERSION || "2024-01-01";
+  if (!clientId || !clientSecret) {
+    throw new Error("Cashfree Payout credentials are not configured in environment variables.");
+  }
+  return {
+    "x-client-id": clientId,
+    "x-client-secret": clientSecret,
+    "x-api-version": apiVersion,
+    "Content-Type": "application/json",
+  };
 }
 
 /**
@@ -443,15 +463,15 @@ exports.razorpayWebhook = onRequest(
 exports.cashfreePayoutWebhook = onRequest(
   { region: REGION },
   async (req, res) => {
-    const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
+    const secret = process.env.CASHFREE_PAYOUT_WEBHOOK_SECRET || process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
 
-    if (clientSecret) {
+    if (secret) {
       const signature = req.headers["x-webhook-signature"];
       if (!signature) {
         return res.status(400).send("No signature found");
       }
       const expectedSignature = crypto
-        .createHmac("sha256", clientSecret)
+        .createHmac("sha256", secret)
         .update(req.rawBody)
         .digest("base64");
       if (expectedSignature !== signature) {
@@ -459,15 +479,15 @@ exports.cashfreePayoutWebhook = onRequest(
         return res.status(400).send("Invalid signature");
       }
     } else {
-      logger.warn("[Cashfree Webhook] CASHFREE_PAYOUT_CLIENT_SECRET not set. Skipping signature check (not safe for production).");
+      logger.warn("[Cashfree Webhook] CASHFREE_PAYOUT_WEBHOOK_SECRET/CLIENT_SECRET not set. Skipping signature check (not safe for production).");
     }
 
     try {
       const event = req.body;
       const eventType = event.event;
       const transferData = event.data || {};
-      // Cashfree may nest the transferId under data.transfer or at the top level of data
-      const transferId = transferData.transfer?.transferId || transferData.transferId;
+      // Cashfree may nest the transferId under data.transfer or at top level (transferId or transfer_id)
+      const transferId = transferData.transfer?.transferId || transferData.transferId || transferData.transfer_id || transferData.cf_transfer_id;
 
       logger.info(`[Cashfree Webhook] Event: ${eventType}, transferId: ${transferId}`);
 
@@ -579,11 +599,15 @@ exports.setupHostCashfreeBeneficiary = onCall(
       if (!name || !ifsc || !accountNumber) throw new HttpsError("invalid-argument", "Missing bank details.");
     }
 
-    // Use the Firebase UID as the Cashfree beneId — guaranteed unique per host
-    const beneId = uid;
-    const beneName = legalName || name || "Host";
-    const beneEmail = email || request.auth.token.email || "host@example.com";
-    const benePhone = mobile || "9999999999";
+    // Fetch user doc to get stored email/phone if not explicitly passed in payload
+    const userDoc = await db.collection("users").doc(uid).get();
+    const userData = userDoc.data() || {};
+
+    // Use pay_ + Firebase UID as the Cashfree beneId — recognizable and unique per host
+    const beneId = `pay_${uid}`;
+    const beneName = legalName || name || userData.name || userData.displayName || "Host";
+    const beneEmail = email || userData.email || request.auth.token.email || "host@example.com";
+    const benePhone = mobile || userData.mobile || userData.phone || userData.phoneNumber || "9999999999";
     const transferMode = isUpi ? "upi" : "imps";
 
     const payload = {
@@ -603,10 +627,13 @@ exports.setupHostCashfreeBeneficiary = onCall(
 
     try {
       const token = await getCashfreePayoutToken();
-      const baseUrl = getCashfreeBaseUrl();
+      const env = (process.env.CASHFREE_ENVIRONMENT || process.env.CASHFREE_PAYOUT_ENV || "").toUpperCase();
+      const addBeneUrl = env === "PRODUCTION"
+        ? "https://payout-api.cashfree.com/payout/v1/addBeneficiary"
+        : "https://payout-gamma.cashfree.com/payout/v1/addBeneficiary";
 
-      logger.info(`[Cashfree] Adding beneficiary for UID: ${uid}`);
-      const res = await fetch(`${baseUrl}/addBeneficiary`, {
+      logger.info(`[Cashfree] Onboarding beneficiary ${beneId} for UID: ${uid}`);
+      const res = await fetch(addBeneUrl, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -617,19 +644,23 @@ exports.setupHostCashfreeBeneficiary = onCall(
       const data = await res.json();
       logger.info(`[Cashfree] addBeneficiary response: ${JSON.stringify(data)}`);
 
-      // Treat "beneficiary already exists" as success — the beneId is already registered
-      const isSuccess = data.status === "SUCCESS";
-      const alreadyExists = data.message?.toLowerCase().includes("already");
+      const isSuccess = data.status === "SUCCESS" || data.subCode === "200" || data.subCode === 200;
+      const alreadyExists = data.message?.toLowerCase().includes("already") || data.subCode === "409" || data.subCode === 409 || data.subCode === "422" || data.subCode === 422;
 
       if (!isSuccess && !alreadyExists) {
-        throw new Error("Failed to add Cashfree beneficiary: " + JSON.stringify(data));
+        throw new Error("Failed to add Cashfree beneficiary: " + (data.message || JSON.stringify(data)));
       }
 
-      // Persist Cashfree beneficiary details to Firestore
+      // Persist ONLY non-sensitive identifier and payoutMode to Firestore
+      // Explicitly delete any raw banking fields to ensure zero-storage of sensitive user data
       await db.collection("users").doc(uid).update({
         cashfreeBeneId: beneId,
         payoutMode: transferMode,
         payoutSetupCompleted: true,
+        accountNumber: FieldValue.delete(),
+        ifsc: FieldValue.delete(),
+        upiId: FieldValue.delete(),
+        payoutDetails: FieldValue.delete(),
       });
 
       // Clean up the temporary bank details document submitted from the app
@@ -640,6 +671,7 @@ exports.setupHostCashfreeBeneficiary = onCall(
       return { success: true, beneId };
     } catch (e) {
       logger.error("[Cashfree] Error setting up beneficiary:", e);
+      if (e instanceof HttpsError) throw e;
       throw new HttpsError("internal", e.message || "Failed to set up Cashfree beneficiary.");
     }
   }
@@ -659,36 +691,44 @@ async function processPayoutForEventId(eventId) {
   if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
 
   const eventData = eventDoc.data();
-  if (eventData.payoutProcessed) {
-    logger.info(`[CashfreePayout] Event ${eventId} already processed.`);
-    return { success: true, transfersProcessed: 0, message: "Payout already processed." };
-  }
 
   const hostUid = eventData.creatorUid;
   const hostDoc = await db.collection("users").doc(hostUid).get();
   const hostData = hostDoc.data() || {};
-  const beneId = hostData.cashfreeBeneId;
+  const beneId = hostData.cashfreeBeneId || `pay_${hostUid}`;
   const transferMode = hostData.payoutMode || "imps";
 
   if (!beneId) throw new HttpsError("failed-precondition", "Host has not set up a Cashfree payout account.");
   logger.info(`[CashfreePayout] Host beneId: ${beneId}, transferMode: ${transferMode}`);
 
-  // Get a fresh auth token for this batch of transfers
-  const token = await getCashfreePayoutToken();
-  const baseUrl = getCashfreeBaseUrl();
-
-  const bookingsSnap = await db.collection("bookings")
+  const allBookingsSnap = await db.collection("bookings")
     .where("eventId", "==", eventId)
-    .where("status", "==", "confirmed")
     .get();
-  logger.info(`[CashfreePayout] Found ${bookingsSnap.docs.length} confirmed bookings.`);
+
+  logger.info(`[CashfreePayout] Total bookings in collection for event ${eventId}: ${allBookingsSnap.docs.length}`);
+
+  const confirmedBookings = allBookingsSnap.docs.filter((d) => d.data().status === "confirmed");
+  const alreadyProcessedBookings = confirmedBookings.filter((d) => ["completed", "processing"].includes(d.data().payoutStatus));
+  const unpaidBookings = confirmedBookings.filter((d) => !["completed", "processing"].includes(d.data().payoutStatus));
+
+  logger.info(`[CashfreePayout] Confirmed: ${confirmedBookings.length}, Already processed: ${alreadyProcessedBookings.length}, Unpaid: ${unpaidBookings.length}`);
+
+  if (unpaidBookings.length === 0) {
+    let msg = "No unpaid bookings found for this event.";
+    if (allBookingsSnap.docs.length === 0) {
+      msg = "No bookings found in database for this event. (Only paid bookings created through checkout can be paid out).";
+    } else if (alreadyProcessedBookings.length > 0) {
+      msg = `All ${alreadyProcessedBookings.length} booking payouts for this event have already been claimed/processed.`;
+    }
+    return { success: true, transfersProcessed: 0, totalTransferred: 0, message: msg };
+  }
 
   const attendeeUids = eventData.attendeeUids || [];
   let transferCount = 0;
+  let totalTransferred = 0;
 
-  for (const doc of bookingsSnap.docs) {
+  for (const doc of unpaidBookings) {
     const bData = doc.data();
-    if (bData.payoutStatus === "completed") continue;
 
     // Guard: ensure the user is still in the event's attendee list
     if (!attendeeUids.includes(bData.userId)) {
@@ -697,49 +737,57 @@ async function processPayoutForEventId(eventId) {
     }
 
     const baseAmount = bData.amount !== undefined ? bData.amount : (bData.totalAmount - (bData.platformFee || 0));
-    const hostFee = bData.platformFee || 0;
-    // Cashfree expects amount as exact decimal in INR — NOT in paise
-    const payoutAmount = parseFloat((baseAmount - hostFee).toFixed(2));
+    // Cashfree expects amount as exact number in INR
+    const payoutAmount = parseFloat(baseAmount.toFixed(2));
 
     if (payoutAmount <= 0) {
       logger.info(`[CashfreePayout] Skipping booking ${doc.id} — payout amount is ₹${payoutAmount}.`);
       continue;
     }
 
-    // Unique transferId for idempotency (bookingId + timestamp)
-    const transferId = `theydi_${doc.id}_${Date.now()}`;
+    // Unique transferId for idempotency (bookingId + timestamp, max 40 chars)
+    const transferId = `td_${doc.id}_${Date.now().toString().slice(-6)}`;
+
+    // Cashfree v2 Payout Transfer payload: References ONLY the beneficiary_id stored on Cashfree's vault.
+    // Zero raw bank numbers or IFSC codes are stored or sent from our servers.
+    const transferPayload = {
+      transfer_id: transferId,
+      transfer_amount: payoutAmount,
+      transfer_currency: "INR",
+      transfer_mode: transferMode.toLowerCase(),
+      beneficiary_details: {
+        beneficiary_id: beneId,
+      },
+      transfer_remarks: "TheyDi Event Payout",
+    };
 
     try {
-      logger.info(`[CashfreePayout] Initiating ₹${payoutAmount} ${transferMode} transfer for booking ${doc.id}`);
-      const payoutRes = await fetch(`${baseUrl}/requestTransfer`, {
+      logger.info(`[Cashfree v2 Payout] Initiating ₹${payoutAmount} ${transferMode} transfer for booking ${doc.id}`);
+      const payoutRes = await fetch(`${getCashfreeBaseUrl()}/transfers`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          beneId,
-          amount: payoutAmount.toString(),
-          transferId,
-          transferMode,
-          remarks: `TheyDi payout for event: ${eventData.title || eventId}`,
-        }),
+        headers: getCashfreeHeaders(),
+        body: JSON.stringify(transferPayload),
       });
       const payoutData = await payoutRes.json();
-      logger.info(`[CashfreePayout] Transfer response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
 
-      if (payoutData.status !== "SUCCESS") {
+      logger.info(`[Cashfree v2 Payout] Transfer response for booking ${doc.id}: ${JSON.stringify(payoutData)}`);
+
+      const isSuccess = payoutData.status === "RECEIVED" || payoutData.status === "SUCCESS" || payoutData.status === "PENDING" || payoutData.status_code === "RECEIVED";
+
+      if (!isSuccess) {
         throw new Error("Transfer request failed: " + JSON.stringify(payoutData));
       }
 
       await doc.ref.update({
         payoutStatus: "processing",
         cashfreeTransferId: transferId,
+        cfTransferId: payoutData.cf_transfer_id || payoutData.transfer_id || transferId,
       });
       transferCount++;
-      logger.info(`[CashfreePayout] Transfer queued for booking ${doc.id}, transferId: ${transferId}`);
+      totalTransferred += payoutAmount;
+      logger.info(`[Cashfree v2 Payout] Transfer queued for booking ${doc.id}, transferId: ${transferId}`);
     } catch (e) {
-      logger.error(`[CashfreePayout] Transfer failed for booking ${doc.id}:`, e);
+      logger.error(`[Cashfree v2 Payout] Transfer failed for booking ${doc.id}:`, e);
     }
   }
 
@@ -810,7 +858,7 @@ async function processPayoutForEventId(eventId) {
     logger.error("[CashfreePayout] Error sending completion emails:", err);
   }
 
-  return { success: true, transfersProcessed: transferCount };
+  return { success: true, transfersProcessed: transferCount, totalTransferred };
 }
 
 exports.processCashfreePayout = onCall(
@@ -820,6 +868,10 @@ exports.processCashfreePayout = onCall(
     return await processPayoutForEventId(request.data.eventId);
   }
 );
+
+// Backward Compatibility Aliases
+// exports.createRazorpayXContact = exports.setupHostCashfreeBeneficiary;
+// exports.releaseHostPayoutsX = exports.processCashfreePayout;
 
 // ---------------------------------------------------------------------------
 // Forgot Password Flow

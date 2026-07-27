@@ -392,7 +392,7 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                                             FirebaseFunctions.instanceFor(
                                                     region: 'asia-south1')
                                                 .httpsCallable(
-                                                    'createRazorpayXContact');
+                                                    'setupHostCashfreeBeneficiary');
                                         await callable.call({
                                           'payoutMethod': payoutMethod,
                                           'upiId': upiCtrl.text.trim(),

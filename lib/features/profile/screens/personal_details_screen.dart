@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../../../core/constants/bank_constants.dart';
 import '../../../core/theme/app_theme.dart';
 // import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 
@@ -29,24 +30,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   bool _isSaving = false;
   // bool _confirmed = false;
   String? _autoFilledBankName;
-
-  static const Map<String, String> _bankNamesByIfscPrefix = {
-    'SBIN': 'State Bank of India',
-    'HDFC': 'HDFC Bank',
-    'ICIC': 'ICICI Bank',
-    'UTIB': 'Axis Bank',
-    'KKBK': 'Kotak Mahindra Bank',
-    'PUNB': 'Punjab National Bank',
-    'BARB': 'Bank of Baroda',
-    'CNRB': 'Canara Bank',
-    'IDIB': 'Indian Bank',
-    'IOBA': 'Indian Overseas Bank',
-    'YESB': 'Yes Bank',
-    'INDB': 'IndusInd Bank',
-    'FDRL': 'Federal Bank',
-    'IDFB': 'IDFC First Bank',
-    'AUBL': 'AU Small Finance Bank',
-  };
 
 
 
@@ -123,7 +106,7 @@ void initState() {
     }
 
     final prefix = normalized.length >= 4 ? normalized.substring(0, 4) : '';
-    final bankName = _bankNamesByIfscPrefix[prefix];
+    final bankName = BankConstants.bankNamesByIfscPrefix[prefix];
     if (bankName == null) return;
 
     final currentBankName = _bankNameController.text.trim();
@@ -163,7 +146,7 @@ void initState() {
 
       // Trigger Cloud Function
       final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('createRazorpayXContact');
+          .httpsCallable('setupHostCashfreeBeneficiary');
       await callable.call({
         'payoutMethod': 'bank',
         'name': _accountHolderController.text.trim(),

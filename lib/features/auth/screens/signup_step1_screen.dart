@@ -56,7 +56,6 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
       );
 
       return;
-      return;
     }
 
     FocusScope.of(context).unfocus();

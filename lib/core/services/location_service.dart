@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:geolocator/geolocator.dart';
+import '../constants/location_constants.dart';
 
 class LocationService {
   LocationService._();
@@ -74,12 +75,5 @@ class LocationService {
   }
 
   /// Predefined radius options
-  static const List<Map<String, dynamic>> radiusOptions = [
-    {'label': '2 km', 'value': 2.0},
-    {'label': '5 km', 'value': 5.0},
-    {'label': '10 km', 'value': 10.0},
-    {'label': '20 km', 'value': 20.0},
-    {'label': '50 km', 'value': 50.0},
-    {'label': 'Entire City', 'value': -1.0},
-  ];
+  static List<Map<String, dynamic>> get radiusOptions => LocationConstants.radiusOptions;
 }

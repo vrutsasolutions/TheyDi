@@ -26,8 +26,8 @@ void main() async {
   if (kDebugMode) {
     // Connect to the local Cloud Functions Emulator
     // // 10.0.2.2 is required for Android emulators to reach the host's localhost
-    // final host = !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
-    // FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator(host, 5001);
+    final host = !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
+    FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator(host, 5001);
     
     // Kept commented out to preserve live user data in Firestore
     // FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);

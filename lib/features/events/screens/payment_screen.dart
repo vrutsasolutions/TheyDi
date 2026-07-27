@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../../../core/constants/payment_constants.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
@@ -18,11 +19,6 @@ import '../models/event_model.dart';
 import '../../../core/services/face_verification_service.dart';
 
 import 'package:flutter/foundation.dart';
-
-// ── PaymentScreen now accepts a Map<String,dynamic> as extra ─────────────────
-// extra = { 'event': EventModel, 'fromApproval': bool }
-// fromApproval = true  → PAID + Host Approval path (host already approved)
-// fromApproval = false → PAID + First Come path
 
 class PaymentScreen extends ConsumerStatefulWidget {
   final EventModel event;
@@ -44,16 +40,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   bool _isProcessing = false;
   bool _paymentFailed = false;
   String _selectedMethod = 'UPI';
-
-  final List<Map<String, dynamic>> _paymentMethods = [
-    {
-      'name': 'UPI',
-      'icon': Icons.account_balance,
-      'desc': 'Google Pay, PhonePe, Paytm'
-    },
-    {'name': 'Card', 'icon': Icons.credit_card, 'desc': 'Credit or Debit card'},
-    {'name': 'Net Banking', 'icon': Icons.language, 'desc': 'All major banks'},
-  ];
 
   double get _eventPrice => widget.event.price;
   double get _platformFee => BookingModel.calculatePlatformFee(_eventPrice);
@@ -491,8 +477,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         .fade(duration: 300.ms),
                     const SizedBox(height: 12),
 
-                    ...List.generate(_paymentMethods.length, (index) {
-                      final method = _paymentMethods[index];
+                    ...List.generate(PaymentConstants.paymentMethods.length, (index) {
+                      final method = PaymentConstants.paymentMethods[index];
                       final isSelected = method['name'] == _selectedMethod;
                       return GestureDetector(
                         onTap: _isProcessing

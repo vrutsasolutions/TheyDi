@@ -2,139 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/location_constants.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
-
-const _kCities = [
-  'Mumbai',
-  'Delhi',
-  'Bangalore',
-  'Hyderabad',
-  'Chennai',
-  'Kolkata',
-  'Pune',
-  'Ahmedabad',
-  'Jaipur',
-  'Lucknow',
-  'Kochi',
-  'Goa',
-  'Surat',
-  'Chandigarh',
-  'Indore',
-  'Bhopal',
-  'Nagpur',
-  'Visakhapatnam',
-  'Coimbatore',
-  'Vadodara',
-];
-
-const List<String> _otherCities = [
-  'Agra',
-  'Ajmer',
-  'Aligarh',
-  'Allahabad',
-  'Amritsar',
-  'Aurangabad',
-  'Bareilly',
-  'Belgaum',
-  'Bhilai',
-  'Bhubaneswar',
-  'Bilaspur',
-  'Bokaro',
-  'Cuttack',
-  'Dehradun',
-  'Dhanbad',
-  'Dharamshala',
-  'Dibrugarh',
-  'Durgapur',
-  'Ernakulam',
-  'Erode',
-  'Faridabad',
-  'Gangtok',
-  'Ghaziabad',
-  'Gorakhpur',
-  'Guntur',
-  'Gurugram',
-  'Guwahati',
-  'Gwalior',
-  'Hisar',
-  'Hubli',
-  'Imphal',
-  'Jabalpur',
-  'Jalandhar',
-  'Jammu',
-  'Jamnagar',
-  'Jamshedpur',
-  'Jhansi',
-  'Jodhpur',
-  'Jorhat',
-  'Kanpur',
-  'Karnal',
-  'Kolhapur',
-  'Kollam',
-  'Kota',
-  'Kozhikode',
-  'Kurnool',
-  'Ludhiana',
-  'Madurai',
-  'Mangalore',
-  'Meerut',
-  'Moradabad',
-  'Mysuru',
-  'Nanded',
-  'Nashik',
-  'Navi Mumbai',
-  'Noida',
-  'Patiala',
-  'Patna',
-  'Puducherry',
-  'Raipur',
-  'Rajkot',
-  'Ranchi',
-  'Rourkela',
-  'Salem',
-  'Shimla',
-  'Siliguri',
-  'Srinagar',
-  'Thane',
-  'Thiruvananthapuram',
-  'Thrissur',
-  'Tirupati',
-  'Udaipur',
-  'Udupi',
-  'Varanasi',
-  'Vellore',
-  'Vijayawada',
-  'Warangal',
-];
-
-List<String> _filtered = _kCities;
-List<String> _filteredOtherCities = _otherCities;
-
-const Map<String, String> _cityIcons = {
-  'Mumbai': 'assets/city_icons/mumbai.png',
-  'Delhi': 'assets/city_icons/delhi.png',
-  'Bangalore': 'assets/city_icons/bangalore.png',
-  'Hyderabad': 'assets/city_icons/hyderabad.png',
-  'Chennai': 'assets/city_icons/chennai.png',
-  'Kolkata': 'assets/city_icons/kolkata.png',
-  'Pune': 'assets/city_icons/pune.png',
-  'Ahmedabad': 'assets/city_icons/ahmedabad.png',
-  'Jaipur': 'assets/city_icons/jaipur.png',
-  'Lucknow': 'assets/city_icons/lucknow.png',
-  'Kochi': 'assets/city_icons/kochi.png',
-  'Goa': 'assets/city_icons/goa.png',
-  'Surat': 'assets/city_icons/surat.png',
-  'Chandigarh': 'assets/city_icons/chandigarh.png',
-  'Indore': 'assets/city_icons/indore.png',
-  'Bhopal': 'assets/city_icons/bhopal.png',
-  'Nagpur': 'assets/city_icons/nagpur.png',
-  'Visakhapatnam': 'assets/city_icons/visakhapatnam.png',
-  'Coimbatore': 'assets/city_icons/coimbatore.png',
-  'Vadodara': 'assets/city_icons/vadodara.png',
-};
 
 class SignupStep2Screen extends StatefulWidget {
   final SignupData signupData;
@@ -147,7 +19,8 @@ class SignupStep2Screen extends StatefulWidget {
 class _SignupStep2ScreenState extends State<SignupStep2Screen> {
   final _searchController = TextEditingController();
   String _selectedCity = '';
-  List<String> _filtered = _kCities;
+  List<String> _filtered = LocationConstants.primaryCities;
+  List<String> _filteredOtherCities = LocationConstants.otherCities;
 
   @override
   void dispose() {
@@ -158,16 +31,16 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
   void _onSearch(String query) {
     setState(() {
       if (query.isEmpty) {
-        _filtered = _kCities;
-        _filteredOtherCities = _otherCities;
+        _filtered = LocationConstants.primaryCities;
+        _filteredOtherCities = LocationConstants.otherCities;
       } else {
-        _filtered = _kCities
+        _filtered = LocationConstants.primaryCities
             .where(
               (city) => city.toLowerCase().contains(query.toLowerCase()),
             )
             .toList();
 
-        _filteredOtherCities = _otherCities
+        _filteredOtherCities = LocationConstants.otherCities
             .where(
               (city) => city.toLowerCase().contains(query.toLowerCase()),
             )
@@ -314,7 +187,7 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                                         width: 55,
                                         height: 55,
                                         child: Image.asset(
-                                          _cityIcons[city]!,
+                                          LocationConstants.cityIcons[city]!,
                                           fit: BoxFit.contain,
                                         ),
                                       ),

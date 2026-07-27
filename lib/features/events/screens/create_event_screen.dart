@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,409 +22,14 @@ import '../../../core/utils/picker_theme_helper.dart';
 
 import '../../../core/services/face_verification_service.dart';
 import '../../../core/router/app_routes.dart';
-
-import 'package:flutter/foundation.dart';
-
-const _kCategories = [
-  'Music',
-  'Tech',
-  'Sports',
-  'Art',
-  'Food',
-  'Networking',
-  'Gaming',
-  'Fitness',
-  'Comedy',
-  'Workshop',
-  'Party',
-  'Social',
-  'Adult Party',
-  'Other',
-];
-
-const _kAdultAgeGroups = [
-  'Young Adults (18–25)',
-  'Adults (26–40)',
-  'Middle Age (41–60)',
-  'Seniors (60+)',
-];
-
-const List<String> _kStates = [
-  'Andhra Pradesh',
-  'Arunachal Pradesh',
-  'Assam',
-  'Bihar',
-  'Chhattisgarh',
-  'Goa',
-  'Gujarat',
-  'Haryana',
-  'Himachal Pradesh',
-  'Jharkhand',
-  'Karnataka',
-  'Kerala',
-  'Madhya Pradesh',
-  'Maharashtra',
-  'Manipur',
-  'Meghalaya',
-  'Mizoram',
-  'Nagaland',
-  'Odisha',
-  'Punjab',
-  'Rajasthan',
-  'Sikkim',
-  'Tamil Nadu',
-  'Telangana',
-  'Tripura',
-  'Uttar Pradesh',
-  'Uttarakhand',
-  'West Bengal',
-];
-
-final Map<String, List<String>> _stateCities = {
-  'Andhra Pradesh': [
-    'Visakhapatnam',
-    'Vijayawada',
-    'Tirupati',
-    'Guntur',
-    'Nellore',
-    'Kurnool',
-    'Rajahmundry',
-    'Kakinada',
-    'Anantapur',
-    'Kadapa',
-  ],
-  'Arunachal Pradesh': [
-    'Itanagar',
-    'Naharlagun',
-    'Pasighat',
-    'Tawang',
-    'Ziro',
-    'Bomdila',
-    'Tezu',
-    'Roing',
-    'Khonsa',
-    'Along',
-  ],
-  'Assam': [
-    'Guwahati',
-    'Silchar',
-    'Dibrugarh',
-    'Jorhat',
-    'Nagaon',
-    'Tezpur',
-    'Tinsukia',
-    'Sivasagar',
-    'Bongaigaon',
-    'Goalpara',
-  ],
-  'Bihar': [
-    'Patna',
-    'Gaya',
-    'Muzaffarpur',
-    'Bhagalpur',
-    'Darbhanga',
-    'Aurangabad',
-    'Purnia',
-    'Ara',
-    'Begusarai',
-    'Katihar',
-    'Munger',
-  ],
-  'Chhattisgarh': [
-    'Raipur',
-    'Bhilai',
-    'Bilaspur',
-    'Korba',
-    'Raigarh',
-    'Jagdalpur',
-    'Ambikapur',
-    'Dhamtari',
-    'Rajnandgaon',
-    'Mahasamund',
-  ],
-  'Goa': [
-    'Panaji',
-    'Margao',
-    'Vasco da Gama',
-    'Mapusa',
-    'Ponda',
-    'Bicholim',
-    'Curchorem',
-    'Canacona',
-    'Sanquelim',
-    'Valpoi',
-  ],
-  'Gujarat': [
-    'Ahmedabad',
-    'Surat',
-    'Vadodara',
-    'Rajkot',
-    'Bhavnagar',
-    'Jamnagar',
-    'Junagadh',
-    'Anand',
-    'Gandhinagar',
-    'Morbi',
-  ],
-  'Haryana': [
-    'Gurugram',
-    'Faridabad',
-    'Panipat',
-    'Ambala',
-    'Hisar',
-    'Karnal',
-    'Rohtak',
-    'Sonipat',
-    'Yamunanagar',
-    'Panchkula',
-  ],
-  'Himachal Pradesh': [
-    'Shimla',
-    'Manali',
-    'Dharamshala',
-    'Solan',
-    'Mandi',
-    'Hamirpur',
-    'Una',
-    'Bilaspur',
-    'Kullu',
-    'Chamba',
-  ],
-  'Jharkhand': [
-    'Ranchi',
-    'Jamshedpur',
-    'Dhanbad',
-    'Bokaro',
-    'Deoghar',
-    'Hazaribagh',
-    'Giridih',
-    'Ramgarh',
-    'Chaibasa',
-    'Medininagar',
-  ],
-  'Karnataka': [
-    'Bengaluru',
-    'Mysuru',
-    'Mangaluru',
-    'Hubballi',
-    'Belagavi',
-    'Shivamogga',
-    'Davanagere',
-    'Ballari',
-    'Udupi',
-    'Kalaburagi',
-  ],
-  'Kerala': [
-    'Kochi',
-    'Thiruvananthapuram',
-    'Kozhikode',
-    'Thrissur',
-    'Kollam',
-    'Kannur',
-    'Alappuzha',
-    'Palakkad',
-    'Kottayam',
-    'Malappuram',
-  ],
-  'Madhya Pradesh': [
-    'Bhopal',
-    'Indore',
-    'Gwalior',
-    'Jabalpur',
-    'Ujjain',
-    'Sagar',
-    'Satna',
-    'Ratlam',
-    'Rewa',
-    'Dewas',
-  ],
-  'Maharashtra': [
-    'Mumbai',
-    'Pune',
-    'Nagpur',
-    'Nashik',
-    'Thane',
-    'Aurangabad',
-    'Kolhapur',
-    'Solapur',
-    'Amravati',
-    'Navi Mumbai',
-  ],
-  'Manipur': [
-    'Imphal',
-    'Thoubal',
-    'Bishnupur',
-    'Ukhrul',
-    'Churachandpur',
-    'Kakching',
-    'Senapati',
-    'Tamenglong',
-    'Jiribam',
-    'Moirang',
-  ],
-  'Meghalaya': [
-    'Shillong',
-    'Tura',
-    'Jowai',
-    'Nongpoh',
-    'Baghmara',
-    'Williamnagar',
-    'Resubelpara',
-    'Mawkyrwat',
-    'Nongstoin',
-    'Khliehriat',
-  ],
-  'Mizoram': [
-    'Aizawl',
-    'Lunglei',
-    'Champhai',
-    'Kolasib',
-    'Serchhip',
-    'Saiha',
-    'Mamit',
-    'Lawngtlai',
-    'Saitual',
-    'Khawzawl',
-  ],
-  'Nagaland': [
-    'Kohima',
-    'Dimapur',
-    'Mokokchung',
-    'Tuensang',
-    'Mon',
-    'Wokha',
-    'Zunheboto',
-    'Phek',
-    'Kiphire',
-    'Longleng',
-  ],
-  'Odisha': [
-    'Bhubaneswar',
-    'Cuttack',
-    'Rourkela',
-    'Puri',
-    'Sambalpur',
-    'Balasore',
-    'Berhampur',
-    'Jharsuguda',
-    'Baripada',
-    'Jeypore',
-  ],
-  'Punjab': [
-    'Ludhiana',
-    'Amritsar',
-    'Jalandhar',
-    'Patiala',
-    'Bathinda',
-    'Mohali',
-    'Pathankot',
-    'Moga',
-    'Hoshiarpur',
-    'Kapurthala',
-  ],
-  'Rajasthan': [
-    'Jaipur',
-    'Jodhpur',
-    'Udaipur',
-    'Kota',
-    'Ajmer',
-    'Bikaner',
-    'Alwar',
-    'Bharatpur',
-    'Sikar',
-    'Pali',
-  ],
-  'Sikkim': [
-    'Gangtok',
-    'Namchi',
-    'Gyalshing',
-    'Mangan',
-    'Rangpo',
-    'Singtam',
-    'Jorethang',
-    'Ravangla',
-    'Pakyong',
-    'Soreng',
-  ],
-  'Tamil Nadu': [
-    'Chennai',
-    'Coimbatore',
-    'Madurai',
-    'Salem',
-    'Tiruchirappalli',
-    'Tirunelveli',
-    'Erode',
-    'Vellore',
-    'Thoothukudi',
-    'Kanchipuram',
-  ],
-  'Telangana': [
-    'Hyderabad',
-    'Warangal',
-    'Karimnagar',
-    'Nizamabad',
-    'Khammam',
-    'Ramagundam',
-    'Mahbubnagar',
-    'Siddipet',
-    'Adilabad',
-    'Nalgonda',
-  ],
-  'Tripura': [
-    'Agartala',
-    'Udaipur',
-    'Dharmanagar',
-    'Kailasahar',
-    'Belonia',
-    'Ambassa',
-    'Khowai',
-    'Sabroom',
-    'Teliamura',
-    'Sonamura',
-  ],
-  'Uttar Pradesh': [
-    'Lucknow',
-    'Kanpur',
-    'Noida',
-    'Ghaziabad',
-    'Agra',
-    'Varanasi',
-    'Prayagraj',
-    'Meerut',
-    'Bareilly',
-    'Gorakhpur',
-  ],
-  'Uttarakhand': [
-    'Dehradun',
-    'Haridwar',
-    'Rishikesh',
-    'Haldwani',
-    'Roorkee',
-    'Nainital',
-    'Rudrapur',
-    'Kashipur',
-    'Almora',
-    'Pithoragarh',
-  ],
-  'West Bengal': [
-    'Kolkata',
-    'Howrah',
-    'Durgapur',
-    'Siliguri',
-    'Asansol',
-    'Kharagpur',
-    'Bardhaman',
-    'Malda',
-    'Haldia',
-    'Darjeeling',
-  ],
-};
+import '../../../core/constants/event_constants.dart';
+import '../../../core/constants/location_constants.dart';
 
 // Looks up which state a given city belongs to. Used to keep
 // `_selectedState` in sync whenever `_selectedCity` changes, either from
 // the dropdown or from reverse-geocoding a map tap.
 String? _stateForCity(String city) {
-  for (final entry in _stateCities.entries) {
+  for (final entry in LocationConstants.stateCities.entries) {
     if (entry.value.contains(city)) return entry.key;
   }
   return null;
@@ -794,7 +398,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         final normalizedCity = normalize(city);
 
         final allCities =
-            _stateCities.values.expand((cities) => cities).toList();
+            LocationConstants.stateCities.values.expand((cities) => cities).toList();
 
         final matchedCity = allCities.firstWhere(
           (c) {
@@ -1234,7 +838,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _showError('Adult Party events must be Indoor');
         return;
       }
-      if (!_kAdultAgeGroups.contains(_ageGroup)) {
+      if (!EventConstants.adultAgeGroups.contains(_ageGroup)) {
         _showError('Adult Party requires an 18+ age group');
         return;
       }
@@ -1704,7 +1308,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       _DropdownField<String>(
                               hint: 'Select category',
                               value: _selectedCategory,
-                              items: _kCategories
+                              items: EventConstants.eventCategories
                                   .where((c) =>
                                       c != 'Adult Party' || _userAge >= 18)
                                   .map((c) => DropdownMenuItem(
@@ -1941,7 +1545,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                 _DropdownField<String>(
                                   hint: 'Select state',
                                   value: _selectedState,
-                                  items: _kStates.map((s) {
+                                  items: LocationConstants.states.map((s) {
                                     return DropdownMenuItem<String>(
                                       value: s,
                                       child: Text(
@@ -1973,7 +1577,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                   value: _selectedCity,
                                   items: (_selectedState == null
                                           ? <String>[]
-                                          : _stateCities[_selectedState] ?? [])
+                                          : LocationConstants.stateCities[_selectedState] ?? [])
                                       .map((city) => DropdownMenuItem<String>(
                                             value: city,
                                             child: Text(
@@ -2406,7 +2010,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                               hint: 'Select age group',
                               value: _ageGroup,
                               items: (_isAdultParty
-                                      ? _kAdultAgeGroups
+                                      ? EventConstants.adultAgeGroups
                                       : _kAgeGroups)
                                   .map((a) => DropdownMenuItem(
                                       value: a,

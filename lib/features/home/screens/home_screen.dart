@@ -18,6 +18,7 @@ import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants/event_constants.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/location_service.dart';
@@ -69,23 +70,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   double? _userLng;
   bool _locationLoading = true;
 
-  final List<String> _categories = [
-    'All',
-    'Music',
-    'Tech',
-    'Sports',
-    'Art',
-    'Food',
-    'Networking',
-    'Gaming',
-    'Fitness',
-    'Comedy',
-    'Workshop',
-    'Party',
-    'Social',
-    'Adult Party',
-    'Other',
-  ];
 
   @override
   void initState() {
@@ -403,10 +387,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ),
                                         child: Center(
                                           child: Image.asset(
-  'assets/images/theydi_logo.png',
-  height: 37,
-  fit: BoxFit.contain,
-),
+                                          'assets/images/theydi_logo.png',
+                                          height: 56,
+                                          fit: BoxFit.contain,
+                                        ),
                                         ),
                                       ),
                                       const SizedBox(width: 4),
@@ -730,10 +714,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         height: 36,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _categories.length,
+                          itemCount: EventConstants.homeCategories.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
-                            final cat = _categories[index];
+                            final cat = EventConstants.homeCategories[index];
                             final isSelected = cat == _selectedCategory;
                             return GestureDetector(
                               onTap: () =>

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/constants/location_constants.dart';
+import '../../../core/constants/profile_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../shared/screens/image_cropper_screen.dart';
@@ -32,55 +34,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Uint8List? _pickedImageBytes;
   bool _isLoading = true;
   bool _isSaving = false;
-
-  static const List<String> _genderOptions = [
-    'Male',
-    'Female',
-    'Other',
-    'Prefer not to say',
-  ];
-
-  static const List<String> _cities = [
-    'Mumbai',
-    'Delhi',
-    'Bangalore',
-    'Hyderabad',
-    'Chennai',
-    'Kolkata',
-    'Pune',
-    'Ahmedabad',
-    'Jaipur',
-    'Lucknow',
-    'Surat',
-    'Kochi',
-    'Chandigarh',
-    'Indore',
-    'Coimbatore',
-    'Goa',
-    'Vizag',
-    'Nagpur',
-    'Bhopal',
-    'Thiruvananthapuram',
-  ];
-
-  static const List<Map<String, String>> _interestOptions = [
-    {'label': 'Music', 'emoji': '🎵'},
-    {'label': 'Tech', 'emoji': '💻'},
-    {'label': 'Sports', 'emoji': '⚽'},
-    {'label': 'Art', 'emoji': '🎨'},
-    {'label': 'Food', 'emoji': '🍕'},
-    {'label': 'Travel', 'emoji': '✈️'},
-    {'label': 'Gaming', 'emoji': '🎮'},
-    {'label': 'Fitness', 'emoji': '💪'},
-    {'label': 'Movies', 'emoji': '🎬'},
-    {'label': 'Books', 'emoji': '📚'},
-    {'label': 'Photography', 'emoji': '📷'},
-    {'label': 'Dance', 'emoji': '💃'},
-    {'label': 'Startups', 'emoji': '🚀'},
-    {'label': 'Comedy', 'emoji': '😂'},
-    {'label': 'Networking', 'emoji': '🤝'},
-    {'label': 'Wellness', 'emoji': '🧘'},
-  ];
 
   // ── Light theme constants ──────────────────────────────────────────────────
   static const Color _fillColor = Color(0xFFF3F4F6); // TieInColors.inputFill
@@ -112,10 +65,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (age != null) _ageController.text = age.toString();
 
         final gender = data['gender'] as String? ?? '';
-        if (_genderOptions.contains(gender)) _selectedGender = gender;
+        if (ProfileConstants.genderOptions.contains(gender)) _selectedGender = gender;
 
         final city = data['city'] as String? ?? '';
-        if (city.isNotEmpty && _cities.contains(city)) _selectedCity = city;
+        if (city.isNotEmpty && LocationConstants.editProfileCities.contains(city)) _selectedCity = city;
 
         _existingPhotoUrl = (data['profileImageUrl'] as String?) ??
             (data['photoUrl'] as String?) ??
@@ -470,7 +423,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       color: _textColor, fontSize: 14),
                                   icon: const Icon(Icons.keyboard_arrow_down,
                                       color: _hintColor),
-                                  items: _genderOptions
+                                  items: ProfileConstants.genderOptions
                                       .map((g) => DropdownMenuItem(
                                           value: g,
                                           child: Text(g,
@@ -511,7 +464,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         style: const TextStyle(color: _textColor, fontSize: 14),
                         icon: const Icon(Icons.keyboard_arrow_down,
                             color: _hintColor),
-                        items: _cities
+                        items: LocationConstants.editProfileCities
                             .map((c) => DropdownMenuItem(
                                 value: c,
                                 child: Text(c,
@@ -534,7 +487,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _interestOptions.map((interest) {
+                    children: ProfileConstants.interestOptions.map((interest) {
                       final label = interest['label']!;
                       final emoji = interest['emoji']!;
                       final isSelected = _selectedInterests.contains(label);

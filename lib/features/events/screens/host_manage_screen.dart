@@ -250,71 +250,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
     if (mounted) setState(() => _isProcessing = false);
   }
 
-  Future<void> _claimPayout(EventModel event) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: TheyDiColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Claim Payout', style: TheyDiTextStyles.headlineMedium),
-        content: Text(
-            'Are you sure you want to end this event and claim payouts for all confirmed bookings?',
-            style: TheyDiTextStyles.bodyMedium
-                .copyWith(color: TheyDiColors.textSecondary)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel',
-                  style: TheyDiTextStyles.labelMedium
-                      .copyWith(color: TheyDiColors.textSecondary))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Claim',
-                  style: TheyDiTextStyles.labelMedium
-                      .copyWith(color: Colors.green))),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    if (_isProcessing) return;
-    setState(() => _isProcessing = true);
 
-    try {
-      debugPrint(
-          '[HostPayout] Triggering releaseHostPayoutsX for eventId: ${widget.eventId}...');
-      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('releaseHostPayoutsX');
-      final result = await callable.call({'eventId': widget.eventId});
-      debugPrint('[HostPayout] Function result: ${result.data}');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Payout requested! Transferred: ${result.data['transfersProcessed'] ?? 0} bookings.'),
-            backgroundColor: Colors.green));
-      }
-
-      // ── Email: notify host payout processed ──
-      final hostUid = FirebaseAuth.instance.currentUser!.uid;
-      final transfersProcessed =
-          (result.data['transfersProcessed'] as int?) ?? 0;
-      final totalTransferred =
-          (result.data['totalTransferred'] ?? '').toString();
-      await NotificationService.notifyHostPayoutEmail(
-        hostUid: hostUid,
-        eventTitle: event.title,
-        bookingsProcessed: transfersProcessed,
-        totalAmount: totalTransferred,
-      );
-    } catch (e) {
-      debugPrint('[HostPayout] Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Payout failed: $e'), backgroundColor: Colors.red));
-      }
-    }
-    if (mounted) setState(() => _isProcessing = false);
-  }
 
   Future<void> _createEventCircle(EventModel event) async {
     if (_existingCircle != null) {
@@ -585,48 +521,6 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                                           vertical: 12)),
                                 ),
                               ),
-                              if (!event.isFree) ...[
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: (event.status == 'completed' ||
-                                            _isProcessing)
-                                        ? null
-                                        : () => _claimPayout(event),
-                                    icon: _isProcessing
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.green))
-                                        : Icon(
-                                            event.status == 'completed'
-                                                ? Icons.check_circle
-                                                : Icons.attach_money,
-                                            color: Colors.green,
-                                            size: 18),
-                                    label: Text(
-                                        event.status == 'completed'
-                                            ? 'Payment Claimed'
-                                            : (_isProcessing
-                                                ? 'Processing...'
-                                                : 'Complete Event & Claim Payout'),
-                                        style: const TextStyle(
-                                            color: Colors.green,
-                                            fontWeight: FontWeight.w600)),
-                                    style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(
-                                            color: Colors.green),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12)),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12)),
-                                  ),
-                                ),
-                              ],
                             ]),
                       ).animate(delay: 100.ms).fade(duration: 400.ms),
 

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants/event_constants.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/filter_bottom_sheet.dart';
@@ -32,8 +33,6 @@ class ExploreScreen extends ConsumerStatefulWidget {
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String _selectedFilter = 'All';
   final EventFilters _advancedFilters = EventFilters();
-
-  final List<String> _filters = ['All', 'Today', 'Free', 'This Week'];
 
   List<EventModel> _applyQuickFilter(List<EventModel> events) {
     final DateTime now = DateTime.now();
@@ -306,11 +305,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                     physics:
                                         const NeverScrollableScrollPhysics(),
                                     scrollDirection: Axis.horizontal,
-                                    itemCount: _filters.length,
+                                    itemCount: EventConstants.exploreFilters.length,
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(width: 6),
                                     itemBuilder: (context, index) {
-                                      final filter = _filters[index];
+                                      final filter = EventConstants.exploreFilters[index];
                                       final isSelected =
                                           filter == _selectedFilter;
 
