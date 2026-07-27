@@ -10,6 +10,7 @@ import '../../../core/constants/location_constants.dart';
 import '../../../core/constants/profile_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/cloudflare_upload.dart';
+import '../../../core/utils/app_error_utils.dart';
 import '../../../shared/screens/image_cropper_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -222,10 +223,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       setState(() => _isSaving = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to save: $e'), backgroundColor: Colors.red),
-      );
+      AppErrorUtils.showErrorSnackBar(context, e);
     }
   }
 

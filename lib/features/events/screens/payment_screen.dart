@@ -13,6 +13,7 @@ import '../../../core/constants/payment_constants.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/utils/app_error_utils.dart';
 import '../models/booking_model.dart';
 import '../models/event_model.dart';
 
@@ -81,10 +82,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         _isProcessing = false;
         _paymentFailed = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Payment failed: ${response.message}'),
-        backgroundColor: Colors.red,
-      ));
+      AppErrorUtils.showErrorSnackBar(
+          context, response.message ?? 'Payment was cancelled or failed.');
     }
   }
 
@@ -164,10 +163,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           _isProcessing = false;
           _paymentFailed = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Payment fulfillment failed: $e'),
-          backgroundColor: Colors.red,
-        ));
+        AppErrorUtils.showErrorSnackBar(context, e);
       }
     }
   }
@@ -345,10 +341,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           _isProcessing = false;
           _paymentFailed = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not launch payment: $e'),
-          backgroundColor: Colors.red,
-        ));
+        AppErrorUtils.showErrorSnackBar(context, e);
       }
     }
   }

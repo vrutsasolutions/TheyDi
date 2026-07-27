@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/constants/bank_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/app_error_utils.dart';
 // import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
@@ -161,12 +162,7 @@ void initState() {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save payout details: $e'),
-          backgroundColor: TheyDiColors.error,
-        ),
-      );
+      AppErrorUtils.showErrorSnackBar(context, e);
     }
   }
 

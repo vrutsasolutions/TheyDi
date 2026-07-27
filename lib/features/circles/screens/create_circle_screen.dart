@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/app_error_utils.dart';
 import '../models/circle_model.dart';
 
 class CreateCircleScreen extends StatefulWidget {
@@ -214,10 +215,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
     } catch (e) {
       setState(() => _isCreating = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to create: $e'), backgroundColor: Colors.red),
-      );
+      AppErrorUtils.showErrorSnackBar(context, e);
     }
   }
 

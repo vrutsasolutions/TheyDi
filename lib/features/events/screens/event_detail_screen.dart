@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/app_error_utils.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../models/event_model.dart';
 import '../../../core/services/notification_service.dart';
@@ -397,8 +398,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+        AppErrorUtils.showErrorSnackBar(context, e);
       }
     }
     if (mounted) setState(() => _isProcessing = false);
@@ -424,8 +424,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+        AppErrorUtils.showErrorSnackBar(context, e);
       }
     }
     if (mounted) setState(() => _isProcessing = false);
