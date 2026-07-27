@@ -538,7 +538,7 @@ showDialog(
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.pop(context);
-                context.go(AppRoutes.personalDetails);
+                context.push(AppRoutes.personalDetails);
               },
             ),
           ],

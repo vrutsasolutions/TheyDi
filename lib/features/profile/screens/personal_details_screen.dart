@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/bank_constants.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_error_utils.dart';
 // import 'package:flutter_windowmanager/flutter_windowmanager.dart';
@@ -29,22 +31,14 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  // bool _confirmed = false;
+  bool _isExistingSetup = false;
   String? _autoFilledBankName;
 
-
-
-
   @override
-void initState() {
-  super.initState();
-
-  // FlutterWindowManager.addFlags(
-  //   FlutterWindowManager.FLAG_SECURE,
-  // );
-
-  _loadProfile();
-}
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -58,6 +52,7 @@ void initState() {
       final doc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
       final data = doc.data() ?? {};
+      _isExistingSetup = (data['payoutSetupCompleted'] as bool?) ?? false;
       _legalNameController.text =
           (data['name'] as String?)?.trim().isNotEmpty == true
               ? data['name'] as String
@@ -158,7 +153,15 @@ void initState() {
         'legalName': _legalNameController.text.trim(),
       });
 
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bank details updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go(AppRoutes.profile);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -208,7 +211,9 @@ void initState() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Personal Details')),
+      appBar: AppBar(
+        title: Text(_isExistingSetup ? 'Update Bank Details' : 'Personal Details'),
+      ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: TheyDiColors.primary),
@@ -219,8 +224,12 @@ void initState() {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 children: [
-                  Text('Complete Payout Setup',
-                      style: TheyDiTextStyles.displaySmall),
+                  Text(
+                    _isExistingSetup
+                        ? 'Update Your Bank Details'
+                        : 'Complete Payout Setup',
+                    style: TheyDiTextStyles.displaySmall,
+                  ),
                   const SizedBox(height: 28),
                   _buildSectionTitle('Personal Details'),
                   const SizedBox(height: 16),
@@ -328,9 +337,11 @@ void initState() {
                                   strokeWidth: 2.5,
                                 ),
                               )
-                            : const Text(
-                                'Save & Continue',
-                                style: TextStyle(
+                            : Text(
+                                _isExistingSetup
+                                    ? 'Save & Update Details'
+                                    : 'Save & Continue',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
