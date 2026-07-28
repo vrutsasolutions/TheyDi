@@ -605,7 +605,7 @@ exports.setupHostCashfreeBeneficiary = onCall(
 
     // Use pay_ + Firebase UID as the Cashfree beneId — recognizable and unique per host
     const beneId = `pay_${uid}`;
-    const beneName = legalName || name || userData.name || userData.displayName || "Host";
+    const beneName = name || legalName || userData.name || userData.displayName || "Host";
     const beneEmail = email || userData.email || request.auth.token.email || "host@example.com";
     const benePhone = mobile || userData.mobile || userData.phone || userData.phoneNumber || "9999999999";
     const transferMode = isUpi ? "upi" : "imps";
@@ -628,12 +628,28 @@ exports.setupHostCashfreeBeneficiary = onCall(
     try {
       const token = await getCashfreePayoutToken();
       const env = (process.env.CASHFREE_ENVIRONMENT || process.env.CASHFREE_PAYOUT_ENV || "").toUpperCase();
-      const addBeneUrl = env === "PRODUCTION"
-        ? "https://payout-api.cashfree.com/payout/v1/addBeneficiary"
-        : "https://payout-gamma.cashfree.com/payout/v1/addBeneficiary";
+      const baseUrl = env === "PRODUCTION"
+        ? "https://payout-api.cashfree.com/payout/v1"
+        : "https://payout-gamma.cashfree.com/payout/v1";
 
-      logger.info(`[Cashfree] Onboarding beneficiary ${beneId} for UID: ${uid}`);
-      const res = await fetch(addBeneUrl, {
+      logger.info(`[Cashfree] Updating beneficiary ${beneId} for UID: ${uid}`);
+
+      // 1. Remove old beneficiary record if it exists so new bank details can be registered
+      try {
+        await fetch(`${baseUrl}/removeBeneficiary`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ beneId }),
+        });
+      } catch (err) {
+        logger.info(`[Cashfree] removeBeneficiary notice (ignored): ${err.message}`);
+      }
+
+      // 2. Add beneficiary with the updated bank details
+      const res = await fetch(`${baseUrl}/addBeneficiary`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -648,12 +664,15 @@ exports.setupHostCashfreeBeneficiary = onCall(
       const alreadyExists = data.message?.toLowerCase().includes("already") || data.subCode === "409" || data.subCode === 409 || data.subCode === "422" || data.subCode === 422;
 
       if (!isSuccess && !alreadyExists) {
-        throw new Error("Failed to add Cashfree beneficiary: " + (data.message || JSON.stringify(data)));
+        throw new Error("Failed to set up Cashfree beneficiary: " + (data.message || JSON.stringify(data)));
       }
 
       // Persist ONLY non-sensitive identifier and payoutMode to Firestore
       // Explicitly delete any raw banking fields to ensure zero-storage of sensitive user data
-      await db.collection("users").doc(uid).update({
+      await db.collection("users").doc(uid).set({
+        name: beneName,
+        email: beneEmail,
+        mobile: benePhone,
         cashfreeBeneId: beneId,
         payoutMode: transferMode,
         payoutSetupCompleted: true,
@@ -661,7 +680,7 @@ exports.setupHostCashfreeBeneficiary = onCall(
         ifsc: FieldValue.delete(),
         upiId: FieldValue.delete(),
         payoutDetails: FieldValue.delete(),
-      });
+      }, { merge: true });
 
       // Clean up the temporary bank details document submitted from the app
       await db.collection("users").doc(uid).collection("private").doc("tempBankDetails").delete()
