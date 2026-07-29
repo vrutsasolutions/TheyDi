@@ -81,10 +81,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         if (b.category == _advancedFilters.category) bScore++;
       }
       if (_advancedFilters.city != null) {
-        if (a.city.toLowerCase() == _advancedFilters.city!.toLowerCase())
+        if (a.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) {
           aScore++;
-        if (b.city.toLowerCase() == _advancedFilters.city!.toLowerCase())
+        }
+        if (b.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) {
           bScore++;
+        }
       }
       if (_advancedFilters.freeOnly == true) {
         if (a.isFree) aScore++;

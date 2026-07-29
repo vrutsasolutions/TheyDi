@@ -48,11 +48,12 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
   Future<void> _checkExistingCircle() async {
     final circle =
         await EventCircleService.getExistingEventCircle(widget.eventId);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _existingCircle = circle;
         _checkingCircle = false;
       });
+    }
   }
 
   Future<void> _approveRequest(EventModel event, String userUid) async {
@@ -1012,11 +1013,12 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         .doc(widget.userUid)
         .get();
     if (friendDoc.exists) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.friends;
           _loadingStatus = false;
         });
+      }
       return;
     }
     final sentSnap = await db
@@ -1027,11 +1029,12 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         .where('status', isEqualTo: 'pending')
         .get();
     if (sentSnap.docs.isNotEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.requestSent;
           _loadingStatus = false;
         });
+      }
       return;
     }
     final receivedSnap = await db
@@ -1042,18 +1045,20 @@ class _AttendeeCardState extends State<_AttendeeCard> {
         .where('status', isEqualTo: 'pending')
         .get();
     if (receivedSnap.docs.isNotEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = FriendStatus.requestReceived;
           _loadingStatus = false;
         });
+      }
       return;
     }
-    if (mounted)
+    if (mounted) {
       setState(() {
         _status = FriendStatus.none;
         _loadingStatus = false;
       });
+    }
   }
 
   Future<void> _sendRequest(String toName) async {

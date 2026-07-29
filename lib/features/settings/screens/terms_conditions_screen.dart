@@ -39,7 +39,7 @@ class TermsConditionsScreen extends StatelessWidget {
       width: 90,
       height: 90,
       decoration: BoxDecoration(
-        color: TheyDiColors.primary.withOpacity(.08),
+        color: TheyDiColors.primary.withValues(alpha: .08),
         shape: BoxShape.circle,
       ),
       child: const Icon(

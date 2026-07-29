@@ -11,7 +11,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../events/models/booking_model.dart';
 import '../../events/models/event_model.dart';
 import 'package:theydi/core/router/app_routes.dart';
-import 'package:theydi/core/router/app_router.dart';
 // Stream host's events
 final _hostEventsProvider = StreamProvider.autoDispose<List<EventModel>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;

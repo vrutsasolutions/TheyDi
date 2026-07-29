@@ -26,7 +26,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
     vertical: 30,
   ),
   decoration: BoxDecoration(
-    color: Colors.teal.withOpacity(0.08),
+    color: Colors.teal.withValues(alpha: 0.08),
     borderRadius: BorderRadius.circular(18),
   ),
   child: Column(
@@ -35,7 +35,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       width: 90,
       height: 90,
       decoration: BoxDecoration(
-        color: TheyDiColors.primary.withOpacity(.08),
+        color: TheyDiColors.primary.withValues(alpha: .08),
         shape: BoxShape.circle,
       ),
       child: const Icon(

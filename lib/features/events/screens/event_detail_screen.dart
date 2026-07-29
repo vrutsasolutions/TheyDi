@@ -16,7 +16,6 @@ import 'package:theydi/features/events/widgets/event_share_sheet.dart';
 
 import '../../../core/services/face_verification_service.dart';
 
-import 'package:flutter/foundation.dart';
 
 // ─────────────────────────────────────────────────────────────
 // State machine:

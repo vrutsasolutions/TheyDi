@@ -1,9 +1,64 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/services/face_verification_service.dart';
 import '../../../core/theme/app_theme.dart';
+
+/// Fetches and decrypts an image stored via CloudflareUpload and renders
+/// it. [fileKey] is the opaque key returned at upload time (e.g.
+/// "face_selfies/<uid>.jpg"), not a public URL.
+class _EncryptedImage extends StatelessWidget {
+  const _EncryptedImage({
+    required this.fileKey,
+    this.height,
+    this.width,
+    this.fit = BoxFit.cover,
+    this.errorBuilder,
+  });
+
+  final String fileKey;
+  final double? height;
+  final double? width;
+  final BoxFit fit;
+  final Widget Function()? errorBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    if (fileKey.isEmpty) {
+      return errorBuilder?.call() ?? const SizedBox.shrink();
+    }
+    return FutureBuilder<Uint8List?>(
+      future: CloudflareUpload.fetchDecrypted(fileKey),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return SizedBox(
+            height: height,
+            width: width,
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data == null) {
+          return errorBuilder?.call() ??
+              SizedBox(
+                height: height,
+                width: width,
+                child: const Icon(Icons.broken_image),
+              );
+        }
+        return Image.memory(
+          snapshot.data!,
+          height: height,
+          width: width,
+          fit: fit,
+        );
+      },
+    );
+  }
+}
 
 class AdminVerificationScreen extends StatelessWidget {
   const AdminVerificationScreen({super.key});
@@ -166,19 +221,10 @@ class _RequestCardState extends State<_RequestCard> {
                   child: InteractiveViewer(
                     minScale: 0.5,
                     maxScale: 4.0,
-                    child: Image.network(
-                      url,
+                    child: _EncryptedImage(
+                      fileKey: url,
                       fit: BoxFit.contain,
-                      loadingBuilder: (_, child, progress) {
-                        if (progress == null) return child;
-                        return const SizedBox(
-                          height: 300,
-                          child: Center(
-                            child: CircularProgressIndicator(color: Colors.white),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => const SizedBox(
+                      errorBuilder: () => const SizedBox(
                         height: 200,
                         child: Center(
                           child: Icon(Icons.broken_image,
@@ -381,11 +427,12 @@ class _RequestCardState extends State<_RequestCard> {
                           child: selfie.isNotEmpty
                               ? Stack(
                                   children: [
-                                    Image.network(selfie,
+                                    _EncryptedImage(
+                                        fileKey: selfie,
                                         height: 160,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
+                                        errorBuilder: () =>
                                             _photoPlaceholder()),
                                     Positioned(
                                       bottom: 6,
@@ -429,11 +476,12 @@ class _RequestCardState extends State<_RequestCard> {
                           child: live.isNotEmpty
                               ? Stack(
                                   children: [
-                                    Image.network(live,
+                                    _EncryptedImage(
+                                        fileKey: live,
                                         height: 160,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
+                                        errorBuilder: () =>
                                             _photoPlaceholder()),
                                     Positioned(
                                       bottom: 6,

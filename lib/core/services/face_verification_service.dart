@@ -12,7 +12,7 @@ class FaceVerificationService {
   FaceVerificationService._();
 
   static final _firestore = FirebaseFirestore.instance;
-  static const String _adminUid = 'pMgZijNBerTdhH1ZdVWfsfY6Jbw2';
+  static const String _adminUid = 's0dnmJBIBXYk0MMNtCYHEMn5SvI2';
 
   // ── Upload photo to Cloudflare ────────────────────────────────────────────
   static Future<String?> uploadPhoto({

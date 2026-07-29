@@ -148,8 +148,9 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty)
+                            if (v == null || v.isEmpty) {
                               return 'Email is required';
+                            }
                             if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
                                 .hasMatch(v.trim())) {
                               return 'Enter a valid email';
@@ -178,10 +179,12 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty)
+                            if (v == null || v.isEmpty) {
                               return 'Password is required';
-                            if (v.length < 8)
+                            }
+                            if (v.length < 8) {
                               return 'Must be at least 8 characters';
+                            }
                             return null;
                           },
                         ).animate(delay: 250.ms).fade(duration: 350.ms),

@@ -19,7 +19,6 @@ import '../models/event_model.dart';
 
 import '../../../core/services/face_verification_service.dart';
 
-import 'package:flutter/foundation.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
   final EventModel event;

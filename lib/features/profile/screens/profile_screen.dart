@@ -9,7 +9,6 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 
-import 'package:flutter/foundation.dart';
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
