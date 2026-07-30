@@ -18,3 +18,15 @@ Future<Uint8List> fetchBlobBytes(String blobUrl) async {
   final buffer = request.response as ByteBuffer;
   return buffer.asUint8List();
 }
+
+/// Reads the browser's user agent to guess which app store to send
+/// guests to from a shared link. Returns 'android', 'ios', or null
+/// if neither is detected (e.g. desktop browser).
+String? detectMobileOsNative() {
+  final ua = html.window.navigator.userAgent.toLowerCase();
+  if (ua.contains('android')) return 'android';
+  if (ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod')) {
+    return 'ios';
+  }
+  return null;
+}

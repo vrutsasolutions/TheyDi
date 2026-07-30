@@ -82,6 +82,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+
+    // ── Catches unmatched/failed routes so a bad or stale share link
+    // shows a real screen instead of a blank white page. ──
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                "This page isn't available",
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${state.error}',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => context.go(AppRoutes.splash),
+                child: const Text('Go to Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
       final isLoggedIn = user != null;
@@ -418,16 +452,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-  path: AppRoutes.faceVerification,
-  parentNavigatorKey: rootNavigatorKey,
-  builder: (context, state) {
-    final extra = state.extra as Map<String, dynamic>;
-    return FaceVerificationScreen(
-      userId: extra['userId'] as String,
-      onComplete: () {},
-    );
-  },
-),
+        path: AppRoutes.faceVerification,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return FaceVerificationScreen(
+            userId: extra['userId'] as String,
+            onComplete: () {},
+          );
+        },
+      ),
 
       // ── Shell routes ────────────────────────────────────────────────────────
       ShellRoute(

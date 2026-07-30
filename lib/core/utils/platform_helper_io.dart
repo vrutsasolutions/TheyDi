@@ -13,3 +13,10 @@ Future<List<int>> readFileBytes(String path) async {
 }
 
 Future<List<int>> fetchBlobBytes(String blobUrl) async => [];
+
+/// Not meaningful on native mobile/desktop — the app already knows
+/// its own platform via Platform.isAndroid/isIOS, so there's no need
+/// to sniff a browser user agent here. Only the web build's
+/// detectMobileOs() actually needs this; on native it always
+/// short-circuits to null before this would even be called.
+String? detectMobileOsNative() => null;

@@ -30,3 +30,11 @@ Future<List<int>> getBlobBytes(String blobUrl) async {
   if (!kIsWeb) return [];
   return fetchBlobBytes(blobUrl);
 }
+
+/// Guesses the visitor's mobile OS from the browser (web only), so a
+/// shared-link guest can be routed to the right app store. Returns
+/// 'android', 'ios', or null (desktop web, or native app builds).
+String? detectMobileOs() {
+  if (!kIsWeb) return null;
+  return detectMobileOsNative();
+}

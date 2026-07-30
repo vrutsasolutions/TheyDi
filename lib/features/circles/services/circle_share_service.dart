@@ -9,7 +9,7 @@ import '../../circles/models/circle_model.dart';
 class CircleShareService {
   CircleShareService._();
 
-  static const String _baseUrl = 'https://theydi.app/circle';
+  static const String _baseUrl = 'https://theydi-cefdf.web.app/circle';
 
   static String circleLink(String circleId) => '$_baseUrl/$circleId';
 

@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 class ProfileShareService {
   ProfileShareService._();
 
-  static const String _baseUrl = 'https://theydi.app/user';
+  static const String _baseUrl = 'https://theydi-cefdf.web.app//user';
 
   static String profileLink(String userId) => '$_baseUrl/$userId';
 

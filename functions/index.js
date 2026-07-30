@@ -1364,3 +1364,73 @@ exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", regi
     await snapshot.ref.update({ status: "failed", error: errMsg });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Push Notifications (FCM)
+// ---------------------------------------------------------------------------
+
+/**
+ * 14. sendPushOnNotification
+ * Fires whenever a new in-app notification doc is created under
+ * users/{uid}/notifications/{notifId} (i.e. every call to the client's
+ * NotificationService.send()). Looks up that user's saved FCM token and
+ * sends a push through Firebase Cloud Messaging so the notification also
+ * shows up in the Android/iOS system tray, even if the app is closed.
+ */
+exports.sendPushOnNotification = onDocumentCreated(
+  { document: "users/{uid}/notifications/{notifId}", region: REGION },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const data = snapshot.data();
+    const uid = event.params.uid;
+
+    try {
+      const userDoc = await db.collection("users").doc(uid).get();
+      const token = userDoc.exists ? userDoc.data().fcmToken : null;
+
+      if (!token) {
+        logger.info(`[Push] No fcmToken for user ${uid}, skipping push.`);
+        return;
+      }
+
+      const response = await admin.messaging().send({
+        token,
+        notification: {
+          title: data.title || "TheyDi",
+          body: data.body || "",
+        },
+        // Data payload lets the Flutter app route to the right screen on tap.
+        // All values must be strings for FCM.
+        data: {
+          type: data.type || "",
+          eventId: data.eventId || "",
+          fromUid: data.fromUid || "",
+          circleId: data.circleId || "",
+          chatId: data.chatId || "",
+        },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "high_importance_channel",
+          },
+        },
+      });
+
+      logger.info(`[Push] Sent to user ${uid}: ${response}`);
+    } catch (err) {
+      logger.error(`[Push] Failed to send push to user ${uid}:`, err);
+
+      // Stale/uninstalled-app token — clean it up so future sends don't
+      // keep failing on the same dead token.
+      if (err.code === "messaging/registration-token-not-registered") {
+        await db.collection("users").doc(uid).update({
+          fcmToken: FieldValue.delete(),
+        }).catch((cleanupErr) => {
+          logger.error(`[Push] Failed to clear stale token for ${uid}:`, cleanupErr);
+        });
+      }
+    }
+  }
+);
