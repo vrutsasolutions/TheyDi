@@ -720,7 +720,7 @@ class _ProfileContent extends ConsumerWidget {
             icon: Icons.group_outlined,
             label: 'Friend Circle',
             subtitle: 'Chat with your groups',
-            onTap: () => context.push(AppRoutes.circles),
+            onTap: () => context.go(AppRoutes.circles),
           ).animate(delay: 270.ms).fade(duration: 300.ms),
           _MenuItem(
             icon: Icons.receipt_long_outlined,

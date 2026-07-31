@@ -145,10 +145,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.blockedUsers,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const BlockedUsersScreen(),
       ),
       GoRoute(
         path: AppRoutes.reportProblem,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SubmitReportScreen(),
       ),
       GoRoute(
@@ -235,18 +237,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.paymenthistory,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const PaymentHistoryScreen(),
       ),
       GoRoute(
         path: AppRoutes.notifications,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: AppRoutes.privacySafety,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const PrivacySafetyScreen(),
       ),
       GoRoute(
         path: AppRoutes.helpSupport,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const HelpSupportScreen(),
       ),
       GoRoute(
@@ -263,19 +269,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.myReviews,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const MyReviewsScreen(),
       ),
       GoRoute(
         path: AppRoutes.hostDashboard,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const HostDashboardScreen(),
       ),
 
       GoRoute(
         path: AppRoutes.createCircle,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const CreateCircleScreen(),
       ),
       GoRoute(
         path: AppRoutes.circleChat,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final circle = state.extra as CircleModel?;
           if (circle == null) {
@@ -288,6 +298,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.hostManage,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final eventId = state.extra as String?;
           if (eventId == null || eventId.isEmpty) {
@@ -300,6 +311,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.eventAttendees,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final event = state.extra as EventModel;
           return AttendeesScreen(event: event);
@@ -307,10 +319,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.friendRequests,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const FriendRequestsScreen(),
       ),
       GoRoute(
         path: AppRoutes.dmChat,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>;
           return DmChatScreen(
@@ -321,6 +335,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.userProfile,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>;
           return UserProfileScreen(
@@ -331,6 +346,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.circleInfo,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final circle = state.extra as CircleModel?;
           if (circle == null) {
@@ -343,6 +359,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.friendInfo,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>;
           return FriendInfoScreen(
@@ -353,10 +370,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.search,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SearchScreen(),
       ),
       GoRoute(
         path: AppRoutes.friendsHub,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final extra = state.extra;
           final initialTab = extra is Map<String, dynamic>
@@ -365,16 +384,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return FriendsHubScreen(initialTab: initialTab);
         },
       ),
-      // GoRoute(
-      //   path: AppRoutes.blockedUsers,
-      //   builder: (context, state) => const BlockedUsersScreen(),
-      // ),
       GoRoute(
         path: AppRoutes.reportHistory,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ReportProblemScreen(),
       ),
       GoRoute(
         path: AppRoutes.circleDiscovery,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final extra = state.extra;
           final initialTab = extra is Map<String, dynamic>
@@ -385,6 +402,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.settings,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
       ),
 
@@ -463,56 +481,81 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ── Shell routes ────────────────────────────────────────────────────────
-      ShellRoute(
-        builder: (context, state, child) => MainShell(child: child),
-        routes: [
-          GoRoute(
-            path: AppRoutes.home,
-            builder: (context, state) => const HomeScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.explore,
-            builder: (context, state) => const ExploreScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.myEvents,
-            builder: (context, state) {
-              final args = state.extra as Map<String, dynamic>?;
-              return MyEventsScreen(
-                initialTab: args?['tab'] as int? ?? 0,
-                initialFilter: args?['filter'] as String? ?? 'All',
-              );
-            },
-          ),
-          GoRoute(
-            path: AppRoutes.profile,
-            builder: (context, state) => const ProfileScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.editprofile,
-            builder: (context, state) => const EditProfileScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.personalDetails,
-            builder: (context, state) => const PersonalDetailsScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.createEvent,
-            builder: (context, state) => const CreateEventScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.circles,
-            builder: (context, state) {
-              final initialTab =
-                  int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+      // ── Top-level routes (outside ShellRoute so URL updates correctly on web) ──
+      GoRoute(
+        path: AppRoutes.editprofile,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.personalDetails,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const PersonalDetailsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.createEvent,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CreateEventScreen(),
+      ),
 
-              debugPrint('Tab from URL = $initialTab');
 
-              return CirclesListScreen(
-                initialTab: initialTab,
-              );
-            },
+      // ── Shell routes (StatefulShellRoute keeps bottom nav + correct web URLs) ──
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.explore,
+                builder: (context, state) => const ExploreScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.myEvents,
+                builder: (context, state) {
+                  final args = state.extra as Map<String, dynamic>?;
+                  return MyEventsScreen(
+                    initialTab: args?['tab'] as int? ?? 0,
+                    initialFilter: args?['filter'] as String? ?? 'All',
+                  );
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.circles,
+                builder: (context, state) {
+                  final initialTab =
+                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+                  debugPrint('Tab from URL = $initialTab');
+                  return CirclesListScreen(
+                    initialTab: initialTab,
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

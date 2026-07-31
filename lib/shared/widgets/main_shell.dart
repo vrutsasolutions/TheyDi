@@ -4,28 +4,29 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 
 class MainShell extends StatelessWidget {
-  const MainShell({super.key, required this.child});
-  final Widget child;
+  const MainShell({super.key, required this.navigationShell});
+  final StatefulNavigationShell navigationShell;
 
   static const _tabs = [
     AppRoutes.home,
     AppRoutes.explore,
     AppRoutes.myEvents,
     AppRoutes.profile,
+    AppRoutes.circles,
   ];
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    final currentIndex = _tabs.indexWhere((t) => location.startsWith(t));
-
     return Scaffold(
-      body: child,
+      body: navigationShell,
       floatingActionButton: _CreateFAB(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _BottomBar(
-        currentIndex: currentIndex < 0 ? 0 : currentIndex,
-        onTap: (i) => context.go(_tabs[i]),
+        currentIndex: navigationShell.currentIndex,
+        onTap: (i) => navigationShell.goBranch(
+          i,
+          initialLocation: i == navigationShell.currentIndex,
+        ),
       ),
     );
   }

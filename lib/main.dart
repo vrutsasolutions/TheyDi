@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
+import 'package:go_router/go_router.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
@@ -25,6 +26,9 @@ void main() async {
   // at the router's initialLocation — which silently breaks every
   // shared /user/:id, /event/:id, and /circle/:id deep link.
   usePathUrlStrategy();
+
+  // Enable URL updates on web for imperative navigation (context.push)
+  GoRouter.optionURLReflectsImperativeAPIs = true;
 
   await dotenv.load(fileName: ".env");
 
