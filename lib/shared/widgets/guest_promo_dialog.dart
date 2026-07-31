@@ -1,4 +1,4 @@
-// lib/shared/widgets/guest_promo_banner.dart
+// lib/shared/widgets/guest_promo_banner.dialog
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';

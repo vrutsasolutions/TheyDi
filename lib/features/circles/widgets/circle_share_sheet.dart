@@ -18,13 +18,18 @@ void showCircleShareSheet(BuildContext context, {required CircleModel circle}) {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => CircleShareSheet(circle: circle),
+    builder: (_) => CircleShareSheet(circle: circle, parentContext: context),
   );
 }
 
 class CircleShareSheet extends StatefulWidget {
   final CircleModel circle;
-  const CircleShareSheet({super.key, required this.circle});
+  final BuildContext parentContext; // ← stable context from the calling screen
+  const CircleShareSheet({
+    super.key,
+    required this.circle,
+    required this.parentContext,
+  });
 
   @override
   State<CircleShareSheet> createState() => _CircleShareSheetState();
@@ -89,25 +94,31 @@ class _CircleShareSheetState extends State<CircleShareSheet> {
   }
 
   /// In-app share: sends a circle_invite message to one or more of the
-  /// current user's OTHER circles so friends can discover it.
+  /// current user's friends via DM chat.
   void _shareToFriends() {
-    Navigator.pop(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _InAppFriendCircleShareSheet(circle: widget.circle),
-    );
+    Navigator.pop(context); // close this sheet first
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.parentContext.mounted) return;
+      showModalBottomSheet(
+        context: widget.parentContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _InAppFriendCircleShareSheet(circle: widget.circle),
+      );
+    });
   }
 
   void _showInAppInviteSheet() {
     Navigator.pop(context); // close this sheet first
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _InAppCircleInviteSheet(circle: widget.circle),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.parentContext.mounted) return;
+      showModalBottomSheet(
+        context: widget.parentContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _InAppCircleInviteSheet(circle: widget.circle),
+      );
+    });
   }
 
   @override
@@ -293,6 +304,7 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
     final senderName =
         FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
     final link = CircleShareService.circleLink(widget.circle.id);
+    final now = Timestamp.now();
 
     for (final circleId in _selected) {
       await FirebaseFirestore.instance
@@ -301,15 +313,19 @@ class _InAppCircleInviteSheetState extends State<_InAppCircleInviteSheet> {
           .collection('messages')
           .add({
         'type': 'circle_invite',
+
         'circleId': widget.circle.id,
         'circleName': widget.circle.name,
         'circleLink': link,
+
         'text':
             '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
-        'senderId': FirebaseAuth.instance.currentUser?.uid ?? '',
+
+        // Match the schema used by circle_chat_screen
+        'senderUid': FirebaseAuth.instance.currentUser!.uid,
         'senderName': senderName,
-        'sentAt': Timestamp.now(),
-        'readBy': [],
+        'createdAt': now,
+        'seenBy': [FirebaseAuth.instance.currentUser!.uid],
       });
     }
 
@@ -784,176 +800,211 @@ class _InAppFriendCircleShareSheetState
 
   Future<void> _send() async {
     if (_selected.isEmpty) return;
+
     setState(() => _sending = true);
 
     final myUid = FirebaseAuth.instance.currentUser?.uid;
-    if (myUid == null) return;
+    if (myUid == null) {
+      setState(() => _sending = false);
+      return;
+    }
 
     final senderName =
         FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
     final link = CircleShareService.circleLink(widget.circle.id);
+    final now = Timestamp.now();
 
-    for (final friendUid in _selected) {
-      final chatId = _generateChatId(myUid, friendUid);
-      final chatRef =
-          FirebaseFirestore.instance.collection('chats').doc(chatId);
+    try {
+      for (final friendUid in _selected) {
+        final chatId = _generateChatId(myUid, friendUid);
+        final chatRef =
+            FirebaseFirestore.instance.collection('chats').doc(chatId);
 
-      final chatSnap = await chatRef.get();
-      if (!chatSnap.exists) {
-        await chatRef.set({
-          'participants': [myUid, friendUid],
-          'type': 'dm',
-          'lastMessage': null,
-          'lastMessageSenderId': null,
-          'updatedAt': Timestamp.now(),
-          'createdAt': Timestamp.now(),
+        final chatSnap = await chatRef.get();
+
+        if (!chatSnap.exists) {
+          await chatRef.set({
+            'participants': [myUid, friendUid],
+            'type': 'dm',
+            'lastMessage': null,
+            'lastMessageSenderId': null,
+            'updatedAt': now,
+            'createdAt': now,
+          });
+        }
+
+        await chatRef.collection('messages').add({
+          'senderId': myUid,
+          'senderName': senderName,
+
+          'type': 'circle_invite',
+
+          'circleId': widget.circle.id,
+          'circleName': widget.circle.name,
+          'circleLink': link,
+
+          'text':
+              '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
+
+          // Match the format used by your normal chat messages
+          'timestamp': now,
+          'seen': false,
+          'deliveredAt': null,
+          'readBy': [myUid],
+        });
+
+        await chatRef.update({
+          'lastMessage': 'Shared a circle invite',
+          'lastMessageSenderId': myUid,
+          'updatedAt': now,
         });
       }
 
-      await chatRef.collection('messages').add({
-        'type': 'circle_invite',
-        'circleId': widget.circle.id,
-        'circleName': widget.circle.name,
-        'circleLink': link,
-        'text':
-            '👥 $senderName invited you to join "${widget.circle.name}"\n$link',
-        'senderId': myUid,
-        'senderName': senderName,
-        'sentAt': Timestamp.now(),
-        'readBy': [],
-      });
+      if (mounted) {
+        Navigator.pop(context);
 
-      await chatRef.update({
-        'lastMessage': 'Shared a circle invite',
-        'lastMessageSenderId': myUid,
-        'updatedAt': Timestamp.now(),
-      });
-    }
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
-          const SizedBox(width: 8),
-          Text(
-              'Invite sent to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
-              style: const TextStyle(color: TheyDiColors.textPrimary)),
-        ]),
-        backgroundColor: TheyDiColors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Invite sent to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+                  style: const TextStyle(color: TheyDiColors.textPrimary),
+                ),
+              ],
+            ),
+            backgroundColor: TheyDiColors.card,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
+    return Material(
         color: TheyDiColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
           ),
-          const SizedBox(height: 16),
-          Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
-          const SizedBox(height: 16),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_friends.isEmpty)
-            Expanded(
-              child: Center(
-                child: Text('No friends yet.',
-                    style: TheyDiTextStyles.bodyMedium
-                        .copyWith(color: TheyDiColors.textSecondary)),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                itemCount: _friends.length,
-                itemBuilder: (context, index) {
-                  final f = _friends[index];
-                  final isSelected = _selected.contains(f['id']);
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: TheyDiColors.primary.withAlpha(25),
-                      child:
-                          const Icon(Icons.person, color: TheyDiColors.primary),
-                    ),
-                    title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle,
-                            color: TheyDiColors.primary)
-                        : const Icon(Icons.circle_outlined, color: Colors.grey),
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selected.remove(f['id']);
-                        } else {
-                          _selected.add(f['id']);
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-            ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-                20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
-            child: Row(
-              children: [
+              const SizedBox(height: 16),
+              Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
+              const SizedBox(height: 16),
+              if (_loading)
+                const Expanded(
+                    child: Center(child: CircularProgressIndicator()))
+              else if (_friends.isEmpty)
                 Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel',
-                        style: TheyDiTextStyles.labelLarge
+                  child: Center(
+                    child: Text('No friends yet.',
+                        style: TheyDiTextStyles.bodyMedium
                             .copyWith(color: TheyDiColors.textSecondary)),
                   ),
-                ),
-                const SizedBox(width: 16),
+                )
+              else
                 Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TheyDiColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      elevation: 0,
-                    ),
-                    onPressed: (_selected.isEmpty || _sending) ? null : _send,
-                    child: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : Text('Send (${_selected.length})',
-                            style: TheyDiTextStyles.labelLarge
-                                .copyWith(fontWeight: FontWeight.w600)),
+                  child: ListView.builder(
+                    itemCount: _friends.length,
+                    itemBuilder: (context, index) {
+                      final f = _friends[index];
+                      final isSelected = _selected.contains(f['id']);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: TheyDiColors.primary.withAlpha(25),
+                          child: const Icon(Icons.person,
+                              color: TheyDiColors.primary),
+                        ),
+                        title:
+                            Text(f['name'], style: TheyDiTextStyles.labelLarge),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle,
+                                color: TheyDiColors.primary)
+                            : const Icon(Icons.circle_outlined,
+                                color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selected.remove(f['id']);
+                            } else {
+                              _selected.add(f['id']);
+                            }
+                          });
+                        },
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel',
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(color: TheyDiColors.textSecondary)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          elevation: 0,
+                        ),
+                        onPressed:
+                            (_selected.isEmpty || _sending) ? null : _send,
+                        child: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Text('Send (${_selected.length})',
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        ));
   }
 }

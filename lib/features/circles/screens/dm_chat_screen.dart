@@ -1556,6 +1556,26 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                   seen: seen,
                                   delivered: delivered,
                                 );
+                              } else if (msgType == 'event_share') {
+                                bubble = EventShareBubble(
+                                  eventId: data['eventId'],
+                                  eventName: data['eventName'],
+                                  eventLink: data['eventLink'],
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
+                              } else if (msgType == 'circle_invite') {
+                                bubble = CircleInviteBubble(
+                                  circleId: data['circleId'] ?? '',
+                                  circleName: data['circleName'] ?? '',
+                                  circleLink: data['circleLink'],
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
                               } else {
                                 bubble = _DmBubble(
                                   text: data['text'] ?? '',
@@ -2155,6 +2175,223 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                     ]),
                   ]),
             )));
+  }
+}
+
+class CircleInviteBubble extends StatelessWidget {
+  final String circleId;
+  final String circleName;
+  final String? circleLink;
+
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+  final bool delivered;
+
+  const CircleInviteBubble({
+    super.key,
+    required this.circleId,
+    required this.circleName,
+    this.circleLink,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+    required this.delivered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 300),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: .12)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: TheyDiColors.primary.withValues(alpha: .2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.groups,
+                  color: TheyDiColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isMine ? "You shared a circle" : "Circle Invite",
+                    style: TheyDiTextStyles.labelLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              circleName,
+              style: TheyDiTextStyles.bodyLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Navigate to circle details
+                  context.push('/circle/$circleId');
+                },
+                icon: const Icon(Icons.group_add),
+                label: const Text("View Circle"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TheyDiColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  timeLabel,
+                  style: TheyDiTextStyles.caption.copyWith(
+                    color: TheyDiColors.textMuted,
+                  ),
+                ),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    seen
+                        ? Icons.done_all
+                        : delivered
+                            ? Icons.done_all
+                            : Icons.done,
+                    size: 16,
+                    color: seen ? Colors.blue : TheyDiColors.textMuted,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class EventShareBubble extends StatelessWidget {
+  final String eventId;
+  final String eventName;
+  final String? eventLink;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+  final bool delivered;
+
+  const EventShareBubble({
+    super.key,
+    required this.eventId,
+    required this.eventName,
+    this.eventLink,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+    required this.delivered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbleColor =
+        isMine ? TheyDiColors.primary.withValues(alpha: 0.12) : TheyDiColors.card;
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          context.push('/event/$eventId');
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(12),
+          constraints: const BoxConstraints(maxWidth: 320),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: TheyDiColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.event,
+                    color: TheyDiColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Shared an event",
+                      style: TheyDiTextStyles.labelMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                eventName,
+                style: TheyDiTextStyles.labelLarge,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: TheyDiColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.open_in_new, color: Colors.white, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      "View Event",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  timeLabel,
+                  style: TheyDiTextStyles.caption,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -1027,6 +1027,14 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                           timeLabel: timeLabel,
                           seen: seen,
                         )
+                      else if (msgType == 'image')
+                        _CircleImageBubble(
+                          imageUrl: mediaUrl ?? '',
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        )
                       else if (msgType == 'video')
                         _CircleVideoBubble(
                           videoUrl: mediaUrl ?? '',
@@ -1039,6 +1047,26 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                         _CircleDocumentBubble(
                           fileUrl: mediaUrl ?? '',
                           fileName: data['fileName'] ?? 'Document',
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        )
+                      else if (msgType == 'event_share')
+                        _CircleEventShareBubble(
+                          eventId: data['eventId'] ?? '',
+                          eventName: data['eventName'] ?? '',
+                          eventLink: data['eventLink'],
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        )
+                      else if (msgType == 'circle_invite')
+                        _CircleInviteBubble(
+                          circleId: data['circleId'] ?? '',
+                          circleName: data['circleName'] ?? '',
+                          circleLink: data['circleLink'],
                           isMine: isMine,
                           senderName: senderName,
                           timeLabel: timeLabel,
@@ -1527,6 +1555,206 @@ class _CircleImageBubble extends StatelessWidget {
                   _ReadReceipt(seen: seen),
                 ],
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleInviteBubble extends StatelessWidget {
+  final String circleId;
+  final String circleName;
+  final String? circleLink;
+  final bool isMine;
+  final String senderName;
+  final String timeLabel;
+  final bool seen;
+
+  const _CircleInviteBubble({
+    required this.circleId,
+    required this.circleName,
+    this.circleLink,
+    required this.isMine,
+    required this.senderName,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(maxWidth: 320),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: 0.12)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: TheyDiColors.primary.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isMine)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  senderName,
+                  style: TheyDiTextStyles.labelMedium.copyWith(
+                    color: TheyDiColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.groups,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Circle Invite',
+                  style: TheyDiTextStyles.labelLarge,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              circleName,
+              style: TheyDiTextStyles.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  context.push('/circle/$circleId');
+                },
+                icon: const Icon(Icons.group, size: 18),
+                label: const Text('View Circle'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    timeLabel,
+                    style: TheyDiTextStyles.labelSmall,
+                  ),
+                  if (isMine) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      seen ? Icons.done_all : Icons.done,
+                      size: 14,
+                      color: seen ? Colors.blue : Colors.grey,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleEventShareBubble extends StatelessWidget {
+  final String eventId;
+  final String eventName;
+  final String? eventLink;
+  final bool isMine;
+  final String senderName;
+  final String timeLabel;
+  final bool seen;
+
+  const _CircleEventShareBubble({
+    required this.eventId,
+    required this.eventName,
+    this.eventLink,
+    required this.isMine,
+    required this.senderName,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(maxWidth: 320),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: 0.12)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isMine)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  senderName,
+                  style: TheyDiTextStyles.labelMedium.copyWith(
+                    color: TheyDiColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.event,
+                  color: TheyDiColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Shared an Event',
+                  style: TheyDiTextStyles.labelLarge,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              eventName,
+              style: TheyDiTextStyles.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  context.push('/event/$eventId');
+                },
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('View Event'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text(
+                timeLabel,
+                style: TheyDiTextStyles.labelSmall,
+              ),
             ),
           ],
         ),

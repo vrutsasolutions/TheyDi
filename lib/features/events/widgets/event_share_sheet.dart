@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
+// import 'package:go_router/go_router.dart';
+// import 'package:theydi/core/router/app_routes.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -105,13 +106,21 @@ void showEventShareSheet(BuildContext context, {required EventModel event}) {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => EventShareSheet(event: event),
+    // Pass the calling screen's context down so nested sheets/navigation
+    // triggered from inside this sheet don't race with this sheet's own
+    // pop animation (see _shareToFriends / _shareInApp below).
+    builder: (_) => EventShareSheet(event: event, parentContext: context),
   );
 }
 
 class EventShareSheet extends StatefulWidget {
   final EventModel event;
-  const EventShareSheet({super.key, required this.event});
+  final BuildContext parentContext;
+  const EventShareSheet({
+    super.key,
+    required this.event,
+    required this.parentContext,
+  });
 
   @override
   State<EventShareSheet> createState() => _EventShareSheetState();
@@ -175,21 +184,37 @@ class _EventShareSheetState extends State<EventShareSheet> {
     ));
   }
 
+  /// Close this sheet, then — on the NEXT frame, using the stable
+  /// parentContext — open the friend picker sheet. Doing both
+  /// Navigator.pop() and showModalBottomSheet() synchronously on the
+  /// same (about to be disposed) context causes a Navigator assertion
+  /// and silently kills the new sheet before it can mount, which is why
+  /// sends were failing before this fix.
   void _shareToFriends() {
     Navigator.pop(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _InAppFriendEventShareSheet(event: widget.event),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.parentContext.mounted) return;
+      showModalBottomSheet(
+        context: widget.parentContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _InAppFriendEventShareSheet(event: widget.event),
+      );
+    });
   }
 
+  /// Same fix applied to the "Circles" -> go_router navigation path.
   void _shareInApp() {
     Navigator.pop(context);
-    // Navigate to circles list so user can pick a circle to share the event in.
-    // The circle chat screen can receive the event as an extra.
-    context.push('/circles', extra: {'shareEvent': widget.event});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.parentContext.mounted) return;
+      showModalBottomSheet(
+        context: widget.parentContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _InAppCircleEventShareSheet(event: widget.event),
+      );
+    });
   }
 
   @override
@@ -629,167 +654,469 @@ class _InAppFriendEventShareSheetState
         FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
     final link = _eventLink(widget.event.id);
 
-    for (final friendUid in _selected) {
-      final chatId = _generateChatId(myUid, friendUid);
-      final chatRef =
-          FirebaseFirestore.instance.collection('chats').doc(chatId);
+    try {
+      for (final friendUid in _selected) {
+        final chatId = _generateChatId(myUid, friendUid);
+        final chatRef =
+            FirebaseFirestore.instance.collection('chats').doc(chatId);
 
-      final chatSnap = await chatRef.get();
-      if (!chatSnap.exists) {
-        await chatRef.set({
-          'participants': [myUid, friendUid],
-          'type': 'dm',
-          'lastMessage': null,
-          'lastMessageSenderId': null,
+        final chatSnap = await chatRef.get();
+        if (!chatSnap.exists) {
+          await chatRef.set({
+            'participants': [myUid, friendUid],
+            'type': 'dm',
+            'lastMessage': null,
+            'lastMessageSenderId': null,
+            'updatedAt': Timestamp.now(),
+            'createdAt': Timestamp.now(),
+          });
+        }
+
+        final now = Timestamp.now();
+
+        await chatRef.collection('messages').add({
+          'senderId': myUid,
+          'senderName': senderName,
+          'type': 'event_share',
+          'eventId': widget.event.id,
+          'eventName': widget.event.title,
+          'eventLink': link,
+          'text':
+              '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
+          'createdAt': now,
+          'seen': false,
+          'deliveredAt': null,
+          'readBy': [myUid],
+        });
+
+        await chatRef.update({
+          'lastMessage': 'Shared an event',
+          'lastMessageSenderId': myUid,
           'updatedAt': Timestamp.now(),
-          'createdAt': Timestamp.now(),
         });
       }
 
-      await chatRef.collection('messages').add({
-        'type': 'event_share',
-        'eventId': widget.event.id,
-        'eventName': widget.event.title,
-        'eventLink': link,
-        'text':
-            '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
-        'senderId': myUid,
-        'senderName': senderName,
-        'sentAt': Timestamp.now(),
-        'readBy': [],
-      });
-
-      await chatRef.update({
-        'lastMessage': 'Shared an event',
-        'lastMessageSenderId': myUid,
-        'updatedAt': Timestamp.now(),
-      });
-    }
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
-          const SizedBox(width: 8),
-          Text(
-              'Event shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            const Icon(Icons.check_circle_outline,
+                color: Colors.green, size: 18),
+            const SizedBox(width: 8),
+            Text(
+                'Event shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+                style: const TextStyle(color: TheyDiColors.textPrimary)),
+          ]),
+          backgroundColor: TheyDiColors.card,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _sending = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not share event: $e',
               style: const TextStyle(color: TheyDiColors.textPrimary)),
-        ]),
-        backgroundColor: TheyDiColors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ));
+          backgroundColor: TheyDiColors.card,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
+    return Material(
         color: TheyDiColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
           ),
-          const SizedBox(height: 16),
-          Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
-          const SizedBox(height: 16),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_friends.isEmpty)
-            Expanded(
-              child: Center(
-                child: Text('No friends yet.',
-                    style: TheyDiTextStyles.bodyMedium
-                        .copyWith(color: TheyDiColors.textSecondary)),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                itemCount: _friends.length,
-                itemBuilder: (context, index) {
-                  final f = _friends[index];
-                  final isSelected = _selected.contains(f['id']);
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: TheyDiColors.primary.withAlpha(25),
-                      child:
-                          const Icon(Icons.person, color: TheyDiColors.primary),
-                    ),
-                    title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle,
-                            color: TheyDiColors.primary)
-                        : const Icon(Icons.circle_outlined, color: Colors.grey),
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selected.remove(f['id']);
-                        } else {
-                          _selected.add(f['id']);
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-            ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-                20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
-            child: Row(
-              children: [
+              const SizedBox(height: 16),
+              Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
+              const SizedBox(height: 16),
+              if (_loading)
+                const Expanded(
+                    child: Center(child: CircularProgressIndicator()))
+              else if (_friends.isEmpty)
                 Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel',
-                        style: TheyDiTextStyles.labelLarge
+                  child: Center(
+                    child: Text('No friends yet.',
+                        style: TheyDiTextStyles.bodyMedium
                             .copyWith(color: TheyDiColors.textSecondary)),
                   ),
-                ),
-                const SizedBox(width: 16),
+                )
+              else
                 Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TheyDiColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      elevation: 0,
-                    ),
-                    onPressed: (_selected.isEmpty || _sending) ? null : _send,
-                    child: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : Text('Send (${_selected.length})',
-                            style: TheyDiTextStyles.labelLarge
-                                .copyWith(fontWeight: FontWeight.w600)),
+                  child: ListView.builder(
+                    itemCount: _friends.length,
+                    itemBuilder: (context, index) {
+                      final f = _friends[index];
+                      final isSelected = _selected.contains(f['id']);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: TheyDiColors.primary.withAlpha(25),
+                          child: const Icon(Icons.person,
+                              color: TheyDiColors.primary),
+                        ),
+                        title:
+                            Text(f['name'], style: TheyDiTextStyles.labelLarge),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle,
+                                color: TheyDiColors.primary)
+                            : const Icon(Icons.circle_outlined,
+                                color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selected.remove(f['id']);
+                            } else {
+                              _selected.add(f['id']);
+                            }
+                          });
+                        },
+                      );
+                    },
                   ),
+                ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel',
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(color: TheyDiColors.textSecondary)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          elevation: 0,
+                        ),
+                        onPressed:
+                            (_selected.isEmpty || _sending) ? null : _send,
+                        child: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Text('Send (${_selected.length})',
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-App Circle Share Sheet — sends event_share message to selected circles
+//
+// Mirrors _InAppCircleInviteSheet (circle query pattern) combined with
+// _InAppFriendEventShareSheet (event_share message shape). Add this to the
+// bottom of event_share_sheet.dart. No go_router navigation involved, so it
+// sidesteps the ShellRoute/duplicate-key crash from pushing '/circles'.
+// ─────────────────────────────────────────────────────────────────────────────
+class _InAppCircleEventShareSheet extends StatefulWidget {
+  final EventModel event;
+  const _InAppCircleEventShareSheet({required this.event});
+
+  @override
+  State<_InAppCircleEventShareSheet> createState() =>
+      _InAppCircleEventShareSheetState();
+}
+
+class _InAppCircleEventShareSheetState
+    extends State<_InAppCircleEventShareSheet> {
+  List<Map<String, dynamic>> _circles = [];
+  final Set<String> _selected = {};
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCircles();
+  }
+
+  Future<void> _loadCircles() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snap = await FirebaseFirestore.instance
+        .collection('circles')
+        .where('memberUids', arrayContains: uid)
+        .get();
+
+    final circles = snap.docs
+        .map((d) => {'id': d.id, 'name': d.data()['name'] ?? 'Circle'})
+        .toList();
+
+    if (mounted) {
+      setState(() {
+        _circles = circles;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _send() async {
+    if (_selected.isEmpty) return;
+
+    setState(() => _sending = true);
+
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) {
+      setState(() => _sending = false);
+      return;
+    }
+
+    final senderName =
+        FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+    final link = _eventLink(widget.event.id);
+    final now = Timestamp.now();
+
+    try {
+      for (final circleId in _selected) {
+        await FirebaseFirestore.instance
+            .collection('circles')
+            .doc(circleId)
+            .collection('messages')
+            .add({
+          'type': 'event_share',
+          'eventId': widget.event.id,
+          'eventName': widget.event.title,
+          'eventLink': link,
+          'text':
+              '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
+          'senderUid': myUid,
+          'senderName': senderName,
+          'createdAt': now,
+          'seenBy': [myUid],
+          'readBy': [myUid],
+        });
+
+        await FirebaseFirestore.instance
+            .collection('circles')
+            .doc(circleId)
+            .update({
+          'lastMessage': '📅 Shared an event',
+          'lastMessageSender': senderName,
+          'lastMessageAt': now,
+        });
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Event shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
+                  style: const TextStyle(color: TheyDiColors.textPrimary),
                 ),
               ],
             ),
+            backgroundColor: TheyDiColors.card,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 2),
           ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _sending = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not share event: $e',
+              style: const TextStyle(color: TheyDiColors.textPrimary),
+            ),
+            backgroundColor: TheyDiColors.card,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+        color: TheyDiColors.card,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Share to Circles', style: TheyDiTextStyles.displaySmall),
+              const SizedBox(height: 16),
+              if (_loading)
+                const Expanded(
+                    child: Center(child: CircularProgressIndicator()))
+              else if (_circles.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'You have no circles to share this event to.',
+                        style: TheyDiTextStyles.bodyMedium
+                            .copyWith(color: TheyDiColors.textSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _circles.length,
+                    itemBuilder: (context, index) {
+                      final c = _circles[index];
+                      final isSelected = _selected.contains(c['id']);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: TheyDiColors.primary.withAlpha(25),
+                          child: Text(
+                            (c['name'] as String).isNotEmpty
+                                ? (c['name'] as String)[0].toUpperCase()
+                                : '?',
+                            style: TheyDiTextStyles.labelMedium
+                                .copyWith(color: TheyDiColors.primary),
+                          ),
+                        ),
+                        title:
+                            Text(c['name'], style: TheyDiTextStyles.labelLarge),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle,
+                                color: TheyDiColors.primary)
+                            : const Icon(Icons.circle_outlined,
+                                color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selected.remove(c['id']);
+                            } else {
+                              _selected.add(c['id']);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel',
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(color: TheyDiColors.textSecondary)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          elevation: 0,
+                        ),
+                        onPressed:
+                            (_selected.isEmpty || _sending) ? null : _send,
+                        child: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Text('Send (${_selected.length})',
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ));
   }
 }

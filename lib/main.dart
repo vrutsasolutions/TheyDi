@@ -12,6 +12,7 @@ import 'core/services/notification_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'firebase_options.dart';
 
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -35,6 +36,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
 
   // Must be registered before runApp, so FCM can wake this handler
   // even when the app is fully terminated.
@@ -183,37 +185,36 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Handle the case where the app was fully closed and the user tapped
-    // a notification to open it (cold start). Runs once, after the first
-    // frame, so the router/navigator is ready to handle navigation.
+    // Handle cold-start notification
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PushNotificationService.checkInitialMessage();
     });
 
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
       if (user != null) {
         if (WidgetsBinding.instance.lifecycleState ==
-                AppLifecycleState.resumed ||
+            AppLifecycleState.resumed ||
             WidgetsBinding.instance.lifecycleState == null) {
           _updateOnlineStatus(true);
         }
 
         // Initialize push notifications once we have a logged-in user.
-        // Guarded so it only runs once per app session, not on every
-        // auth state emission (e.g. token refreshes).
         if (!_pushInitialized) {
           _pushInitialized = true;
-          PushNotificationService.initialize();
+
+          print('FCM DEBUG: initialize() called');
+
+          await PushNotificationService.initialize();
         } else {
-          // User is already initialized (e.g. re-login as different user) -
-          // still make sure the token on file matches the current uid.
-          PushNotificationService.saveTokenToFirestore();
+          // User is already initialized.
+          await PushNotificationService.saveTokenToFirestore();
         }
       } else {
         // User logged out - allow re-init on next login.
         _pushInitialized = false;
       }
     });
+
     _updateOnlineStatus(true);
   }
 
