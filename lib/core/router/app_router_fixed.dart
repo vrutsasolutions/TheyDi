@@ -407,56 +407,80 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   },
 ),
 
-      // ── Shell routes ────────────────────────────────────────────────────────
-      ShellRoute(
-        builder: (context, state, child) => MainShell(child: child),
-        routes: [
-          GoRoute(
-            path: AppRoutes.home,
-            builder: (context, state) => const HomeScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.explore,
-            builder: (context, state) => const ExploreScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.myEvents,
-            builder: (context, state) {
-              final args = state.extra as Map<String, dynamic>?;
-              return MyEventsScreen(
-                initialTab: args?['tab'] as int? ?? 0,
-                initialFilter: args?['filter'] as String? ?? 'All',
-              );
-            },
-          ),
-          GoRoute(
-            path: AppRoutes.profile,
-            builder: (context, state) => const ProfileScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.editprofile,
-            builder: (context, state) => const EditProfileScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.personalDetails,
-            builder: (context, state) => const PersonalDetailsScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.createEvent,
-            builder: (context, state) => const CreateEventScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.circles,
-            builder: (context, state) {
-              final initialTab =
-                  int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+      // ── Top-level routes (outside ShellRoute so URL updates correctly on web) ──
+      GoRoute(
+        path: AppRoutes.editprofile,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.personalDetails,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const PersonalDetailsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.createEvent,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CreateEventScreen(),
+      ),
 
-              debugPrint('Tab from URL = $initialTab');
-
-              return CirclesListScreen(
-                initialTab: initialTab,
-              );
-            },
+      // ── Shell routes (StatefulShellRoute keeps bottom nav + correct web URLs) ──
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.explore,
+                builder: (context, state) => const ExploreScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.myEvents,
+                builder: (context, state) {
+                  final args = state.extra as Map<String, dynamic>?;
+                  return MyEventsScreen(
+                    initialTab: args?['tab'] as int? ?? 0,
+                    initialFilter: args?['filter'] as String? ?? 'All',
+                  );
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.circles,
+                builder: (context, state) {
+                  final initialTab =
+                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+                  debugPrint('Tab from URL = $initialTab');
+                  return CirclesListScreen(
+                    initialTab: initialTab,
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
