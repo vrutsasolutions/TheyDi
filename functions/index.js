@@ -11,9 +11,96 @@ const nodemailer = require("nodemailer");
 // Initialize Firebase Admin ONCE, at the top.
 admin.initializeApp();
 const db = admin.firestore();
+const REGION = "asia-south1";
+
+async function sendPushNotification({
+  uid,
+  title,
+  body,
+  type,
+  data = {},
+}) {
+  try {
+    const userDoc = await db.collection("users").doc(uid).get();
+
+    if (!userDoc.exists) {
+      console.log(`User ${uid} not found`);
+      return;
+    }
+
+    const userData = userDoc.data();
+    const fcmToken = userData.fcmToken;
+
+    if (!fcmToken) {
+      console.log(`No FCM token found for user ${uid}`);
+      return;
+    }
+
+    await admin.messaging().send({
+      token: fcmToken,
+
+      notification: {
+        title,
+        body,
+      },
+
+      data: {
+        type: type || "general",
+        ...Object.fromEntries(
+          Object.entries(data).map(([key, value]) => [
+            key,
+            String(value),
+          ])
+        ),
+      },
+
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "theydi_notifications",
+          sound: "default",
+        },
+      },
+    });
+
+    console.log(`Push notification sent to ${uid}`);
+  } catch (error) {
+    console.error(`Failed to send push notification to ${uid}:`, error);
+  }
+}
+
+exports.sendRealtimeNotification = onDocumentCreated(
+  {
+    document: "users/{uid}/notifications/{notificationId}",
+    region: REGION,
+  },
+  async (event) => {
+    const notification = event.data?.data();
+
+    if (!notification) {
+      return;
+    }
+
+    const uid = event.params.uid;
+
+    await sendPushNotification({
+      uid,
+      title: notification.title || "TheyDi",
+      body: notification.body || "",
+      type: notification.type || "general",
+      data: {
+        eventId: notification.eventId || "",
+        fromUid: notification.fromUid || "",
+        circleId: notification.circleId || "",
+        chatId: notification.chatId || "",
+        notificationId: event.params.notificationId,
+      },
+    });
+  }
+);
 
 // All functions live in this region so client base URLs stay consistent.
-const REGION = "asia-south1";
+
 
 // Email Base HTML Template
 function getBaseEmailHtml(title, bodyContent) {

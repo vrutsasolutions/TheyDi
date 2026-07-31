@@ -17,6 +17,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:theydi/core/services/push_notification_service.dart';
+
+Future<void> requestNotificationPermission() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+    provisional: false,
+  );
+
+  print('Permission: ${settings.authorizationStatus}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +55,9 @@ void main() async {
 
   // Must be registered before runApp, so FCM can wake this handler
   // even when the app is fully terminated.
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onBackgroundMessage(
+    firebaseMessagingBackgroundHandler,
+  );
 
   if (kDebugMode) {
     // Commented out to use deployed production Cloud Functions
@@ -56,9 +73,14 @@ void main() async {
 
   // Run database mojibake migration in background
   _fixDatabaseMojibake();
+  PushNotificationService.initialize().catchError((error) {
+  debugPrint('Push notification initialization failed: $error');
+});
 
   runApp(const ProviderScope(child: TheyDiApp()));
 }
+
+
 
 String _cleanText(String text) {
   if (text.isEmpty) return text;

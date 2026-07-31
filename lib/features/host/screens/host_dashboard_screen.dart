@@ -577,66 +577,81 @@ showDialog(
                       onPressed: () => context.pop(),
                     ),
                     const SizedBox(width: 4),
-                    Text('Host Dashboard',
-                        style: TheyDiTextStyles.displayMedium),
-                    const Spacer(),
-InkWell(
-  onTap: _showPayoutSettingsSheet,
-  borderRadius: BorderRadius.circular(14),
-  child: Container(
-    padding: const EdgeInsets.symmetric(
-      horizontal: 14,
-      vertical: 10,
-    ),
-    decoration: BoxDecoration(
-      color: TheyDiColors.card,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: TheyDiColors.primary.withValues(alpha: 0.25),
-      ),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: TheyDiColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.account_balance,
-            size: 18,
-            color: TheyDiColors.primary,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Bank Setup',
-              style: TheyDiTextStyles.labelMedium,
-            ),
-            Text(
-              'Change Details',
-              style: TheyDiTextStyles.bodySmall.copyWith(
-                color: TheyDiColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 8),
-        const Icon(
-          Icons.chevron_right,
-          color: TheyDiColors.primary,
-          size: 18,
-        ),
-      ],
-    ),
+                    Expanded(
+  child: Text(
+    'Host Dashboard',
+    style: TheyDiTextStyles.displayMedium,
+    overflow: TextOverflow.ellipsis,
   ),
 ),
+
+const SizedBox(width: 8),
+
+MediaQuery.of(context).size.width < 600
+    ? IconButton(
+        onPressed: _showPayoutSettingsSheet,
+        icon: const Icon(
+          Icons.account_balance,
+          color: TheyDiColors.primary,
+        ),
+      )
+    : InkWell(
+        onTap: _showPayoutSettingsSheet,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: TheyDiColors.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: TheyDiColors.primary.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: TheyDiColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.account_balance,
+                  size: 18,
+                  color: TheyDiColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Bank Setup',
+                    style: TheyDiTextStyles.labelMedium,
+                  ),
+                  Text(
+                    'Change Details',
+                    style: TheyDiTextStyles.bodySmall.copyWith(
+                      color: TheyDiColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: TheyDiColors.primary,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
                   ],
                 ),
               ).animate().fade(duration: 300.ms),

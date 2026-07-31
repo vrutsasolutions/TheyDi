@@ -8,8 +8,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/bank_constants.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+
 import '../../../core/utils/app_error_utils.dart';
 // import 'package:flutter_windowmanager/flutter_windowmanager.dart';
+
 
 class PersonalDetailsScreen extends StatefulWidget {
   const PersonalDetailsScreen({super.key});
@@ -211,9 +213,17 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isExistingSetup ? 'Update Bank Details' : 'Personal Details'),
-      ),
+
+  appBar: AppBar(
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back),
+    onPressed: () {
+      Navigator.of(context).pop();
+    },
+  ),
+  title: const Text('Personal Details'),
+),
+
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: TheyDiColors.primary),
