@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/friends_service.dart';
-import '../../../shared/widgets/guest_promo_banner.dart';
+import '../../../shared/widgets/guest_promo_dialog.dart';
 
 const _kReportReasons = [
   'Spam or unwanted messages',
@@ -88,12 +88,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     // ── Guest viewing a shared profile link ──
     // Friend-status lookups require auth and _myUid would be empty,
-    // so skip straight to showing the read-only profile.
+    // so skip straight to showing the read-only profile, then prompt
+    // with the join/get-app dialog once the page has rendered.
     if (_isGuest) {
       if (mounted) {
         setState(() {
           _status = FriendStatus.none;
           _loading = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) GuestPromoDialog.show(context);
         });
       }
       return;
@@ -481,9 +485,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final bool hasRating = avgRating > 0;
 
     return Scaffold(
-      // Guests browsing a shared profile link get a persistent
-      // sign-up / get-the-app prompt fixed to the bottom of the screen.
-      bottomNavigationBar: _isGuest ? const GuestPromoBanner() : null,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
