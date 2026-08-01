@@ -13,6 +13,104 @@ admin.initializeApp();
 const db = admin.firestore();
 const REGION = "asia-south1";
 
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+exports.notifyNearbyUsersAboutEvent = onDocumentCreated(
+  {
+    document: "events/{eventId}",
+    region: REGION,
+  },
+  async (event) => {
+    const eventData = event.data?.data();
+
+    if (!eventData) {
+      logger.log("Event data not found");
+      return;
+    }
+
+    const eventId = event.params.eventId;
+
+    const latitude = eventData.latitude;
+    const longitude = eventData.longitude;
+
+    if (latitude == null || longitude == null) {
+      logger.log(`Event ${eventId} has no location`);
+      return;
+    }
+
+    const usersSnapshot = await db.collection("users").get();
+
+    const batch = db.batch();
+
+    let nearbyUsers = 0;
+
+    for (const userDoc of usersSnapshot.docs) {
+      const user = userDoc.data();
+
+      const userLatitude = user.latitude;
+      const userLongitude = user.longitude;
+
+      if (userLatitude == null || userLongitude == null) {
+        continue;
+      }
+
+      const distance = calculateDistance(
+        Number(latitude),
+        Number(longitude),
+        Number(userLatitude),
+        Number(userLongitude),
+      );
+
+      // Notify users within 25 km
+      if (distance <= 25) {
+        nearbyUsers++;
+
+        const notificationRef = db
+          .collection("users")
+          .doc(userDoc.id)
+          .collection("notifications")
+          .doc();
+
+        batch.set(notificationRef, {
+          type: "nearby_event",
+          title: "New event near you",
+          body: eventData.title
+            ? `${eventData.title} is happening near you`
+            : "A new event is happening near you",
+          message: eventData.title
+            ? `${eventData.title} is happening near you`
+            : "A new event is happening near you",
+          eventId: eventId,
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    await batch.commit();
+
+    logger.log(
+      `Created nearby event notifications for ${nearbyUsers} users for event ${eventId}`,
+    );
+  },
+);
+
 async function sendPushNotification({
   uid,
   title,
@@ -98,6 +196,8 @@ exports.sendRealtimeNotification = onDocumentCreated(
     });
   }
 );
+
+
 
 // All functions live in this region so client base URLs stay consistent.
 
