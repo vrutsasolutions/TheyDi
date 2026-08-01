@@ -125,7 +125,13 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                     IconButton(
                       icon: const Icon(Icons.arrow_back,
                           color: TheyDiColors.textPrimary),
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(AppRoutes.profile);
+                        }
+                      },
                     ),
                     const SizedBox(width: 4),
                     Text('Friends', style: TheyDiTextStyles.displayMedium),

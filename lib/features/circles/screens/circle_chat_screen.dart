@@ -1072,6 +1072,16 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                           timeLabel: timeLabel,
                           seen: seen,
                         )
+                      else if (msgType == 'profile_share') // ADD THIS BLOCK
+                        _CircleProfileShareBubble(
+                          profileUserId: data['userId'] ?? '',
+                          profileUserName: data['userName'] ?? '',
+                          profilePhotoUrl: data['userPhoto'] ?? '',
+                          isMine: isMine,
+                          senderName: senderName,
+                          timeLabel: timeLabel,
+                          seen: seen,
+                        )
                       else
                         _CircleBubble(
                           text: data['text'] ?? '',
@@ -1702,7 +1712,8 @@ class _CircleEventShareBubble extends StatelessWidget {
               ? TheyDiColors.primary.withValues(alpha: 0.12)
               : TheyDiColors.card,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.25)),
+          border:
+              Border.all(color: TheyDiColors.primary.withValues(alpha: 0.25)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1754,6 +1765,146 @@ class _CircleEventShareBubble extends StatelessWidget {
               child: Text(
                 timeLabel,
                 style: TheyDiTextStyles.labelSmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleProfileShareBubble extends StatelessWidget {
+  final String profileUserId;
+  final String profileUserName;
+  final String profilePhotoUrl;
+  final bool isMine;
+  final String senderName;
+  final String timeLabel;
+  final bool seen;
+
+  const _CircleProfileShareBubble({
+    required this.profileUserId,
+    required this.profileUserName,
+    required this.profilePhotoUrl,
+    required this.isMine,
+    required this.senderName,
+    required this.timeLabel,
+    required this.seen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial =
+        profileUserName.isNotEmpty ? profileUserName[0].toUpperCase() : '?';
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(maxWidth: 300),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: 0.12)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: TheyDiColors.primary.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isMine)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  senderName,
+                  style: TheyDiTextStyles.labelMedium.copyWith(
+                    color: TheyDiColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            Row(children: [
+              const Icon(Icons.person_outline,
+                  color: TheyDiColors.primary, size: 18),
+              const SizedBox(width: 6),
+              Text('Shared a Profile', style: TheyDiTextStyles.labelLarge),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: TheyDiColors.gradientPrimary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: profilePhotoUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.network(
+                          profilePhotoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(initial,
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(color: Colors.white)),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(initial,
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(color: Colors.white)),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  profileUserName,
+                  style: TheyDiTextStyles.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: profileUserId.isEmpty
+                    ? null
+                    : () => context.push(AppRoutes.userProfile, extra: {
+                          'uid': profileUserId,
+                          'requestId': null,
+                        }),
+                icon: const Icon(Icons.person, size: 18),
+                label: const Text('View Profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TheyDiColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(timeLabel, style: TheyDiTextStyles.labelSmall),
+                  if (isMine) ...[
+                    const SizedBox(width: 4),
+                    _ReadReceipt(seen: seen),
+                  ],
+                ],
               ),
             ),
           ],

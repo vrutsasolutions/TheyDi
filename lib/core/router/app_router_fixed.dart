@@ -62,7 +62,6 @@ import '../../features/settings/screens/terms_conditions_screen.dart';
 import '../../features/admin/screens/admin_verification_screen.dart';
 
 
-import '../../features/admin/screens/admin_verification_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 

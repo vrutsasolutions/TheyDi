@@ -1576,6 +1576,17 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                                   seen: seen,
                                   delivered: delivered,
                                 );
+                              } else if (msgType == 'profile_share') {
+                                // ADD THIS BLOCK
+                                bubble = ProfileShareBubble(
+                                  profileUserId: data['userId'] ?? '',
+                                  profileUserName: data['userName'] ?? '',
+                                  profilePhotoUrl: data['userPhoto'] ?? '',
+                                  isMine: isMine,
+                                  timeLabel: timeLabel,
+                                  seen: seen,
+                                  delivered: delivered,
+                                );
                               } else {
                                 bubble = _DmBubble(
                                   text: data['text'] ?? '',
@@ -2317,8 +2328,9 @@ class EventShareBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor =
-        isMine ? TheyDiColors.primary.withValues(alpha: 0.12) : TheyDiColors.card;
+    final bubbleColor = isMine
+        ? TheyDiColors.primary.withValues(alpha: 0.12)
+        : TheyDiColors.card;
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
@@ -2389,6 +2401,142 @@ class EventShareBubble extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileShareBubble extends StatelessWidget {
+  final String profileUserId;
+  final String profileUserName;
+  final String profilePhotoUrl;
+  final bool isMine;
+  final String timeLabel;
+  final bool seen;
+  final bool delivered;
+
+  const ProfileShareBubble({
+    super.key,
+    required this.profileUserId,
+    required this.profileUserName,
+    required this.profilePhotoUrl,
+    required this.isMine,
+    required this.timeLabel,
+    required this.seen,
+    required this.delivered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial =
+        profileUserName.isNotEmpty ? profileUserName[0].toUpperCase() : '?';
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 300),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isMine
+              ? TheyDiColors.primary.withValues(alpha: .12)
+              : TheyDiColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: TheyDiColors.primary.withValues(alpha: .2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.person_outline,
+                  color: TheyDiColors.primary, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                isMine ? "You shared a profile" : "Shared a Profile",
+                style: TheyDiTextStyles.labelLarge
+                    .copyWith(fontWeight: FontWeight.bold),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: TheyDiColors.gradientPrimary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: profilePhotoUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.network(
+                          profilePhotoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(initial,
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(color: Colors.white)),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(initial,
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(color: Colors.white)),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  profileUserName,
+                  style: TheyDiTextStyles.bodyLarge
+                      .copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: profileUserId.isEmpty
+                    ? null
+                    : () => context.push(AppRoutes.userProfile, extra: {
+                          'uid': profileUserId,
+                          'requestId': null,
+                        }),
+                icon: const Icon(Icons.person, size: 18),
+                label: const Text('View Profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TheyDiColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  timeLabel,
+                  style: TheyDiTextStyles.caption
+                      .copyWith(color: TheyDiColors.textMuted),
+                ),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  _ReadReceipt(seen: seen, delivered: delivered),
+                ],
+              ],
+            ),
+          ],
         ),
       ),
     );

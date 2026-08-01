@@ -206,6 +206,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       builder: (_) => _InAppFriendProfileShareSheet(
         userId: widget.userId,
         displayName: widget.displayName,
+        photoUrl: widget.photoUrl,
       ),
     );
   }
@@ -219,6 +220,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
       builder: (_) => _InAppProfileShareSheet(
         userId: widget.userId,
         displayName: widget.displayName,
+        photoUrl: widget.photoUrl,
       ),
     );
   }
@@ -373,8 +375,12 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
 class _InAppProfileShareSheet extends StatefulWidget {
   final String userId;
   final String displayName;
-  const _InAppProfileShareSheet(
-      {required this.userId, required this.displayName});
+  final String photoUrl; // ADD
+  const _InAppProfileShareSheet({
+    required this.userId,
+    required this.displayName,
+    required this.photoUrl, // ADD
+  });
 
   @override
   State<_InAppProfileShareSheet> createState() =>
@@ -429,12 +435,24 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
         'type': 'profile_share',
         'userId': widget.userId,
         'userName': widget.displayName,
+        'userPhoto': widget.photoUrl, // ADD
         'profileLink': link,
         'text': '👤 $senderName shared ${widget.displayName}\'s profile\n$link',
         'senderId': FirebaseAuth.instance.currentUser?.uid ?? '',
         'senderName': senderName,
-        'sentAt': Timestamp.now(),
+        'createdAt': Timestamp.now(), // FIX: was 'sentAt'
         'readBy': [],
+        'seenBy': [], // ADD
+      });
+
+      // keep the circle's chat-list preview in sync
+      await FirebaseFirestore.instance
+          .collection('circles')
+          .doc(circleId)
+          .update({
+        'lastMessage': '👤 Shared a profile',
+        'lastMessageSender': senderName,
+        'lastMessageAt': Timestamp.now(),
       });
     }
 
@@ -858,8 +876,12 @@ class _ShareOption extends StatelessWidget {
 class _InAppFriendProfileShareSheet extends StatefulWidget {
   final String userId;
   final String displayName;
-  const _InAppFriendProfileShareSheet(
-      {required this.userId, required this.displayName});
+  final String photoUrl; // ADD
+  const _InAppFriendProfileShareSheet({
+    required this.userId,
+    required this.displayName,
+    required this.photoUrl, // ADD
+  });
 
   @override
   State<_InAppFriendProfileShareSheet> createState() =>
@@ -937,16 +959,19 @@ class _InAppFriendProfileShareSheetState
         'type': 'profile_share',
         'userId': widget.userId,
         'userName': widget.displayName,
+        'userPhoto': widget.photoUrl, // ADD
         'profileLink': link,
         'text': '👤 $senderName shared ${widget.displayName}\'s profile\n$link',
         'senderId': myUid,
         'senderName': senderName,
-        'sentAt': Timestamp.now(),
-        'readBy': [],
+        'timestamp': Timestamp.now(), // FIX: was 'sentAt'
+        'seen': false, // ADD (so it matches DM's usual shape)
+        'deliveredAt': null, // ADD
+        'readBy': [myUid], // FIX: was []
       });
 
       await chatRef.update({
-        'lastMessage': 'Shared a profile',
+        'lastMessage': '👤 Shared a profile',
         'lastMessageSenderId': myUid,
         'updatedAt': Timestamp.now(),
       });
@@ -1005,33 +1030,39 @@ class _InAppFriendProfileShareSheetState
             )
           else
             Expanded(
-              child: ListView.builder(
-                itemCount: _friends.length,
-                itemBuilder: (context, index) {
-                  final f = _friends[index];
-                  final isSelected = _selected.contains(f['id']);
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: TheyDiColors.primary.withAlpha(25),
-                      child:
-                          const Icon(Icons.person, color: TheyDiColors.primary),
-                    ),
-                    title: Text(f['name'], style: TheyDiTextStyles.labelLarge),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle,
-                            color: TheyDiColors.primary)
-                        : const Icon(Icons.circle_outlined, color: Colors.grey),
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selected.remove(f['id']);
-                        } else {
-                          _selected.add(f['id']);
-                        }
-                      });
-                    },
-                  );
-                },
+              child: Material(
+                // ADD
+                type: MaterialType.transparency,
+                child: ListView.builder(
+                  itemCount: _friends.length,
+                  itemBuilder: (context, index) {
+                    final f = _friends[index];
+                    final isSelected = _selected.contains(f['id']);
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: TheyDiColors.primary.withAlpha(25),
+                        child: const Icon(Icons.person,
+                            color: TheyDiColors.primary),
+                      ),
+                      title:
+                          Text(f['name'], style: TheyDiTextStyles.labelLarge),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle,
+                              color: TheyDiColors.primary)
+                          : const Icon(Icons.circle_outlined,
+                              color: Colors.grey),
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            _selected.remove(f['id']);
+                          } else {
+                            _selected.add(f['id']);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           Padding(

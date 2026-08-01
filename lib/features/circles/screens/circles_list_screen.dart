@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/friends_service.dart';
 import '../models/circle_model.dart';
 import '../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../core/router/app_router.dart';
 
 // ── Providers ──
 
@@ -98,18 +99,18 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
     }
   }
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  debugPrint('Initial tab = ${widget.initialTab}');
+    debugPrint('Initial tab = ${widget.initialTab}');
 
-  _tabController = TabController(
-    length: widget.isSelectionMode ? 3 : 4,
-    vsync: this,
-    initialIndex: widget.initialTab,
-  );
-}
+    _tabController = TabController(
+      length: widget.isSelectionMode ? 3 : 4,
+      vsync: this,
+      initialIndex: widget.initialTab,
+    );
+  }
 
   @override
   void dispose() {
@@ -147,7 +148,13 @@ void initState() {
                         IconButton(
                           icon: const Icon(Icons.arrow_back,
                               color: TheyDiColors.textPrimary),
-                          onPressed: () => context.pop(),
+                          onPressed: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(AppRoutes.profile);
+                            }
+                          },
                         ),
                         const SizedBox(width: 4),
                         Expanded(
