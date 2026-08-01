@@ -10,7 +10,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/friends_service.dart';
 import '../models/circle_model.dart';
 import '../../../shared/widgets/avatar_online_status_dot.dart';
-import '../../../core/router/app_router.dart';
 
 // ── Providers ──
 

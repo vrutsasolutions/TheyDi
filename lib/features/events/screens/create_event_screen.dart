@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../../core/services/places_autocomplete_service.dart';
 
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/services/location_service.dart';
@@ -73,6 +74,12 @@ class _GeoResult {
       {required this.lat, required this.lng, required this.displayAddress});
 }
 
+// class _PlacePrediction {
+//   final String placeId;
+//   final String description;
+//   const _PlacePrediction({required this.placeId, required this.description});
+// }
+
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
 
@@ -105,6 +112,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   bool _showMapPreview = false;
   List<_GeoResult> _geoResults = []; // multiple results
   bool _showResultPicker = false;
+
+  List<WebPlacePrediction> _placePredictions = [];
+  bool _showPredictions = false;
+  bool _isFetchingPredictions = false;
+  _GeoResult? _pendingGeoResult;
+  // String _sessionToken = _generateSessionToken();
+
+  static String _generateSessionToken() {
+    final rand = DateTime.now().microsecondsSinceEpoch.toString();
+    return rand + (1000 + (rand.hashCode % 9000)).toString();
+  }
 
   String? _selectedCategory;
   String? _selectedState;
@@ -164,112 +182,72 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
     final text = _venueController.text.trim();
 
-    if (text.length < 4) return;
+    if (text.length < 3) {
+      setState(() {
+        _placePredictions = [];
+        _showPredictions = false;
+      });
+      return;
+    }
 
     _geocodeDebounce = Timer(
-      const Duration(milliseconds: 700),
+      const Duration(milliseconds: 350),
       () {
-        _geocodeVenue(text);
+        _fetchAutocomplete(text);
       },
     );
   }
 
   Future<void> _geocodeVenue(String query) async {
-    // Append city for better accuracy
-    final fullQuery = _selectedCity != null
-        ? '$query, $_selectedCity, India'
-        : '$query, India';
+    if (query.trim().isEmpty) return;
+    await _fetchAutocomplete(query);
+  }
+
+  Future<void> _fetchAutocomplete(String query) async {
+    setState(() => _isFetchingPredictions = true);
+
+    final predictions = await PlacesWebService.getPredictions(
+      query,
+      city: _selectedCity,
+    );
+
+    if (!mounted) return;
 
     setState(() {
+      _placePredictions = predictions;
+      _showPredictions = predictions.isNotEmpty;
+      _isFetchingPredictions = false;
+    });
+  }
+
+  Future<void> _selectPrediction(WebPlacePrediction prediction) async {
+    setState(() {
+      _showPredictions = false;
+      _placePredictions = [];
       _isGeocoding = true;
-      _showResultPicker = false;
-      _geoResults = [];
     });
 
-    try {
-      final encodedQuery = Uri.encodeComponent(fullQuery);
-      // Photon is a free, fast search autocomplete API for OpenStreetMap
-      final url =
-          Uri.parse('https://photon.komoot.io/api/?q=$encodedQuery&limit=5');
+    final result = await PlacesWebService.getPlaceDetails(prediction.placeId);
 
-      final response = await http.get(url);
+    if (!mounted) return;
 
-      if (!mounted) return;
+    setState(() => _isGeocoding = false);
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        final List<dynamic> features = data['features'] ?? [];
+    if (result == null) return;
 
-        if (features.isEmpty) {
-          setState(() {
-            _isGeocoding = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Could not find location coordinates. Try adjusting the pin manually.'),
-              backgroundColor: Colors.amber,
-            ),
-          );
-          return;
-        }
+    final geoResult = _GeoResult(
+      lat: result.lat,
+      lng: result.lng,
+      displayAddress: result.formattedAddress,
+    );
 
-        final geoList = <_GeoResult>[];
-        for (final feature in features) {
-          final geometry = feature['geometry'] ?? {};
-          final List<dynamic> coords = geometry['coordinates'] ?? [];
-          final properties = feature['properties'] ?? {};
+    setState(() {
+      _updatingVenueProgrammatically = true;
+      _venueController.text = result.formattedAddress;
+      _updatingVenueProgrammatically = false;
 
-          if (coords.length >= 2) {
-            // GeoJSON coordinates are [longitude, latitude]
-            final lng = (coords[0] as num).toDouble();
-            final lat = (coords[1] as num).toDouble();
-
-            final name = properties['name'] ?? '';
-            final street = properties['street'] ?? '';
-            final city = properties['city'] ?? '';
-            final state = properties['state'] ?? '';
-
-            final parts = [name, street, city, state]
-                .where((s) => s != null && s.toString().trim().isNotEmpty)
-                .join(', ');
-
-            geoList.add(_GeoResult(
-              lat: lat,
-              lng: lng,
-              displayAddress: parts.isNotEmpty ? parts : fullQuery,
-            ));
-          }
-        }
-
-        if (geoList.isEmpty) {
-          setState(() {
-            _isGeocoding = false;
-          });
-          return;
-        }
-
-        if (geoList.length == 1) {
-          _applyGeoResult(geoList.first);
-        } else {
-          setState(() {
-            _geoResults = geoList;
-            _showResultPicker = true;
-            _isGeocoding = false;
-          });
-        }
-      } else {
-        setState(() {
-          _isGeocoding = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isGeocoding = false;
-        });
-      }
-    }
+      _pendingGeoResult = geoResult;
+    });
   }
 
   void _applyGeoResult(_GeoResult result) {
@@ -286,6 +264,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       _showResultPicker = false;
       _geoResults = [];
       _isGeocoding = false;
+
+      _showPredictions = false;
+      _placePredictions = [];
     });
 
     // Move map
@@ -305,7 +286,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   // ── Reverse geocode after pin drag ──────────────────────────────────────────
   Future<void> _reverseGeocode(double lat, double lng) async {
     try {
-      final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
+      const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+
+      if (apiKey.isEmpty) {
+        debugPrint('Reverse geocode skipped: GOOGLE_MAPS_API_KEY not set');
+        return;
+      }
 
       final url = 'https://maps.googleapis.com/maps/api/geocode/json'
           '?latlng=$lat,$lng'
@@ -317,7 +303,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
       final data = jsonDecode(response.body);
 
-      if (data['results'] == null || data['results'].isEmpty) return;
+      if (data['status'] != 'OK' ||
+          data['results'] == null ||
+          data['results'].isEmpty) {
+        debugPrint(
+            "Reverse geocode Status: ${data['status']} ${data['error_message'] ?? ''}");
+        return;
+      }
 
       final result = data['results'][0];
 
@@ -375,11 +367,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
         _pinnedAddress = formattedAddress;
 
-        // IMPORTANT: only set the venue text ONCE, and only inside the
-        // programmatic-update guard. Setting it a second time outside the
-        // guard (as before) fired `_onVenueChanged`, which re-triggered a
-        // forward geocode of the address we just derived from the map tap —
-        // causing the pin to jump / fight with itself.
         _updatingVenueProgrammatically = true;
         _venueController.text = venue.isNotEmpty ? venue : formattedAddress;
         _updatingVenueProgrammatically = false;
@@ -397,13 +384,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
         final normalizedCity = normalize(city);
 
-        final allCities =
-            LocationConstants.stateCities.values.expand((cities) => cities).toList();
+        final allCities = LocationConstants.stateCities.values
+            .expand((cities) => cities)
+            .toList();
 
         final matchedCity = allCities.firstWhere(
           (c) {
             final item = normalize(c);
-            return item.startsWith(normalizedCity);
+
+            return item == normalizedCity ||
+                item.contains(normalizedCity) ||
+                normalizedCity.contains(item);
           },
           orElse: () => '',
         );
@@ -705,15 +696,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _handleCreateEvent() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return;
 
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  if (uid.isEmpty) return;
+    final verified = await FaceVerificationService.isUserVerified(uid);
 
-  final verified = await FaceVerificationService.isUserVerified(uid);
+    if (!mounted) return;
 
-  if (!mounted) return;
-
-  // Keep the rest of your existing code below this line...
+    // Keep the rest of your existing code below this line...
     if (!verified) {
       final goVerify = await showDialog<bool>(
         context: context,
@@ -853,25 +843,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           .get();
 
       if (!_isFree) {
-  final data = userDoc.data() ?? {};
+        final data = userDoc.data() ?? {};
 
-  final payoutSetupCompleted =
-      (data['payoutSetupCompleted'] as bool?) ?? false;
+        final payoutSetupCompleted =
+            (data['payoutSetupCompleted'] as bool?) ?? false;
 
-  if (!payoutSetupCompleted) {
-    setState(() => _isLoading = false);
+        if (!payoutSetupCompleted) {
+          setState(() => _isLoading = false);
 
-    final completed = await _ensurePayoutSetup(user.uid);
+          final completed = await _ensurePayoutSetup(user.uid);
 
-    if (!mounted) return;
+          if (!mounted) return;
 
-    if (!completed) {
-      return;
-    }
+          if (!completed) {
+            return;
+          }
 
-    setState(() => _isLoading = true);
-  }
-}
+          setState(() => _isLoading = true);
+        }
+      }
 
       final dateTime = DateTime(_selectedDate!.year, _selectedDate!.month,
           _selectedDate!.day, _selectedTime!.hour, _selectedTime!.minute);
@@ -1400,7 +1390,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                     hintText: 'e.g. Sky Lounge, MG Road',
                                     prefixIcon:
                                         const Icon(Icons.place_outlined),
-                                    suffixIcon: _isGeocoding
+                                    suffixIcon: (_isGeocoding ||
+                                            _isFetchingPredictions)
                                         ? const Padding(
                                             padding: EdgeInsets.all(12),
                                             child: SizedBox(
@@ -1413,11 +1404,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                             ),
                                           )
                                         : _pinnedLat != null
-                                            ? const Icon(
-                                                Icons.check_circle,
-                                                color: Colors.green,
-                                                size: 20,
-                                              )
+                                            ? const Icon(Icons.check_circle,
+                                                color: Colors.green, size: 20)
                                             : null,
                                   ),
                                   validator: (v) =>
@@ -1450,7 +1438,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       ).animate(delay: 140.ms).fade(duration: 300.ms),
 
                       // ── Multiple results picker ──
-                      if (_showResultPicker && _geoResults.isNotEmpty) ...[
+                      if (_showPredictions && _placePredictions.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
                           decoration: BoxDecoration(
@@ -1470,7 +1458,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                   const Icon(Icons.location_on_outlined,
                                       size: 14, color: TheyDiColors.primary),
                                   const SizedBox(width: 6),
-                                  Text('Select matching location',
+                                  Text('Select a place',
                                       style: TheyDiTextStyles.caption.copyWith(
                                           color: TheyDiColors.primary,
                                           fontWeight: FontWeight.w600)),
@@ -1478,41 +1466,28 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                               ),
                               const Divider(
                                   height: 1, color: TheyDiColors.divider),
-                              ..._geoResults.asMap().entries.map((entry) {
+                              ..._placePredictions.asMap().entries.map((entry) {
                                 final i = entry.key;
-                                final r = entry.value;
+                                final p = entry.value;
                                 return GestureDetector(
-                                  onTap: () => _applyGeoResult(r),
+                                  onTap: () => _selectPrediction(p),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 14, vertical: 12),
                                     decoration: BoxDecoration(
-                                      border: i < _geoResults.length - 1
+                                      border: i < _placePredictions.length - 1
                                           ? const Border(
                                               bottom: BorderSide(
                                                   color: TheyDiColors.divider))
                                           : null,
                                     ),
                                     child: Row(children: [
-                                      Container(
-                                        width: 28,
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                            color: TheyDiColors.primary
-                                                .withValues(alpha: 0.12),
-                                            shape: BoxShape.circle),
-                                        child: Center(
-                                            child: Text('${i + 1}',
-                                                style: TheyDiTextStyles.caption
-                                                    .copyWith(
-                                                        color: TheyDiColors
-                                                            .primary,
-                                                        fontWeight:
-                                                            FontWeight.w700))),
-                                      ),
+                                      const Icon(Icons.location_on_outlined,
+                                          size: 16,
+                                          color: TheyDiColors.primary),
                                       const SizedBox(width: 10),
                                       Expanded(
-                                          child: Text(r.displayAddress,
+                                          child: Text(p.description,
                                               style: TheyDiTextStyles.bodySmall
                                                   .copyWith(
                                                       color: TheyDiColors
@@ -1530,6 +1505,33 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       ],
 
                       const SizedBox(height: 12),
+
+                      if (_pendingGeoResult != null && _pinnedLat == null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: TheyDiColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: TheyDiColors.primary
+                                    .withValues(alpha: 0.2)),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.info_outline,
+                                size: 14, color: TheyDiColors.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Select State below to pin this venue on the map',
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: TheyDiColors.primary, fontSize: 11),
+                              ),
+                            ),
+                          ]),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
                       const SizedBox(height: 16),
 
@@ -1559,6 +1561,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                       _selectedState = v;
                                       _selectedCity = null;
                                     });
+
+                                    if (_pendingGeoResult != null) {
+                                      _applyGeoResult(_pendingGeoResult!);
+                                      _pendingGeoResult = null;
+                                    }
                                   },
                                   icon: Icons.map_outlined,
                                 ),
@@ -1577,7 +1584,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                   value: _selectedCity,
                                   items: (_selectedState == null
                                           ? <String>[]
-                                          : LocationConstants.stateCities[_selectedState] ?? [])
+                                          : LocationConstants.stateCities[
+                                                  _selectedState] ??
+                                              [])
                                       .map((city) => DropdownMenuItem<String>(
                                             value: city,
                                             child: Text(
@@ -1589,13 +1598,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                       .toList(),
                                   onChanged: (v) {
                                     setState(() => _selectedCity = v);
-
-                                    if (_venueController.text
-                                        .trim()
-                                        .isNotEmpty) {
-                                      _geocodeVenue(
-                                          _venueController.text.trim());
-                                    }
                                   },
                                   icon: Icons.location_city_outlined,
                                 ),
