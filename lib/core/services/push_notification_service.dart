@@ -44,7 +44,9 @@ class PushNotificationService {
         android: androidInit,
       );
 
-      await _localNotifications.initialize(initSettings);
+      await _localNotifications.initialize(
+  settings: initSettings,
+);
 
       print('FCM DEBUG 4: Local notifications initialized');
 
@@ -121,21 +123,20 @@ class PushNotificationService {
           );
 
           await _localNotifications.show(
-            notification.hashCode,
-            notification.title,
-            notification.body,
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'high_importance_channel',
-                'High Importance Notifications',
-                channelDescription:
-                'High importance notifications for TheyDi',
-                importance: Importance.high,
-                priority: Priority.high,
-                icon: '@mipmap/ic_launcher',
-              ),
-            ),
-          );
+  id: notification.hashCode,
+  title: notification.title,
+  body: notification.body,
+  notificationDetails: const NotificationDetails(
+    android: AndroidNotificationDetails(
+      'high_importance_channel',
+      'High Importance Notifications',
+      channelDescription: 'High importance notifications for TheyDi',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    ),
+  ),
+);
 
           print(
             'FCM DEBUG 17: Foreground local notification displayed',
