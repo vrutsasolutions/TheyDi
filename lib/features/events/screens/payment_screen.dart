@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../../../core/services/razorpay/razorpay_service.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/constants/payment_constants.dart';
@@ -35,7 +35,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  late Razorpay _razorpay;
+  late RazorpayService _razorpay;
 
   bool _isProcessing = false;
   bool _paymentFailed = false;
@@ -63,10 +63,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _razorpay = RazorpayService();
+    _razorpay.init(
+      onSuccess: _handlePaymentSuccess,
+      onError: _handlePaymentError,
+      onExternalWallet: _handleExternalWallet,
+    );
   }
 
   @override
@@ -100,6 +102,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    // Keep button in loading state during verifyPayment server call
+    if (mounted) setState(() => _isProcessing = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
       String userName = user.displayName ?? user.email!.split('@').first;
@@ -285,11 +289,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       }
 
       print('--- Starting payment process ---');
-      final keyId = dotenv.env['RAZORPAY_KEY_ID'];
-      print('Razorpay Key ID loaded: ${keyId != null}');
+      var keyId = const String.fromEnvironment('RAZORPAY_KEY_ID');
+      if (keyId.isEmpty) {
+        keyId = dotenv.env['RAZORPAY_KEY_ID'] ?? '';
+      }
+      print('Razorpay Key ID loaded: ${keyId.isNotEmpty}');
 
-      if (keyId == null) {
-        throw Exception('Razorpay Key ID not found in .env');
+      if (keyId.isEmpty) {
+        throw Exception('Razorpay Key ID not found (neither in environment nor in .env)');
       }
 
       final amountInPaise = (_totalAmount * 100).toInt();
@@ -331,6 +338,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
       print('Opening Razorpay UI...');
       _razorpay.open(options);
+      // _isProcessing stays true — button remains loading while Razorpay modal is active.
+      // Callbacks (_handlePaymentSuccess / _handlePaymentError) manage state from here.
     } catch (e, stackTrace) {
       print('--- PAYMENT LAUNCH ERROR ---');
       print('Error: $e');

@@ -286,11 +286,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   // ── Reverse geocode after pin drag ──────────────────────────────────────────
   Future<void> _reverseGeocode(double lat, double lng) async {
     try {
-      const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
-
+      var apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
       if (apiKey.isEmpty) {
-        debugPrint('Reverse geocode skipped: GOOGLE_MAPS_API_KEY not set');
-        return;
+        apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
       }
 
       final url = 'https://maps.googleapis.com/maps/api/geocode/json'
@@ -2505,6 +2503,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 }
 
 // ── Map zoom button ───────────────────────────────────────────────────────────
+// ignore: unused_element
 class _MapButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;

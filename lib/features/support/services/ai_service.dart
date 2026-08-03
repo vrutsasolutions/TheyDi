@@ -99,11 +99,14 @@ HOW TO RESPOND
     String message, {
     List<Map<String, String>> history = const [],
   }) async {
-    final apiKey = dotenv.env['GROQ_API_TOKEN'] ??
-        dotenv.env['GROQ_API_KEY'] ??
-        dotenv.env['GROQ_TOKEN'] ??
-        dotenv.env['API_KEY'] ??
-        '';
+    var apiKey = const String.fromEnvironment('GROQ_API_TOKEN');
+    if (apiKey.isEmpty) {
+      apiKey = dotenv.env['GROQ_API_TOKEN'] ??
+          dotenv.env['GROQ_API_KEY'] ??
+          dotenv.env['GROQ_TOKEN'] ??
+          dotenv.env['API_KEY'] ??
+          '';
+    }
 
     if (apiKey.isEmpty) {
       return _getOfflineReply(message);
