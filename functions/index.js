@@ -242,10 +242,10 @@ function getRazorpay() {
     logger.warn("Razorpay keys are missing from environment variables.");
     return null;
   }
-  return new Razorpay({
-    key_id: keyId,
-    key_secret: keySecret,
-  });
+  return {
+    instance: new Razorpay({ key_id: keyId, key_secret: keySecret }),
+    keyId,
+  };
 }
 
 // Nodemailer transporter — credentials come from environment variables.
@@ -331,16 +331,17 @@ function getCashfreeHeaders() {
  * Called from Flutter to create a Razorpay Order ID securely.
  */
 exports.createOrder = onCall(
-  { region: REGION },
+  { region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, 
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be logged in to create an order.");
     }
 
-    const razorpay = getRazorpay();
-    if (!razorpay) {
-      throw new HttpsError("internal", "Razorpay is not configured on the server.");
-    }
+    const razorpayConfig = getRazorpay();
+if (!razorpayConfig) {
+  throw new HttpsError("internal", "Razorpay is not configured on the server.");
+}
+const { instance: razorpay, keyId } = razorpayConfig;
 
     const { amount, currency, receipt, notes } = request.data;
 
@@ -360,10 +361,11 @@ exports.createOrder = onCall(
       logger.info("Order created successfully", { orderId: order.id });
 
       return {
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
-      };
+  orderId: order.id,
+  amount: order.amount,
+  currency: order.currency,
+  keyId: keyId,
+};
     } catch (error) {
       logger.error("Error creating Razorpay order", error);
       throw new HttpsError("internal", "Failed to create Razorpay order.");
@@ -376,8 +378,9 @@ exports.createOrder = onCall(
  * Called from Flutter after Razorpay UI succeeds.
  * Verifies the signature and writes the booking to Firestore.
  */
+
 exports.verifyPayment = onCall(
-  { region: REGION },
+  { region: REGION, secrets: ["RAZORPAY_SECRET_KEY"] }, 
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be logged in to verify payment.");
@@ -648,7 +651,7 @@ exports.razorpayWebhook = onRequest(
  * Register this URL in your Cashfree Merchant Dashboard → Payouts → Webhooks.
  */
 exports.cashfreePayoutWebhook = onRequest(
-  { region: REGION },
+  { region: REGION, secrets: ["CASHFREE_PAYOUT_WEBHOOK_SECRET", "CASHFREE_PAYOUT_CLIENT_SECRET"] },
   async (req, res) => {
     const secret = process.env.CASHFREE_PAYOUT_WEBHOOK_SECRET || process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
 
@@ -772,7 +775,7 @@ exports.cashfreePayoutWebhook = onRequest(
  * Replaces the former createRazorpayXContact function.
  */
 exports.setupHostCashfreeBeneficiary = onCall(
-  { region: REGION },
+  { region: REGION, secrets: ["CASHFREE_PAYOUT_CLIENT_ID", "CASHFREE_PAYOUT_CLIENT_SECRET"] },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
 
@@ -1068,7 +1071,7 @@ async function processPayoutForEventId(eventId) {
 }
 
 exports.processCashfreePayout = onCall(
-  { region: REGION },
+  { region: REGION, secrets: ["CASHFREE_PAYOUT_CLIENT_ID", "CASHFREE_PAYOUT_CLIENT_SECRET"] },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
     return await processPayoutForEventId(request.data.eventId);
@@ -1342,7 +1345,7 @@ exports.processAutomaticPayouts = onSchedule("every 4 hours", async (event) => {
  * Cancels an event, refunds all confirmed bookings via Razorpay, and sends notification emails.
  */
 exports.cancelEventAndRefund = onCall(
-  { region: REGION },
+  { region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
     
@@ -1380,7 +1383,7 @@ exports.cancelEventAndRefund = onCall(
       }
     }
     
-    const razorpay = getRazorpay();
+    const razorpay = getRazorpay()?.instance; 
     const transporter = getTransporter();
     
     // Get all confirmed bookings
@@ -1476,14 +1479,15 @@ exports.cancelEventAndRefund = onCall(
  * Processes a refund when a new document is created in the refunds collection.
  * This happens when an attendee leaves a paid event.
  */
-exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", region: REGION }, async (event) => {
+exports.processRefund = onDocumentCreated(
+  { document: "refunds/{refundId}", region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
 
   const refundData = snapshot.data();
   if (refundData.status !== "pending") return;
 
-  const razorpay = getRazorpay();
+  const razorpay = getRazorpay()?.instance;
   const transporter = getTransporter();
 
   try {

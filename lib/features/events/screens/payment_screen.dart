@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:razorpay_web/razorpay_web.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/constants/payment_constants.dart';
@@ -18,7 +18,6 @@ import '../models/booking_model.dart';
 import '../models/event_model.dart';
 
 import '../../../core/services/face_verification_service.dart';
-
 
 class PaymentScreen extends ConsumerStatefulWidget {
   final EventModel event;
@@ -285,13 +284,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       }
 
       print('--- Starting payment process ---');
-      final keyId = dotenv.env['RAZORPAY_KEY_ID'];
-      print('Razorpay Key ID loaded: ${keyId != null}');
-
-      if (keyId == null) {
-        throw Exception('Razorpay Key ID not found in .env');
-      }
-
       final amountInPaise = (_totalAmount * 100).toInt();
       final user = FirebaseAuth.instance.currentUser!;
       print(
@@ -319,6 +311,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       print('Order created successfully. Response: ${response.data}');
 
       final orderId = response.data['orderId'];
+      final keyId = response.data['keyId'];
+
+      if (keyId == null) {
+        throw Exception('Razorpay Key ID missing from server response');
+      }
 
       var options = {
         'key': keyId,
@@ -326,6 +323,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         'order_id': orderId,
         'name': 'TheyDi',
         'description': widget.event.title,
+        'image': 'https://theydi-cefdf.web.app/assets/assets/images/theydi_logo.png',
         'prefill': {'contact': '', 'email': user.email ?? ''},
       };
 
@@ -469,7 +467,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         .fade(duration: 300.ms),
                     const SizedBox(height: 12),
 
-                    ...List.generate(PaymentConstants.paymentMethods.length, (index) {
+                    ...List.generate(PaymentConstants.paymentMethods.length,
+                        (index) {
                       final method = PaymentConstants.paymentMethods[index];
                       final isSelected = method['name'] == _selectedMethod;
                       return GestureDetector(
