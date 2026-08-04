@@ -1,7 +1,7 @@
-/// Mobile implementation — wraps razorpay_flutter (Android/iOS).
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+/// Mobile implementation — wraps razorpay_web (Android/iOS/Web/desktop, single package).
+import 'package:razorpay_web/razorpay_web.dart';
 
-export 'package:razorpay_flutter/razorpay_flutter.dart'
+export 'package:razorpay_web/razorpay_web.dart'
     show PaymentSuccessResponse, PaymentFailureResponse, ExternalWalletResponse;
 
 typedef PaymentSuccessHandler = void Function(PaymentSuccessResponse response);
