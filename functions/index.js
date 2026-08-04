@@ -569,11 +569,21 @@ exports.razorpayWebhook = onRequest(
 
         logger.info("Processing webhook for order.paid", { orderId: order.id, userId: notes.userId });
 
+        // Look up real user name from Firestore
+        let resolvedUserName = "User";
+        try {
+          const userDoc = await db.collection("users").doc(notes.userId).get();
+          if (userDoc.exists) {
+            const data = userDoc.data();
+            resolvedUserName = data.displayName || data.fullName || data.name || "User";
+          }
+        } catch (_) {}
+
         const bookingData = {
           eventId: notes.eventId,
           eventTitle: notes.eventTitle || "Unknown Event",
           userId: notes.userId,
-          userName: "User",
+          userName: resolvedUserName,
           hostUid: notes.hostUid,
           amount: order.amount / 100,
           platformFee: parseFloat(notes.platformFee || "0"),
@@ -602,7 +612,7 @@ exports.razorpayWebhook = onRequest(
         const paymentRef = eventRef.collection("attendeePayments").doc(notes.userId);
         batch.set(paymentRef, {
           status: "paid",
-          userName: "User",
+          userName: resolvedUserName,
           transactionId: payment.id,
           paymentMethod: payment.method || "Unknown",
           amount: bookingData.totalAmount,
@@ -626,7 +636,7 @@ exports.razorpayWebhook = onRequest(
           paymentMethod: payment.method || "Unknown",
           status: "Success",
           uid: notes.userId,
-          username: "User",
+          username: resolvedUserName,
           verified: true,
         });
 
