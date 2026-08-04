@@ -1421,10 +1421,11 @@ exports.cancelEventAndRefund = onCall(
           if (userDoc.exists && userDoc.data().email && transporter) {
             const attendeeName = userDoc.data().displayName || "there";
             const attendeeEmail = userDoc.data().email;
-            const refundBody = `
-              <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
-              <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">The event "${eventData.title}" has been cancelled by the host.\n\nA full refund of ₹${bData.totalAmount} has been initiated and will reflect in your original payment method in 5-7 business days.</p>
-            `;
+            // After
+const refundBody = `
+  <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+  <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 10% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
+`;
             await transporter.sendMail({
               from: `"TheyDi" <${process.env.GMAIL_USER}>`,
               to: attendeeEmail,
@@ -1544,10 +1545,11 @@ exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", regi
       const eventDoc = await db.collection("events").doc(refundData.eventId).get();
       const eventTitle = eventDoc.exists ? eventDoc.data().title : "the event";
       
-      const refundBody = `
-        <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
-        <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 5% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
-      `;
+      // After
+const refundBody = `
+  <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+  <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 10% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
+`;
       await transporter.sendMail({
         from: `"TheyDi" <${process.env.GMAIL_USER}>`,
         to: attendeeEmail,
@@ -1631,3 +1633,4 @@ exports.sendPushOnNotification = onDocumentCreated(
     }
   }
 );
+

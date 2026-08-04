@@ -45,7 +45,7 @@ class LeaveEventSheet extends StatefulWidget {
 class _LeaveEventSheetState extends State<LeaveEventSheet> {
   bool _leaving = false;
 
-  double get _refundAmount => widget.event.price * 0.95;
+  double get _refundAmount => widget.event.price * 0.90;
   bool get _isPaid => !widget.event.isFree && widget.event.price > 0;
   bool get _hasStarted => widget.event.isOngoing || widget.event.isCompleted;
 
@@ -308,8 +308,8 @@ class _RefundInfoCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         _RefundRow(
-          label: 'Convenience Fee (5%)',
-          value: '+₹${(originalAmount * 0.05).toStringAsFixed(0)}',
+          label: 'Convenience Fee (10%)',
+          value: '+₹${(originalAmount * 0.10).toStringAsFixed(0)}',
           color: TheyDiColors.textSecondary,
         ),
         const SizedBox(height: 4),

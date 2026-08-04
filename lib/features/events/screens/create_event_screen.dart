@@ -693,7 +693,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
   }
 
-  Future<void> _handleCreateEvent() async {
+ Future<void> _handleCreateEvent() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (uid.isEmpty) return;
 
@@ -772,17 +772,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       if (!mounted) return;
       final nowVerified = await FaceVerificationService.isUserVerified(uid);
       if (nowVerified && mounted) {
-        final payoutReady = await _ensurePayoutSetup(uid);
-        if (payoutReady && mounted) {
+        if (_isFree) {
           _submit();
+        } else {
+          final payoutReady = await _ensurePayoutSetup(uid);
+          if (payoutReady && mounted) {
+            _submit();
+          }
         }
       }
       return;
     }
 
-    final payoutReady = await _ensurePayoutSetup(uid);
-    if (!payoutReady || !mounted) return;
-    _submit();
+    if (_isFree) {
+      _submit();
+    } else {
+      final payoutReady = await _ensurePayoutSetup(uid);
+      if (!payoutReady || !mounted) return;
+      _submit();
+    }
   }
 
   Future<bool> _ensurePayoutSetup(String uid) async {

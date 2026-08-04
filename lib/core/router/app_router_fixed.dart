@@ -1,4 +1,3 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,7 +59,6 @@ import 'package:theydi/features/support/screens/darla_chat_screen.dart';
 import '../../features/settings/screens/privacy_policy_screen.dart';
 import '../../features/settings/screens/terms_conditions_screen.dart';
 import '../../features/admin/screens/admin_verification_screen.dart';
-
 
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -396,16 +394,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-  path: AppRoutes.faceVerification,
-  parentNavigatorKey: rootNavigatorKey,
-  builder: (context, state) {
-    final extra = state.extra as Map<String, dynamic>;
-    return FaceVerificationScreen(
-      userId: extra['userId'] as String,
-      onComplete: () {},
-    );
-  },
-),
+        path: AppRoutes.faceVerification,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return FaceVerificationScreen(
+            userId: extra['userId'] as String,
+            onComplete: () {},
+          );
+        },
+      ),
 
       // ── Top-level routes (outside ShellRoute so URL updates correctly on web) ──
       GoRoute(
@@ -473,7 +471,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.circles,
                 builder: (context, state) {
                   final initialTab =
-                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ??
+                          0;
                   debugPrint('Tab from URL = $initialTab');
                   return CirclesListScreen(
                     initialTab: initialTab,

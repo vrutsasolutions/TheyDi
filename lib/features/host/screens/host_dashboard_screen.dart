@@ -780,7 +780,7 @@ class _DashboardContent extends StatelessWidget {
                 children: [
                   _miniStat('Revenue', '₹${totalRevenue.toStringAsFixed(0)}'),
                   const SizedBox(width: 20),
-                  _miniStat('Platform cut (-5%)',
+                  _miniStat('Platform cut (-10%)',
                       '₹${platformFees.toStringAsFixed(0)}'),
                 ],
               ),
@@ -819,7 +819,7 @@ class _DashboardContent extends StatelessWidget {
               const SizedBox(height: 8),
               _RuleItem(
                   text:
-                      'A 5% platform convenience fee is deducted from your base ticket revenue.'),
+                      'A 10% platform convenience fee is deducted from your base ticket revenue.'),
             ],
           ),
         ),

@@ -21,7 +21,7 @@ class LeaveEventService {
 
   static const double _trustPenalty = 2.0; // points deducted per leave
   static const double _refundPercent =
-      0.95; // 95% refund for paid events (5% fee deducted)
+      0.90; // 90% refund for paid events (10% fee deducted)
 
   /// Main entry point. Call this after the user confirms leaving.
   ///

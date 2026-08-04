@@ -336,7 +336,7 @@ class _BookingCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Platform cut (5%)',
+                Text('Platform cut (10%)',
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary)),
                 Text('-₹${booking.platformFee.toStringAsFixed(0)}',
