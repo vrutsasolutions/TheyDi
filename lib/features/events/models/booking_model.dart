@@ -114,9 +114,9 @@ class BookingModel {
     };
   }
 
-  /// Calculate platform fee (5% of event price)
+  /// Calculate platform fee (10% of event price)
   static double calculatePlatformFee(double eventPrice) {
-    return (eventPrice * 0.05).roundToDouble();
+    return (eventPrice * 0.10).roundToDouble();
   }
 
   /// Calculate total including platform fee

@@ -242,10 +242,10 @@ function getRazorpay() {
     logger.warn("Razorpay keys are missing from environment variables.");
     return null;
   }
-  return {
-    instance: new Razorpay({ key_id: keyId, key_secret: keySecret }),
-    keyId,
-  };
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret,
+  });
 }
 
 // Nodemailer transporter — credentials come from environment variables.
@@ -331,17 +331,16 @@ function getCashfreeHeaders() {
  * Called from Flutter to create a Razorpay Order ID securely.
  */
 exports.createOrder = onCall(
-  { region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, 
+  { region: REGION },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be logged in to create an order.");
     }
 
-    const razorpayConfig = getRazorpay();
-if (!razorpayConfig) {
-  throw new HttpsError("internal", "Razorpay is not configured on the server.");
-}
-const { instance: razorpay, keyId } = razorpayConfig;
+    const razorpay = getRazorpay();
+    if (!razorpay) {
+      throw new HttpsError("internal", "Razorpay is not configured on the server.");
+    }
 
     const { amount, currency, receipt, notes } = request.data;
 
@@ -361,11 +360,10 @@ const { instance: razorpay, keyId } = razorpayConfig;
       logger.info("Order created successfully", { orderId: order.id });
 
       return {
-  orderId: order.id,
-  amount: order.amount,
-  currency: order.currency,
-  keyId: keyId,
-};
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+      };
     } catch (error) {
       logger.error("Error creating Razorpay order", error);
       throw new HttpsError("internal", "Failed to create Razorpay order.");
@@ -378,9 +376,8 @@ const { instance: razorpay, keyId } = razorpayConfig;
  * Called from Flutter after Razorpay UI succeeds.
  * Verifies the signature and writes the booking to Firestore.
  */
-
 exports.verifyPayment = onCall(
-  { region: REGION, secrets: ["RAZORPAY_SECRET_KEY"] }, 
+  { region: REGION },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be logged in to verify payment.");
@@ -572,11 +569,21 @@ exports.razorpayWebhook = onRequest(
 
         logger.info("Processing webhook for order.paid", { orderId: order.id, userId: notes.userId });
 
+        // Look up real user name from Firestore
+        let resolvedUserName = "User";
+        try {
+          const userDoc = await db.collection("users").doc(notes.userId).get();
+          if (userDoc.exists) {
+            const data = userDoc.data();
+            resolvedUserName = data.displayName || data.fullName || data.name || "User";
+          }
+        } catch (_) {}
+
         const bookingData = {
           eventId: notes.eventId,
           eventTitle: notes.eventTitle || "Unknown Event",
           userId: notes.userId,
-          userName: "User",
+          userName: resolvedUserName,
           hostUid: notes.hostUid,
           amount: order.amount / 100,
           platformFee: parseFloat(notes.platformFee || "0"),
@@ -605,7 +612,7 @@ exports.razorpayWebhook = onRequest(
         const paymentRef = eventRef.collection("attendeePayments").doc(notes.userId);
         batch.set(paymentRef, {
           status: "paid",
-          userName: "User",
+          userName: resolvedUserName,
           transactionId: payment.id,
           paymentMethod: payment.method || "Unknown",
           amount: bookingData.totalAmount,
@@ -629,7 +636,7 @@ exports.razorpayWebhook = onRequest(
           paymentMethod: payment.method || "Unknown",
           status: "Success",
           uid: notes.userId,
-          username: "User",
+          username: resolvedUserName,
           verified: true,
         });
 
@@ -651,7 +658,7 @@ exports.razorpayWebhook = onRequest(
  * Register this URL in your Cashfree Merchant Dashboard → Payouts → Webhooks.
  */
 exports.cashfreePayoutWebhook = onRequest(
-  { region: REGION, secrets: ["CASHFREE_PAYOUT_WEBHOOK_SECRET", "CASHFREE_PAYOUT_CLIENT_SECRET"] },
+  { region: REGION },
   async (req, res) => {
     const secret = process.env.CASHFREE_PAYOUT_WEBHOOK_SECRET || process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
 
@@ -775,7 +782,7 @@ exports.cashfreePayoutWebhook = onRequest(
  * Replaces the former createRazorpayXContact function.
  */
 exports.setupHostCashfreeBeneficiary = onCall(
-  { region: REGION, secrets: ["CASHFREE_PAYOUT_CLIENT_ID", "CASHFREE_PAYOUT_CLIENT_SECRET"] },
+  { region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
 
@@ -1071,7 +1078,7 @@ async function processPayoutForEventId(eventId) {
 }
 
 exports.processCashfreePayout = onCall(
-  { region: REGION, secrets: ["CASHFREE_PAYOUT_CLIENT_ID", "CASHFREE_PAYOUT_CLIENT_SECRET"] },
+  { region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
     return await processPayoutForEventId(request.data.eventId);
@@ -1345,7 +1352,7 @@ exports.processAutomaticPayouts = onSchedule("every 4 hours", async (event) => {
  * Cancels an event, refunds all confirmed bookings via Razorpay, and sends notification emails.
  */
 exports.cancelEventAndRefund = onCall(
-  { region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] },
+  { region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
     
@@ -1383,7 +1390,7 @@ exports.cancelEventAndRefund = onCall(
       }
     }
     
-    const razorpay = getRazorpay()?.instance; 
+    const razorpay = getRazorpay();
     const transporter = getTransporter();
     
     // Get all confirmed bookings
@@ -1414,10 +1421,11 @@ exports.cancelEventAndRefund = onCall(
           if (userDoc.exists && userDoc.data().email && transporter) {
             const attendeeName = userDoc.data().displayName || "there";
             const attendeeEmail = userDoc.data().email;
-            const refundBody = `
-              <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
-              <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">The event "${eventData.title}" has been cancelled by the host.\n\nA full refund of ₹${bData.totalAmount} has been initiated and will reflect in your original payment method in 5-7 business days.</p>
-            `;
+            // After
+const refundBody = `
+  <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+  <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 10% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
+`;
             await transporter.sendMail({
               from: `"TheyDi" <${process.env.GMAIL_USER}>`,
               to: attendeeEmail,
@@ -1479,15 +1487,14 @@ exports.cancelEventAndRefund = onCall(
  * Processes a refund when a new document is created in the refunds collection.
  * This happens when an attendee leaves a paid event.
  */
-exports.processRefund = onDocumentCreated(
-  { document: "refunds/{refundId}", region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (event) => {
+exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", region: REGION }, async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
 
   const refundData = snapshot.data();
   if (refundData.status !== "pending") return;
 
-  const razorpay = getRazorpay()?.instance;
+  const razorpay = getRazorpay();
   const transporter = getTransporter();
 
   try {
@@ -1538,10 +1545,11 @@ exports.processRefund = onDocumentCreated(
       const eventDoc = await db.collection("events").doc(refundData.eventId).get();
       const eventTitle = eventDoc.exists ? eventDoc.data().title : "the event";
       
-      const refundBody = `
-        <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
-        <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 5% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
-      `;
+      // After
+const refundBody = `
+  <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
+  <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">You have successfully left "${eventTitle}".\n\nA partial refund of ₹${refundData.refundAmount} (after a 10% cancellation fee) has been initiated and will reflect in your original payment method in 5-7 business days.</p>
+`;
       await transporter.sendMail({
         from: `"TheyDi" <${process.env.GMAIL_USER}>`,
         to: attendeeEmail,
@@ -1625,3 +1633,4 @@ exports.sendPushOnNotification = onDocumentCreated(
     }
   }
 );
+

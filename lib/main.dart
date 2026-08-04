@@ -45,6 +45,7 @@ void main() async {
   GoRouter.optionURLReflectsImperativeAPIs = true;
 
   await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: "app_config.env");
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

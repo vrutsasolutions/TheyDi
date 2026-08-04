@@ -10,7 +10,6 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 
 import '../../../core/utils/app_error_utils.dart';
-// import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 
 
 class PersonalDetailsScreen extends StatefulWidget {

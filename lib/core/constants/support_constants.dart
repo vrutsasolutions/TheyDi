@@ -20,7 +20,7 @@ class SupportConstants {
     {
       'q': 'How do payments work?',
       'a':
-          'For paid events, you\'ll see a checkout screen with the event price plus a 5% platform fee. We support UPI, credit/debit cards, and net banking. All transactions are secured.',
+          'For paid events, you\'ll see a checkout screen with the event price plus a 10% platform fee. We support UPI, credit/debit cards, and net banking. All transactions are secured.',
     },
     {
       'q': 'How do I edit my profile?',

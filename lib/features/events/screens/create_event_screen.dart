@@ -286,11 +286,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   // ── Reverse geocode after pin drag ──────────────────────────────────────────
   Future<void> _reverseGeocode(double lat, double lng) async {
     try {
-      const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
-
+      var apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
       if (apiKey.isEmpty) {
-        debugPrint('Reverse geocode skipped: GOOGLE_MAPS_API_KEY not set');
-        return;
+        apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
       }
 
       final url = 'https://maps.googleapis.com/maps/api/geocode/json'
@@ -695,7 +693,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
   }
 
-  Future<void> _handleCreateEvent() async {
+ Future<void> _handleCreateEvent() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (uid.isEmpty) return;
 
@@ -774,17 +772,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       if (!mounted) return;
       final nowVerified = await FaceVerificationService.isUserVerified(uid);
       if (nowVerified && mounted) {
-        final payoutReady = await _ensurePayoutSetup(uid);
-        if (payoutReady && mounted) {
+        if (_isFree) {
           _submit();
+        } else {
+          final payoutReady = await _ensurePayoutSetup(uid);
+          if (payoutReady && mounted) {
+            _submit();
+          }
         }
       }
       return;
     }
 
-    final payoutReady = await _ensurePayoutSetup(uid);
-    if (!payoutReady || !mounted) return;
-    _submit();
+    if (_isFree) {
+      _submit();
+    } else {
+      final payoutReady = await _ensurePayoutSetup(uid);
+      if (!payoutReady || !mounted) return;
+      _submit();
+    }
   }
 
   Future<bool> _ensurePayoutSetup(String uid) async {
@@ -2505,6 +2511,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 }
 
 // ── Map zoom button ───────────────────────────────────────────────────────────
+// ignore: unused_element
 class _MapButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;

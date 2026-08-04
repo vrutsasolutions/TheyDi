@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
-import 'package:razorpay_web/razorpay_web.dart';
+import '../../../core/services/razorpay_service.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/constants/payment_constants.dart';
@@ -34,7 +34,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  late Razorpay _razorpay;
+  late RazorpayService _razorpay;
 
   bool _isProcessing = false;
   bool _paymentFailed = false;
@@ -62,10 +62,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _razorpay = RazorpayService();
+    _razorpay.init(
+      onSuccess: _handlePaymentSuccess,
+      onError: _handlePaymentError,
+      onExternalWallet: _handleExternalWallet,
+    );
   }
 
   @override
@@ -99,6 +101,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    // Keep button in loading state during verifyPayment server call
+    if (mounted) setState(() => _isProcessing = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
       String userName = user.displayName ?? user.email!.split('@').first;
@@ -284,6 +288,17 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       }
 
       print('--- Starting payment process ---');
+      var keyId = const String.fromEnvironment('RAZORPAY_KEY_ID');
+      if (keyId.isEmpty) {
+        keyId = dotenv.env['RAZORPAY_KEY_ID'] ?? '';
+      }
+      print('Razorpay Key ID loaded: ${keyId.isNotEmpty}');
+
+      if (keyId.isEmpty) {
+        throw Exception(
+            'Razorpay Key ID not found (neither in environment nor in .env)');
+      }
+
       final amountInPaise = (_totalAmount * 100).toInt();
       final user = FirebaseAuth.instance.currentUser!;
       print(
@@ -311,11 +326,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       print('Order created successfully. Response: ${response.data}');
 
       final orderId = response.data['orderId'];
-      final keyId = response.data['keyId'];
-
-      if (keyId == null) {
-        throw Exception('Razorpay Key ID missing from server response');
-      }
 
       var options = {
         'key': keyId,
@@ -323,12 +333,18 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         'order_id': orderId,
         'name': 'TheyDi',
         'description': widget.event.title,
-        'image': 'https://theydi-cefdf.web.app/assets/assets/images/theydi_logo.png',
+        'image':
+            'https://theydi-cefdf.web.app/assets/assets/images/theydi_logo.png',
         'prefill': {'contact': '', 'email': user.email ?? ''},
       };
 
       print('Opening Razorpay UI...');
-      _razorpay.open(options);
+      // context is passed through so this also works if Windows/Linux/macOS
+      // targets are ever added (razorpay_web requires it there); it's ignored
+      // on Android/iOS/Web.
+      _razorpay.open(options, context: context);
+      // _isProcessing stays true — button remains loading while Razorpay modal is active.
+      // Callbacks (_handlePaymentSuccess / _handlePaymentError) manage state from here.
     } catch (e, stackTrace) {
       print('--- PAYMENT LAUNCH ERROR ---');
       print('Error: $e');
@@ -563,7 +579,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                           _priceRow('Event ticket',
                               '₹${_eventPrice.toStringAsFixed(0)}'),
                           const SizedBox(height: 10),
-                          _priceRow('Platform fee (5%)',
+                          _priceRow('Platform fee (10%)',
                               '₹${_platformFee.toStringAsFixed(0)}'),
                           const SizedBox(height: 12),
                           Container(height: 1, color: TheyDiColors.divider),
