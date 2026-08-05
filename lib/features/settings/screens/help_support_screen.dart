@@ -21,7 +21,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Future<void> _launchEmail() async {
     final uri = Uri(
       scheme: 'mailto',
-      path: 'support@theydi.app',
+      path: 'contact@vrutsasolutions.com',
       query: 'subject=TheyDi Support Request',
     );
     if (await canLaunchUrl(uri)) {
@@ -88,7 +88,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                           child: _ContactCard(
                             icon: Icons.email_outlined,
                             label: 'Email',
-                            subtitle: 'support@theydi.app',
+                            subtitle: 'contact@vrutsasolutions.com',
                             onTap: _launchEmail,
                           ),
                         ),
