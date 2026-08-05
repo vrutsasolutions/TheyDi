@@ -8,7 +8,8 @@ class WebCameraCaptureScreen extends StatefulWidget {
   const WebCameraCaptureScreen({super.key});
 
   @override
-  State<WebCameraCaptureScreen> createState() => _WebCameraCaptureScreenState();
+  State<WebCameraCaptureScreen> createState() =>
+      _WebCameraCaptureScreenState();
 }
 
 class _WebCameraCaptureScreenState extends State<WebCameraCaptureScreen> {
@@ -50,7 +51,7 @@ class _WebCameraCaptureScreenState extends State<WebCameraCaptureScreen> {
     final previous = _controller;
     final controller = CameraController(
       _cameras[index],
-      ResolutionPreset.low, // try this instead of .high
+      ResolutionPreset.high,
       enableAudio: false,
     );
     try {
@@ -121,8 +122,8 @@ class _WebCameraCaptureScreenState extends State<WebCameraCaptureScreen> {
         actions: [
           if (_cameras.length > 1)
             IconButton(
-              icon:
-                  const Icon(Icons.cameraswitch_outlined, color: Colors.white),
+              icon: const Icon(Icons.cameraswitch_outlined,
+                  color: Colors.white),
               onPressed: _loading ? null : _switchCamera,
             ),
         ],
@@ -209,4 +210,4 @@ class _WebCameraCaptureScreenState extends State<WebCameraCaptureScreen> {
       ],
     );
   }
-}
+}   
