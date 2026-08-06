@@ -1,30 +1,28 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/services/notification_service.dart';
 
-// ── Firebase Auth Instance ──
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
   return FirebaseAuth.instance;
 });
 
-// ── Auth State Stream ──
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(firebaseAuthProvider).authStateChanges();
 });
 
-// ── Auth Notifier ──
 class AuthNotifier extends AsyncNotifier<User?> {
   static const _keepSignedInKey = 'keep_me_signed_in';
+  static const _secureStorage = FlutterSecureStorage();
   FirebaseAuth get _auth => ref.read(firebaseAuthProvider);
 
   @override
   Future<User?> build() async {
-    final prefs = await SharedPreferences.getInstance();
-    final keepSignedIn = prefs.getBool(_keepSignedInKey) ?? true;
+    final keepSignedInStr = await _secureStorage.read(key: _keepSignedInKey);
+    final keepSignedIn = keepSignedInStr != 'false';
 
     if (!keepSignedIn && _auth.currentUser != null) {
       await NotificationService.setOnlineStatus(false);
@@ -32,7 +30,6 @@ class AuthNotifier extends AsyncNotifier<User?> {
       return null;
     }
 
-    // start listening to auth state changes and update state
     _auth.authStateChanges().listen((user) {
       state = AsyncData(user);
     });
@@ -48,8 +45,10 @@ class AuthNotifier extends AsyncNotifier<User?> {
   }) async {
     state = const AsyncLoading();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keepSignedInKey, keepMeSignedIn);
+      await _secureStorage.write(
+        key: _keepSignedInKey,
+        value: keepMeSignedIn.toString(),
+      );
 
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -57,7 +56,6 @@ class AuthNotifier extends AsyncNotifier<User?> {
       );
       await credential.user?.updateDisplayName(displayName);
 
-      // Save to Firestore
       if (credential.user != null) {
         await userService.createUserProfile(
           uid: credential.user!.uid,
@@ -79,8 +77,10 @@ class AuthNotifier extends AsyncNotifier<User?> {
   }) async {
     state = const AsyncLoading();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keepSignedInKey, keepMeSignedIn);
+      await _secureStorage.write(
+        key: _keepSignedInKey,
+        value: keepMeSignedIn.toString(),
+      );
 
       await _auth.signInWithEmailAndPassword(
         email: email,
@@ -92,17 +92,15 @@ class AuthNotifier extends AsyncNotifier<User?> {
     }
   }
 
-Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle() async {
     state = const AsyncLoading();
     try {
       final UserCredential userCredential;
 
       if (kIsWeb) {
-        // WEB: Sign in with a popup
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
-        // ANDROID / IOS: Use GoogleSignIn plugin
         await GoogleSignIn.instance.initialize(
           serverClientId:
               '703233514575-mgfa7e8q2qpusf9pqu275rhqt8s8bi65.apps.googleusercontent.com',
@@ -117,7 +115,6 @@ Future<void> signInWithGoogle() async {
 
         userCredential = await _auth.signInWithCredential(credential);
       }
-      
 
       final User? user = userCredential.user;
 
@@ -153,13 +150,11 @@ Future<void> signInWithGoogle() async {
   }
 
   Future<void> signOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keepSignedInKey, false);
+    await _secureStorage.write(key: _keepSignedInKey, value: 'false');
     await NotificationService.setOnlineStatus(false);
     await _auth.signOut();
   }
 }
 
-// ── Providers ──
 final authNotifierProvider =
     AsyncNotifierProvider<AuthNotifier, User?>(AuthNotifier.new);

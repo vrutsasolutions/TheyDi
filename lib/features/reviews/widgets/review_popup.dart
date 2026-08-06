@@ -140,45 +140,48 @@ class _ReviewPopupState extends State<ReviewPopup> {
           const SizedBox(height: 12),
 
           // ── Stars ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              final starValue = index + 1.0;
-              final isFilled = starValue <=
-                  (_hoveredStar > 0 ? _hoveredStar : _selectedStar);
-              return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedStar = starValue);
-                  // Short delay then open full review screen
-                  Future.delayed(
-                      const Duration(milliseconds: 300), _goToFullReview);
-                },
-                child: MouseRegion(
-                  onEnter: (_) => setState(() => _hoveredStar = starValue),
-                  onExit: (_) => setState(() => _hoveredStar = 0),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      isFilled
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      color: isFilled ? Colors.amber : TheyDiColors.textMuted,
-                      size: 52,
-                    )
-                        .animate(
-                            target: isFilled ? 1 : 0,
-                            delay: Duration(milliseconds: 200 + index * 40))
-                        .scale(
-                          begin: const Offset(0.8, 0.8),
-                          end: const Offset(1, 1),
-                          duration: 200.ms,
-                        ),
+          // ── Stars ──
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                final starValue = index + 1.0;
+                final isFilled = starValue <=
+                    (_hoveredStar > 0 ? _hoveredStar : _selectedStar);
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedStar = starValue);
+                    // Short delay then open full review screen
+                    Future.delayed(
+                        const Duration(milliseconds: 300), _goToFullReview);
+                  },
+                  child: MouseRegion(
+                    onEnter: (_) => setState(() => _hoveredStar = starValue),
+                    onExit: (_) => setState(() => _hoveredStar = 0),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        isFilled
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        color: isFilled ? Colors.amber : TheyDiColors.textMuted,
+                        size: 52,
+                      )
+                          .animate(
+                              target: isFilled ? 1 : 0,
+                              delay: Duration(milliseconds: 200 + index * 40))
+                          .scale(
+                            begin: const Offset(0.8, 0.8),
+                            end: const Offset(1, 1),
+                            duration: 200.ms,
+                          ),
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
-
           const SizedBox(height: 24),
 
           // ── CTA: Write Review ──

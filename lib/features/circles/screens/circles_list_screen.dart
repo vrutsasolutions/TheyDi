@@ -219,29 +219,32 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                     const Tab(text: 'Circles'),
                     if (!widget.isSelectionMode)
                       Tab(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('Requests'),
-                            if (pendingCount > 0) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 18,
-                                height: 18,
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Requests'),
+                              if (pendingCount > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text('$pendingCount',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700)),
+                                  ),
                                 ),
-                                child: Center(
-                                  child: Text('$pendingCount',
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700)),
-                                ),
-                              ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                   ],
