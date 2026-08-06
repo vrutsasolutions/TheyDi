@@ -7,6 +7,46 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:703233514575:android:1dac088c4a5adc3acf1e3a",
+        "android_client_info": {
+          "package_name": "com.theydi.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "703233514575-roblf76h5abm0foaimlhig24ntf45jh2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.theydi.app",
+            "certificate_hash": "e21da151f86c7c58fa9489f8fe788187d9909c16"
+          }
+        },
+        {
+          "client_id": "703233514575-mgfa7e8q2qpusf9pqu275rhqt8s8bi65.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfkQtMjjtpWHVBRyumYSfTVzXuJgBMoO8"
+        },
+        {
+          "current_key": "AIzaSyBtW2DKWm0p4iNlaJUPZSSbX5_ISaYaPiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "703233514575-mgfa7e8q2qpusf9pqu275rhqt8s8bi65.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:703233514575:android:1cd925f3dc51bebccf1e3a",
         "android_client_info": {
           "package_name": "com.theydi.theydi"
@@ -35,6 +75,9 @@
         }
       ],
       "api_key": [
+        {
+          "current_key": "AIzaSyAfkQtMjjtpWHVBRyumYSfTVzXuJgBMoO8"
+        },
         {
           "current_key": "AIzaSyBtW2DKWm0p4iNlaJUPZSSbX5_ISaYaPiU"
         }

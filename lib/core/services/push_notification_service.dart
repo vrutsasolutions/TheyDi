@@ -7,167 +7,90 @@ import 'package:flutter/foundation.dart';
 class PushNotificationService {
   static final _messaging = FirebaseMessaging.instance;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
+  static bool _listenersRegistered = false;   // ADD THIS
 
   static Future<void> initialize() async {
-    // Push is Android-only. In particular, do not call Firebase Messaging on
-    // web: it attempts to register a firebase-messaging-sw.js service worker.
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
 
     print('FCM DEBUG 0: PushNotificationService.initialize() called');
 
     try {
-      // ------------------------------------------------------------
-      // 1. Request notification permission
-      // ------------------------------------------------------------
-      print('FCM DEBUG 1: Requesting notification permission...');
-
       final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
+      print('FCM DEBUG 2: Permission status = ${settings.authorizationStatus}');
 
-      print(
-        'FCM DEBUG 2: Permission status = '
-            '${settings.authorizationStatus}',
-      );
-
-      // ------------------------------------------------------------
-      // 2. Initialize local notifications
-      // ------------------------------------------------------------
-      print('FCM DEBUG 3: Initializing local notifications...');
-
-      const androidInit =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-      const initSettings = InitializationSettings(
-        android: androidInit,
-      );
-
-      await _localNotifications.initialize(
-  settings: initSettings,
-);
-
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initSettings = InitializationSettings(android: androidInit);
+      await _localNotifications.initialize(settings: initSettings);
       print('FCM DEBUG 4: Local notifications initialized');
 
-      // ------------------------------------------------------------
-      // 3. Create Android notification channel
-      // ------------------------------------------------------------
       const channel = AndroidNotificationChannel(
         'high_importance_channel',
         'High Importance Notifications',
         description: 'High importance notifications for TheyDi',
         importance: Importance.high,
       );
-
       await _localNotifications
-          .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
-
       print('FCM DEBUG 5: Notification channel created');
 
-      // ------------------------------------------------------------
-      // 4. Get and save FCM token
-      // ------------------------------------------------------------
       print('FCM DEBUG 6: About to save FCM token...');
-
       await saveTokenToFirestore();
-
       print('FCM DEBUG 7: saveTokenToFirestore() completed');
 
-      // ------------------------------------------------------------
-      // 5. Listen for token refresh
-      // ------------------------------------------------------------
-      _messaging.onTokenRefresh.listen(
-            (newToken) async {
-          print('FCM DEBUG 8: FCM token refreshed');
-          print('FCM DEBUG 9: Saving refreshed token...');
+      // ── Only register listeners ONCE, ever ──
+      if (!_listenersRegistered) {
+        _listenersRegistered = true;
 
-          await saveTokenToFirestore();
+        _messaging.onTokenRefresh.listen(
+          (newToken) async {
+            print('FCM DEBUG 8: FCM token refreshed');
+            await saveTokenToFirestore();
+            print('FCM DEBUG 10: Refreshed token saved');
+          },
+          onError: (error) => print('FCM DEBUG ERROR: Token refresh error = $error'),
+        );
 
-          print('FCM DEBUG 10: Refreshed token saved');
-        },
-        onError: (error) {
-          print('FCM DEBUG ERROR: Token refresh error = $error');
-        },
-      );
-
-      // ------------------------------------------------------------
-      // 6. Foreground notifications
-      // ------------------------------------------------------------
-      FirebaseMessaging.onMessage.listen(
-            (RemoteMessage message) async {
-          print('FCM DEBUG 11: Foreground FCM message received');
-
-          print('FCM DEBUG 12: Message ID = ${message.messageId}');
-          print('FCM DEBUG 13: Message data = ${message.data}');
-
-          final notification = message.notification;
-
-          if (notification == null) {
-            print(
-              'FCM DEBUG 14: Message has no notification payload',
+        FirebaseMessaging.onMessage.listen(
+          (RemoteMessage message) async {
+            print('FCM DEBUG 11: Foreground FCM message received');
+            final notification = message.notification;
+            if (notification == null) {
+              print('FCM DEBUG 14: Message has no notification payload');
+              return;
+            }
+            await _localNotifications.show(
+              id: notification.hashCode,
+              title: notification.title,
+              body: notification.body,
+              notificationDetails: const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'high_importance_channel',
+                  'High Importance Notifications',
+                  channelDescription: 'High importance notifications for TheyDi',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                  icon: '@mipmap/ic_launcher',
+                ),
+              ),
             );
-            return;
-          }
+            print('FCM DEBUG 17: Foreground local notification displayed');
+          },
+          onError: (error) => print('FCM DEBUG ERROR: onMessage error = $error'),
+        );
 
-          print(
-            'FCM DEBUG 15: Notification title = '
-                '${notification.title}',
-          );
-
-          print(
-            'FCM DEBUG 16: Notification body = '
-                '${notification.body}',
-          );
-
-          await _localNotifications.show(
-  id: notification.hashCode,
-  title: notification.title,
-  body: notification.body,
-  notificationDetails: const NotificationDetails(
-    android: AndroidNotificationDetails(
-      'high_importance_channel',
-      'High Importance Notifications',
-      channelDescription: 'High importance notifications for TheyDi',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    ),
-  ),
-);
-
-          print(
-            'FCM DEBUG 17: Foreground local notification displayed',
-          );
-        },
-        onError: (error) {
-          print('FCM DEBUG ERROR: onMessage error = $error');
-        },
-      );
-
-      // ------------------------------------------------------------
-      // 7. Notification opened while app was in background
-      // ------------------------------------------------------------
-      FirebaseMessaging.onMessageOpenedApp.listen(
-            (RemoteMessage message) {
-          print(
-            'FCM DEBUG 18: Notification opened from background',
-          );
-
-          print(
-            'FCM DEBUG 19: Message data = ${message.data}',
-          );
-
-          _handleMessageNavigation(message);
-        },
-        onError: (error) {
-          print(
-            'FCM DEBUG ERROR: onMessageOpenedApp error = $error',
-          );
-        },
-      );
+        FirebaseMessaging.onMessageOpenedApp.listen(
+          (RemoteMessage message) {
+            print('FCM DEBUG 18: Notification opened from background');
+            _handleMessageNavigation(message);
+          },
+          onError: (error) => print('FCM DEBUG ERROR: onMessageOpenedApp error = $error'),
+        );
+      }
 
       print('FCM DEBUG 20: PushNotificationService initialized');
     } catch (e, stackTrace) {
@@ -176,6 +99,7 @@ class PushNotificationService {
       print('FCM DEBUG STACK: $stackTrace');
     }
   }
+  
 
   /// Handles the case where the app was fully closed and the user
   /// tapped a notification to open it.

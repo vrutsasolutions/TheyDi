@@ -92,7 +92,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+Future<void> signInWithGoogle() async {
     state = const AsyncLoading();
     try {
       final UserCredential userCredential;
@@ -103,6 +103,10 @@ class AuthNotifier extends AsyncNotifier<User?> {
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
         // ANDROID / IOS: Use GoogleSignIn plugin
+        await GoogleSignIn.instance.initialize(
+          serverClientId:
+              '703233514575-mgfa7e8q2qpusf9pqu275rhqt8s8bi65.apps.googleusercontent.com',
+        );
         final GoogleSignInAccount googleUser =
             await GoogleSignIn.instance.authenticate();
         final GoogleSignInAuthentication googleAuth = googleUser.authentication;
@@ -113,6 +117,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
 
         userCredential = await _auth.signInWithCredential(credential);
       }
+      
 
       final User? user = userCredential.user;
 

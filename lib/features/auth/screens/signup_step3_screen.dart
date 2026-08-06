@@ -13,6 +13,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../shared/screens/image_cropper_screen.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../shared/screens/web_camera_capture_screen.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -218,16 +220,32 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: source,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      );
-      if (picked == null) return;
+      Uint8List initialBytes;
 
-      final initialBytes = await picked.readAsBytes();
+      if (kIsWeb && source == ImageSource.camera) {
+        // Desktop/web browsers don't support ImageSource.camera properly —
+        // use a live preview via the camera package instead.
+        if (!mounted) return;
+        final capturedBytes = await Navigator.push<Uint8List>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const WebCameraCaptureScreen(),
+          ),
+        );
+        if (capturedBytes == null) return; // user cancelled
+        initialBytes = capturedBytes;
+      } else {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(
+          source: source,
+          maxWidth: 512,
+          maxHeight: 512,
+          imageQuality: 85,
+        );
+        if (picked == null) return;
+        initialBytes = await picked.readAsBytes();
+      }
+
       if (!mounted) return;
       final bytes = await Navigator.push<Uint8List>(
         context,
