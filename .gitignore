@@ -50,3 +50,5 @@ app.*.map.json
 .env.local
 app_config.env
 functions/serviceAccountKey.json
+android/key.properties
+*.jks
