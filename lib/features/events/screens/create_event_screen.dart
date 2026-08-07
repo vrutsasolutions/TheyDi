@@ -497,7 +497,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     } catch (_) {}
   }
 
-  bool get _isAdultParty => _selectedCategory == 'Adult Party';
+
 
   // ── Date picker (FIXED) ───────────────────────────────────────────────────
   Future<void> _pickDate() async {
@@ -668,12 +668,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   void _onCategoryChanged(String? cat) {
-    setState(() {
-      _selectedCategory = cat;
-      if (cat == 'Party' || cat == 'Adult Party') _eventType = 'Indoor';
-      if (cat == 'Adult Party') _ageGroup = 'Young Adults (18–25)';
-    });
-  }
+  setState(() {
+    _selectedCategory = cat;
+    if (cat == 'Party') _eventType = 'Indoor';
+  });
+}
 
   void _updateGenderRatio() {
     _otherPercent = (100 - _malePercent - _femalePercent).clamp(0, 100);
@@ -829,16 +828,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       return;
     }
 
-    if (_selectedCategory == 'Adult Party') {
-      if (_eventType == 'Outdoor') {
-        _showError('Adult Party events must be Indoor');
-        return;
-      }
-      if (!EventConstants.adultAgeGroups.contains(_ageGroup)) {
-        _showError('Adult Party requires an 18+ age group');
-        return;
-      }
-    }
+
 
     setState(() => _isLoading = true);
     try {
@@ -924,7 +914,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               }
             : null,
         'ageGroup': _ageGroup,
-        'minAge': _isAdultParty ? 18 : 0,
+        'minAge': 0,
         'approvalType': _approvalType,
         'amenities': _selectedAmenities.toList(),
         'endTime': Timestamp.fromDate(dateTime
@@ -1298,69 +1288,51 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                      // ── Category ──
-                      const _Label('Category'),
-                      const SizedBox(height: 8),
-                      _DropdownField<String>(
-                              hint: 'Select category',
-                              value: _selectedCategory,
-                              items: EventConstants.eventCategories
-                                  .where((c) =>
-                                      c != 'Adult Party' || _userAge >= 18)
-                                  .map((c) => DropdownMenuItem(
-                                      value: c,
-                                      child: Row(children: [
-                                        Text(c,
-                                            style: TheyDiTextStyles.bodyMedium),
-                                        if (c == 'Adult Party') ...[
-                                          const SizedBox(width: 6),
-                                          Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                  color: Colors.red
-                                                      .withValues(alpha: 0.15),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6)),
-                                              child: Text('🔞 18+',
-                                                  style: TheyDiTextStyles
-                                                      .caption
-                                                      .copyWith(
-                                                          color: Colors.red,
-                                                          fontSize: 10,
-                                                          fontWeight: FontWeight
-                                                              .w600))),
-                                        ],
-                                      ])))
-                                  .toList(),
-                              onChanged: _onCategoryChanged,
-                              icon: Icons.category_outlined)
-                          .animate(delay: 100.ms)
-                          .fade(duration: 300.ms),
+                     // ── Category ──
+const _Label('Category'),
+const SizedBox(height: 8),
+_DropdownField<String>(
+  hint: 'Select category',
+  value: _selectedCategory,
+  items: EventConstants.eventCategories
+      .map(
+        (c) => DropdownMenuItem(
+          value: c,
+          child: Text(
+            c,
+            style: TheyDiTextStyles.bodyMedium,
+          ),
+        ),
+      )
+      .toList(),
+  onChanged: _onCategoryChanged,
+  icon: Icons.category_outlined,
+)
+    .animate(delay: 100.ms)
+    .fade(duration: 300.ms),
 
-                      const SizedBox(height: 16),
+const SizedBox(height: 16),
 
                       // ── Event Type ──
                       const _Label('Event Type'),
-                      const SizedBox(height: 8),
-                      Row(children: [
-                        _PillButton(
-                            label: 'Indoor',
-                            icon: Icons.home_outlined,
-                            isSelected: _eventType == 'Indoor',
-                            onTap: () => setState(() => _eventType = 'Indoor')),
-                        const SizedBox(width: 10),
-                        _PillButton(
-                            label: 'Outdoor',
-                            icon: Icons.park_outlined,
-                            isSelected: _eventType == 'Outdoor',
-                            onTap: _isAdultParty
-                                ? null
-                                : () => setState(() => _eventType = 'Outdoor'),
-                            disabled: _isAdultParty),
-                      ]).animate(delay: 110.ms).fade(duration: 300.ms),
+const SizedBox(height: 8),
+Row(
+  children: [
+    _PillButton(
+      label: 'Indoor',
+      icon: Icons.home_outlined,
+      isSelected: _eventType == 'Indoor',
+      onTap: () => setState(() => _eventType = 'Indoor'),
+    ),
+    const SizedBox(width: 10),
+    _PillButton(
+      label: 'Outdoor',
+      icon: Icons.park_outlined,
+      isSelected: _eventType == 'Outdoor',
+      onTap: () => setState(() => _eventType = 'Outdoor'),
+    ),
+  ],
+).animate(delay: 110.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
@@ -2011,29 +1983,30 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                      // ── Age Group ──
-                      const _Label('Age Group'),
-                      const SizedBox(height: 8),
-                      _DropdownField<String>(
-                              hint: 'Select age group',
-                              value: _ageGroup,
-                              items: (_isAdultParty
-                                      ? EventConstants.adultAgeGroups
-                                      : _kAgeGroups)
-                                  .map((a) => DropdownMenuItem(
-                                      value: a,
-                                      child: Text(a,
-                                          style: TheyDiTextStyles.bodyMedium)))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _ageGroup = v ??
-                                  (_isAdultParty
-                                      ? 'Young Adults (18–25)'
-                                      : 'All Ages')),
-                              icon: Icons.people_alt_outlined)
-                          .animate(delay: 205.ms)
-                          .fade(duration: 300.ms),
+                   // ── Age Group ──
+const _Label('Age Group'),
+const SizedBox(height: 8),
+_DropdownField<String>(
+  hint: 'Select age group',
+  value: _ageGroup,
+  items: _kAgeGroups
+      .map(
+        (a) => DropdownMenuItem(
+          value: a,
+          child: Text(
+            a,
+            style: TheyDiTextStyles.bodyMedium,
+          ),
+        ),
+      )
+      .toList(),
+  onChanged: (v) => setState(() => _ageGroup = v ?? 'All Ages'),
+  icon: Icons.people_alt_outlined,
+)
+    .animate(delay: 205.ms)
+    .fade(duration: 300.ms),
 
-                      const SizedBox(height: 16),
+const SizedBox(height: 16),
 
                       // ── Approval Type ──
                       const _Label('Approval Type'),

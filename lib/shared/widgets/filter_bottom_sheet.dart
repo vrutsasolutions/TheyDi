@@ -133,7 +133,6 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     'Workshop',
     'Party',
     'Social',
-    'Adult Party',
     'Other',
   ];
 

@@ -14,7 +14,6 @@ class EventConstants {
     'Workshop',
     'Party',
     'Social',
-    'Adult Party',
     'Other',
   ];
 
@@ -39,7 +38,7 @@ class EventConstants {
     'Workshop',
     'Party',
     'Social',
-    'Adult Party',
+
     'Other',
   ];
 

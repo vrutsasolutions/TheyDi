@@ -47,7 +47,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   bool _hostVerified = false;
   bool _extraLoaded = false;
   int _userAge = 99; // current user's age
-  int _minAge = 0; // event min age (18 for Adult Party)
+  int _minAge = 0; // event min age (18)
 
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
@@ -285,36 +285,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   Future<void> _joinEvent(String uid) async {
-    // 18+ check for Adult Party
-    if (_event.category == 'Adult Party' || _minAge >= 18) {
-      if (_userAge < 18) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  '🔞 This event is for 18+ only. You must be 18 or older to join.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-      // DOB not set
-      if (_userAge == 99) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  '🔞 Please update your date of birth in your profile to join this 18+ event.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-    }
+
+
     setState(() => _isProcessing = true);
     try {
       final eventRef =
@@ -746,11 +718,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             icon: _eventType == 'Indoor'
                                 ? Icons.home_outlined
                                 : Icons.park_outlined),
-                      if (_event.category == 'Adult Party' || _minAge >= 18)
-                        _TagPill(
-                            label: '🔞 18+ Only',
-                            icon: Icons.no_adult_content,
-                            color: Colors.red),
+
                     ]).animate().fade(duration: 300.ms),
 
                     const SizedBox(height: 16),
