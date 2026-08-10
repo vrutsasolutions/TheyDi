@@ -116,6 +116,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
         markerId: MarkerId(event.id),
         position: LatLng(event.latitude, event.longitude),
         icon: icon,
+        anchor: const Offset(0.5, 0.9),
         consumeTapEvents: true,
         onTap: () => _onMarkerTap(event),
       ));
@@ -247,8 +248,10 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
 
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
 
-    return BitmapDescriptor.fromBytes(
+    return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
+      width: width,
+      height: height,
     );
   }
 

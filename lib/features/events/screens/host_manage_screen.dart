@@ -26,6 +26,49 @@ import '../../../core/theme/app_theme.dart';
 import '../models/event_model.dart';
 import '../../circles/models/circle_model.dart';
 
+class _UserAvatar extends StatelessWidget {
+  final String? photoUrl;
+  final String name;
+  final double size;
+  final double borderRadius;
+
+  const _UserAvatar({
+    required this.photoUrl,
+    required this.name,
+    required this.size,
+    required this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: TheyDiColors.gradientPrimary,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+      child: (photoUrl != null && photoUrl!.isNotEmpty)
+          ? Image.network(
+              photoUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Center(
+                child: Text(initial,
+                    style: TheyDiTextStyles.labelLarge
+                        .copyWith(color: Colors.white)),
+              ),
+            )
+          : Center(
+              child: Text(initial,
+                  style: TheyDiTextStyles.labelLarge
+                      .copyWith(color: Colors.white)),
+            ),
+    );
+  }
+}
+
 class HostManageScreen extends ConsumerStatefulWidget {
   final String eventId;
   const HostManageScreen({super.key, required this.eventId});
@@ -250,8 +293,6 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
     }
     if (mounted) setState(() => _isProcessing = false);
   }
-
-
 
   Future<void> _createEventCircle(EventModel event) async {
     if (_existingCircle != null) {
@@ -781,17 +822,11 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
                 child: GestureDetector(
                   onTap: widget.onViewProfile,
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                            gradient: TheyDiColors.gradientPrimary,
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Center(
-                            child: Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: TheyDiTextStyles.labelLarge
-                                    .copyWith(color: Colors.white)))),
+                    _UserAvatar(
+                        photoUrl: userData['photoUrl'] as String?,
+                        name: name,
+                        size: 44,
+                        borderRadius: 12),
                     const SizedBox(width: 12),
                     Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,19 +965,11 @@ class _AwaitingPaymentCardState extends State<_AwaitingPaymentCard> {
                 child: GestureDetector(
                     onTap: widget.onViewProfile,
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                              gradient: TheyDiColors.gradientPrimary,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Center(
-                              child: Text(
-                                  name.isNotEmpty && name != 'Loading...'
-                                      ? name[0].toUpperCase()
-                                      : '?',
-                                  style: TheyDiTextStyles.labelMedium
-                                      .copyWith(color: Colors.white)))),
+                      _UserAvatar(
+                          photoUrl: data['photoUrl'] as String?,
+                          name: name,
+                          size: 40,
+                          borderRadius: 10),
                       const SizedBox(width: 12),
                       Row(children: [
                         Text(name, style: TheyDiTextStyles.labelMedium),
@@ -1104,17 +1131,11 @@ class _AttendeeCardState extends State<_AttendeeCard> {
                 child: GestureDetector(
                     onTap: isMe ? null : widget.onViewProfile,
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                              gradient: TheyDiColors.gradientPrimary,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Center(
-                              child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                  style: TheyDiTextStyles.labelLarge
-                                      .copyWith(color: Colors.white)))),
+                      _UserAvatar(
+                          photoUrl: data['photoUrl'] as String?,
+                          name: name,
+                          size: 36,
+                          borderRadius: 10),
                       const SizedBox(width: 10),
                       Row(children: [
                         Text(name, style: TheyDiTextStyles.labelMedium),
