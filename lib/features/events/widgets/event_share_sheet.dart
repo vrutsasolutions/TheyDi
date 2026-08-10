@@ -17,7 +17,7 @@ import 'package:theydi/features/events/models/event_model.dart';
 //   showEventShareSheet(context, event: event);
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _eventShareBaseUrl = 'https://theydi-cefdf.web.app//event';
+const _eventShareBaseUrl = 'https://theydi-cefdf.web.app/event';
 
 String _eventLink(String eventId) => '$_eventShareBaseUrl/$eventId';
 

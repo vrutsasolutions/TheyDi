@@ -369,7 +369,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _venueController.text = venue.isNotEmpty ? venue : formattedAddress;
         _updatingVenueProgrammatically = false;
 
-        _additionalAddressController.text = additional;
+        if (_additionalAddressController.text.trim().isEmpty) {
+          _additionalAddressController.text = additional;
+        }
 
         String normalize(String value) {
           return value
@@ -496,8 +498,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       }
     } catch (_) {}
   }
-
-
 
   // ── Date picker (FIXED) ───────────────────────────────────────────────────
   Future<void> _pickDate() async {
@@ -668,11 +668,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   void _onCategoryChanged(String? cat) {
-  setState(() {
-    _selectedCategory = cat;
-    if (cat == 'Party') _eventType = 'Indoor';
-  });
-}
+    setState(() {
+      _selectedCategory = cat;
+      if (cat == 'Party') _eventType = 'Indoor';
+    });
+  }
 
   void _updateGenderRatio() {
     _otherPercent = (100 - _malePercent - _femalePercent).clamp(0, 100);
@@ -692,7 +692,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
   }
 
- Future<void> _handleCreateEvent() async {
+  Future<void> _handleCreateEvent() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (uid.isEmpty) return;
 
@@ -827,8 +827,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       _showError('Please wait for images to finish uploading');
       return;
     }
-
-
 
     setState(() => _isLoading = true);
     try {
@@ -1288,51 +1286,49 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
                       const SizedBox(height: 16),
 
-                     // ── Category ──
-const _Label('Category'),
-const SizedBox(height: 8),
-_DropdownField<String>(
-  hint: 'Select category',
-  value: _selectedCategory,
-  items: EventConstants.eventCategories
-      .map(
-        (c) => DropdownMenuItem(
-          value: c,
-          child: Text(
-            c,
-            style: TheyDiTextStyles.bodyMedium,
-          ),
-        ),
-      )
-      .toList(),
-  onChanged: _onCategoryChanged,
-  icon: Icons.category_outlined,
-)
-    .animate(delay: 100.ms)
-    .fade(duration: 300.ms),
+                      // ── Category ──
+                      const _Label('Category'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                        hint: 'Select category',
+                        value: _selectedCategory,
+                        items: EventConstants.eventCategories
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(
+                                  c,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _onCategoryChanged,
+                        icon: Icons.category_outlined,
+                      ).animate(delay: 100.ms).fade(duration: 300.ms),
 
-const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       // ── Event Type ──
                       const _Label('Event Type'),
-const SizedBox(height: 8),
-Row(
-  children: [
-    _PillButton(
-      label: 'Indoor',
-      icon: Icons.home_outlined,
-      isSelected: _eventType == 'Indoor',
-      onTap: () => setState(() => _eventType = 'Indoor'),
-    ),
-    const SizedBox(width: 10),
-    _PillButton(
-      label: 'Outdoor',
-      icon: Icons.park_outlined,
-      isSelected: _eventType == 'Outdoor',
-      onTap: () => setState(() => _eventType = 'Outdoor'),
-    ),
-  ],
-).animate(delay: 110.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _PillButton(
+                            label: 'Indoor',
+                            icon: Icons.home_outlined,
+                            isSelected: _eventType == 'Indoor',
+                            onTap: () => setState(() => _eventType = 'Indoor'),
+                          ),
+                          const SizedBox(width: 10),
+                          _PillButton(
+                            label: 'Outdoor',
+                            icon: Icons.park_outlined,
+                            isSelected: _eventType == 'Outdoor',
+                            onTap: () => setState(() => _eventType = 'Outdoor'),
+                          ),
+                        ],
+                      ).animate(delay: 110.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
@@ -1983,30 +1979,29 @@ Row(
 
                       const SizedBox(height: 16),
 
-                   // ── Age Group ──
-const _Label('Age Group'),
-const SizedBox(height: 8),
-_DropdownField<String>(
-  hint: 'Select age group',
-  value: _ageGroup,
-  items: _kAgeGroups
-      .map(
-        (a) => DropdownMenuItem(
-          value: a,
-          child: Text(
-            a,
-            style: TheyDiTextStyles.bodyMedium,
-          ),
-        ),
-      )
-      .toList(),
-  onChanged: (v) => setState(() => _ageGroup = v ?? 'All Ages'),
-  icon: Icons.people_alt_outlined,
-)
-    .animate(delay: 205.ms)
-    .fade(duration: 300.ms),
+                      // ── Age Group ──
+                      const _Label('Age Group'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                        hint: 'Select age group',
+                        value: _ageGroup,
+                        items: _kAgeGroups
+                            .map(
+                              (a) => DropdownMenuItem(
+                                value: a,
+                                child: Text(
+                                  a,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _ageGroup = v ?? 'All Ages'),
+                        icon: Icons.people_alt_outlined,
+                      ).animate(delay: 205.ms).fade(duration: 300.ms),
 
-const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       // ── Approval Type ──
                       const _Label('Approval Type'),
@@ -2624,8 +2619,8 @@ class _PillButton extends StatelessWidget {
       {required this.label,
       required this.icon,
       required this.isSelected,
-      required this.onTap,
-      this.disabled = false});
+      required this.onTap})
+      : disabled = false;
 
   @override
   Widget build(BuildContext context) {

@@ -24,29 +24,6 @@ class LocationConstants {
     'Vadodara',
   ];
 
-  static const List<String> editProfileCities = [
-    'Mumbai',
-    'Delhi',
-    'Bangalore',
-    'Hyderabad',
-    'Chennai',
-    'Kolkata',
-    'Pune',
-    'Ahmedabad',
-    'Jaipur',
-    'Lucknow',
-    'Surat',
-    'Kochi',
-    'Chandigarh',
-    'Indore',
-    'Coimbatore',
-    'Goa',
-    'Vizag',
-    'Nagpur',
-    'Bhopal',
-    'Thiruvananthapuram',
-  ];
-
   static const List<String> otherCities = [
     'Agra',
     'Ajmer',
@@ -127,6 +104,14 @@ class LocationConstants {
     'Warangal',
   ];
 
+  /// Full signup city list (Popular + Other cities combined).
+  /// Used by Edit Profile so every city a user could pick during
+  /// signup is also selectable when editing their profile.
+  static const List<String> editProfileCities = [
+    ...primaryCities,
+    ...otherCities,
+  ];
+
   static const Map<String, String> cityIcons = {
     'Mumbai': 'assets/city_icons/mumbai.png',
     'Delhi': 'assets/city_icons/delhi.png',
@@ -155,11 +140,14 @@ class LocationConstants {
     'Arunachal Pradesh',
     'Assam',
     'Bihar',
+    'Chandigarh',
     'Chhattisgarh',
+    'Delhi',
     'Goa',
     'Gujarat',
     'Haryana',
     'Himachal Pradesh',
+    'Jammu and Kashmir',
     'Jharkhand',
     'Karnataka',
     'Kerala',
@@ -170,6 +158,7 @@ class LocationConstants {
     'Mizoram',
     'Nagaland',
     'Odisha',
+    'Puducherry',
     'Punjab',
     'Rajasthan',
     'Sikkim',
@@ -231,6 +220,9 @@ class LocationConstants {
       'Katihar',
       'Munger',
     ],
+    'Chandigarh': [
+      'Chandigarh',
+    ],
     'Chhattisgarh': [
       'Raipur',
       'Bhilai',
@@ -243,7 +235,20 @@ class LocationConstants {
       'Rajnandgaon',
       'Mahasamund',
     ],
+    'Delhi': [
+      'Delhi',
+      'New Delhi',
+      'Dwarka',
+      'Rohini',
+      'Saket',
+      'Karol Bagh',
+      'Connaught Place',
+      'Vasant Kunj',
+      'Pitampura',
+      'Janakpuri',
+    ],
     'Goa': [
+      'Goa',
       'Panaji',
       'Margao',
       'Vasco da Gama',
@@ -291,6 +296,18 @@ class LocationConstants {
       'Kullu',
       'Chamba',
     ],
+    'Jammu and Kashmir': [
+      'Srinagar',
+      'Jammu',
+      'Anantnag',
+      'Baramulla',
+      'Sopore',
+      'Udhampur',
+      'Kathua',
+      'Poonch',
+      'Kupwara',
+      'Pulwama',
+    ],
     'Jharkhand': [
       'Ranchi',
       'Jamshedpur',
@@ -304,10 +321,14 @@ class LocationConstants {
       'Medininagar',
     ],
     'Karnataka': [
+      'Bangalore',
       'Bengaluru',
       'Mysuru',
+      'Mangalore',
       'Mangaluru',
+      'Hubli',
       'Hubballi',
+      'Belgaum',
       'Belagavi',
       'Shivamogga',
       'Davanagere',
@@ -317,6 +338,7 @@ class LocationConstants {
     ],
     'Kerala': [
       'Kochi',
+      'Ernakulam',
       'Thiruvananthapuram',
       'Kozhikode',
       'Thrissur',
@@ -350,6 +372,7 @@ class LocationConstants {
       'Solapur',
       'Amravati',
       'Navi Mumbai',
+      'Nanded',
     ],
     'Manipur': [
       'Imphal',
@@ -410,6 +433,12 @@ class LocationConstants {
       'Jharsuguda',
       'Baripada',
       'Jeypore',
+    ],
+    'Puducherry': [
+      'Puducherry',
+      'Karaikal',
+      'Mahe',
+      'Yanam',
     ],
     'Punjab': [
       'Ludhiana',
@@ -491,9 +520,13 @@ class LocationConstants {
       'Agra',
       'Varanasi',
       'Prayagraj',
+      'Allahabad',
       'Meerut',
       'Bareilly',
       'Gorakhpur',
+      'Aligarh',
+      'Jhansi',
+      'Moradabad',
     ],
     'Uttarakhand': [
       'Dehradun',

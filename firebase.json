@@ -37,6 +37,7 @@
     "ignore": [
       "firebase.json",
       "**/.*",
+      "!**/.well-known/**",
       "**/node_modules/**"
     ],
     "rewrites": [
@@ -46,35 +47,49 @@
       }
     ],
     "headers": [
-  {
-    "source": "/index.html",
-    "headers": [
-      { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-    ]
-  },
-  {
-    "source": "**",
-    "headers": [
-      { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-      { "key": "Permissions-Policy", "value": "geolocation=(self), camera=(), microphone=(self)" },
       {
-        "key": "Content-Security-Policy",
-        "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com https://cdn.jsdelivr.net https://checkout.razorpay.com https://cdn.razorpay.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' blob: https://r2-upload-service.theydi-app.workers.dev https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://www.gstatic.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://lumberjack.razorpay.com https://api.razorpay.com https://cdn.razorpay.com https://accounts.google.com https://*.r2.dev; media-src 'self' blob: https://r2-upload-service.theydi-app.workers.dev https://*.r2.dev; frame-src 'self' https://apis.google.com https://theydi-cefdf.firebaseapp.com https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com; worker-src 'self' blob:"
+        "source": "/.well-known/assetlinks.json",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*" }
+        ]
       },
-      { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
-      { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*" }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Permissions-Policy", "value": "geolocation=(self), camera=(), microphone=(self)" },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com https://cdn.jsdelivr.net https://checkout.razorpay.com https://cdn.razorpay.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' blob: https://r2-upload-service.theydi-app.workers.dev https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://www.gstatic.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://lumberjack.razorpay.com https://api.razorpay.com https://cdn.razorpay.com https://accounts.google.com https://*.r2.dev; media-src 'self' blob: https://r2-upload-service.theydi-app.workers.dev https://*.r2.dev; frame-src 'self' https://apis.google.com https://theydi-cefdf.firebaseapp.com https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com; worker-src 'self' blob:"
+          },
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
+          { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
+        ]
+      },
+      {
+        "source": "/assets/assets/images/theydi_logo.png",
+        "headers": [
+          { "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" },
+          { "key": "Access-Control-Allow-Origin", "value": "*" }
+        ]
+      }
     ]
-  },
-  {
-    "source": "/assets/assets/images/theydi_logo.png",
-    "headers": [
-      { "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" },
-      { "key": "Access-Control-Allow-Origin", "value": "*" }
-    ]
-  }
-]
   },
   "emulators": {
     "functions": {

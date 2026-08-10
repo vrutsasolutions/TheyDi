@@ -1182,7 +1182,7 @@ class _TagPill extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color? color;
-  const _TagPill({required this.label, required this.icon, this.color});
+  const _TagPill({required this.label, required this.icon}) : color = null;
   @override
   Widget build(BuildContext context) {
     final col = color ?? TheyDiColors.primary;

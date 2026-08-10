@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class WebPlacePrediction {
   final String placeId;
@@ -30,7 +31,10 @@ class PlacesWebService {
     String input, {
     String? city,
   }) async {
-    const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    var apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    if (apiKey.isEmpty) {
+      apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+    }
     if (apiKey.isEmpty || input.trim().length < 3) return [];
 
     _sessionToken ??= _newSessionToken();
@@ -66,7 +70,10 @@ class PlacesWebService {
   }
 
   static Future<WebPlaceResult?> getPlaceDetails(String placeId) async {
-    const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    var apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    if (apiKey.isEmpty) {
+      apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+    }
     if (apiKey.isEmpty) return null;
 
     try {

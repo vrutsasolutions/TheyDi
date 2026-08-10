@@ -1,13 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-   
-   <uses-permission android:name="android.permission.CAMERA"/>
-   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-   
+
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Required for GoogleMap myLocationEnabled + "Use GPS instead" flow -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <application
         android:label="theydi"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- Google Maps SDK for Android — replace with your actual key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAfkQtMjjtpWHVBRyumYSfTVzXuJgBMoO8" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,14 +39,19 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            
+
             <!-- Deep linking intent filter -->
+            <!-- Host updated to match the domain actually used by
+                 EventShareService / CircleShareService / ProfileShareService
+                 (theydi-cefdf.web.app). Requires a valid
+                 /.well-known/assetlinks.json served from that same host for
+                 android:autoVerify="true" to pass — see firebase.json. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="theydi.app" />
-                <data android:scheme="http" android:host="theydi.app" />
+                <data android:scheme="https" android:host="theydi-cefdf.web.app" />
+                <data android:scheme="http" android:host="theydi-cefdf.web.app" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
@@ -49,7 +64,10 @@
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+         Also required for canLaunchUrl()/launchUrl() to resolve WhatsApp,
+         Facebook, Twitter (all https:// links) and Instagram
+         (instagram:// scheme) in the share sheet. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
