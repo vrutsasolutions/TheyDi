@@ -512,14 +512,24 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   // ── Time picker (FIXED) ──────────────────────────────────────────────────
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-      builder: PickerTheme.wrap, // ← replaces ColorScheme.dark
-    );
-    if (picked != null) setState(() => _selectedTime = picked);
+Future<void> _pickTime() async {
+  final picked = await showTimePicker(
+    context: context,
+    initialTime: _selectedTime ?? TimeOfDay.now(),
+    builder: (context, child) {
+      return MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          alwaysUse24HourFormat: false,
+        ),
+        child: PickerTheme.wrap(context, child),
+      );
+    },
+  );
+
+  if (picked != null) {
+    setState(() => _selectedTime = picked);
   }
+}
 
   // ── Images ──────────────────────────────────────────────────────────────────
   Future<void> _pickImage(ImageSource source) async {
