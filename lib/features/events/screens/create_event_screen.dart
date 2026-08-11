@@ -1594,7 +1594,7 @@ Future<void> _pickTime() async {
                       const SizedBox(height: 16),
 
                       // ── Location Section ──
-                      const _Label('Pin Location *'),
+                      const _Label('Pin Location'),
                       const SizedBox(height: 8),
 
                       // Status bar
