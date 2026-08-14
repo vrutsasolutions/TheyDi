@@ -213,36 +213,36 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     await batch.commit();
   }
 
-  Future<void> _handleSelectedMedia(XFile file) async {
-    try {
-      final bytes = await file.readAsBytes();
+Future<void> _handleSelectedMedia(XFile file) async {
+  try {
+    final path = file.name.toLowerCase();
+    final mediaType = path.endsWith('.mp4') ||
+            path.endsWith('.mov') ||
+            path.endsWith('.avi')
+        ? 'video'
+        : 'image';
 
-      final url = await CloudflareUpload.uploadBytes(
-        bytes,
-        file.name,
-      );
-
-      if (url == null) {
-        _showSnack('Upload failed', Colors.red);
+    if (mediaType == 'video') {
+      final withinLimit = await _isVideoWithinDurationLimit(file);
+      if (!withinLimit) {
+        _showSnack('Maximum video sending limit is 2 minutes', Colors.red);
         return;
       }
-
-      final path = file.name.toLowerCase();
-
-      final mediaType = path.endsWith('.mp4') ||
-              path.endsWith('.mov') ||
-              path.endsWith('.avi')
-          ? 'video'
-          : 'image';
-
-      await _sendMessage(
-        mediaUrl: url,
-        mediaType: mediaType,
-      );
-    } catch (e) {
-      _showSnack('Failed: $e', Colors.red);
     }
+
+    final bytes = await file.readAsBytes();
+    final url = await CloudflareUpload.uploadBytes(bytes, file.name);
+
+    if (url == null) {
+      _showSnack('Upload failed', Colors.red);
+      return;
+    }
+
+    await _sendMessage(mediaUrl: url, mediaType: mediaType);
+  } catch (e) {
+    _showSnack('Failed: $e', Colors.red);
   }
+}
 
   Future<void> _sendMessage({
     String? mediaUrl,
@@ -576,7 +576,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
       } else if (action == 'video') {
         file = await picker.pickVideo(
             source: ImageSource.camera,
-            maxDuration: const Duration(minutes: 5));
+            maxDuration: const Duration(minutes: 2));
         type = 'video';
       } else if (action == 'gallery') {
         final XFile? picked = await picker.pickMedia();
@@ -640,6 +640,13 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
       }
 
       if (file != null) {
+        if (type == 'video') {
+          final withinLimit = await _isVideoWithinDurationLimit(file);
+          if (!withinLimit) {
+            _showSnack('Maximum video sending limit is 2 minutes', Colors.red);
+            return;
+          }
+        }
         _confirmAndSendMedia(file, type);
       }
     } catch (e) {
@@ -868,6 +875,25 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   bool _isSameDay(DateTime? a, DateTime? b) {
     if (a == null || b == null) return false;
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  static const int _kMaxVideoDurationSeconds = 120; // 2 minutes
+
+  Future<bool> _isVideoWithinDurationLimit(XFile file) async {
+    VideoPlayerController? controller;
+    try {
+      controller = kIsWeb
+          ? VideoPlayerController.networkUrl(Uri.parse(file.path))
+          : VideoPlayerController.file(File(file.path));
+      await controller.initialize();
+      final duration = controller.value.duration;
+      return duration.inSeconds <= _kMaxVideoDurationSeconds;
+    } catch (e) {
+      // If we can't read duration, don't block a legitimate upload.
+      return true;
+    } finally {
+      await controller?.dispose();
+    }
   }
 
   @override

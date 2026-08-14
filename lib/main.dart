@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'core/services/location_service.dart';
 
 import 'package:go_router/go_router.dart';
 import 'core/router/app_router.dart';
@@ -11,7 +12,6 @@ import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'firebase_options.dart';
-
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -50,7 +50,23 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
+// On web, Firestore tries to enable IndexedDB persistence by default.
+// Some in-app browsers (WhatsApp, Telegram, Instagram) have broken/
+// restricted IndexedDB support, which throws an unhandled
+// "Database is closing/hidden" error straight to the UI and blocks
+// login. Explicitly disable persistence on web so it never attempts
+// this — Firestore just runs in memory-only mode there, invisible
+// to the user.
+  if (kIsWeb) {
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: false,
+      );
+    } catch (e) {
+      debugPrint('Firestore settings error (non-fatal): $e');
+    }
+  }
 
   // Must be registered before runApp, so FCM can wake this handler
   // even when the app is fully terminated.
@@ -73,13 +89,11 @@ void main() async {
   // Run database mojibake migration in background
   _fixDatabaseMojibake();
   PushNotificationService.initialize().catchError((error) {
-  debugPrint('Push notification initialization failed: $error');
-});
+    debugPrint('Push notification initialization failed: $error');
+  });
 
   runApp(const ProviderScope(child: TheyDiApp()));
 }
-
-
 
 String _cleanText(String text) {
   if (text.isEmpty) return text;
@@ -214,7 +228,7 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
       if (user != null) {
         if (WidgetsBinding.instance.lifecycleState ==
-            AppLifecycleState.resumed ||
+                AppLifecycleState.resumed ||
             WidgetsBinding.instance.lifecycleState == null) {
           _updateOnlineStatus(true);
         }
@@ -226,6 +240,11 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
           print('FCM DEBUG: initialize() called');
 
           await PushNotificationService.initialize();
+
+          // First-time-only location permission request. Does
+          // nothing on subsequent logins if this user already has a
+          // latitude/longitude on file (or already declined once).
+          await LocationService.requestLocationOnce();
         } else {
           // User is already initialized.
           await PushNotificationService.saveTokenToFirestore();
@@ -251,12 +270,19 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _updateOnlineStatus(true);
+      // Refresh with a fresh GPS read rather than a stale cached
+      // one. No permission prompt here — if the OS permission was
+      // already granted, this silently updates coordinates; if it
+      // was denied, getCurrentPosition() just returns null and this
+      // is a no-op, same as it's always been.
+      LocationService.clearCache();
+      LocationService.syncLocationToFirestore();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _updateOnlineStatus(false);
     }
   }
-    
+
   void _updateOnlineStatus(bool isOnline) {
     Future.microtask(() {
       try {

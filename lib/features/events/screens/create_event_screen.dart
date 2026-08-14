@@ -26,6 +26,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/constants/event_constants.dart';
 import '../../../core/constants/location_constants.dart';
 
+
 // Looks up which state a given city belongs to. Used to keep
 // `_selectedState` in sync whenever `_selectedCity` changes, either from
 // the dropdown or from reverse-geocoding a map tap.
@@ -909,6 +910,7 @@ Future<void> _pickTime() async {
         'createdAt': FieldValue.serverTimestamp(),
         'latitude': _pinnedLat!,
         'longitude': _pinnedLng!,
+        
         'address': _pinnedAddress ?? '',
         'tags': <String>[],
         'eventType': _eventType,

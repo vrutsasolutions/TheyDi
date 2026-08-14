@@ -77,8 +77,8 @@ exports.notifyNearbyUsersAboutEvent = onDocumentCreated(
         Number(userLongitude),
       );
 
-      // Notify users within 25 km
-      if (distance <= 25) {
+      // Notify users within 20 km
+       if (distance <= 20) {
         nearbyUsers++;
 
         const notificationRef = db
@@ -88,18 +88,18 @@ exports.notifyNearbyUsersAboutEvent = onDocumentCreated(
           .doc();
 
         batch.set(notificationRef, {
-          type: "nearby_event",
-          title: "New event near you",
-          body: eventData.title
-            ? `${eventData.title} is happening near you`
-            : "A new event is happening near you",
-          message: eventData.title
-            ? `${eventData.title} is happening near you`
-            : "A new event is happening near you",
-          eventId: eventId,
-          read: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+  type: "nearby_event",
+  title: "New event near you",
+  body: eventData.title
+    ? `${eventData.title} is happening near you`
+    : "A new event is happening near you",
+  message: eventData.title
+    ? `${eventData.title} is happening near you`
+    : "A new event is happening near you",
+  eventId: eventId,
+  isRead: false,   // ← changed from "read"
+  createdAt: FieldValue.serverTimestamp(),
+});
       }
     }
 
