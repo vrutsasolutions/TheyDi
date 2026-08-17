@@ -15,11 +15,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _locationEnabled = true;
   bool _loading = true;
 
   static const _keyNotifications = 'pref_notifications_enabled';
-  static const _keyLocation = 'pref_location_enabled';
 
   @override
   void initState() {
@@ -32,7 +30,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() {
         _notificationsEnabled = prefs.getBool(_keyNotifications) ?? true;
-        _locationEnabled = prefs.getBool(_keyLocation) ?? true;
         _loading = false;
       });
     }
@@ -42,12 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyNotifications, val);
     if (mounted) setState(() => _notificationsEnabled = val);
-  }
-
-  Future<void> _setLocation(bool val) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyLocation, val);
-    if (mounted) setState(() => _locationEnabled = val);
   }
 
   @override
@@ -64,7 +55,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // ── App Bar ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                 child: Row(
@@ -92,7 +82,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // ── Permissions Section ──
                             _SectionLabel(label: 'Permissions')
                                 .animate(delay: 60.ms)
                                 .fade(duration: 300.ms),
@@ -106,17 +95,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onChanged: _setNotifications,
                             ).animate(delay: 80.ms).fade(duration: 300.ms),
 
-                            _ToggleTile(
-                              icon: Icons.location_on_outlined,
-                              label: 'Location',
-                              subtitle: 'Used for nearby event suggestions',
-                              value: _locationEnabled,
-                              onChanged: _setLocation,
-                            ).animate(delay: 100.ms).fade(duration: 300.ms),
-
                             const SizedBox(height: 24),
 
-                            // ── Host Section ──
                             _SectionLabel(label: 'Host')
                                 .animate(delay: 115.ms)
                                 .fade(duration: 300.ms),
@@ -132,7 +112,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                             const SizedBox(height: 24),
 
-                            // ── Account Section ──
                             _SectionLabel(label: 'Account')
                                 .animate(delay: 130.ms)
                                 .fade(duration: 300.ms),
@@ -156,7 +135,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                             const SizedBox(height: 24),
 
-                            // ── Support Section ──
                             _SectionLabel(label: 'Support')
                                 .animate(delay: 180.ms)
                                 .fade(duration: 300.ms),
@@ -182,7 +160,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-// ── Section Label ──────────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   final String label;
   const _SectionLabel({required this.label});
@@ -204,7 +181,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Toggle Tile ────────────────────────────────────────────────────────────────
 class _ToggleTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -246,7 +222,6 @@ class _ToggleTile extends StatelessWidget {
   }
 }
 
-// ── Settings Tile ──────────────────────────────────────────────────────────────
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String label;

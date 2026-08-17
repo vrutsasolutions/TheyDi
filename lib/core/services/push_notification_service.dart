@@ -3,11 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
+import 'package:theydi/core/router/app_router.dart'; // wherever rootNavigatorKey lives
+import 'package:theydi/core/router/app_routes.dart';
 
 class PushNotificationService {
   static final _messaging = FirebaseMessaging.instance;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
-  static bool _listenersRegistered = false;   // ADD THIS
+  static bool _listenersRegistered = false; // ADD THIS
 
   static Future<void> initialize() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
@@ -34,7 +37,8 @@ class PushNotificationService {
         importance: Importance.high,
       );
       await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
       print('FCM DEBUG 5: Notification channel created');
 
@@ -52,7 +56,8 @@ class PushNotificationService {
             await saveTokenToFirestore();
             print('FCM DEBUG 10: Refreshed token saved');
           },
-          onError: (error) => print('FCM DEBUG ERROR: Token refresh error = $error'),
+          onError: (error) =>
+              print('FCM DEBUG ERROR: Token refresh error = $error'),
         );
 
         FirebaseMessaging.onMessage.listen(
@@ -71,7 +76,8 @@ class PushNotificationService {
                 android: AndroidNotificationDetails(
                   'high_importance_channel',
                   'High Importance Notifications',
-                  channelDescription: 'High importance notifications for TheyDi',
+                  channelDescription:
+                      'High importance notifications for TheyDi',
                   importance: Importance.high,
                   priority: Priority.high,
                   icon: '@mipmap/ic_launcher',
@@ -80,7 +86,8 @@ class PushNotificationService {
             );
             print('FCM DEBUG 17: Foreground local notification displayed');
           },
-          onError: (error) => print('FCM DEBUG ERROR: onMessage error = $error'),
+          onError: (error) =>
+              print('FCM DEBUG ERROR: onMessage error = $error'),
         );
 
         FirebaseMessaging.onMessageOpenedApp.listen(
@@ -88,7 +95,8 @@ class PushNotificationService {
             print('FCM DEBUG 18: Notification opened from background');
             _handleMessageNavigation(message);
           },
-          onError: (error) => print('FCM DEBUG ERROR: onMessageOpenedApp error = $error'),
+          onError: (error) =>
+              print('FCM DEBUG ERROR: onMessageOpenedApp error = $error'),
         );
       }
 
@@ -99,7 +107,6 @@ class PushNotificationService {
       print('FCM DEBUG STACK: $stackTrace');
     }
   }
-  
 
   /// Handles the case where the app was fully closed and the user
   /// tapped a notification to open it.
@@ -118,7 +125,7 @@ class PushNotificationService {
 
         print(
           'FCM DEBUG 23: Initial message data = '
-              '${initialMessage.data}',
+          '${initialMessage.data}',
         );
 
         _handleMessageNavigation(initialMessage);
@@ -138,8 +145,8 @@ class PushNotificationService {
   }
 
   static void _handleMessageNavigation(
-      RemoteMessage message,
-      ) {
+    RemoteMessage message,
+  ) {
     print(
       'FCM DEBUG 25: Handling notification navigation',
     );
@@ -148,22 +155,44 @@ class PushNotificationService {
       'FCM DEBUG 26: Notification data = ${message.data}',
     );
 
-    // TODO:
-    //
-    // Navigate based on:
-    //
-    // message.data['type']
-    // message.data['eventId']
-    // message.data['circleId']
-    // message.data['chatId']
-    //
-    // Example:
-    //
-    // final type = message.data['type'];
-    //
-    // if (type == 'chat') {
-    //   ...
-    // }
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) {
+      print(
+          'FCM DEBUG 26a: No navigator context available yet, skipping navigation');
+      return;
+    }
+
+    final type = message.data['type'];
+
+    switch (type) {
+      case 'nearby_event':
+      case 'event':
+        final eventId = message.data['eventId'];
+        if (eventId != null && eventId.isNotEmpty) {
+          context.push('/event/$eventId');
+        }
+        break;
+
+      case 'circle':
+        final circleId = message.data['circleId'];
+        if (circleId != null && circleId.isNotEmpty) {
+          context.push('/circle/$circleId');
+        }
+        break;
+
+      case 'chat':
+        // TODO: dmChat/circleChat both require an `extra` object
+        // (CircleModel, or {otherUid, otherName}) that a bare chatId
+        // string can't supply. This needs a Firestore lookup first —
+        // e.g. fetch the chat/circle doc for `chatId`, then:
+        //   context.push(AppRoutes.dmChat, extra: {...});
+        // Not wired yet — falls through to notifications screen for now.
+        context.push(AppRoutes.notifications);
+        break;
+
+      default:
+        print('FCM DEBUG 26b: Unhandled notification type = $type');
+    }
   }
 
   /// Gets the current FCM token and saves it to the
@@ -183,7 +212,7 @@ class PushNotificationService {
 
       print(
         'FCM DEBUG 28: Firebase Auth user = '
-            '${user?.uid}',
+        '${user?.uid}',
       );
 
       if (user == null) {
@@ -227,10 +256,7 @@ class PushNotificationService {
         'FCM DEBUG 32: Saving FCM token to Firestore...',
       );
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
         {
           'fcmToken': token,
         },
@@ -243,7 +269,7 @@ class PushNotificationService {
 
       print(
         'FCM DEBUG 34: Firestore path = '
-            'users/${user.uid}',
+        'users/${user.uid}',
       );
     } catch (e, stackTrace) {
       print(
@@ -270,20 +296,20 @@ class PushNotificationService {
 /// application is running in the background/terminated state.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(
-    RemoteMessage message,
-    ) async {
+  RemoteMessage message,
+) async {
   print(
     'FCM DEBUG 35: Background FCM message received',
   );
 
   print(
     'FCM DEBUG 36: Background message ID = '
-        '${message.messageId}',
+    '${message.messageId}',
   );
 
   print(
     'FCM DEBUG 37: Background message data = '
-        '${message.data}',
+    '${message.data}',
   );
 
   // For notification payloads, Android will normally
