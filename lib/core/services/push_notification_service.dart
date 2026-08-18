@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -6,11 +8,12 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_router.dart'; // wherever rootNavigatorKey lives
 import 'package:theydi/core/router/app_routes.dart';
+import 'package:http/http.dart' as http;
 
 class PushNotificationService {
   static final _messaging = FirebaseMessaging.instance;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
-  static bool _listenersRegistered = false; // ADD THIS
+  static bool _listenersRegistered = false;
 
   static Future<void> initialize() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
@@ -27,7 +30,20 @@ class PushNotificationService {
 
       const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidInit);
-      await _localNotifications.initialize(settings: initSettings);
+
+      // ── Register a tap handler for LOCALLY-shown notifications ──
+      // (the ones we display ourselves via _localNotifications.show()
+      // when the app is in the foreground). FirebaseMessaging.onMessageOpenedApp
+      // does NOT fire for these — only for notifications the OS displayed
+      // natively while the app was backgrounded/closed. Without this,
+      // tapping a foreground-shown notification does nothing.
+      await _localNotifications.initialize(
+        settings: initSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          print('FCM DEBUG 19: Local notification tapped (foreground path)');
+          _handleLocalNotificationTap(response.payload);
+        },
+      );
       print('FCM DEBUG 4: Local notifications initialized');
 
       const channel = AndroidNotificationChannel(
@@ -37,8 +53,8 @@ class PushNotificationService {
         importance: Importance.high,
       );
       await _localNotifications
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation
+              <AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
       print('FCM DEBUG 5: Notification channel created');
 
@@ -68,12 +84,16 @@ class PushNotificationService {
               print('FCM DEBUG 14: Message has no notification payload');
               return;
             }
-            await _localNotifications.show(
-              id: notification.hashCode,
-              title: notification.title,
-              body: notification.body,
-              notificationDetails: const NotificationDetails(
-                android: AndroidNotificationDetails(
+
+            final imageUrl = message.data['imageUrl'];
+            AndroidNotificationDetails androidDetails;
+
+            if (imageUrl != null && imageUrl.isNotEmpty) {
+              try {
+                final response = await http.get(Uri.parse(imageUrl));
+                final Uint8List imageBytes = response.bodyBytes;
+
+                androidDetails = AndroidNotificationDetails(
                   'high_importance_channel',
                   'High Importance Notifications',
                   channelDescription:
@@ -81,8 +101,46 @@ class PushNotificationService {
                   importance: Importance.high,
                   priority: Priority.high,
                   icon: '@mipmap/ic_launcher',
-                ),
-              ),
+                  styleInformation: BigPictureStyleInformation(
+                    ByteArrayAndroidBitmap(imageBytes),
+                    largeIcon: ByteArrayAndroidBitmap(imageBytes),
+                    contentTitle: notification.title,
+                    summaryText: notification.body,
+                  ),
+                );
+                print('FCM DEBUG 15: Image downloaded for rich notification');
+              } catch (e) {
+                print(
+                    'FCM DEBUG ERROR: Failed to download notification image: $e');
+                androidDetails = const AndroidNotificationDetails(
+                  'high_importance_channel',
+                  'High Importance Notifications',
+                  channelDescription:
+                      'High importance notifications for TheyDi',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                  icon: '@mipmap/ic_launcher',
+                );
+              }
+            } else {
+              androidDetails = const AndroidNotificationDetails(
+                'high_importance_channel',
+                'High Importance Notifications',
+                channelDescription: 'High importance notifications for TheyDi',
+                importance: Importance.high,
+                priority: Priority.high,
+                icon: '@mipmap/ic_launcher',
+              );
+            }
+
+            // Encode the data so the tap handler above can reconstruct
+            // it and navigate — this is the piece that was missing.
+            await _localNotifications.show(
+              id: notification.hashCode,
+              title: notification.title,
+              body: notification.body,
+              notificationDetails: NotificationDetails(android: androidDetails),
+              payload: jsonEncode(message.data),
             );
             print('FCM DEBUG 17: Foreground local notification displayed');
           },
@@ -93,7 +151,7 @@ class PushNotificationService {
         FirebaseMessaging.onMessageOpenedApp.listen(
           (RemoteMessage message) {
             print('FCM DEBUG 18: Notification opened from background');
-            _handleMessageNavigation(message);
+            _handleMessageNavigation(message.data);
           },
           onError: (error) =>
               print('FCM DEBUG ERROR: onMessageOpenedApp error = $error'),
@@ -119,41 +177,40 @@ class PushNotificationService {
       final initialMessage = await _messaging.getInitialMessage();
 
       if (initialMessage != null) {
-        print(
-          'FCM DEBUG 22: Initial notification found',
-        );
-
-        print(
-          'FCM DEBUG 23: Initial message data = '
-          '${initialMessage.data}',
-        );
-
-        _handleMessageNavigation(initialMessage);
+        print('FCM DEBUG 22: Initial notification found');
+        print('FCM DEBUG 23: Initial message data = ${initialMessage.data}');
+        _handleMessageNavigation(initialMessage.data);
       } else {
-        print(
-          'FCM DEBUG 24: No initial notification message',
-        );
+        print('FCM DEBUG 24: No initial notification message');
       }
     } catch (e, stackTrace) {
-      print(
-        'FCM DEBUG ERROR: getInitialMessage failed',
-      );
-
+      print('FCM DEBUG ERROR: getInitialMessage failed');
       print('FCM DEBUG ERROR: $e');
       print('FCM DEBUG STACK: $stackTrace');
     }
   }
 
-  static void _handleMessageNavigation(
-    RemoteMessage message,
-  ) {
-    print(
-      'FCM DEBUG 25: Handling notification navigation',
-    );
+  /// Handles taps on notifications shown locally via
+  /// _localNotifications.show() while the app was in the foreground.
+  static void _handleLocalNotificationTap(String? payload) {
+    if (payload == null || payload.isEmpty) {
+      print('FCM DEBUG 19a: No payload on local notification tap');
+      return;
+    }
+    try {
+      final Map<String, dynamic> decoded = jsonDecode(payload);
+      final data = decoded.map(
+        (key, value) => MapEntry(key, value?.toString() ?? ''),
+      );
+      _handleMessageNavigation(data);
+    } catch (e) {
+      print('FCM DEBUG ERROR: Failed to decode local notification payload: $e');
+    }
+  }
 
-    print(
-      'FCM DEBUG 26: Notification data = ${message.data}',
-    );
+  static void _handleMessageNavigation(Map<String, dynamic> data) {
+    print('FCM DEBUG 25: Handling notification navigation');
+    print('FCM DEBUG 26: Notification data = $data');
 
     final context = rootNavigatorKey.currentContext;
     if (context == null) {
@@ -162,20 +219,20 @@ class PushNotificationService {
       return;
     }
 
-    final type = message.data['type'];
+    final type = data['type'];
 
     switch (type) {
       case 'nearby_event':
       case 'event':
-        final eventId = message.data['eventId'];
-        if (eventId != null && eventId.isNotEmpty) {
+        final eventId = data['eventId'];
+        if (eventId != null && eventId.toString().isNotEmpty) {
           context.push('/event/$eventId');
         }
         break;
 
       case 'circle':
-        final circleId = message.data['circleId'];
-        if (circleId != null && circleId.isNotEmpty) {
+        final circleId = data['circleId'];
+        if (circleId != null && circleId.toString().isNotEmpty) {
           context.push('/circle/$circleId');
         }
         break;
@@ -200,89 +257,40 @@ class PushNotificationService {
   static Future<void> saveTokenToFirestore() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
 
-    print(
-      'FCM DEBUG 27: saveTokenToFirestore() started',
-    );
+    print('FCM DEBUG 27: saveTokenToFirestore() started');
 
     try {
-      // ------------------------------------------------------------
-      // 1. Get currently authenticated user
-      // ------------------------------------------------------------
       final user = FirebaseAuth.instance.currentUser;
-
-      print(
-        'FCM DEBUG 28: Firebase Auth user = '
-        '${user?.uid}',
-      );
+      print('FCM DEBUG 28: Firebase Auth user = ${user?.uid}');
 
       if (user == null) {
-        print(
-          'FCM DEBUG ERROR: No logged-in Firebase user',
-        );
+        print('FCM DEBUG ERROR: No logged-in Firebase user');
         return;
       }
 
-      // ------------------------------------------------------------
-      // 2. Request FCM token
-      // ------------------------------------------------------------
-      print(
-        'FCM DEBUG 29: Requesting FCM token...',
-      );
-
+      print('FCM DEBUG 29: Requesting FCM token...');
       final token = await _messaging.getToken();
-
-      print(
-        'FCM DEBUG 30: getToken() completed',
-      );
-
-      // Do NOT print the actual token.
-      // We only need to know whether one exists.
-
-      print(
-        'FCM DEBUG 31: Token exists = ${token != null}',
-      );
+      print('FCM DEBUG 30: getToken() completed');
+      print('FCM DEBUG 31: Token exists = ${token != null}');
 
       if (token == null) {
-        print(
-          'FCM DEBUG ERROR: FCM token is NULL',
-        );
+        print('FCM DEBUG ERROR: FCM token is NULL');
         return;
       }
 
-      // ------------------------------------------------------------
-      // 3. Save token to Firestore
-      // ------------------------------------------------------------
-      print(
-        'FCM DEBUG 32: Saving FCM token to Firestore...',
-      );
+      print('FCM DEBUG 32: Saving FCM token to Firestore...');
 
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
-        {
-          'fcmToken': token,
-        },
+        {'fcmToken': token},
         SetOptions(merge: true),
       );
 
-      print(
-        'FCM DEBUG 33: TOKEN SAVED SUCCESSFULLY',
-      );
-
-      print(
-        'FCM DEBUG 34: Firestore path = '
-        'users/${user.uid}',
-      );
+      print('FCM DEBUG 33: TOKEN SAVED SUCCESSFULLY');
+      print('FCM DEBUG 34: Firestore path = users/${user.uid}');
     } catch (e, stackTrace) {
-      print(
-        'FCM DEBUG ERROR: saveTokenToFirestore failed',
-      );
-
-      print(
-        'FCM DEBUG ERROR: $e',
-      );
-
-      print(
-        'FCM DEBUG STACK: $stackTrace',
-      );
+      print('FCM DEBUG ERROR: saveTokenToFirestore failed');
+      print('FCM DEBUG ERROR: $e');
+      print('FCM DEBUG STACK: $stackTrace');
     }
   }
 }
@@ -298,20 +306,7 @@ class PushNotificationService {
 Future<void> firebaseMessagingBackgroundHandler(
   RemoteMessage message,
 ) async {
-  print(
-    'FCM DEBUG 35: Background FCM message received',
-  );
-
-  print(
-    'FCM DEBUG 36: Background message ID = '
-    '${message.messageId}',
-  );
-
-  print(
-    'FCM DEBUG 37: Background message data = '
-    '${message.data}',
-  );
-
-  // For notification payloads, Android will normally
-  // display the system notification automatically.
+  print('FCM DEBUG 35: Background FCM message received');
+  print('FCM DEBUG 36: Background message ID = ${message.messageId}');
+  print('FCM DEBUG 37: Background message data = ${message.data}');
 }
