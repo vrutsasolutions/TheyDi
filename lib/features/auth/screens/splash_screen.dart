@@ -34,7 +34,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       context.go(AppRoutes.home);
     } else {
       // Not authenticated — go to login
-      context.go(AppRoutes.login);
+      context.go(AppRoutes.onboarding);
     }
   }
 
