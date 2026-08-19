@@ -48,6 +48,8 @@ app.*.map.json
 /android/app/release
 .env
 .env.local
+env/*.json
+!env/*.json.example
 app_config.env
 functions/serviceAccountKey.json
 android/key.properties

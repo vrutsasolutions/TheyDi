@@ -9,7 +9,6 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 
-
 // ── Stream user profile doc ──
 final _userProfileProvider =
     StreamProvider.autoDispose<DocumentSnapshot<Map<String, dynamic>>>((ref) {
@@ -231,7 +230,6 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'T';
@@ -279,6 +277,9 @@ class _ProfileContent extends ConsumerWidget {
                     case 'adminVerification':
                       context.push(AppRoutes.adminVerification);
                       break;
+                    case 'adminPendingPayouts':
+                      context.push(AppRoutes.adminPendingPayouts);
+                      break;
                   }
                 },
               ),
@@ -322,20 +323,18 @@ class _ProfileContent extends ConsumerWidget {
                             ),
                     ),
                   ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
-
                   const SizedBox(height: 8),
-
                   if (!isVerified) ...[
                     const SizedBox(height: 10),
                     GestureDetector(
                       onTap: () {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return;
-  context.push(
-    AppRoutes.faceVerification,
-    extra: {'userId': uid},
-  );
-},
+                        final uid = FirebaseAuth.instance.currentUser?.uid;
+                        if (uid == null) return;
+                        context.push(
+                          AppRoutes.faceVerification,
+                          extra: {'userId': uid},
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 7),
@@ -358,8 +357,6 @@ class _ProfileContent extends ConsumerWidget {
                       ),
                     ),
                   ],
-
-                  
                 ],
               ),
               const SizedBox(width: 16),
@@ -789,6 +786,12 @@ class _SettingsMenuButton extends StatelessWidget {
             value: 'adminVerification',
             icon: Icons.admin_panel_settings_outlined,
             label: 'Verification Requests',
+            color: TheyDiColors.primary,
+          ),
+          _settingsItem(
+            value: 'adminPendingPayouts',
+            icon: Icons.account_balance_wallet_outlined,
+            label: 'Pending Payouts',
             color: TheyDiColors.primary,
           ),
           const PopupMenuDivider(height: 8),

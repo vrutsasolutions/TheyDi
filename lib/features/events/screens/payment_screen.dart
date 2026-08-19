@@ -46,6 +46,15 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
+  // ── Razorpay key (loaded once and cached for the life of this screen) ──────
+  late final String _keyId = () {
+    var k = const String.fromEnvironment('RAZORPAY_KEY_ID');
+    if (k.isEmpty) k = dotenv.env['RAZORPAY_KEY_ID'] ?? '';
+    return k;
+  }();
+
+  bool get _isLiveMode => _keyId.startsWith('rzp_live_');
+
   // ── Guard: prevent duplicate payment ────────────────────────────────────────
   Future<bool> _alreadyPaid() async {
     if (_myUid.isEmpty) return false;
@@ -288,13 +297,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       }
 
       print('--- Starting payment process ---');
-      var keyId = const String.fromEnvironment('RAZORPAY_KEY_ID');
-      if (keyId.isEmpty) {
-        keyId = dotenv.env['RAZORPAY_KEY_ID'] ?? '';
-      }
-      print('Razorpay Key ID loaded: ${keyId.isNotEmpty}');
+      print('Razorpay Key ID loaded: ${_keyId.isNotEmpty} (live: $_isLiveMode)');
 
-      if (keyId.isEmpty) {
+      if (_keyId.isEmpty) {
         throw Exception(
             'Razorpay Key ID not found (neither in environment nor in .env)');
       }
@@ -328,7 +333,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       final orderId = response.data['orderId'];
 
       var options = {
-        'key': keyId,
+        'key': _keyId,
         'amount': amountInPaise,
         'order_id': orderId,
         'name': 'TheyDi',
@@ -623,25 +628,36 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         ]),
                       ),
 
-                    // ── Sandbox notice ──
+                    // ── Live/Sandbox notice ──
                     if (!_paymentFailed)
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.1),
+                          color: (_isLiveMode ? Colors.green : Colors.amber)
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: Colors.amber.withValues(alpha: 0.3)),
+                              color: (_isLiveMode ? Colors.green : Colors.amber)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: Row(children: [
-                          const Icon(Icons.info_outline,
-                              color: Colors.amber, size: 18),
+                          Icon(
+                            _isLiveMode
+                                ? Icons.lock_outline
+                                : Icons.info_outline,
+                            color: _isLiveMode ? Colors.green : Colors.amber,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Sandbox mode — no real money will be charged',
-                              style: TheyDiTextStyles.caption
-                                  .copyWith(color: Colors.amber),
+                              _isLiveMode
+                                  ? 'Live mode — real payments will be charged'
+                                  : 'Sandbox mode — no real money will be charged',
+                              style: TheyDiTextStyles.caption.copyWith(
+                                  color: _isLiveMode
+                                      ? Colors.green
+                                      : Colors.amber),
                             ),
                           ),
                         ]),

@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../events/models/booking_model.dart';
 import '../../events/models/event_model.dart';
 import 'package:theydi/core/router/app_routes.dart';
+
 // Stream host's events
 final _hostEventsProvider = StreamProvider.autoDispose<List<EventModel>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -45,40 +46,31 @@ class HostDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
-
   Future<void> _showBankDetailsBottomSheet(BuildContext context) async {
-    // ── Load existing bank details from Firestore first ──
+    // ── Load existing (masked) payout details via Cloud Function ──
+    // Real values are never sent to the device here — only masked strings
+    // like "••••9012". The Cloud Function decrypts server-side just to
+    // build the mask, then discards the plaintext.
     final uid = FirebaseAuth.instance.currentUser?.uid;
     Map<String, dynamic> existingData = {};
+
     if (uid != null) {
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('private')
-            .doc('bankDetails')
-            .get();
-        existingData = doc.data() ?? {};
-
-        // Fallback for older users who have bank details in the root user document
-        if (existingData.isEmpty) {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .get();
-          final uData = userDoc.data() ?? {};
-          if (uData['bankAccountName'] != null ||
-              uData['bankAccountNumber'] != null) {
-            existingData = {
-              'payoutMethod': 'bank',
-              'bankAccountName': uData['bankAccountName'],
-              'bankIfsc': uData['bankIfsc'],
-              'bankAccountNumber': uData['bankAccountNumber'],
-            };
-          }
+        final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+            .httpsCallable('getMyPayoutDetailsMasked');
+        final result = await callable.call();
+        final payoutData = result.data as Map<dynamic, dynamic>? ?? {};
+        if (payoutData['exists'] == true) {
+          existingData = {
+            'payoutMethod': payoutData['payoutMethod'] ?? 'bank',
+            'bankAccountName': payoutData['name'],
+            'bankIfsc': payoutData['ifscMasked'],
+            'bankAccountNumber': payoutData['accountNumberMasked'],
+            'upiId': payoutData['upiIdMasked'],
+          };
         }
       } catch (e) {
-        debugPrint('Error fetching bank details: $e');
+        debugPrint('Error fetching masked payout details: $e');
       }
     }
 
@@ -95,6 +87,10 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
             existingAccount.isNotEmpty)
         : existingUpi.isNotEmpty;
 
+    // NOTE: these controllers are prefilled with MASKED values
+    // ("••••9012") when read-only. When the host taps "Update Details"
+    // and the fields become editable, we clear them so they type fresh
+    // real values instead of accidentally re-saving the mask itself.
     final nameCtrl = TextEditingController(text: existingName);
     final ifscCtrl = TextEditingController(text: existingIfsc);
     final accCtrl = TextEditingController(text: existingAccount);
@@ -350,8 +346,16 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                           ? OutlinedButton.icon(
                               icon: const Icon(Icons.edit_outlined, size: 18),
                               label: const Text('Update Details'),
-                              onPressed: () =>
-                                  setInnerState(() => isEditing = true),
+                              onPressed: () {
+                                // Clear masked values so the host types
+                                // fresh real ones instead of re-saving
+                                // "••••9012" as if it were the real number.
+                                nameCtrl.clear();
+                                ifscCtrl.clear();
+                                accCtrl.clear();
+                                upiCtrl.clear();
+                                setInnerState(() => isEditing = true);
+                              },
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: TheyDiColors.primary,
                                 side: const BorderSide(
@@ -387,11 +391,17 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
 
                                       setInnerState(() => isSaving = true);
                                       try {
+                                        // This Cloud Function encrypts the
+                                        // sensitive fields server-side before
+                                        // writing to Firestore. This callable
+                                        // is the ONLY write path for payout
+                                        // data — Firestore rules block any
+                                        // direct client write to this doc.
                                         final callable =
                                             FirebaseFunctions.instanceFor(
                                                     region: 'asia-south1')
                                                 .httpsCallable(
-                                                    'setupHostCashfreeBeneficiary');
+                                                    'savePayoutDetails');
                                         await callable.call({
                                           'payoutMethod': payoutMethod,
                                           'upiId': upiCtrl.text.trim(),
@@ -399,23 +409,7 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
                                           'ifsc': ifscCtrl.text.trim(),
                                           'accountNumber': accCtrl.text.trim(),
                                         });
-                                        // Also cache the display values locally in Firestore
-                                        if (uid != null) {
-                                          await FirebaseFirestore.instance
-                                              .collection('users')
-                                              .doc(uid)
-                                              .collection('private')
-                                              .doc('bankDetails')
-                                              .set({
-                                            'payoutMethod': payoutMethod,
-                                            'upiId': upiCtrl.text.trim(),
-                                            'bankAccountName':
-                                                nameCtrl.text.trim(),
-                                            'bankIfsc': ifscCtrl.text.trim(),
-                                            'bankAccountNumber':
-                                                accCtrl.text.trim(),
-                                          }, SetOptions(merge: true));
-                                        }
+
                                         if (mounted) {
                                           Navigator.pop(ctx);
                                           ScaffoldMessenger.of(context)
@@ -469,84 +463,81 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
   }
 
   void _showPayoutSettingsSheet() {
-showDialog(
-  context: context,
-  builder: (context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      child: Container(
-        width: 420,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 50,
-              height: 5,
-              decoration: BoxDecoration(
-                color: TheyDiColors.divider,
-                borderRadius: BorderRadius.circular(10),
-              ),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            width: 420,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 24),
-
-            Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 50,
+                  height: 5,
                   decoration: BoxDecoration(
-                    color: TheyDiColors.primary.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.account_balance,
-                    color: TheyDiColors.primary,
+                    color: TheyDiColors.divider,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Payout Settings',
-                        style: TheyDiTextStyles.headlineMedium,
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: TheyDiColors.primary.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Manage how you get paid',
-                        style: TheyDiTextStyles.bodySmall,
+                      child: const Icon(
+                        Icons.account_balance,
+                        color: TheyDiColors.primary,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payout Settings',
+                            style: TheyDiTextStyles.headlineMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Manage how you get paid',
+                            style: TheyDiTextStyles.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Change Bank Details'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push(AppRoutes.personalDetails);
+                  },
                 ),
               ],
             ),
-
-            const SizedBox(height: 24),
-
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Change Bank Details'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppRoutes.personalDetails);
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
-  },
-);
-}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -578,80 +569,82 @@ showDialog(
                     ),
                     const SizedBox(width: 4),
                     Expanded(
-  child: Text(
-    'Host Dashboard',
-    style: TheyDiTextStyles.displayMedium,
-    overflow: TextOverflow.ellipsis,
-  ),
-),
-
-const SizedBox(width: 8),
-
-MediaQuery.of(context).size.width < 600
-    ? IconButton(
-        onPressed: _showPayoutSettingsSheet,
-        icon: const Icon(
-          Icons.account_balance,
-          color: TheyDiColors.primary,
-        ),
-      )
-    : InkWell(
-        onTap: _showPayoutSettingsSheet,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 10,
-          ),
-          decoration: BoxDecoration(
-            color: TheyDiColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: TheyDiColors.primary.withValues(alpha: 0.25),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: TheyDiColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.account_balance,
-                  size: 18,
-                  color: TheyDiColors.primary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Bank Setup',
-                    style: TheyDiTextStyles.labelMedium,
-                  ),
-                  Text(
-                    'Change Details',
-                    style: TheyDiTextStyles.bodySmall.copyWith(
-                      color: TheyDiColors.textMuted,
+                      child: Text(
+                        'Host Dashboard',
+                        style: TheyDiTextStyles.displayMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: TheyDiColors.primary,
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
+                    const SizedBox(width: 8),
+                    MediaQuery.of(context).size.width < 600
+                        ? IconButton(
+                            onPressed: _showPayoutSettingsSheet,
+                            icon: const Icon(
+                              Icons.account_balance,
+                              color: TheyDiColors.primary,
+                            ),
+                          )
+                        : InkWell(
+                            onTap: _showPayoutSettingsSheet,
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: TheyDiColors.card,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: TheyDiColors.primary
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.account_balance,
+                                      size: 18,
+                                      color: TheyDiColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Bank Setup',
+                                        style: TheyDiTextStyles.labelMedium,
+                                      ),
+                                      Text(
+                                        'Change Details',
+                                        style:
+                                            TheyDiTextStyles.bodySmall.copyWith(
+                                          color: TheyDiColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: TheyDiColors.primary,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                   ],
                 ),
               ).animate().fade(duration: 300.ms),

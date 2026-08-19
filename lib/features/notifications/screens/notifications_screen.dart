@@ -504,7 +504,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         } else if (isAddedToCircle) {
           // Added to circle → Circles list
           context.go(AppRoutes.circles);
-        } else if (isAccepted && notif.fromUid != null) {
+        } else if (isAccepted) {
           context.push(AppRoutes.friendsHub);
         } else if (isFriendRequest) {
           context.push(AppRoutes.friendRequests);
@@ -552,6 +552,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       default:
         if (notif.eventId != null) {
           await openEventDetail();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Nothing to open for this notification')),
+          );
         }
         break;
     }

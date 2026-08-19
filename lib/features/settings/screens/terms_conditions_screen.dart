@@ -157,7 +157,7 @@ _section(
   "8. Payments, Ticketing & Refunds",
   [
     "Payments are securely processed using Razorpay.",
-    "Host payouts are processed through razorpayX or Cashfree.",
+    "Host payouts are processed through net banking or UPI after successful event completion.",
     "Platform fee (~10%) and payment gateway charges apply.",
     "Attendee cancellations receive a 90% refund before the event starts.",
     "Host cancellations within the allowed period receive a full attendee refund.",

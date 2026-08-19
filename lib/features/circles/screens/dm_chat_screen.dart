@@ -25,6 +25,8 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/utils/platform_helper.dart';
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../core/services/encryption_service.dart';
+import '../../../shared/widgets/decrypted_text.dart';
 
 const _kEmojis = [
   '😀',
@@ -290,7 +292,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     _messageController.clear();
 
     try {
+      // final myUid = FirebaseAuth.instance.currentUser!.uid;
       final myUid = FirebaseAuth.instance.currentUser!.uid;
+      final encryptedText = await EncryptionService.encrypt(text, _chatId!);
 
       String myName = FirebaseAuth.instance.currentUser?.displayName ?? 'Me';
 
@@ -315,7 +319,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
         'senderId': myUid,
         'senderName': myName,
         'type': mediaType ?? 'text',
-        'text': text,
+        'text': encryptedText,
         'mediaUrl': mediaUrl,
         'timestamp': now,
         'seen': false,
@@ -328,7 +332,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
             ? '📷 Photo'
             : mediaType == 'video'
                 ? '🎥 Video'
-                : text,
+                : encryptedText,
         'lastMessageSenderId': myUid,
         'updatedAt': now,
         'deletedFor': FieldValue.arrayRemove([myUid, widget.otherUid]),
@@ -348,7 +352,9 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       );
 
       _scrollToBottom();
+      
     } catch (e) {
+      
       if (mounted) {
         _showSnack('Failed: $e', Colors.red);
       }
@@ -1616,6 +1622,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
                               } else {
                                 bubble = _DmBubble(
                                   text: data['text'] ?? '',
+                                  chatId: _chatId!,
                                   isMine: isMine,
                                   timeLabel: timeLabel,
                                   seen: seen,
@@ -2659,16 +2666,19 @@ class _MediaOption extends StatelessWidget {
 
 class _DmBubble extends StatelessWidget {
   final String text;
+  final String chatId; // NEW
   final bool isMine;
   final String timeLabel;
   final bool seen;
   final bool delivered;
   const _DmBubble(
       {required this.text,
+      required this.chatId, // NEW
       required this.isMine,
       required this.timeLabel,
       required this.seen,
       required this.delivered});
+
   @override
   Widget build(BuildContext context) => Padding(
       padding: EdgeInsets.only(
@@ -2690,10 +2700,14 @@ class _DmBubble extends StatelessWidget {
                         : TheyDiColors.divider)),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(text,
-                  style: TheyDiTextStyles.bodySmall.copyWith(
-                      color: isMine ? Colors.black : TheyDiColors.textSecondary,
-                      height: 1.4)),
+              DecryptedText(
+                // CHANGED from Text(...)
+                cipherText: text,
+                chatId: chatId,
+                style: TheyDiTextStyles.bodySmall.copyWith(
+                    color: isMine ? Colors.black : TheyDiColors.textSecondary,
+                    height: 1.4),
+              ),
               const SizedBox(height: 4),
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(timeLabel,

@@ -112,7 +112,7 @@ _buildCard(
   
     "Payment Data",
     "• Billing name and address",
-    "• UPI ID, card or bank details (processed securely through Razorpay/razorpayX or Cashfree)",
+    "• UPI ID, card or bank details (processed securely through Razorpay)",
     "• Transaction history",
     "• PAN, IFSC, bank account and KYC documents for Hosts",
 
@@ -150,7 +150,7 @@ _buildCard(
   title: "3.3 Information from Third Parties",
   bullets: const [
     "Firebase Authentication (Google)",
-    "Razorpay & razorpayX or Cashfree transaction status",
+    "Razorpay",
     "Google Maps Platform services",
     "Future social login providers (if enabled)",
   ],
@@ -324,7 +324,6 @@ _buildCard(
     "Google Firebase (Authentication, Firestore, Storage, Cloud Functions, Analytics, Crashlytics)",
     "Google Cloud Platform (Maps, Directions, Geocoding, Places APIs)",
     "Razorpay (Payment Processing)",
-    "razorpayX or Cashfree(Host Payouts)",
     "Cloud hosting, email delivery, SMS/OTP and analytics providers",
     "These providers are contractually obligated to protect your information.",
   ],

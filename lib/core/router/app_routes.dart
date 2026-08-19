@@ -39,6 +39,8 @@ class AppRoutes {
   static const dmChat = '/dm-chat';
   static const userProfile = '/user-profile';
   static const friendInfo = '/friend-info';
+  
+  
 
   // ── Social discovery ──
   static const friendsHub = '/friends-hub';
@@ -57,6 +59,7 @@ class AppRoutes {
   static const termsConditions = '/terms-conditions';
 
   static const String adminVerification = '/admin/verification';
+  static const String adminPendingPayouts = '/admin/pending-payouts';
 
   static const darlaChat = '/darla-chat';
 }

@@ -248,6 +248,7 @@ class NotificationService {
   static Future<void> notifyFriendRequestAccepted({
     required String toUid,
     required String accepterName,
+    required String accepterUid, 
   }) async {
     // 1. In-app notification
     await send(
@@ -255,6 +256,7 @@ class NotificationService {
       title: 'Friend request accepted! 🎉',
       body: '$accepterName accepted your friend request',
       type: 'social',
+      fromUid: accepterUid,  
     );
 
     // 2. Email notification

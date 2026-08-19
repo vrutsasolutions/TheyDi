@@ -11,7 +11,6 @@ import '../../../core/theme/app_theme.dart';
 
 import '../../../core/utils/app_error_utils.dart';
 
-
 class PersonalDetailsScreen extends StatefulWidget {
   const PersonalDetailsScreen({super.key});
 
@@ -59,11 +58,18 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
               ? data['name'] as String
               : (data['displayName'] as String?) ?? user?.displayName ?? '';
       _emailController.text = (data['email'] as String?) ?? user?.email ?? '';
-      _mobileController.text = (data['mobile'] as String?) ??
-          (data['phone'] as String?) ??
-          (data['phoneNumber'] as String?) ??
-          user?.phoneNumber ??
-          '';
+      try {
+        final contactCallable =
+            FirebaseFunctions.instanceFor(region: 'asia-south1')
+                .httpsCallable('getMyContactDetails');
+        final contactResult = await contactCallable.call();
+        final contactData = contactResult.data as Map<dynamic, dynamic>;
+        _mobileController.text =
+            (contactData['mobile'] as String?) ?? user?.phoneNumber ?? '';
+      } catch (e) {
+        debugPrint('Error fetching contact details: $e');
+        _mobileController.text = user?.phoneNumber ?? '';
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,9 +85,9 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   @override
   void dispose() {
-  //    FlutterWindowManager.clearFlags(
-  //   FlutterWindowManager.FLAG_SECURE,
-  // );
+    //    FlutterWindowManager.clearFlags(
+    //   FlutterWindowManager.FLAG_SECURE,
+    // );
     _legalNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
@@ -124,34 +130,27 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'name': _legalNameController.text.trim(),
         'email': _emailController.text.trim(),
-        'mobile': _mobileController.text.trim(),
       }, SetOptions(merge: true));
 
-      // Save temporary bank details
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('private')
-          .doc('tempBankDetails')
-          .set({
-        'accountHolderName': _accountHolderController.text.trim(),
-        'accountNumber': _accountNumberController.text.trim(),
-        'ifscCode': _ifscController.text.trim().toUpperCase(),
-        'bankName': _bankNameController.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final contactCallable =
+          FirebaseFunctions.instanceFor(region: 'asia-south1')
+              .httpsCallable('saveContactDetails');
+      await contactCallable.call({'mobile': _mobileController.text.trim()});
 
-      // Trigger Cloud Function
+      // Trigger Cloud Function to save payout details (bank).
+      // This is the ONLY write path to users/{uid}/private/payoutDetails —
+      // Firestore rules block direct client writes to that document, since
+      // the sensitive fields must be encrypted server-side. bankName is
+      // passed along here too (it's not sensitive, but the Cloud Function
+      // now stores it as part of the same write for simplicity).
       final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('setupHostCashfreeBeneficiary');
+          .httpsCallable('savePayoutDetails');
       await callable.call({
         'payoutMethod': 'bank',
         'name': _accountHolderController.text.trim(),
         'ifsc': _ifscController.text.trim().toUpperCase(),
         'accountNumber': _accountNumberController.text.trim(),
-        'email': _emailController.text.trim(),
-        'mobile': _mobileController.text.trim(),
-        'legalName': _legalNameController.text.trim(),
+        'bankName': _bankNameController.text.trim(),
       });
 
       if (mounted) {
@@ -212,17 +211,15 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-  appBar: AppBar(
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back),
-    onPressed: () {
-      Navigator.of(context).pop();
-    },
-  ),
-  title: const Text('Personal Details'),
-),
-
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+        title: const Text('Personal Details'),
+      ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: TheyDiColors.primary),
@@ -302,31 +299,15 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                     textInputAction: TextInputAction.done,
                   ),
                   const SizedBox(height: 8),
-                  // CheckboxListTile(
-                  //   value: _confirmed,
-                  //   onChanged: _isSaving
-                  //       ? null
-                  //       : (value) =>
-                  //           setState(() => _confirmed = value ?? false),
-                  //   controlAffinity: ListTileControlAffinity.leading,
-                  //   contentPadding: EdgeInsets.zero,
-                  //   activeColor: TheyDiColors.primary,
-                  //   title: Text(
-                  //     'I confirm this bank account belongs to me. Accepting terms & policy.',
-                  //     style: TheyDiTextStyles.bodySmall.copyWith(
-                  //       color: TheyDiColors.textSecondary,
-                  //     ),
-                  //   ),
-                  // ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-  borderRadius: BorderRadius.circular(16),
-  gradient: TheyDiColors.gradientPrimary,
-),
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: TheyDiColors.gradientPrimary,
+                      ),
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _save,
                         style: ElevatedButton.styleFrom(
