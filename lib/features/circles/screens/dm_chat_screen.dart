@@ -352,9 +352,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
       );
 
       _scrollToBottom();
-      
     } catch (e) {
-      
       if (mounted) {
         _showSnack('Failed: $e', Colors.red);
       }
@@ -2723,6 +2721,37 @@ class _DmBubble extends StatelessWidget {
           )));
 }
 
+class _ImagePreviewScreen extends StatelessWidget {
+  final String imageUrl;
+  const _ImagePreviewScreen({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.broken_image,
+              color: Colors.white,
+              size: 80,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DmImageReceiptBubble extends StatelessWidget {
   final String imageUrl;
   final bool isMine;
@@ -2749,20 +2778,31 @@ class _DmImageReceiptBubble extends StatelessWidget {
           crossAxisAlignment:
               isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.broken_image, size: 80),
+            GestureDetector(
+              onTap: () {
+                if (imageUrl.isEmpty) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => _ImagePreviewScreen(imageUrl: imageUrl),
+                    fullscreenDialog: true,
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const SizedBox(
+                      height: 200,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.broken_image, size: 80),
+                ),
               ),
             ),
             const SizedBox(height: 4),
