@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/encryption_service.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -24,38 +25,43 @@ final _myCirclesProvider = StreamProvider.autoDispose<List<CircleModel>>((ref) {
       .map((s) => s.docs.map((d) => CircleModel.fromFirestore(d)).toList());
 });
 
-final _friendsProvider =
-    StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return Stream.value([]);
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(uid)
-      .collection('friends')
-      .orderBy('addedAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map((d) {
+final _friendsProvider = StreamProvider.autoDispose<List<Map<String, dynamic>>>(
+  (ref) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return Stream.value([]);
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('friends')
+        .orderBy('addedAt', descending: true)
+        .snapshots()
+        .map(
+          (s) => s.docs.map((d) {
             final data = d.data();
             return {'uid': d.id, ...data};
-          }).toList());
-});
+          }).toList(),
+        );
+  },
+);
 
 final _requestsProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return Stream.value([]);
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(uid)
-      .collection('friendRequests')
-      .where('status', isEqualTo: 'pending')
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map((d) {
-            final data = d.data();
-            return {'id': d.id, ...data};
-          }).toList());
-});
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return Stream.value([]);
+      return FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('friendRequests')
+          .where('status', isEqualTo: 'pending')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map(
+            (s) => s.docs.map((d) {
+              final data = d.data();
+              return {'id': d.id, ...data};
+            }).toList(),
+          );
+    });
 
 // ── Main Screen ──
 
@@ -145,8 +151,10 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                     return Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: TheyDiColors.textPrimary),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: TheyDiColors.textPrimary,
+                          ),
                           onPressed: () {
                             if (context.canPop()) {
                               context.pop();
@@ -180,15 +188,16 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.add,
-                                      color: Colors.white, size: 16),
+                                  const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     'New',
-                                    style:
-                                        TheyDiTextStyles.labelMedium.copyWith(
-                                      color: Colors.white,
-                                    ),
+                                    style: TheyDiTextStyles.labelMedium
+                                        .copyWith(color: Colors.white),
                                   ),
                                 ],
                               ),
@@ -235,11 +244,14 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
                                     shape: BoxShape.circle,
                                   ),
                                   child: Center(
-                                    child: Text('$pendingCount',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700)),
+                                    child: Text(
+                                      '$pendingCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -285,29 +297,29 @@ class _CirclesListScreenState extends ConsumerState<CirclesListScreen>
       ),
       bottomNavigationBar: widget.isSelectionMode
           ? (widget.eventId != null
-              ? _EventShareSelectionBar(
-                  selectedCount: selectedCount,
-                  selectedCircleCount: _selectedCircleIds.length,
-                  onCancel: () => context.pop(),
-                  onSend: selectedCount == 0
-                      ? null
-                      : () => _sendEventShare(
+                ? _EventShareSelectionBar(
+                    selectedCount: selectedCount,
+                    selectedCircleCount: _selectedCircleIds.length,
+                    onCancel: () => context.pop(),
+                    onSend: selectedCount == 0
+                        ? null
+                        : () => _sendEventShare(
                             context: context,
                             eventId: widget.eventId!,
                             selectedFriendUids: _selectedFriendUids.toList(),
                             selectedCircleIds: _selectedCircleIds.toList(),
                           ),
-                )
-              : _SelectionBar(
-                  selectedCount: selectedCount,
-                  onCancel: () => context.pop(),
-                  onDone: selectedCount == 0
-                      ? null
-                      : () => context.pop({
+                  )
+                : _SelectionBar(
+                    selectedCount: selectedCount,
+                    onCancel: () => context.pop(),
+                    onDone: selectedCount == 0
+                        ? null
+                        : () => context.pop({
                             'friendUids': _selectedFriendUids.toList(),
                             'circleIds': _selectedCircleIds.toList(),
                           }),
-                ))
+                  ))
           : null,
     );
   }
@@ -361,18 +373,25 @@ class _AllTab extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                Text('Friends',
-                    style: TheyDiTextStyles.labelLarge
-                        .copyWith(color: TheyDiColors.textSecondary)),
+                Text(
+                  'Friends',
+                  style: TheyDiTextStyles.labelLarge.copyWith(
+                    color: TheyDiColors.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                ...friends.take(5).map((f) => _FriendCard(
-                      uid: f['uid'] ?? '',
-                      displayName: f['displayName'] ?? 'User',
-                      photoUrl: f['profileImageUrl'] ?? '',
-                      isSelectionMode: isSelectionMode,
-                      isSelected: selectedFriendUids.contains(f['uid'] ?? ''),
-                      onSelected: onFriendSelected,
-                    )),
+                ...friends
+                    .take(5)
+                    .map(
+                      (f) => _FriendCard(
+                        uid: f['uid'] ?? '',
+                        displayName: f['displayName'] ?? 'User',
+                        photoUrl: f['profileImageUrl'] ?? '',
+                        isSelectionMode: isSelectionMode,
+                        isSelected: selectedFriendUids.contains(f['uid'] ?? ''),
+                        onSelected: onFriendSelected,
+                      ),
+                    ),
                 if (friends.length > 5)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -385,8 +404,9 @@ class _AllTab extends ConsumerWidget {
                       },
                       child: Text(
                         'See all ${friends.length} friends →',
-                        style: TheyDiTextStyles.caption
-                            .copyWith(color: TheyDiColors.primary),
+                        style: TheyDiTextStyles.caption.copyWith(
+                          color: TheyDiColors.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -408,33 +428,40 @@ class _AllTab extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                Text('Circles',
-                    style: TheyDiTextStyles.labelLarge
-                        .copyWith(color: TheyDiColors.textSecondary)),
+                Text(
+                  'Circles',
+                  style: TheyDiTextStyles.labelLarge.copyWith(
+                    color: TheyDiColors.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                ...circles.map((c) => _CircleCard(
-                      circle: c,
-                      isSelectionMode: isSelectionMode,
-                      isSelected: selectedCircleIds.contains(c.id),
-                      onSelected: onCircleSelected,
-                    )),
+                ...circles.map(
+                  (c) => _CircleCard(
+                    circle: c,
+                    isSelectionMode: isSelectionMode,
+                    isSelected: selectedCircleIds.contains(c.id),
+                    onSelected: onCircleSelected,
+                  ),
+                ),
               ],
             );
           },
         ),
-        Builder(builder: (context) {
-          final friends = ref.watch(_friendsProvider).asData?.value ?? [];
-          final circles = ref.watch(_myCirclesProvider).asData?.value ?? [];
-          if (friends.isEmpty && circles.isEmpty) {
-            return _EmptyState(
-              icon: Icons.people_outline,
-              title: 'Nothing here yet',
-              subtitle:
-                  'Connect with people at events or create a circle to get started',
-            );
-          }
-          return const SizedBox.shrink();
-        }),
+        Builder(
+          builder: (context) {
+            final friends = ref.watch(_friendsProvider).asData?.value ?? [];
+            final circles = ref.watch(_myCirclesProvider).asData?.value ?? [];
+            if (friends.isEmpty && circles.isEmpty) {
+              return _EmptyState(
+                icon: Icons.people_outline,
+                title: 'Nothing here yet',
+                subtitle:
+                    'Connect with people at events or create a circle to get started',
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ],
     );
   }
@@ -461,9 +488,11 @@ class _FriendsTab extends ConsumerWidget {
 
     return friendsAsync.when(
       loading: () => const Center(
-          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+        child: CircularProgressIndicator(color: TheyDiColors.primary),
+      ),
       error: (e, _) => Center(
-          child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall)),
+        child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
+      ),
       data: (friends) {
         if (friends.isEmpty) {
           return _EmptyState(
@@ -478,13 +507,13 @@ class _FriendsTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final f = friends[index];
             return _FriendCard(
-              uid: f['uid'] ?? '',
-              displayName: f['displayName'] ?? 'User',
-              photoUrl: f['profileImageUrl'] ?? '',
-              isSelectionMode: isSelectionMode,
-              isSelected: selectedFriendUids.contains(f['uid'] ?? ''),
-              onSelected: onFriendSelected,
-            )
+                  uid: f['uid'] ?? '',
+                  displayName: f['displayName'] ?? 'User',
+                  photoUrl: f['profileImageUrl'] ?? '',
+                  isSelectionMode: isSelectionMode,
+                  isSelected: selectedFriendUids.contains(f['uid'] ?? ''),
+                  onSelected: onFriendSelected,
+                )
                 .animate(delay: Duration(milliseconds: 50 * index))
                 .fade(duration: 300.ms)
                 .slideX(begin: 0.05, end: 0);
@@ -516,9 +545,11 @@ class _CirclesTab extends ConsumerWidget {
 
     return circlesAsync.when(
       loading: () => const Center(
-          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+        child: CircularProgressIndicator(color: TheyDiColors.primary),
+      ),
       error: (e, _) => Center(
-          child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall)),
+        child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
+      ),
       data: (circles) {
         if (circles.isEmpty) {
           return _EmptyState(
@@ -536,11 +567,11 @@ class _CirclesTab extends ConsumerWidget {
           itemCount: circles.length,
           itemBuilder: (context, index) {
             return _CircleCard(
-              circle: circles[index],
-              isSelectionMode: isSelectionMode,
-              isSelected: selectedCircleIds.contains(circles[index].id),
-              onSelected: onCircleSelected,
-            )
+                  circle: circles[index],
+                  isSelectionMode: isSelectionMode,
+                  isSelected: selectedCircleIds.contains(circles[index].id),
+                  onSelected: onCircleSelected,
+                )
                 .animate(delay: Duration(milliseconds: 50 * index))
                 .fade(duration: 300.ms)
                 .slideX(begin: 0.05, end: 0);
@@ -563,9 +594,11 @@ class _RequestsTab extends ConsumerWidget {
 
     return requestsAsync.when(
       loading: () => const Center(
-          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+        child: CircularProgressIndicator(color: TheyDiColors.primary),
+      ),
       error: (e, _) => Center(
-          child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall)),
+        child: Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
+      ),
       data: (requests) {
         if (requests.isEmpty) {
           return _EmptyState(
@@ -580,11 +613,11 @@ class _RequestsTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final req = requests[index];
             return _RequestCard(
-              requestId: req['id'] ?? '',
-              fromUid: req['fromUid'] ?? '',
-              fromName: req['fromName'] ?? 'Someone',
-              myUid: myUid,
-            )
+                  requestId: req['id'] ?? '',
+                  fromUid: req['fromUid'] ?? '',
+                  fromName: req['fromName'] ?? 'Someone',
+                  myUid: myUid,
+                )
                 .animate(delay: Duration(milliseconds: 60 * index))
                 .fade(duration: 300.ms)
                 .slideY(begin: 0.1, end: 0);
@@ -633,9 +666,9 @@ class _FriendCard extends StatelessWidget {
           onTap: isSelectionMode
               ? () => onSelected?.call(uid)
               : () => context.push(
-                    AppRoutes.userProfile,
-                    extra: {'uid': uid, 'requestId': null},
-                  ),
+                  AppRoutes.userProfile,
+                  extra: {'uid': uid, 'requestId': null},
+                ),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
@@ -666,16 +699,18 @@ class _FriendCard extends StatelessWidget {
                                 errorBuilder: (_, __, ___) => Center(
                                   child: Text(
                                     initial,
-                                    style: TheyDiTextStyles.labelLarge
-                                        .copyWith(color: Colors.white),
+                                    style: TheyDiTextStyles.labelLarge.copyWith(
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               )
                             : Center(
                                 child: Text(
                                   initial,
-                                  style: TheyDiTextStyles.labelLarge
-                                      .copyWith(color: Colors.white),
+                                  style: TheyDiTextStyles.labelLarge.copyWith(
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                       ),
@@ -683,10 +718,7 @@ class _FriendCard extends StatelessWidget {
                     Positioned(
                       right: 0,
                       bottom: 0,
-                      child: AvatarOnlineStatusDot(
-                        uid: uid,
-                        size: 10,
-                      ),
+                      child: AvatarOnlineStatusDot(uid: uid, size: 10),
                     ),
                   ],
                 ),
@@ -701,8 +733,11 @@ class _FriendCard extends StatelessWidget {
                       if (city.isNotEmpty)
                         Row(
                           children: [
-                            Icon(Icons.location_on_outlined,
-                                size: 11, color: TheyDiColors.textMuted),
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 11,
+                              color: TheyDiColors.textMuted,
+                            ),
                             const SizedBox(width: 3),
                             Text(city, style: TheyDiTextStyles.caption),
                           ],
@@ -724,14 +759,13 @@ class _FriendCard extends StatelessWidget {
                   GestureDetector(
                     onTap: () => context.push(
                       AppRoutes.dmChat,
-                      extra: {
-                        'otherUid': uid,
-                        'otherName': displayName,
-                      },
+                      extra: {'otherUid': uid, 'otherName': displayName},
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         gradient: TheyDiColors.gradientPrimary,
                         borderRadius: BorderRadius.circular(10),
@@ -739,13 +773,19 @@ class _FriendCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.chat_bubble_outline,
-                              size: 14, color: Colors.white),
+                          const Icon(
+                            Icons.chat_bubble_outline,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 5),
-                          Text('Message',
-                              style: TheyDiTextStyles.caption.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600)),
+                          Text(
+                            'Message',
+                            style: TheyDiTextStyles.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -799,7 +839,8 @@ class _CircleCard extends StatelessWidget {
                 gradient: TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: circle.profileImageUrl != null &&
+              child:
+                  circle.profileImageUrl != null &&
                       circle.profileImageUrl!.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(14),
@@ -813,8 +854,10 @@ class _CircleCard extends StatelessWidget {
                   : Center(
                       child: Text(
                         circle.initials,
-                        style: TheyDiTextStyles.displayMedium
-                            .copyWith(color: Colors.white, fontSize: 18),
+                        style: TheyDiTextStyles.displayMedium.copyWith(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
                       ),
                     ),
             ),
@@ -826,33 +869,52 @@ class _CircleCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(circle.name,
-                            style: TheyDiTextStyles.labelLarge,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          circle.name,
+                          style: TheyDiTextStyles.labelLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       if (circle.lastMessageAt != null)
-                        Text(_timeAgo(circle.lastMessageAt!),
-                            style: TheyDiTextStyles.caption
-                                .copyWith(color: TheyDiColors.textMuted)),
+                        Text(
+                          _timeAgo(circle.lastMessageAt!),
+                          style: TheyDiTextStyles.caption.copyWith(
+                            color: TheyDiColors.textMuted,
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   if (circle.lastMessage != null &&
                       circle.lastMessage!.isNotEmpty)
-                    Text(
-                      circle.lastMessageSender == uid
-                          ? 'You: ${circle.lastMessage}'
-                          : '${circle.lastMessageSender ?? ''}: ${circle.lastMessage}',
-                      style: TheyDiTextStyles.caption
-                          .copyWith(color: TheyDiColors.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    FutureBuilder<String>(
+                      future: EncryptionService.decrypt(
+                        circle.lastMessage!,
+                        circle.id,
+                      ),
+                      builder: (context, snapshot) {
+                        final decrypted = snapshot.data ?? '';
+                        final prefix = circle.lastMessageSender == uid
+                            ? 'You: '
+                            : '${circle.lastMessageSender ?? ''}: ';
+                        return Text(
+                          '$prefix$decrypted',
+                          style: TheyDiTextStyles.caption.copyWith(
+                            color: TheyDiColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     )
                   else
-                    Text('${circle.memberCount} members · Tap to chat',
-                        style: TheyDiTextStyles.caption
-                            .copyWith(color: TheyDiColors.textMuted)),
+                    Text(
+                      '${circle.memberCount} members · Tap to chat',
+                      style: TheyDiTextStyles.caption.copyWith(
+                        color: TheyDiColors.textMuted,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -864,8 +926,11 @@ class _CircleCard extends StatelessWidget {
                 activeColor: TheyDiColors.primary,
               )
             else
-              Icon(Icons.arrow_forward_ios,
-                  size: 14, color: TheyDiColors.textMuted),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
+                color: TheyDiColors.textMuted,
+              ),
           ],
         ),
       ),
@@ -910,15 +975,17 @@ class _SelectionBar extends StatelessWidget {
               onPressed: onCancel,
               child: Text(
                 'Cancel',
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: TheyDiColors.textSecondary),
+                style: TheyDiTextStyles.labelMedium.copyWith(
+                  color: TheyDiColors.textSecondary,
+                ),
               ),
             ),
             const Spacer(),
             Text(
               '$selectedCount selected',
-              style: TheyDiTextStyles.caption
-                  .copyWith(color: TheyDiColors.textSecondary),
+              style: TheyDiTextStyles.caption.copyWith(
+                color: TheyDiColors.textSecondary,
+              ),
             ),
             const SizedBox(width: 12),
             ElevatedButton(
@@ -970,15 +1037,17 @@ class _EventShareSelectionBar extends StatelessWidget {
               onPressed: onCancel,
               child: Text(
                 'Cancel',
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: TheyDiColors.textSecondary),
+                style: TheyDiTextStyles.labelMedium.copyWith(
+                  color: TheyDiColors.textSecondary,
+                ),
               ),
             ),
             const Spacer(),
             Text(
               '$selectedCount selected',
-              style: TheyDiTextStyles.caption
-                  .copyWith(color: TheyDiColors.textSecondary),
+              style: TheyDiTextStyles.caption.copyWith(
+                color: TheyDiColors.textSecondary,
+              ),
             ),
             const SizedBox(width: 12),
             ElevatedButton(
@@ -986,8 +1055,9 @@ class _EventShareSelectionBar extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: TheyDiColors.primary,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                    TheyDiColors.primary.withValues(alpha: 0.35),
+                disabledBackgroundColor: TheyDiColors.primary.withValues(
+                  alpha: 0.35,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -1103,7 +1173,9 @@ class _RequestCardState extends State<_RequestCard> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Request declined'), backgroundColor: Colors.grey),
+          content: Text('Request declined'),
+          backgroundColor: Colors.grey,
+        ),
       );
     }
   }
@@ -1120,8 +1192,9 @@ class _RequestCardState extends State<_RequestCard> {
         final city = data['city'] ?? '';
         final photoUrl = data['profileImageUrl'] ?? '';
         final interests = List<String>.from(data['interests'] ?? []);
-        final initial =
-            widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';
+        final initial = widget.fromName.isNotEmpty
+            ? widget.fromName[0].toUpperCase()
+            : '?';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -1129,8 +1202,9 @@ class _RequestCardState extends State<_RequestCard> {
           decoration: BoxDecoration(
             color: TheyDiColors.card,
             borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: TheyDiColors.primary.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: TheyDiColors.primary.withValues(alpha: 0.3),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1138,10 +1212,7 @@ class _RequestCardState extends State<_RequestCard> {
               GestureDetector(
                 onTap: () => context.push(
                   AppRoutes.userProfile,
-                  extra: {
-                    'uid': widget.fromUid,
-                    'requestId': widget.requestId,
-                  },
+                  extra: {'uid': widget.fromUid, 'requestId': widget.requestId},
                 ),
                 child: Row(
                   children: [
@@ -1155,17 +1226,25 @@ class _RequestCardState extends State<_RequestCard> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(13),
                         child: photoUrl.isNotEmpty
-                            ? Image.network(photoUrl,
+                            ? Image.network(
+                                photoUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Center(
-                                      child: Text(initial,
-                                          style: TheyDiTextStyles.labelLarge
-                                              .copyWith(color: Colors.white)),
-                                    ))
+                                  child: Text(
+                                    initial,
+                                    style: TheyDiTextStyles.labelLarge.copyWith(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              )
                             : Center(
-                                child: Text(initial,
-                                    style: TheyDiTextStyles.labelLarge
-                                        .copyWith(color: Colors.white)),
+                                child: Text(
+                                  initial,
+                                  style: TheyDiTextStyles.labelLarge.copyWith(
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                       ),
                     ),
@@ -1174,15 +1253,22 @@ class _RequestCardState extends State<_RequestCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(widget.fromName,
-                              style: TheyDiTextStyles.labelLarge),
+                          Text(
+                            widget.fromName,
+                            style: TheyDiTextStyles.labelLarge,
+                          ),
                           if (city.isNotEmpty)
-                            Row(children: [
-                              Icon(Icons.location_on_outlined,
-                                  size: 11, color: TheyDiColors.textMuted),
-                              const SizedBox(width: 3),
-                              Text(city, style: TheyDiTextStyles.caption),
-                            ]),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 11,
+                                  color: TheyDiColors.textMuted,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(city, style: TheyDiTextStyles.caption),
+                              ],
+                            ),
                         ],
                       ),
                     ),
@@ -1196,18 +1282,25 @@ class _RequestCardState extends State<_RequestCard> {
                   runSpacing: 6,
                   children: interests
                       .take(4)
-                      .map((i) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color:
-                                  TheyDiColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
+                      .map(
+                        (i) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: TheyDiColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            i,
+                            style: TheyDiTextStyles.caption.copyWith(
+                              color: TheyDiColors.primary,
+                              fontSize: 10,
                             ),
-                            child: Text(i,
-                                style: TheyDiTextStyles.caption.copyWith(
-                                    color: TheyDiColors.primary, fontSize: 10)),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -1245,12 +1338,16 @@ class _RequestCardState extends State<_RequestCard> {
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: TheyDiColors.divider),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
-                        child: Text('Decline',
-                            style: TheyDiTextStyles.labelMedium
-                                .copyWith(color: TheyDiColors.textSecondary)),
+                        child: Text(
+                          'Decline',
+                          style: TheyDiTextStyles.labelMedium.copyWith(
+                            color: TheyDiColors.textSecondary,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1266,7 +1363,8 @@ class _RequestCardState extends State<_RequestCard> {
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           child: _processing
@@ -1274,10 +1372,16 @@ class _RequestCardState extends State<_RequestCard> {
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : Text('Accept',
-                                  style: TheyDiTextStyles.labelMedium
-                                      .copyWith(color: Colors.white)),
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Accept',
+                                  style: TheyDiTextStyles.labelMedium.copyWith(
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -1319,24 +1423,32 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(title, style: TheyDiTextStyles.headlineMedium),
             const SizedBox(height: 8),
-            Text(subtitle,
-                style: TheyDiTextStyles.bodySmall
-                    .copyWith(color: TheyDiColors.textSecondary),
-                textAlign: TextAlign.center),
+            Text(
+              subtitle,
+              style: TheyDiTextStyles.bodySmall.copyWith(
+                color: TheyDiColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 24),
               GestureDetector(
                 onTap: () => onAction!(context),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     gradient: TheyDiColors.gradientPrimary,
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Text(actionLabel!,
-                      style: TheyDiTextStyles.labelLarge
-                          .copyWith(color: Colors.white)),
+                  child: Text(
+                    actionLabel!,
+                    style: TheyDiTextStyles.labelLarge.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],

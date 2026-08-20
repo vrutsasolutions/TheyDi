@@ -98,6 +98,7 @@ class FriendsService {
     await NotificationService.notifyFriendRequestAccepted(
       toUid: fromUid,
       accepterName: myName,
+      accepterUid: myUid,
     );
   }
 

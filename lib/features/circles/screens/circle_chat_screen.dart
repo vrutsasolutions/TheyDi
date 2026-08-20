@@ -26,6 +26,8 @@ import '../models/message_model.dart';
 import '../../../core/services/cloudflare_upload.dart';
 import '../../../core/utils/platform_helper.dart';
 import 'package:video_player/video_player.dart';
+import '../../../core/services/encryption_service.dart';
+import '../../../shared/widgets/decrypted_text.dart';
 
 const _kEmojis = [
   '😀',
@@ -213,36 +215,36 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     await batch.commit();
   }
 
-Future<void> _handleSelectedMedia(XFile file) async {
-  try {
-    final path = file.name.toLowerCase();
-    final mediaType = path.endsWith('.mp4') ||
-            path.endsWith('.mov') ||
-            path.endsWith('.avi')
-        ? 'video'
-        : 'image';
+  Future<void> _handleSelectedMedia(XFile file) async {
+    try {
+      final path = file.name.toLowerCase();
+      final mediaType = path.endsWith('.mp4') ||
+              path.endsWith('.mov') ||
+              path.endsWith('.avi')
+          ? 'video'
+          : 'image';
 
-    if (mediaType == 'video') {
-      final withinLimit = await _isVideoWithinDurationLimit(file);
-      if (!withinLimit) {
-        _showSnack('Maximum video sending limit is 2 minutes', Colors.red);
+      if (mediaType == 'video') {
+        final withinLimit = await _isVideoWithinDurationLimit(file);
+        if (!withinLimit) {
+          _showSnack('Maximum video sending limit is 2 minutes', Colors.red);
+          return;
+        }
+      }
+
+      final bytes = await file.readAsBytes();
+      final url = await CloudflareUpload.uploadBytes(bytes, file.name);
+
+      if (url == null) {
+        _showSnack('Upload failed', Colors.red);
         return;
       }
+
+      await _sendMessage(mediaUrl: url, mediaType: mediaType);
+    } catch (e) {
+      _showSnack('Failed: $e', Colors.red);
     }
-
-    final bytes = await file.readAsBytes();
-    final url = await CloudflareUpload.uploadBytes(bytes, file.name);
-
-    if (url == null) {
-      _showSnack('Upload failed', Colors.red);
-      return;
-    }
-
-    await _sendMessage(mediaUrl: url, mediaType: mediaType);
-  } catch (e) {
-    _showSnack('Failed: $e', Colors.red);
   }
-}
 
   Future<void> _sendMessage({
     String? mediaUrl,
@@ -261,6 +263,7 @@ Future<void> _handleSelectedMedia(XFile file) async {
 
     try {
       final user = FirebaseAuth.instance.currentUser!;
+      final encryptedText = await EncryptionService.encrypt(text, _circle.id);
       String senderName = user.displayName ?? user.email!.split('@').first;
 
       try {
@@ -279,7 +282,7 @@ Future<void> _handleSelectedMedia(XFile file) async {
         circleId: _circle.id,
         senderUid: user.uid,
         senderName: senderName,
-        text: text,
+        text: encryptedText,  
         mediaUrl: mediaUrl,
         mediaType: mediaType,
         createdAt: DateTime.now(),
@@ -301,13 +304,14 @@ Future<void> _handleSelectedMedia(XFile file) async {
             ? '📷 Photo'
             : mediaType == "video"
                 ? '🎥 Video'
-                : text,
+                : encryptedText,
         'lastMessageSender': senderName,
         'lastMessageAt': Timestamp.now(),
       });
 
       _scrollToBottom();
     } catch (e) {
+       
       if (mounted) _showSnack('Failed: $e', Colors.red);
     }
 
@@ -1111,6 +1115,7 @@ Future<void> _handleSelectedMedia(XFile file) async {
                       else
                         _CircleBubble(
                           text: data['text'] ?? '',
+                          chatId: _circle.id, // NEW
                           isMine: isMine,
                           senderName: senderName,
                           timeLabel: timeLabel,
@@ -2426,10 +2431,11 @@ class _WaveformBars extends StatelessWidget {
 }
 
 class _CircleBubble extends StatelessWidget {
-  final String text, senderName, timeLabel;
+  final String text, chatId, senderName, timeLabel; // add chatId here
   final bool isMine, seen;
   const _CircleBubble(
       {required this.text,
+      required this.chatId, // add here
       required this.isMine,
       required this.senderName,
       required this.timeLabel,
@@ -2472,8 +2478,9 @@ class _CircleBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      text,
+                    DecryptedText(
+                      cipherText: text,
+                      chatId: chatId,
                       style: TheyDiTextStyles.bodySmall.copyWith(
                         color:
                             isMine ? Colors.black : TheyDiColors.textSecondary,

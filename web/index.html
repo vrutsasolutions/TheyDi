@@ -42,6 +42,13 @@
   <!-- InAppWebView Web Support (unused — flutter_inappwebview_web is not a project dependency) -->
   <!-- <script type="application/javascript" src="/assets/packages/flutter_inappwebview_web/assets/web/web_support.js" defer></script> -->
  
+
+  <script
+  type="application/javascript"
+  src="/assets/packages/flutter_inappwebview_web/assets/web/web_support.js"
+  defer>
+</script>
+
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYmib7-x4ToxIKKNSheZ7eMPkKNPRkZyU&amp;libraries=places&amp;loading=async"></script>
   <style id="splash-screen-style">
     html {
@@ -125,5 +132,121 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async=""></script>
+  
+  <script type="module">
+  import { FaceLandmarker, FilesetResolver } from
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
-</body></html>
+  let videoLandmarker, imageLandmarker;
+
+  async function loadFiles() {
+    return FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+    );
+  }
+
+  window.theydiInitLandmarker = async () => {
+    if (videoLandmarker && imageLandmarker) return true;
+    const files = await loadFiles();
+    const baseOptions = {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+        delegate: "GPU",
+      },
+      outputFaceBlendshapes: true,
+      // Needed so we can (best-effort) derive a real yaw angle in
+      // degrees from the transformation matrix, instead of relying only
+      // on the nose/cheek-offset approximation further down.
+      outputFacialTransformationMatrixes: true,
+      // Raised from 1 to 3 so a second/third face in frame is actually
+      // detected by the model and can be reported via faceCount — with
+      // numFaces: 1 a second face was invisible to MediaPipe entirely.
+      numFaces: 3,
+    };
+    videoLandmarker = await FaceLandmarker.createFromOptions(files, { ...baseOptions, runningMode: "VIDEO" });
+    imageLandmarker = await FaceLandmarker.createFromOptions(files, { ...baseOptions, runningMode: "IMAGE" });
+    return true;
+  };
+
+  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+  // Bounding box of one face's landmarks, normalized 0-1 — matches Dart's
+  // FaceBox shape (left, top, width, height) in liveness_models.dart.
+  function computeFaceBox(landmarks) {
+    let minX = 1, minY = 1, maxX = 0, maxY = 0;
+    for (const p of landmarks) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { left: minX, top: minY, width: maxX - minX, height: maxY - minY };
+  }
+
+  // Best-effort yaw (degrees) from MediaPipe's facial transformation
+  // matrix. NOT verified against a real device — wrapped in try/catch in
+  // theydiDetect() below so any layout/sign mistake here just falls back
+  // to the existing nose/cheek-offset estimate on the Dart side, rather
+  // than breaking detection. If this reads backwards (wrong sign) or the
+  // magnitude is way off for a real ~20° turn, it's safe to delete this
+  // function and stop returning yawDegrees below — Dart already has a
+  // working fallback for that case.
+  function yawDegreesFromMatrix(matrixData) {
+    // 16-element column-major 4x4 matrix (MediaPipe Matrix convention:
+    // element[col*4 + row]).
+    const r02 = matrixData[8];  // row0, col2
+    const r22 = matrixData[10]; // row2, col2
+    const yawRad = Math.atan2(r02, r22);
+    return yawRad * (180 / Math.PI);
+  }
+
+  // Live video frame -> blink/turn/face-count/face-box signals
+  window.theydiDetect = (videoEl) => {
+    if (!videoLandmarker || !videoEl || videoEl.readyState < 2) return null;
+    const result = videoLandmarker.detectForVideo(videoEl, performance.now());
+    const faceCount = result.faceLandmarks ? result.faceLandmarks.length : 0;
+    if (faceCount === 0) return null; // Dart side treats null as faceCount: 0
+
+    const lm = result.faceLandmarks[0];
+    const bs = {};
+    (result.faceBlendshapes?.[0]?.categories || []).forEach(c => bs[c.categoryName] = c.score);
+
+    let yawDegrees;
+    try {
+      const matrix = result.facialTransformationMatrixes?.[0]?.data;
+      yawDegrees = matrix ? yawDegreesFromMatrix(matrix) : undefined;
+    } catch (_) {
+      yawDegrees = undefined; // Dart falls back to its own estimate
+    }
+
+    return {
+      faceCount,
+      faceBox: computeFaceBox(lm),
+      leftEAR: dist(lm[159], lm[145]) / dist(lm[33], lm[133]),
+      rightEAR: dist(lm[386], lm[374]) / dist(lm[362], lm[263]),
+      blinkLeft: bs["eyeBlinkLeft"] || 0,
+      blinkRight: bs["eyeBlinkRight"] || 0,
+      noseX: lm[1].x, leftCheekX: lm[234].x, rightCheekX: lm[454].x,
+      ...(yawDegrees !== undefined ? { yawDegrees } : {}),
+    };
+  };
+
+  // Still captured photo -> geometric points for matching
+  window.theydiDetectImage = async (base64Jpeg) => {
+    if (!imageLandmarker) return null;
+    const img = new Image();
+    await new Promise((res) => { img.onload = res; img.src = "data:image/jpeg;base64," + base64Jpeg; });
+    const result = imageLandmarker.detect(img);
+    if (!result.faceLandmarks || result.faceLandmarks.length === 0) return null;
+    const lm = result.faceLandmarks[0];
+    const pick = (i) => [lm[i].x, lm[i].y];
+    return {
+      leftEyeOuter: pick(33), rightEyeOuter: pick(263), noseTip: pick(1),
+      mouthCenter: pick(13), leftJaw: pick(234), rightJaw: pick(454),
+      mouthLeft: pick(61), mouthRight: pick(291), leftBrow: pick(105),
+    };
+  };
+</script>
+</body>
+</html>

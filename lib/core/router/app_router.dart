@@ -60,6 +60,8 @@ import '../../features/settings/screens/privacy_policy_screen.dart';
 import '../../features/settings/screens/terms_conditions_screen.dart';
 
 import '../../features/admin/screens/admin_verification_screen.dart';
+import '../../features/admin/screens/admin_pending_payouts_screen.dart';
+import '../../features/onboarding1/screens/onboarding_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -462,6 +464,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.adminVerification,
         builder: (context, state) => const AdminVerificationScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.adminPendingPayouts,
+        builder: (context, state) => const AdminPendingPayoutsScreen(),
+      ),
 
       GoRoute(
         path: AppRoutes.darlaChat,
@@ -497,7 +503,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const CreateEventScreen(),
       ),
-
+      GoRoute(
+  path: '/onboarding',
+  builder: (context, state) {
+    return const OnboardingScreen();
+  },
+),
 
       // ── Shell routes (StatefulShellRoute keeps bottom nav + correct web URLs) ──
       StatefulShellRoute.indexedStack(
@@ -548,7 +559,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.circles,
                 builder: (context, state) {
                   final initialTab =
-                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ??
+                          0;
                   debugPrint('Tab from URL = $initialTab');
                   return CirclesListScreen(
                     initialTab: initialTab,
