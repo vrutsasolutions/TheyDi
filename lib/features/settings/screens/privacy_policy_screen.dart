@@ -20,529 +20,523 @@ class PrivacyPolicyScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-  width: double.infinity,
-  padding: const EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 30,
-  ),
-  decoration: BoxDecoration(
-    color: Colors.teal.withValues(alpha: 0.08),
-    borderRadius: BorderRadius.circular(18),
-  ),
-  child: Column(
-  children: [
-    Container(
-      width: 90,
-      height: 90,
-      decoration: BoxDecoration(
-        color: TheyDiColors.primary.withValues(alpha: .08),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(
-        Icons.privacy_tip_rounded,
-        size: 42,
-        color: TheyDiColors.primary,
-      ),
-    ),
-    const SizedBox(height: 16),
-    Text(
-      'Your privacy matters to us.',
-      style: TheyDiTextStyles.bodyLarge.copyWith(
-        color: TheyDiColors.textSecondary,
-      ),
-    ),
-  ],
-),
-),
-const SizedBox(height: 24),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 30,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.teal.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: TheyDiColors.primary.withValues(alpha: .08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.privacy_tip_rounded,
+                      size: 42,
+                      color: TheyDiColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your privacy matters to us.',
+                    style: TheyDiTextStyles.bodyLarge.copyWith(
+                      color: TheyDiColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Effective Date: August 20, 2026\nLast Updated: August 20, 2026',
+                    textAlign: TextAlign.center,
+                    style: TheyDiTextStyles.bodyLarge.copyWith(
+                      color: TheyDiColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
             _buildCard(
-  icon: Icons.info_outline,
-  title: "Introduction",
-  content:
-      "Application: TheyDi\n"
-      "Operated by: Vrutsa Solutions\n"
-      "Contact Email: theydi.app@gmail.com\n"
-      
-      "Vrutsa Solutions (\"we\", \"us\", \"our\") operates the TheyDi mobile application, web application, and related services (collectively, the \"Platform\"). This Privacy Policy explains how we collect, use, disclose, store and protect your personal data when you use TheyDi.\n\n"
-      "This Privacy Policy is issued in compliance with:\n\n"
-      "• Information Technology Act, 2000\n"
-      "• Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011\n"
-      "• Digital Personal Data Protection Act, 2023 (DPDP Act)\n"
-      "• Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021\n\n"
-      "By using the Platform, you consent to the collection and use of your personal data as described in this Privacy Policy.",
-),
-const SizedBox(height: 18),
+              icon: Icons.info_outline,
+              title: "Introduction",
+              content:
+                  "Application: TheyDi\n"
+                  "Operated by: Vrutsa Solutions\n"
+                  "Contact Email: theydi.app@gmail.com\n\n"
+                  "Vrutsa Solutions (\"we\", \"us\", \"our\") operates the TheyDi mobile application, web application, and related services (collectively, the \"Platform\"). This Privacy Policy explains how we collect, use, disclose, store and protect your personal data when you use TheyDi.\n\n"
+                  "This Privacy Policy is issued in compliance with:\n\n"
+                  "• Information Technology Act, 2000\n"
+                  "• Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011\n"
+                  "• Digital Personal Data Protection Act, 2023 (DPDP Act)\n"
+                  "• Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021\n\n"
+                  "By using the Platform, you consent to the collection and use of your personal data as described in this Privacy Policy.",
+            ),
+            const SizedBox(height: 18),
 
-_buildCard(
-  icon: Icons.business,
-  title: "Data Fiduciary",
-  content:
-      "Vrutsa Solutions is the Data Fiduciary under the Digital Personal Data Protection Act, 2023 with respect to the personal data collected through TheyDi.\n\n"
-      "Contact for Data Protection and Grievances:\n\n"
-      "Email: theydi.app@gmail.com",
-),
             _buildCard(
-  icon: Icons.person_outline,
-  title: "Information We Collect",
-  content:
-      "We collect the following categories of information from users of the TheyDi Platform.",
-),
+              icon: Icons.business,
+              title: "2. Data Fiduciary",
+              content:
+                  "Vrutsa Solutions is the Data Fiduciary under the Digital Personal Data Protection Act, 2023 with respect to the personal data collected through TheyDi.\n\n"
+                  "Contact for Data Protection and Grievances:\n\n"
+                  "Email: theydi.app@gmail.com",
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.account_circle_outlined,
-  title: "3.1 Information You Provide Directly",
-  bullets: const [
-    "Account Registration",
-    "• Full name and display name",
-    "• Email address",
-    "• Phone number",
-    "• Date of birth",
-    "• Gender",
-    "• City of residence",
-    "• Password (stored in encrypted, hashed form)",
-    "• Profile photo and additional photos",
-    "• Face verification data (biometric)",
-  
-    "Event Data",
-    "• Events you create (location, description, images, pricing, capacity)",
-    "• Events you book, attend or express interest in",
-    "• Reviews, ratings and feedback",
-  
-    "Payment Data",
-    "• Billing name and address",
-    "• UPI ID, card or bank details (processed securely through Razorpay)",
-    "• Transaction history",
-    "• PAN, IFSC, bank account and KYC documents for Hosts",
-
-    "Social Interactions",
-    "• Friend connections",
-    "• Circle memberships",
-    "• Direct messages and chat content",
-    "• Circle posts",
-
-    "Support Communications",
-    "• Messages sent to customer support",
-    "• Grievance reports",
-    "• Misuse reports",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.phone_android,
-  title: "3.2 Information Collected Automatically",
-  bullets: const [
-    "Device Information (device model, OS version, identifiers, IP address, browser, network)",
-    "Usage Data (screens viewed, clicks, searches, time spent, referrals)",
-    "Location Data (GPS with permission and approximate IP location)",
-    "Log Data (access logs, crash reports and error logs)",
-    "Cookies and similar technologies for analytics and sessions",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.cloud_outlined,
-  title: "3.3 Information from Third Parties",
-  bullets: const [
-    "Firebase Authentication (Google)",
-    "Razorpay",
-    "Google Maps Platform services",
-    "Future social login providers (if enabled)",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.lock_outline,
-  title: "3.4 Sensitive Personal Data",
-  content:
-      "Under the SPDI Rules and the Digital Personal Data Protection Act (DPDP Act), the following information is considered sensitive:",
-  bullets: const [
-    "Financial information",
-    "Bank and payment details",
-    "Biometric information (face verification data)",
-    "Passwords",
-    "We protect this information using enhanced security measures.",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.child_care,
-  title: "3.5 Children's Data",
-  content:
-      "TheyDi is available to users of all ages. However, age-restricted (18+) events and paid transactions are only available to users aged 18 years or above.\n\nFor users under 18, personal data is processed only with the consent of a parent or legal guardian as required by the DPDP Act.",
-  bullets: const [
-    "No behavioural profiling of minors",
-    "No targeted advertising to minors",
-    "No access to 18+ events",
-    "No paid bookings or host payouts for minors",
-    "Parents may request review or deletion of a child's data by contacting theydi.app@gmail.com",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.face_retouching_natural,
-  title: "3.6 Biometric Data (Face Verification)",
-  content:
-      "Where face verification is used, facial data is processed solely for identity verification. It is not used for surveillance or profiling and is not shared with third parties except where required by law. Users may request deletion of this data at any time.",
-),
             _buildCard(
-  icon: Icons.settings,
-  title: "4. How We Use Your Information",
-  content:
-      "We use your personal data for the following purposes:",
-),
+              icon: Icons.person_outline,
+              title: "3. Information We Collect",
+              content:
+                  "We collect the following categories of information from users of the TheyDi Platform.",
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.person_outline,
-  title: "Providing the Service",
-  bullets: const [
-    "Creating and managing your account",
-    "Enabling event discovery, booking and attendance",
-    "Processing payments and host payouts",
-    "Enabling social features, friend connections and messaging",
-    "Sending event confirmations, reminders and notifications",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.location_on_outlined,
-  title: "Location-Based Features",
-  bullets: const [
-    "Showing nearby events sorted by distance",
-    "Providing directions to event venues",
-    "Calculating radius-based recommendations",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.security,
-  title: "Safety and Security",
-  bullets: const [
-    "Verifying user identity",
-    "Detecting fraud, abuse and violations of our Terms",
-    "Investigating reports of misconduct",
-    "Cooperating with law enforcement where legally required",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.notifications_active_outlined,
-  title: "Communication",
-  bullets: const [
-    "Sending booking confirmations and payment receipts",
-    "Sending OTPs and security notifications",
-    "Responding to support requests",
-    "Sending service updates and policy changes",
-    "Sending marketing communications with your consent (opt-out available)",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.analytics_outlined,
-  title: "Improving the Platform",
-  bullets: const [
-    "Analytics and product improvement",
-    "Debugging and error resolution",
-    "Research and development",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.gavel_outlined,
-  title: "Legal Compliance",
-  bullets: const [
-    "Complying with tax laws",
-    "Meeting KYC obligations",
-    "Responding to court orders and lawful government requests",
-  ],
-),
-
-const SizedBox(height: 24),
-
-_buildCard(
-  icon: Icons.balance,
-  title: "5. Legal Basis for Processing (DPDP Act)",
-  content:
-      "Under the Digital Personal Data Protection Act (DPDP Act), we process your personal data based on the following legal grounds:",
-  bullets: const [
-    "Your consent obtained during signup and for specific permissions such as location, notifications and marketing.",
-    "Legitimate uses permitted under Section 7 of the DPDP Act, including performance of contract, compliance with law and responding to medical emergencies.",
-    "You may withdraw your consent at any time as described in the 'Your Rights' section.",
-  ],
-),
-
-const SizedBox(height: 24),
-
-_buildCard(
-  icon: Icons.share_outlined,
-  title: "6. Sharing and Disclosure of Information",
-  content:
-      "We do not sell your personal data. We share information only in the following circumstances:",
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.people_outline,
-  title: "6.1 With Other Users",
-  bullets: const [
-    "Your profile information is visible according to your privacy settings.",
-    "Event hosts receive your booking details.",
-    "Friends and circle members can view information you choose to share.",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.cloud_outlined,
-  title: "6.2 With Service Providers",
-  bullets: const [
-    "Google Firebase (Authentication, Firestore, Storage, Cloud Functions, Analytics, Crashlytics)",
-    "Google Cloud Platform (Maps, Directions, Geocoding, Places APIs)",
-    "Razorpay (Payment Processing)",
-    "Cloud hosting, email delivery, SMS/OTP and analytics providers",
-    "These providers are contractually obligated to protect your information.",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.policy_outlined,
-  title: "6.3 For Legal Reasons",
-  bullets: const [
-    "Comply with laws and legal processes",
-    "Respond to lawful requests from authorities",
-    "Protect the rights, safety and property of Users and the Platform",
-    "Investigate fraud, abuse and security incidents",
-  ],
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.business_center_outlined,
-  title: "6.4 Business Transfers",
-  content:
-      "In the event of a merger, acquisition, restructuring or sale of assets, your information may be transferred, provided the acquiring party continues to honour this Privacy Policy.",
-),
-
-const SizedBox(height: 18),
-
-_buildCard(
-  icon: Icons.verified_user_outlined,
-  title: "6.5 With Your Consent",
-  content:
-      "For any disclosure not covered above, we will obtain your explicit consent before sharing your personal information.",
-),
-
-const SizedBox(height: 24),
-
-_buildCard(
-  icon: Icons.public,
-  title: "7. Cross-Border Data Transfer",
-  content:
-      "Some service providers such as Google and Firebase may process or store data outside India.",
-  bullets: const [
-    "Transfers comply with the Digital Personal Data Protection Act (DPDP Act).",
-    "Data is transferred only to jurisdictions permitted under applicable law.",
-    "Appropriate contractual safeguards are maintained with service providers.",
-    "We continue to ensure the security and protection of your personal information.",
-  ],
-),
-           
             _buildCard(
-  icon: Icons.lock_outline,
-  title: "8. Data Security",
-  content:
-      "We implement reasonable security measures under the SPDI Rules and the Digital Personal Data Protection Act (DPDP Act) to protect your personal information.",
-  bullets: const [
-    "Encryption of data in transit (HTTPS/TLS)",
-    "Encryption of sensitive data at rest",
-    "Password hashing using industry-standard algorithms",
-    "Firebase Security Rules restricting unauthorised access",
-    "Access controls on a need-to-know basis",
-    "Regular security reviews and updates",
-    "Secure payment handling through PCI-DSS compliant providers (Razorpay)",
-  ],
-),
+              icon: Icons.account_circle_outlined,
+              title: "3.1 Information You Provide Directly",
+              bullets: const [
+                "Account Registration",
+                "• Full name and display name",
+                "• Email address",
+                "• Phone number",
+                "• Date of birth",
+                "• Gender",
+                "• City of residence",
+                "• Password (stored in encrypted, hashed form)",
+                "• Profile photo and additional photos",
+                "• Face liveness verification data — including a short video capturing head rotation and eye-blink actions (biometric — see Section 3.6)",
 
-const SizedBox(height: 18),
+                "Event Data",
+                "• Events you create (including location, description, images, capacity, pricing)",
+                "• Events you book, attend, or express interest in",
+                "• Reviews, ratings, and feedback",
 
-_buildCard(
-  icon: Icons.warning_amber_rounded,
-  title: "Security Notice",
-  content:
-      "No system is completely secure. While we take reasonable measures to protect your information, we cannot guarantee absolute security. Please keep your login credentials confidential.",
-),
+                "Payment Data",
+                "• Billing name and address",
+                "• UPI ID, card details, or bank account details (processed via Razorpay— we do not store full card numbers or CVVs)",
+                "• Transaction history",
+                "• For Hosts:bank account number, IFSC, and KYC documents",
 
-const SizedBox(height: 18),
+                "Social Interactions",
+                "• Friend connections, circle memberships",
+                "• Direct messages and chat content",
+                "• Content posted in event circles",
 
-_buildCard(
-  icon: Icons.notification_important_outlined,
-  title: "Data Breach Notification",
-  content:
-      "If a personal data breach affects your rights, we will notify you and the Data Protection Board of India as required under the DPDP Act.",
-),
+                "Support Communications",
+                "• Messages sent to customer support, grievance officer, or reports of misuse",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 24),
-
-_buildCard(
-  icon: Icons.storage_outlined,
-  title: "9. Data Retention",
-  content:
-      "We retain your personal data only for as long as necessary to fulfil the purposes described in this Privacy Policy.",
-  bullets: const [
-    "Account data: Duration of account + 90 days after deletion",
-    "Transaction records: 8 years",
-    "Host KYC records: 5 years after last transaction",
-    "Chat & message history: Duration of account + 90 days",
-    "Location history: 30 days",
-    "Log data: 12 months",
-    "Marketing preferences: Until consent is withdrawn",
-    "Grievance records: 3 years",
-    "Data may be retained longer where required by law or for fraud prevention and dispute resolution.",
-    "Expired data is securely deleted or anonymised.",
-  ],
-),
-
-const SizedBox(height: 24),
-
-_buildCard(
-  icon: Icons.gpp_good_outlined,
-  title: "10. Your Rights (DPDP Act)",
-  content:
-      "As a Data Principal under the Digital Personal Data Protection Act (DPDP Act), you have the following rights:",
-  bullets: const [
-    "Right to Access your personal data",
-    "Right to Correction and Erasure of inaccurate or unnecessary data",
-    "Right to Withdraw Consent at any time",
-    "Right to Nominate another individual to exercise your rights",
-    "Right to Grievance Redressal",
-    
-    "Exercise your rights through:",
-    "• Settings → Privacy → Data Requests",
-    "• Email: theydi.app@gmail.com",
-    "We will respond within 30 days of a valid request. Identity verification may be required.",
-  ],
-),
             _buildCard(
-  icon: Icons.cookie_outlined,
-  title: "11. Cookies and Tracking Technologies",
-  content:
-      "Our web application uses cookies and similar technologies to improve your experience.",
-  bullets: const [
-    "Authentication and session management",
-    "Remembering user preferences",
-    "Analytics (Firebase Analytics & Google Analytics)",
-    "Performance monitoring",
-    "You can control cookies through your browser settings. Disabling cookies may affect certain features.",
-  ],
-),
+              icon: Icons.phone_android,
+              title: "3.2 Information Collected Automatically",
+              bullets: const [
+                "Device Information: device model, OS version, unique device identifiers, IP address, browser type, mobile network information",
+                "Usage Data: screens viewed, features used, time spent, clicks, search queries, referral source",
+                "Location Data: GPS coordinates (with permission), approximate location from IP address",
+                "Log Data: access logs, error logs, crash reports",
+                "Cookies and Similar Technologies: session cookies, analytics identifiers",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 20),
+            _buildCard(
+              icon: Icons.cloud_outlined,
+              title: "3.3 Information from Third Parties",
+              bullets: const [
+                "Firebase Authentication (Google): Authentication metadata",
+                "Payment Providers (Razorpay): Transaction status, payout confirmation",
+                "Google Maps Platform: Location resolution, geocoding, place details",
+                "Social login providers (if enabled in future): Profile data as authorised by you",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-_buildCard(
-  icon: Icons.campaign_outlined,
-  title: "12. Marketing Communications",
-  content:
-      "With your consent, we may send promotional communications through various channels.",
-  bullets: const [
-    "Email (unsubscribe link available)",
-    "SMS (Reply STOP to opt out)",
-    "WhatsApp messages",
-    "Push notifications",
-    "In-app notifications",
-    "Transactional messages such as booking confirmations, payment receipts and security alerts will continue regardless of marketing preferences.",
-  ],
-),
+            _buildCard(
+              icon: Icons.lock_outline,
+              title: "3.4 Sensitive Personal Data",
+              content:
+                  "Under the SPDI Rules and the Digital Personal Data Protection Act (DPDP Act), the following information is considered sensitive:",
+              bullets: const [
+                "Financial information (payment details, bank details)",
+                "Biometric information (face verification data, if used)",
+                "Passwords",
+                "We handle such data with heightened security measures.",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 20),
+            _buildCard(
+              icon: Icons.child_care,
+              title: "3.5 Children's Data",
+              content:
+                  "TheyDi is open to users of all ages. There are no age-restricted (18+) events on the Platform.\n\n"
+                  "For users under 18, we process personal data only with the consent of a parent or legal guardian, in accordance with the Digital Personal Data Protection Act, 2023. We take the following measures to protect minors:",
+              bullets: const [
+                "We do not track, profile, or monitor minors for advertising or behavioural targeting",
+                "We do not display targeted advertisements to minors",
+                "Minors may use the free features of the Platform but cannot make paid bookings, host paid events, or receive payouts. Any paid transaction on behalf of a minor must be carried out by their parent or legal guardian using their own account",
+                "Location data, chat data, and profile data of minors are processed only to the extent necessary to deliver core Platform features, and are subject to the same security and retention safeguards as adult users' data",
+                "We rely on the date of birth provided at signup and on the supervising parent or guardian to determine and confirm the age of the user",
+                "Parents or guardians who believe their child has provided data without appropriate consent, or who wish to review, correct, or delete their child's data, may contact us at theydi.app@gmail.com. We will act on such requests within the timelines set out in Section 10 of this Policy",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-_buildCard(
-  icon: Icons.link_outlined,
-  title: "13. Third-Party Links and Services",
-  content:
-      "The Platform may contain links to third-party websites, sponsors, event venues or external services. We are not responsible for their privacy practices. Please review their respective Privacy Policies before sharing your personal information.",
-),
+            _buildCard(
+              icon: Icons.face_retouching_natural,
+              title: "3.6 Biometric Data (Face Liveness Video Verification)",
+              content:
+                  "TheyDi uses a face liveness video verification system to confirm that the person creating or accessing an account is a real, live human being. This is an active biometric check — not just a static photo.",
+              bullets: const [
+                "What we capture: A short video (typically a few seconds) of your face while you perform simple movements such as rotating your head (left, right, up, down) and blinking your eyes. Facial feature vectors and liveness signals derived from this video (e.g. movement patterns, blink detection).",
+                "Why we capture it: To prevent fake accounts, impersonation, deepfakes, and misuse of stolen photos. To increase trust and safety across the platform, especially for social events where users meet in person.",
+                "How we use it: Solely for identity and liveness verification at the point of signup or re-verification. The verification result (pass/fail) is stored against your account; the underlying video and biometric data are handled per our retention policy (Section 9).",
+                "How we protect it: Video and biometric data are transmitted over encrypted channels (HTTPS/TLS) and stored in encrypted form. Access is strictly restricted to verification and fraud-prevention personnel on a need-to-know basis. We do not use your facial data for advertising, profiling, surveillance, behavioural tracking, or training of third-party AI models. We do not sell or share your biometric data with any third party except our verification service provider (acting solely on our instructions), or where required by law, court order, or lawful request from a competent authority.",
+                "Your rights: You may request access to, correction of, or deletion of your face liveness data at any time by writing to theydi.app@gmail.com. Deletion may result in loss of verified status on your account and may restrict access to certain features. You may withdraw consent to further biometric processing; however, this may prevent you from continuing to use features that require verification.",
+                "Biometric data qualifies as Sensitive Personal Data under the SPDI Rules and receives the heightened security measures described in Section 8.",
+              ],
+            ),
+            const SizedBox(height: 24),
 
-const SizedBox(height: 20),
+            _buildCard(
+              icon: Icons.settings,
+              title: "4. How We Use Your Information",
+              content: "We use your personal data for the following purposes:",
+            ),
+            const SizedBox(height: 18),
 
-_buildCard(
-  icon: Icons.auto_awesome_outlined,
-  title: "14. Automated Decision-Making",
-  content:
-      "We use automated systems to improve your experience on TheyDi.",
-  bullets: const [
-    "Sorting events by distance and relevance",
-    "Fraud detection",
-    "Content recommendations",
-    "We do not use fully automated decision-making that produces significant legal effects. Human review is available upon request.",
-  ],
-),
-           _buildCard(
-  icon: Icons.update,
-  title: "15. Changes to This Policy",
-  content:
-      "We may update this Privacy Policy from time to time. Material changes will be communicated through the following channels:",
-  bullets: const [
-    "In-app notifications",
-    "Email to your registered address",
-    "Prominent notice on the Platform",
-    "Continued use of TheyDi after such updates constitutes acceptance of the revised Privacy Policy.",
-    "If you disagree with any changes, you should discontinue using the Platform and delete your account.",
-  ],
-),
+            _buildCard(
+              icon: Icons.person_outline,
+              title: "Providing the Service",
+              bullets: const [
+                "Creating and managing your account",
+                "Enabling event discovery, booking and attendance",
+                "Processing payments and payouts",
+                "Enabling social features, friend connections and messaging",
+                "Sending event confirmations, reminders and notifications",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 20),
+            _buildCard(
+              icon: Icons.location_on_outlined,
+              title: "Location-Based Features",
+              bullets: const [
+                "Showing nearby events sorted by distance",
+                "Providing directions to event venues",
+                "Calculating radius-based recommendations",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-_buildCard(
-  icon: Icons.support_agent_outlined,
-  title: "16. Grievance Redressal",
-  content:
-      "If you have any concerns regarding the collection, use or protection of your personal data, please contact us.",
-  bullets: const [
-    "Email: theydi.app@gmail.com",
-    "Acknowledgement: Within 24 hours",
-    "Resolution: Within 15 days",
-    "If you are not satisfied with our response, you may escalate the matter to the Data Protection Board of India under the DPDP Act.",
-  ],
-),
+            _buildCard(
+              icon: Icons.security,
+              title: "Safety and Security",
+              bullets: const [
+                "Verifying user identity",
+                "Detecting fraud, abuse and violations of Terms",
+                "Investigating reports of misconduct",
+                "Cooperating with law enforcement where legally required",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-const SizedBox(height: 20),
+            _buildCard(
+              icon: Icons.notifications_active_outlined,
+              title: "Communication",
+              bullets: const [
+                "Sending transactional messages (booking confirmations, OTPs, payment receipts)",
+                "Responding to support queries",
+                "Sending service updates and policy changes",
+                "With your consent, sending marketing communications (which you can opt out of)",
+              ],
+            ),
+            const SizedBox(height: 18),
 
-_buildCard(
-  icon: Icons.email_outlined,
-  title: "17. Contact Us",
-  content:
-      "Vrutsa Solutions\n\n"
-      "Email: theydi.app@gmail.com\n\n"
-      "By using TheyDi, you acknowledge that you have read and understood this Privacy Policy.",
-),
+            _buildCard(
+              icon: Icons.analytics_outlined,
+              title: "Improving the Platform",
+              bullets: const [
+                "Analytics and product improvement",
+                "Debugging and error resolution",
+                "Research and development",
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.gavel_outlined,
+              title: "Legal Compliance",
+              bullets: const [
+                "Complying with tax laws, KYC obligations, court orders, and government requests",
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            _buildCard(
+              icon: Icons.balance,
+              title: "5. Legal Basis for Processing (DPDP Act)",
+              content:
+                  "Under the DPDP Act, we process personal data based on:",
+              bullets: const [
+                "Your consent, obtained at signup and for specific purposes such as location access, notifications, and marketing",
+                "Legitimate uses as permitted under Section 7 of the DPDP Act including performance of contract, compliance with law, and responding to medical emergencies",
+                "You may withdraw consent at any time as described in Section 10.",
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            _buildCard(
+              icon: Icons.share_outlined,
+              title: "6. Sharing and Disclosure of Information",
+              content:
+                  "We do not sell your personal data. We share data only as follows:",
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.people_outline,
+              title: "6.1 With Other Users",
+              bullets: const [
+                "Your profile information (name, photo, city, age, gender, event participation) is visible to other Users based on your privacy settings",
+                "Hosts of events you book receive your name, contact information, and booking details",
+                "Attendees you interact with through friend requests, circles, and messages see your profile",
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.cloud_outlined,
+              title: "6.2 With Service Providers (Data Processors)",
+              bullets: const [
+                "Google Firebase (Authentication, Firestore Database, Cloud Functions, Cloud Storage, Analytics, Crashlytics)",
+                "Google Cloud Platform (Maps, Directions, Geocoding, Places APIs)",
+                "Razorpay (attendee payment processing)",
+                "Face liveness verification provider (biometric verification, on our instructions only)",
+                "Cloud hosting, email delivery, SMS/OTP, and analytics providers",
+                "These providers are contractually obligated to protect your data and use it only for stated purposes.",
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.account_balance_wallet_outlined,
+              title: "Host Payouts",
+              content:
+                  "Host payouts are processed directly by Vrutsa Entertainment Private Limited via netbanking bulk transfers from our business bank account and are not disbursed through any third-party payout aggregator. Your bank details are shared only with our own banking partner for the purpose of executing the transfer.",
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.policy_outlined,
+              title: "6.3 For Legal Reasons",
+              content: "We may disclose data to:",
+              bullets: const [
+                "Comply with laws, court orders, or legal processes",
+                "Respond to lawful requests from law enforcement",
+                "Protect our rights, property, or safety, or that of Users or the public",
+                "Investigate fraud, security issues, or violations",
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.business_center_outlined,
+              title: "6.4 Business Transfers",
+              content:
+                  "In case of merger, acquisition, restructuring, or sale of assets, your data may be transferred, subject to the acquirer honouring this Privacy Policy.",
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.verified_user_outlined,
+              title: "6.5 With Your Consent",
+              content:
+                  "For any other disclosure, we will obtain your explicit consent.",
+            ),
+            const SizedBox(height: 24),
+
+            _buildCard(
+              icon: Icons.public,
+              title: "7. Cross-Border Data Transfer",
+              content:
+                  "Some of our service providers (e.g., Google, Firebase) may store or process data outside India. Where cross-border transfer occurs, we ensure:",
+              bullets: const [
+                "Compliance with the DPDP Act (transfers only to countries not restricted by the Central Government)",
+                "Appropriate contractual safeguards with providers",
+                "Continued protection of your data",
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            _buildCard(
+              icon: Icons.lock_outline,
+              title: "8. Data Security",
+              content:
+                  "We implement reasonable security measures under the SPDI Rules and DPDP Act including:",
+              bullets: const [
+                "Encryption of data in transit (HTTPS/TLS)",
+                "Encryption of sensitive data at rest",
+                "Password hashing using industry-standard algorithms",
+                "Firebase Security Rules restricting unauthorised access",
+                "Access controls limiting employee access on a need-to-know basis",
+                "Regular security reviews and updates",
+                "Secure payment handling via PCI-DSS compliant providers (Razorpay)",
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.warning_amber_rounded,
+              title: "Security Notice",
+              content:
+                  "No system is completely secure. While we take reasonable measures, we cannot guarantee absolute security. You are responsible for keeping your login credentials confidential.",
+            ),
+            const SizedBox(height: 18),
+
+            _buildCard(
+              icon: Icons.notification_important_outlined,
+              title: "Data Breach Notification",
+              content:
+                  "In case of a personal data breach affecting your rights, we will notify you and the Data Protection Board of India as required by the DPDP Act.",
+            ),
+            const SizedBox(height: 24),
+
+            _buildCard(
+              icon: Icons.storage_outlined,
+              title: "9. Data Retention",
+              content:
+                  "We retain your personal data only as long as necessary for the purposes described:",
+              bullets: const [
+                "Account data (active users): Duration of account + 90 days after deletion",
+                "Face liveness video and biometric data: Duration of account + 90 days after deletion (or until consent is withdrawn)",
+                "Transaction records (payments, refunds, cancellations, payouts):as required by tax and accounting laws",
+                "KYC records for Hosts (bank details): RBI / FIU-IND norms",
+                "Chat and message history: Duration of account + 90 days after deletion",
+                "Location history: 30 days (rolling)",
+                "Log data: 12 months",
+                "Marketing preferences: Until withdrawn",
+                "Data required for legal, tax, fraud prevention, or dispute resolution purposes may be retained longer. Upon retention expiry, data is deleted or anonymised.",
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            _buildCard(
+              icon: Icons.gpp_good_outlined,
+              title: "10. Your Rights (DPDP Act)",
+              content:
+                  "As a Data Principal under the DPDP Act, you have the following rights:",
+              bullets: const [
+                "Right to Access: Request a summary of personal data we process about you",
+                "Right to Correction and Erasure: Correct inaccurate data or request deletion of data no longer needed",
+                "Right to Withdraw Consent: Withdraw consent at any time. Withdrawal does not affect prior lawful processing",
+                "Right to Nominate: Nominate another individual to exercise your rights in the event of death or incapacity",
+                "Right to Grievance Redressal: File a complaint with our Grievance Officer, and thereafter with the Data Protection Board of India",
+
+                "Exercise your rights through:",
+                "• In-app: Settings → Privacy → Data Requests",
+                "• Email: theydi.app@gmail.com",
+                "We will respond within 30 days of a valid request. Identity verification may be required.",
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.cookie_outlined,
+              title: "11. Cookies and Tracking Technologies",
+              content:
+                  "Our web application uses cookies and similar technologies for:",
+              bullets: const [
+                "Authentication and session management",
+                "Remembering preferences",
+                "Analytics (via Firebase Analytics, Google Analytics)",
+                "Performance monitoring",
+                "You can control cookies through browser settings. Disabling cookies may affect functionality.",
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.campaign_outlined,
+              title: "12. Marketing Communications",
+              content:
+                  "With your consent, we may send promotional messages via email,push notification, or in-app messages. You may opt out at any time:",
+              bullets: const [
+                "Email: unsubscribe link",
+                
+                "Push notifications: Device settings",
+                "In-app: Settings → Notifications",
+                "Transactional messages (bookings, payments, security alerts) will continue regardless of marketing preferences.",
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.link_outlined,
+              title: "13. Third-Party Links and Services",
+              content:
+                  "The Platform may contain links to third-party websites or services (event venues, sponsors, external content). We are not responsible for their privacy practices. Review their policies separately.",
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.auto_awesome_outlined,
+              title: "14. Automated Decision-Making",
+              content: "We may use algorithms for:",
+              bullets: const [
+                "Sorting events by distance and relevance",
+                "Fraud detection",
+                "Content recommendations",
+                "We do not use fully automated decision-making that produces significant legal effects. Where automated decisions are made, human review is available on request.",
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.update,
+              title: "15. Changes to This Policy",
+              content:
+                  "We may update this Privacy Policy from time to time. Material changes will be notified via:",
+              bullets: const [
+                "In-app notification",
+                "Email to your registered address",
+                "Prominent notice on the Platform",
+                "Continued use after changes constitutes acceptance. If you disagree, discontinue use and delete your account.",
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.support_agent_outlined,
+              title: "16. Grievance Redressal",
+              content:
+                  "If you have concerns about data handling, contact us:",
+              bullets: const [
+                "Email: theydi.app@gmail.com",
+                "Acknowledgement: within 24 hours",
+                "Resolution: within 15 days",
+                "If unsatisfied, you may escalate to the Data Protection Board of India established under the DPDP Act.",
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildCard(
+              icon: Icons.email_outlined,
+              title: "17. Contact Us",
+              content:
+                  "Vrutsa Solutions\n\n"
+                  "Email: theydi.app@gmail.com",
+            ),
             const SizedBox(height: 25),
             Center(
               child: Text(
@@ -605,7 +599,7 @@ _buildCard(
             if (bullets != null)
               ...bullets.map(
                 (e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(top: 8, bottom: 0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

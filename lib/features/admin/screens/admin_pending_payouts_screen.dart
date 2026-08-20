@@ -129,7 +129,23 @@ class _AdminPendingPayoutsScreenState
                                       ),
                                     ),
                                   );
-                                  if (result == true) _load();
+                                  if (result == true) {
+                                    _load();
+                                    // Moved here from the details screen —
+                                    // this Scaffold is guaranteed to still
+                                    // be mounted when the pop completes, so
+                                    // the SnackBar can't get orphaned by a
+                                    // route teardown mid-animation.
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Payout marked as completed.'),
+                                        ),
+                                      );
+                                    }
+                                  }
                                 },
                                 child: const Text('View'),
                               ),

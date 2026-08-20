@@ -422,6 +422,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CreateEventScreen(),
       ),
 
+
       // ── Shell routes (StatefulShellRoute keeps bottom nav + correct web URLs) ──
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

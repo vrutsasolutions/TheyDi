@@ -59,7 +59,8 @@ class _AdminPayoutDetailsScreenState extends State<AdminPayoutDetailsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('₹${widget.totalAmount.toStringAsFixed(0)} for "${widget.eventTitle}"'),
+            Text(
+                '₹${widget.totalAmount.toStringAsFixed(0)} for "${widget.eventTitle}"'),
             const SizedBox(height: 12),
             TextField(
               controller: refController,
@@ -93,10 +94,15 @@ class _AdminPayoutDetailsScreenState extends State<AdminPayoutDetailsScreen> {
         'paymentReference': refController.text.trim(),
       });
 
+      // Pop back to the list screen FIRST, before touching this screen's
+      // ScaffoldMessenger. Showing a SnackBar here and popping in the same
+      // frame yanks this Scaffold (and its still-animating SnackBar) out
+      // of the tree mid-transition — that's what was causing the stray
+      // white line and the follow-up "deactivated widget" error even
+      // though the backend had already completed successfully. The
+      // success message is now shown by the list screen instead, once
+      // this route has actually finished popping.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payout marked as completed.')),
-        );
         Navigator.pop(context, true); // tell list screen to refresh
       }
     } catch (e) {
@@ -118,42 +124,65 @@ class _AdminPayoutDetailsScreenState extends State<AdminPayoutDetailsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text('Error: $_error'))
-              : Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Event: ${widget.eventTitle}'),
-                      Text('Amount: ₹${widget.totalAmount.toStringAsFixed(0)}'),
-                      const Divider(height: 32),
-                      Text('Method: ${_details!['payoutMethod']}'),
-                      const SizedBox(height: 8),
-                      Text('Name: ${_details!['name'] ?? '-'}'),
-                      if (_details!['bankName'] != null)
-                        Text('Bank: ${_details!['bankName']}'),
-                      if (_details!['payoutMethod'] == 'bank') ...[
-                        const SizedBox(height: 8),
-                        SelectableText('Account: ${_details!['accountNumber']}'),
-                        SelectableText('IFSC: ${_details!['ifsc']}'),
-                      ] else
-                        SelectableText('UPI: ${_details!['upiId']}'),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _marking ? null : _markPaid,
-                          child: _marking
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text('Mark as Paid'),
-                        ),
+              : _details == null
+                  // Guards against a null-check crash if _loading somehow
+                  // flips false before _details is actually set.
+                  ? const Center(child: Text('No payout details found.'))
+                  : Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Event: ${widget.eventTitle}'),
+                          Text(
+                              'Amount: ₹${widget.totalAmount.toStringAsFixed(0)}'),
+                          const Divider(height: 32),
+                          Text('Method: ${_details!['payoutMethod']}'),
+                          const SizedBox(height: 8),
+                          Text('Name: ${_details!['name'] ?? '-'}'),
+                          if (_details!['bankName'] != null)
+                            Text('Bank: ${_details!['bankName']}'),
+                          if (_details!['payoutMethod'] == 'bank') ...[
+                            const SizedBox(height: 8),
+                            // Wrapped so a long account number can't cause
+                            // a RenderFlex overflow on narrow web widths.
+                            SizedBox(
+                              width: double.infinity,
+                              child: SelectableText(
+                                'Account: ${_details!['accountNumber']}',
+                              ),
+                            ),
+                            SizedBox(
+                              width: double.infinity,
+                              child: SelectableText(
+                                'IFSC: ${_details!['ifsc']}',
+                              ),
+                            ),
+                          ] else
+                            SizedBox(
+                              width: double.infinity,
+                              child: SelectableText(
+                                'UPI: ${_details!['upiId']}',
+                              ),
+                            ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _marking ? null : _markPaid,
+                              child: _marking
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Text('Mark as Paid'),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
     );
   }
 }

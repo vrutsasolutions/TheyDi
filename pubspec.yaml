@@ -1,7 +1,7 @@
 name: theydi
 description: TheyDi — Location-Based Social Gathering Marketplace
 publish_to: 'none'
-version: 1.0.0+4
+version: 1.0.0+5
  
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.8
+  
   flutter_riverpod: ^3.3.2-dev.2
   riverpod_annotation: ^4.0.3-dev.2
   go_router: ^17.3.0
@@ -99,6 +101,8 @@ flutter:
     - assets/city_icons/
     - assets/images/
     - assets/images/theydi_logo.png
+    - assets/onboarding/
+    
 
 flutter_launcher_icons:
   android: true
