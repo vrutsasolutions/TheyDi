@@ -17,6 +17,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -2979,13 +2981,38 @@ class _DmDocumentBubble extends StatelessWidget {
   });
 
   Future<void> _openFile(BuildContext context) async {
-    final viewableExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     final ext =
         fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
 
+    // PDFs: native in-app viewer on mobile, browser tab on web (Chrome renders
+    // PDFs natively — instant, no black screen, no Google Docs round trip).
+    if (ext == 'pdf') {
+      if (kIsWeb) {
+        final launched = await launchUrl(
+          Uri.parse(fileUrl),
+          webOnlyWindowName: '_blank',
+        );
+        if (!launched && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not open file')));
+        }
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                _PdfViewerScreen(pdfUrl: fileUrl, fileName: fileName),
+            fullscreenDialog: true,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Word / Excel / PowerPoint: hand off to an installed app on mobile;
+    // on web there's no native renderer, so fall back to Google's viewer.
+    final officeExts = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     Uri uri;
-    if (viewableExts.contains(ext)) {
-      // Google Docs viewer renders the file inline instead of forcing a download
+    if (kIsWeb && officeExts.contains(ext)) {
       final encoded = Uri.encodeComponent(fileUrl);
       uri = Uri.parse(
           'https://docs.google.com/viewer?url=$encoded&embedded=true');
@@ -2996,19 +3023,19 @@ class _DmDocumentBubble extends StatelessWidget {
     try {
       final launched = await launchUrl(
         uri,
-        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.inAppWebView,
+        mode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
         webOnlyWindowName: kIsWeb ? '_blank' : null,
       );
       if (!launched && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open file')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Could not open file')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open file: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not open file: $e')));
       }
     }
   }
@@ -3083,6 +3110,87 @@ class _DmDocumentBubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PdfViewerScreen extends StatefulWidget {
+  final String pdfUrl;
+  final String fileName;
+  const _PdfViewerScreen({required this.pdfUrl, required this.fileName});
+
+  @override
+  State<_PdfViewerScreen> createState() => _PdfViewerScreenState();
+}
+
+class _PdfViewerScreenState extends State<_PdfViewerScreen> {
+  String? _localPath;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _downloadAndOpen();
+  }
+
+  Future<void> _downloadAndOpen() async {
+    try {
+      final response = await http.get(Uri.parse(widget.pdfUrl));
+      if (response.statusCode != 200) {
+        throw Exception('Failed to download (${response.statusCode})');
+      }
+      final tmpDir = await getTempDirPath();
+      final safeName =
+          widget.fileName.isNotEmpty ? widget.fileName : 'document.pdf';
+      final path = '$tmpDir/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+      final file = File(path);
+      await file.writeAsBytes(response.bodyBytes);
+      if (!mounted) return;
+      setState(() {
+        _localPath = path;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not load document';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: TheyDiColors.dark,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          widget.fileName,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : _error != null
+              ? Center(
+                  child: Text(_error!,
+                      style: const TextStyle(color: Colors.white)))
+              : PDFView(
+                  filePath: _localPath!,
+                  enableSwipe: true,
+                  swipeHorizontal: false,
+                  autoSpacing: true,
+                  pageFling: true,
+                  onError: (e) {
+                    if (mounted) {
+                      setState(() => _error = 'Error rendering PDF');
+                    }
+                  },
+                ),
     );
   }
 }

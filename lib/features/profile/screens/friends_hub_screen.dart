@@ -357,12 +357,15 @@ class _SuggestedFriendsTab extends ConsumerWidget {
           itemBuilder: (ctx, i) {
             final s = suggestions[i];
             return _SuggestedFriendCard(
+              key: ValueKey(s['uid']), // ← stable identity across recycling
               uid: s['uid'] ?? '',
               displayName: s['displayName'] ?? 'User',
               city: s['city'] ?? '',
               photoUrl: s['photoUrl'] ?? '',
               interests: List<String>.from(s['interests'] ?? []),
               bio: s['bio'] ?? '',
+              onSent: () =>
+                  ref.invalidate(_suggestedFriendsProvider), // ← refetch
             )
                 .animate(delay: Duration(milliseconds: 60 * i))
                 .fade(duration: 300.ms)
@@ -742,14 +745,17 @@ class _SuggestedFriendCard extends StatefulWidget {
   final String photoUrl;
   final List<String> interests;
   final String bio;
+  final VoidCallback? onSent; // ← new
 
   const _SuggestedFriendCard({
+    super.key, // ← accept the key
     required this.uid,
     required this.displayName,
     required this.city,
     required this.photoUrl,
     required this.interests,
     required this.bio,
+    this.onSent, // ← new
   });
 
   @override
@@ -769,7 +775,9 @@ class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
         _loading = false;
         _sent = true;
       });
+      widget.onSent?.call(); // ← triggers list refetch, person drops out of suggestions
     }
+  
   }
 
   @override
