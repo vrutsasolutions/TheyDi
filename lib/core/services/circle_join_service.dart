@@ -69,7 +69,8 @@ class CircleJoinService {
       fromName: userName,
       circleName: circleName,
       circleId: circleId,
-    );  }
+    );
+  }
 
 // ── Approve a join request ───────────────────────────────────────────────
   static Future<void> approveJoinRequest({
@@ -109,6 +110,7 @@ class CircleJoinService {
       circleId: circleId,
     );
   }
+
 // ── Reject a join request ────────────────────────────────────────────────
   static Future<void> rejectJoinRequest({
     required String circleId,
@@ -230,19 +232,21 @@ class CircleJoinService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return [];
 
-    // Get current friends & sent requests to exclude
+    // Get current friends to exclude
     final friendsSnap =
         await _db.collection('users').doc(uid).collection('friends').get();
     final friendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
-    final pendingSnap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('friendRequests')
+    // Requests I've SENT — these live under the RECIPIENT's friendRequests
+    // subcollection (users/{toUid}/friendRequests), not mine, so a
+    // collectionGroup query is required to find them all.
+    final sentSnap = await _db
+        .collectionGroup('friendRequests')
+        .where('fromUid', isEqualTo: uid)
         .where('status', isEqualTo: 'pending')
         .get();
-    final pendingUids = pendingSnap.docs
-        .map((d) => (d.data()['fromUid'] ?? '') as String)
+    final pendingUids = sentSnap.docs
+        .map((d) => d.reference.parent.parent!.id) // parent doc id = toUid
         .toSet();
 
     final excluded = {uid, ...friendUids, ...pendingUids};

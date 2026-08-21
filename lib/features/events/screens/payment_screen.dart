@@ -297,7 +297,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       }
 
       print('--- Starting payment process ---');
-      print('Razorpay Key ID loaded: ${_keyId.isNotEmpty} (live: $_isLiveMode)');
+      print(
+          'Razorpay Key ID loaded: ${_keyId.isNotEmpty} (live: $_isLiveMode)');
 
       if (_keyId.isEmpty) {
         throw Exception(
