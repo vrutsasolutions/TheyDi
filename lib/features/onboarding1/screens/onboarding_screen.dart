@@ -86,7 +86,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth > 600;
+        final isDesktop =
+          constraints.maxWidth > 600 && constraints.maxHeight > 600;
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -96,6 +97,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: PageView.builder(
                   controller: _pageController,
                   itemCount: _pages.length,
+                  clipBehavior: Clip.hardEdge,
                   onPageChanged: (int index) {
                     setState(() {
                       _currentPage = index;
@@ -105,8 +107,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     BuildContext context,
                     int index,
                   ) {
-                    return OnboardingPage(
-                      page: _pages[index],
+                    return Stack(
+                      children: [
+                        OnboardingPage(
+                          page: _pages[index],
+                        ),
+                        SafeArea(
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                top: isDesktop ? 24 : 34,
+                                right: 18,
+                              ),
+                              child: TextButton(
+                                onPressed: _skip,
+                                style: TextButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE9FDF3),
+                                  foregroundColor: const Color(0xFF079455),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isDesktop ? 22 : 24,
+                                    vertical: isDesktop ? 13 : 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Skip',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -115,12 +153,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 _DesktopControlsOverlay(
                   currentPage: _currentPage,
                   pageCount: _pages.length,
-                  onSkip: _skip,
                   onNext: _nextPage,
                 )
               else
                 _MobileTapOverlay(
-                  onSkip: _skip,
+                  currentPage: _currentPage,
+                  pageCount: _pages.length,
                   onNext: _nextPage,
                 ),
             ],
@@ -134,13 +172,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class _DesktopControlsOverlay extends StatelessWidget {
   final int currentPage;
   final int pageCount;
-  final VoidCallback onSkip;
   final VoidCallback onNext;
 
   const _DesktopControlsOverlay({
     required this.currentPage,
     required this.pageCount,
-    required this.onSkip,
     required this.onNext,
   });
 
@@ -156,30 +192,9 @@ class _DesktopControlsOverlay extends StatelessWidget {
           return Stack(
             children: [
               Positioned(
-                top: 16,
-                right: 28,
-                child: TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF079455),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                  ),
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
                 left: 24,
                 right: 24,
-                bottom: 24,
+                bottom: 58,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -208,7 +223,7 @@ class _DesktopControlsOverlay extends StatelessWidget {
                     const SizedBox(height: 22),
                     SizedBox(
                       width: buttonWidth,
-                      height: 58,
+                      height: 64,
                       child: ElevatedButton(
                         onPressed: onNext,
                         style: ElevatedButton.styleFrom(
@@ -226,14 +241,14 @@ class _DesktopControlsOverlay extends StatelessWidget {
                             Text(
                               isLastPage ? 'Get Started' : 'Next',
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             const Icon(
                               Icons.arrow_forward,
-                              size: 22,
+                              size: 24,
                             ),
                           ],
                         ),
@@ -251,77 +266,86 @@ class _DesktopControlsOverlay extends StatelessWidget {
 }
 
 class _MobileTapOverlay extends StatelessWidget {
-  final VoidCallback onSkip;
+  final int currentPage;
+  final int pageCount;
   final VoidCallback onNext;
 
   const _MobileTapOverlay({
-    required this.onSkip,
+    required this.currentPage,
+    required this.pageCount,
     required this.onNext,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SizedBox(
-              height: 100,
-              child: Align(
-                alignment: Alignment.centerRight,
+    final isLastPage = currentPage == pageCount - 1;
+
+    return Stack(
+      children: [
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 108,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+            ),
+          ),
+        ),
+        SafeArea(
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 20,
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 18),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    0,
+                  ),
                   child: SizedBox(
-                    width: 132,
-                    height: 72,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onSkip,
-                        splashColor: Colors.transparent,
-                        highlightColor: Colors.transparent,
-                        hoverColor: Colors.transparent,
-                        child: const SizedBox.expand(),
+                    width: double.infinity,
+                    height: 62,
+                    child: ElevatedButton(
+                      onPressed: onNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF12B76A),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isLastPage ? 'Get Started' : 'Next',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 24,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                20,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 96,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onNext,
-                    borderRadius: BorderRadius.circular(48),
-                    splashColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    child: const SizedBox.expand(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
