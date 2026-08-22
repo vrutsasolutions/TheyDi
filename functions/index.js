@@ -26,7 +26,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-exports.notifyNearbyUsersAboutEvent = onDocumentCreated(
+exports.notifyAllUsersAboutEvent_TEST = onDocumentCreated(
   { document: "events/{eventId}", region: REGION },
   async (event) => {
     const eventData = event.data?.data();
@@ -35,47 +35,92 @@ exports.notifyNearbyUsersAboutEvent = onDocumentCreated(
       return;
     }
     const eventId = event.params.eventId;
-    const latitude = eventData.latitude;
-    const longitude = eventData.longitude;
-    if (latitude == null || longitude == null) {
-      logger.log(`Event ${eventId} has no location`);
-      return;
-    }
 
     const usersSnapshot = await db.collection("users").get();
     const batch = db.batch();
-    let nearbyUsers = 0;
+    let notifiedCount = 0;
 
     for (const userDoc of usersSnapshot.docs) {
-      const user = userDoc.data();
-      const userLatitude = user.latitude;
-      const userLongitude = user.longitude;
-      if (userLatitude == null || userLongitude == null) continue;
+      const notificationRef = db
+        .collection("users")
+        .doc(userDoc.id)
+        .collection("notifications")
+        .doc();
 
-      const distance = calculateDistance(
-        Number(latitude), Number(longitude), Number(userLatitude), Number(userLongitude),
-      );
-
-      if (distance <= 20) {
-        nearbyUsers++;
-        const notificationRef = db.collection("users").doc(userDoc.id).collection("notifications").doc();
-        batch.set(notificationRef, {
-          type: "nearby_event",
-          title: "New event near you",
-          body: eventData.title ? `${eventData.title} is happening near you` : "A new event is happening near you",
-          message: eventData.title ? `${eventData.title} is happening near you` : "A new event is happening near you",
-          eventId: eventId,
-          imageUrl: eventData.imageUrl || null,
-          isRead: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-      }
+      batch.set(notificationRef, {
+        type: "nearby_event",
+        title: "New event created",
+        body: eventData.title
+          ? `${eventData.title} was just created — check it out!`
+          : "A new event was just created — check it out!",
+        message: eventData.title
+          ? `${eventData.title} was just created — check it out!`
+          : "A new event was just created — check it out!",
+        eventId: eventId,
+        imageUrl: eventData.imageUrl || null,
+        isRead: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      notifiedCount++;
     }
 
     await batch.commit();
-    logger.log(`Created nearby event notifications for ${nearbyUsers} users for event ${eventId}`);
+    logger.log(`[TEST] Created event notifications for ${notifiedCount} users for event ${eventId}`);
   },
 );
+
+
+
+// exports.notifyNearbyUsersAboutEvent = onDocumentCreated(
+//   { document: "events/{eventId}", region: REGION },
+//   async (event) => {
+//     const eventData = event.data?.data();
+//     if (!eventData) {
+//       logger.log("Event data not found");
+//       return;
+//     }
+//     const eventId = event.params.eventId;
+//     const latitude = eventData.latitude;
+//     const longitude = eventData.longitude;
+//     if (latitude == null || longitude == null) {
+//       logger.log(`Event ${eventId} has no location`);
+//       return;
+//     }
+
+//     const usersSnapshot = await db.collection("users").get();
+//     const batch = db.batch();
+//     let nearbyUsers = 0;
+
+//     for (const userDoc of usersSnapshot.docs) {
+//       const user = userDoc.data();
+//       const userLatitude = user.latitude;
+//       const userLongitude = user.longitude;
+//       if (userLatitude == null || userLongitude == null) continue;
+
+//       const distance = calculateDistance(
+//         Number(latitude), Number(longitude), Number(userLatitude), Number(userLongitude),
+//       );
+
+//       if (distance <= 20) {
+//         nearbyUsers++;
+//         const notificationRef = db.collection("users").doc(userDoc.id).collection("notifications").doc();
+//         batch.set(notificationRef, {
+//           type: "nearby_event",
+//           title: "New event near you",
+//           body: eventData.title ? `${eventData.title} is happening near you` : "A new event is happening near you",
+//           message: eventData.title ? `${eventData.title} is happening near you` : "A new event is happening near you",
+//           eventId: eventId,
+//           imageUrl: eventData.imageUrl || null,
+//           isRead: false,
+//           createdAt: FieldValue.serverTimestamp(),
+//         });
+//       }
+//     }
+
+//     await batch.commit();
+//     logger.log(`Created nearby event notifications for ${nearbyUsers} users for event ${eventId}`);
+//   },
+// );
 
 function getBaseEmailHtml(title, bodyContent) {
   return `<!DOCTYPE html>
