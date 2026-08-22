@@ -299,23 +299,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 48),
 
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Don't have an account? ",
-                          style: TheyDiTextStyles.bodySmall),
-                      TextButton(
-                        onPressed: () => context.push(AppRoutes.signupStep1),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text('Join TheyDi',
-                            style: TheyDiTextStyles.labelMedium
-                                .copyWith(color: TheyDiColors.primary)),
-                      ),
-                    ],
-                  ).animate(delay: 450.ms).fade(duration: 300.ms),
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    Text(
+      "Don't have an account? ",
+      style: TheyDiTextStyles.bodySmall.copyWith(
+        fontSize: 16,
+      ),
+    ),
+    TextButton(
+      onPressed: () => context.push(AppRoutes.signupStep1),
+      style: TextButton.styleFrom(
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        'Join TheyDi',
+        style: TheyDiTextStyles.labelMedium.copyWith(
+          color: TheyDiColors.primary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  ],
+).animate(delay: 450.ms).fade(duration: 300.ms),
                 ],
               ),
             ),
