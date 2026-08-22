@@ -813,7 +813,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     style: TheyDiTextStyles.labelLarge),
                                 const SizedBox(height: 16),
                                 SizedBox(
-                                  height: 420,
+                                  height: 320,
                                   child: LayoutBuilder(
                                     builder: (context, constraints) {
                                       final cardWidth = math

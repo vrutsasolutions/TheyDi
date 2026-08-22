@@ -146,13 +146,7 @@ children: [
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.createEvent),
-        backgroundColor: TheyDiColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text('Create Event',
-            style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)),
-      ),
+      
     );
   }
 }
