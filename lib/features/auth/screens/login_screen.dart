@@ -304,7 +304,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     Text(
       "Don't have an account? ",
       style: TheyDiTextStyles.bodySmall.copyWith(
-        fontSize: 16,
+        fontSize: 15,
       ),
     ),
     TextButton(
@@ -318,7 +318,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         'Join TheyDi',
         style: TheyDiTextStyles.labelMedium.copyWith(
           color: TheyDiColors.primary,
-          fontSize: 18,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
         ),
       ),

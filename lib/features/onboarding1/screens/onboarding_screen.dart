@@ -43,12 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       description:
           'Discover nearby gatherings, enjoy lower platform fees, and connect with your community.',
     ),
-    OnboardingModel(
-      image: 'assets/onboarding/onboarding_5.png',
-      title: 'Your Circle. Your Comfort. Your Privacy.',
-      description:
-          'Meet safely with trusted connections and privacy-focused experiences.',
-    ),
+    
   ];
 
   @override
@@ -117,7 +112,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             alignment: Alignment.topRight,
                             child: Padding(
                               padding: EdgeInsets.only(
-                                top: isDesktop ? 24 : 34,
+                                top: isDesktop ? 24 : 16,
                                 right: 18,
                               ),
                               child: TextButton(
