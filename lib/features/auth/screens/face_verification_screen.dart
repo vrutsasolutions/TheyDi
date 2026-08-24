@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -740,10 +741,23 @@ class _CameraCaptureViewState extends State<_CameraCaptureView> with WidgetsBind
         selected,
         ResolutionPreset.medium,
         enableAudio: false,
-        // Android: yuv420 pairs correctly with ML Kit's InputImage.fromBytes.
+        // Web: MediaPipe reads frames off the <video> element directly, so
+        // this only controls still-capture format — jpeg is fine.
+        // Android: request nv21 so the camera plugin performs the
+        // YUV_420_888 -> NV21 conversion natively (via libyuv). ML Kit's
+        // InputImage.fromBytes() only understands single-plane NV21/YV12 —
+        // yuv420 hands back 3 separate padded planes that, if naively
+        // concatenated, produce corrupt bytes ML Kit can't read (this was
+        // the root cause of face detection silently never firing on
+        // Android). See liveness_detector_mobile.dart for the matching
+        // 3-plane fallback converter kept for safety.
         // iOS: not yet verified on a real device — if ML Kit rejects frames
         // on iOS, switch this branch to ImageFormatGroup.bgra8888.
-        imageFormatGroup: kIsWeb ? ImageFormatGroup.jpeg : ImageFormatGroup.yuv420,
+        imageFormatGroup: kIsWeb
+            ? ImageFormatGroup.jpeg
+            : Platform.isAndroid
+                ? ImageFormatGroup.nv21
+                : ImageFormatGroup.yuv420,
       );
 
       await controller.initialize();

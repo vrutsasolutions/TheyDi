@@ -1,9 +1,10 @@
-
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Size;
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:flutter/services.dart' show DeviceOrientation;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:path_provider/path_provider.dart';
 import 'liveness_models.dart';
@@ -80,35 +81,149 @@ class MobileLivenessDetector implements LivenessDetector {
         faceCount: 1,
         faceBox: faceBox,
       ));
-    } catch (_) {
+    } catch (e) {
       // Skip a bad frame — the stream just won't emit for this tick.
       // The challenge state machine (screen side) tolerates gaps.
+      // Logged (debug only) instead of silently swallowed, so a systemic
+      // problem (e.g. every frame throwing) is visible during development.
+      if (kDebugMode) {
+        debugPrint('MobileLivenessDetector: frame processing error: $e');
+      }
     } finally {
       _busy = false;
     }
   }
 
+  // Builds the ML Kit InputImage for one camera frame.
+  //
+  // ROOT CAUSE (Android): CameraController used to be configured with
+  // ImageFormatGroup.yuv420, which on Android delivers CameraImage as 3
+  // *separate* planes (Y, U, V — YUV_420_888) with row strides that are
+  // frequently larger than the image width (padding). The old code
+  // concatenated the 3 planes' raw bytes back-to-back and labelled the
+  // result "nv21" (via a fallback, since ML Kit's format enum doesn't
+  // recognise Android's YUV_420_888 raw format code at all). That is not
+  // valid NV21 data — NV21 is Y followed by *interleaved* VU bytes, and
+  // padding was never stripped. ML Kit therefore received corrupt image
+  // bytes and either found 0 faces or threw (caught by the empty catch
+  // block above), on every single frame — while the camera preview kept
+  // working fine because it's a completely separate GPU texture path.
+  //
+  // Fix: CameraController now requests ImageFormatGroup.nv21 on Android
+  // (see face_verification_screen.dart), so image.planes.length == 1 and
+  // the bytes are already valid NV21 (converted natively by the camera
+  // plugin via libyuv). The 3-plane branch below is kept only as a
+  // defensive fallback (e.g. iOS, or an OEM camera HAL that ignores the
+  // requested format) and does a proper stride/pixel-stride-aware
+  // YUV_420_888 -> NV21 conversion instead of naive concatenation.
   InputImage? _toInputImage(CameraImage image, CameraDescription camera) {
     try {
-      final builder = BytesBuilder();
-      for (final plane in image.planes) {
-        builder.add(plane.bytes);
-      }
-      final rotation = InputImageRotationValue.fromRawValue(camera.sensorOrientation) ??
-          InputImageRotation.rotation0deg;
-      final format = InputImageFormatValue.fromRawValue(image.format.raw) ??
-          InputImageFormat.nv21;
+      final Uint8List bytes = image.planes.length == 1
+          ? image.planes.first.bytes
+          : _yuv420ToNv21(image);
+
+      final rotation = _rotationFor(camera);
+
       return InputImage.fromBytes(
-        bytes: builder.toBytes(),
+        bytes: bytes,
         metadata: InputImageMetadata(
           size: Size(image.width.toDouble(), image.height.toDouble()),
           rotation: rotation,
-          format: format,
-          bytesPerRow: image.planes.first.bytesPerRow,
+          format: InputImageFormat.nv21,
+          // NV21 output (both the native conversion and _yuv420ToNv21
+          // below) is always tightly packed, so stride == width.
+          bytesPerRow: image.width,
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('MobileLivenessDetector: failed to build InputImage: $e');
+      }
       return null;
+    }
+  }
+
+  // Stride/pixel-stride-aware YUV_420_888 (3-plane) -> NV21 (single-plane,
+  // interleaved VU) converter. Only used as a fallback when the camera
+  // plugin hands back 3 planes despite requesting nv21 — see comment above.
+  //
+  // NOTE: the `camera` package's Plane class (camera-0.10.6) exposes pixel
+  // stride as `bytesPerPixel`, NOT `pixelStride` (that name doesn't exist
+  // on this Plane type — using it is a compile error, not a runtime one).
+  // `bytesPerPixel` is the same concept: how many bytes to skip between
+  // consecutive chroma samples in that plane's byte buffer.
+  Uint8List _yuv420ToNv21(CameraImage image) {
+    final width = image.width;
+    final height = image.height;
+    final yPlane = image.planes[0];
+    final uPlane = image.planes[1];
+    final vPlane = image.planes[2];
+
+    final nv21 = Uint8List(width * height + 2 * ((width + 1) ~/ 2) * ((height + 1) ~/ 2));
+
+    // Y plane: copy row by row, stripping any row-stride padding.
+    var outIndex = 0;
+    for (var row = 0; row < height; row++) {
+      final rowStart = row * yPlane.bytesPerRow;
+      nv21.setRange(outIndex, outIndex + width, yPlane.bytes, rowStart);
+      outIndex += width;
+    }
+
+    // Chroma planes: NV21 wants interleaved V,U (in that order) at half
+    // resolution. Respect each plane's own row stride and pixel stride —
+    // bytesPerPixel is often 2 on Android because U/V physically share an
+    // interleaved buffer with the *other* chroma plane.
+    final uRowStride = uPlane.bytesPerRow;
+    final vRowStride = vPlane.bytesPerRow;
+    final int uPixelStride = uPlane.bytesPerPixel ?? 1;
+    final int vPixelStride = vPlane.bytesPerPixel ?? 1;
+    final chromaHeight = (height + 1) ~/ 2;
+    final chromaWidth = (width + 1) ~/ 2;
+
+    for (var row = 0; row < chromaHeight; row++) {
+      final uRowStart = row * uRowStride;
+      final vRowStart = row * vRowStride;
+      for (var col = 0; col < chromaWidth; col++) {
+        final int uIndex = uRowStart + col * uPixelStride;
+        final int vIndex = vRowStart + col * vPixelStride;
+        nv21[outIndex++] = vPlane.bytes[vIndex]; // V first
+        nv21[outIndex++] = uPlane.bytes[uIndex]; // U second
+      }
+    }
+
+    return nv21;
+  }
+
+  // Combines the camera's fixed sensor orientation with the device's
+  // current orientation, as ML Kit requires — using sensorOrientation
+  // alone (the old code) is only correct when the phone happens to be
+  // held in the same orientation the sensor was mounted at.
+  InputImageRotation _rotationFor(CameraDescription camera) {
+    if (Platform.isIOS) {
+      return InputImageRotationValue.fromRawValue(camera.sensorOrientation) ??
+          InputImageRotation.rotation0deg;
+    }
+    final deviceDegrees = _deviceOrientationDegrees(controller.value.deviceOrientation);
+    int rotationCompensation;
+    if (camera.lensDirection == CameraLensDirection.front) {
+      rotationCompensation = (camera.sensorOrientation + deviceDegrees) % 360;
+    } else {
+      rotationCompensation = (camera.sensorOrientation - deviceDegrees + 360) % 360;
+    }
+    return InputImageRotationValue.fromRawValue(rotationCompensation) ??
+        InputImageRotation.rotation0deg;
+  }
+
+  int _deviceOrientationDegrees(DeviceOrientation orientation) {
+    switch (orientation) {
+      case DeviceOrientation.portraitUp:
+        return 0;
+      case DeviceOrientation.landscapeLeft:
+        return 90;
+      case DeviceOrientation.portraitDown:
+        return 180;
+      case DeviceOrientation.landscapeRight:
+        return 270;
     }
   }
 
