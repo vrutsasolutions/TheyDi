@@ -695,46 +695,71 @@ exports.markPayoutCompleted = onCall({ region: REGION }, async (request) => {
  * markPayoutCompleted afterward.
  */
 async function processEventCompletion(eventId) {
-  if (!eventId) throw new HttpsError("invalid-argument", "Event ID required.");
+  if (!eventId) {
+    throw new HttpsError("invalid-argument", "Event ID required.");
+  }
 
   logger.info(`[EventCompletion] Processing completion for event: ${eventId}`);
 
   const eventDoc = await db.collection("events").doc(eventId).get();
-  if (!eventDoc.exists) throw new HttpsError("not-found", "Event not found.");
+  if (!eventDoc.exists) {
+    throw new HttpsError("not-found", "Event not found.");
+  }
 
   const eventData = eventDoc.data();
 
-  // ── Idempotency guard: skip if this event's payout was already processed.
-  // Prevents creating a duplicate payouts/{id} doc if this function is ever
-  // triggered twice for the same event (retry, manual re-run, etc.).
+  // =========================================================
+  // 1. NEVER process a cancelled event
+  // =========================================================
+  if (eventData.status === "cancelled") {
+    logger.info(`[EventCompletion] Event ${eventId} is cancelled. Skipping completion and payout.`);
+    return { success: true, skipped: true, reason: "cancelled", bookingsProcessed: 0, totalPending: 0 };
+  }
+
+  // =========================================================
+  // 2. Idempotency guard
+  // =========================================================
   if (eventData.payoutProcessed === true) {
     logger.info(`[EventCompletion] Event ${eventId} already processed, skipping.`);
-    return { success: true, bookingsProcessed: 0, totalPending: 0 };
+    return { success: true, skipped: true, reason: "already_processed", bookingsProcessed: 0, totalPending: 0 };
   }
 
   const hostUid = eventData.creatorUid;
   const hostDoc = await db.collection("users").doc(hostUid).get();
   const hostData = hostDoc.data() || {};
 
+  // =========================================================
+  // 3. Get confirmed bookings
+  //    NOTE: We deliberately do NOT gate this on eventData.isFree or
+  //    eventData.price. Those fields describe how the event was *listed*,
+  //    not what actually changed hands. The only source of truth for
+  //    whether a host is owed money is the bookings that were actually
+  //    paid for via Razorpay (bData.totalAmount / bData.amount below).
+  //    This also protects against isFree/price ever disagreeing with
+  //    each other due to a bug elsewhere in event creation.
+  // =========================================================
   const allBookingsSnap = await db.collection("bookings").where("eventId", "==", eventId).get();
   const confirmedBookings = allBookingsSnap.docs.filter((d) => d.data().status === "confirmed");
   const unpaidBookings = confirmedBookings.filter((d) => !["completed"].includes(d.data().payoutStatus));
-
   const attendeeUids = eventData.attendeeUids || [];
+
   let totalPending = 0;
   let bookingsProcessed = 0;
-
   const eligibleBookingIds = [];
 
   for (const doc of unpaidBookings) {
     const bData = doc.data();
+
     if (!attendeeUids.includes(bData.userId)) {
       logger.info(`[EventCompletion] Skipping booking ${doc.id} — user no longer in attendee list.`);
       continue;
     }
 
-    const baseAmount = bData.amount !== undefined ? bData.amount : (bData.totalAmount - (bData.platformFee || 0));
-    const payoutAmount = parseFloat(baseAmount.toFixed(2));
+    const baseAmount = bData.amount !== undefined
+      ? Number(bData.amount)
+      : Number(bData.totalAmount || 0) - Number(bData.platformFee || 0);
+
+    const payoutAmount = Number(baseAmount.toFixed(2));
 
     if (payoutAmount > 0) {
       totalPending += payoutAmount;
@@ -743,52 +768,117 @@ async function processEventCompletion(eventId) {
     }
   }
 
+  totalPending = Number(totalPending.toFixed(2));
+
+  const hasBookings = confirmedBookings.length > 0;
+  const hasPayout = totalPending > 0 && eligibleBookingIds.length > 0;
+
+  logger.info(
+    `[EventCompletion] Event ${eventId}: hasBookings=${hasBookings}, ` +
+    `eligibleBookings=${eligibleBookingIds.length}, totalPending=${totalPending}, hasPayout=${hasPayout}`
+  );
+
+  // =========================================================
+  // 4. Create payout ONLY when actual money is owed
+  // =========================================================
   let payoutId = null;
-  if (eligibleBookingIds.length > 0) {
+
+  if (hasPayout) {
     const payoutRef = await db.collection("payouts").add({
       hostUid,
       eventId,
       eventTitle: eventData.title || "Unknown Event",
       bookingIds: eligibleBookingIds,
-      totalAmount: parseFloat(totalPending.toFixed(2)),
+      totalAmount: totalPending,
       status: "pending",
       createdAt: FieldValue.serverTimestamp(),
       completedAt: null,
       completedBy: null,
       paymentReference: null,
     });
+
     payoutId = payoutRef.id;
 
-    // Tag each booking with the payout doc that covers it, so a booking
-    // can still be traced back to its payout without duplicating status logic.
     const bookingBatch = db.batch();
     for (const bookingId of eligibleBookingIds) {
       bookingBatch.update(db.collection("bookings").doc(bookingId), {
         payoutId,
-        payoutStatus: "pending", // kept for quick per-booking display; source of truth is payouts/{payoutId}.status
+        payoutStatus: "pending",
       });
     }
     await bookingBatch.commit();
+
+    logger.info(`[EventCompletion] Created payout ${payoutId} for ₹${totalPending} for event ${eventId}`);
+  } else {
+    logger.info(`[EventCompletion] No payout created for event ${eventId}.`);
   }
 
+  // =========================================================
+  // 5. Mark event completed
+  // =========================================================
   await eventDoc.ref.update({
     status: "completed",
     payoutProcessed: true,
     completedAt: FieldValue.serverTimestamp(),
   });
 
+  // =========================================================
+  // 6. Send emails / notifications — three cases only, all driven
+  //    by real booking data (hasBookings / hasPayout), never by
+  //    eventData.isFree or eventData.price.
+  // =========================================================
   try {
     const transporter = getTransporter();
+
     if (transporter) {
       const eventTitle = eventData.title || "Your Event";
       const hostName = eventData.creatorName || hostData.displayName || "Host";
 
       if (hostDoc.exists && hostDoc.data()?.email) {
         const hostEmail = hostDoc.data().email;
-        const hostBody = `
-          <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${hostName},</h2>
-          <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">Your event "${eventTitle}" has been successfully completed.\n\nYour payout of ₹${totalPending.toFixed(0)} is being reviewed and will be transferred to your registered bank/UPI account manually by our team.\n\nThank you for hosting on TheyDi!</p>
-        `;
+
+        let hostBody;
+        let hostNotificationBody;
+
+        if (!hasBookings) {
+          // No one booked — free or paid, doesn't matter, nothing to pay out.
+          hostBody = `
+            <h2 style="color:#000000;font-size:20px;font-weight:600;margin:0 0 16px 0;">Hello ${hostName},</h2>
+            <p style="color:#4B5563;font-size:15px;line-height:24px;margin:0 0 30px 0;">
+              Your event "${eventTitle}" has ended.
+              <br><br>
+              Unfortunately, no one booked this event, so there are no earnings or payout associated with it.
+              <br><br>
+              Thank you for hosting on TheyDi!
+            </p>
+          `;
+          hostNotificationBody = `"${eventTitle}" has ended with no bookings.`;
+        } else if (hasPayout) {
+          // Real money is owed.
+          hostBody = `
+            <h2 style="color:#000000;font-size:20px;font-weight:600;margin:0 0 16px 0;">Hello ${hostName},</h2>
+            <p style="color:#4B5563;font-size:15px;line-height:24px;margin:0 0 30px 0;">
+              Your event "${eventTitle}" has been successfully completed.
+              <br><br>
+              Your payout of ₹${totalPending.toFixed(0)} is being reviewed and will be transferred to your registered bank/UPI account manually by our team.
+              <br><br>
+              Thank you for hosting on TheyDi!
+            </p>
+          `;
+          hostNotificationBody = `"${eventTitle}" is now marked as completed. Payout of ₹${totalPending.toFixed(0)} pending.`;
+        } else {
+          // Bookings exist (free RSVPs, or paid bookings that net to ₹0) but nothing is owed.
+          hostBody = `
+            <h2 style="color:#000000;font-size:20px;font-weight:600;margin:0 0 16px 0;">Hello ${hostName},</h2>
+            <p style="color:#4B5563;font-size:15px;line-height:24px;margin:0 0 30px 0;">
+              Your event "${eventTitle}" has been successfully completed.
+              <br><br>
+              Thank you for hosting on TheyDi!
+            </p>
+          `;
+          hostNotificationBody = `"${eventTitle}" is now marked as completed.`;
+        }
+
         await transporter.sendMail({
           from: `"TheyDi" <${process.env.GMAIL_USER}>`,
           to: hostEmail,
@@ -798,20 +888,32 @@ async function processEventCompletion(eventId) {
 
         await db.collection("users").doc(hostUid).collection("notifications").add({
           title: "✅ Event completed",
-          body: `"${eventTitle}" is now marked as completed. Payout of ₹${totalPending.toFixed(0)} pending.`,
-          type: "system", eventId, createdAt: FieldValue.serverTimestamp(), isRead: false,
+          body: hostNotificationBody,
+          type: "system",
+          eventId,
+          createdAt: FieldValue.serverTimestamp(),
+          isRead: false,
         });
       }
 
+      // Attendee emails — unchanged, never mentioned payouts anyway.
       for (const uid of attendeeUids) {
         const userDoc = await db.collection("users").doc(uid).get();
         if (userDoc.exists && userDoc.data()?.email) {
           const attendeeName = userDoc.data().displayName || "there";
           const attendeeEmail = userDoc.data().email;
+
           const attendeeBody = `
-            <h2 style="color: #000000; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Hello ${attendeeName},</h2>
-            <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 30px 0; white-space: pre-wrap;">"${eventTitle}" hosted by ${hostName} has ended.\n\nThank you for being there! We hope you had a wonderful experience.\n\nIf you enjoyed the event, consider leaving a review for the host on TheyDi.</p>
+            <h2 style="color:#000000;font-size:20px;font-weight:600;margin:0 0 16px 0;">Hello ${attendeeName},</h2>
+            <p style="color:#4B5563;font-size:15px;line-height:24px;margin:0 0 30px 0;">
+              "${eventTitle}" hosted by ${hostName} has ended.
+              <br><br>
+              Thank you for being there! We hope you had a wonderful experience.
+              <br><br>
+              If you enjoyed the event, consider leaving a review for the host on TheyDi.
+            </p>
           `;
+
           await transporter.sendMail({
             from: `"TheyDi" <${process.env.GMAIL_USER}>`,
             to: attendeeEmail,
@@ -822,7 +924,10 @@ async function processEventCompletion(eventId) {
           await db.collection("users").doc(uid).collection("notifications").add({
             title: "Event ended",
             body: `Hope you enjoyed "${eventTitle}"!`,
-            type: "system", eventId, createdAt: FieldValue.serverTimestamp(), isRead: false,
+            type: "system",
+            eventId,
+            createdAt: FieldValue.serverTimestamp(),
+            isRead: false,
           });
         }
       }
@@ -831,7 +936,7 @@ async function processEventCompletion(eventId) {
     logger.error("[EventCompletion] Error sending completion emails:", err);
   }
 
-  return { success: true, bookingsProcessed, totalPending };
+  return { success: true, bookingsProcessed, totalPending, hasPayout };
 }
 
 const processPayoutForEventId = processEventCompletion;
@@ -1027,37 +1132,57 @@ exports.sendSystemNotificationEmail = onCall({ region: REGION }, async (request)
   }
 });
 
-exports.processAutomaticPayouts = onSchedule("every 4 hours", async (event) => {
-  logger.info("[Cron] Starting processAutomaticPayouts...");
-  const db = admin.firestore();
-  const now = admin.firestore.Timestamp.now();
+exports.processAutomaticPayouts = onSchedule(
+  "every 4 hours",
+  async (event) => {
+    logger.info("[Cron] Starting processAutomaticPayouts...");
 
-  try {
-    const eventsSnap = await db.collection("events")
-      .where("payoutProcessed", "==", false)
-      .where("endTime", "<=", now)
-      .get();
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
 
-    if (eventsSnap.empty) {
-      logger.info("[Cron] No completed events awaiting payout.");
-      return;
-    }
+    try {
+      const eventsSnap = await db
+        .collection("events")
+        .where("payoutProcessed", "==", false)
+        .where("endTime", "<=", now)
+        .get();
 
-    logger.info(`[Cron] Found ${eventsSnap.size} events awaiting automatic payout.`);
-
-    for (const doc of eventsSnap.docs) {
-      try {
-        await processPayoutForEventId(doc.id);
-      } catch (e) {
-        logger.error(`[Cron] Failed to process payout for event ${doc.id}:`, e);
+      if (eventsSnap.empty) {
+        logger.info("[Cron] No completed events awaiting payout.");
+        return;
       }
-    }
-  } catch (e) {
-    logger.error("[Cron] Error querying events:", e);
-  }
 
-  logger.info("[Cron] Finished processAutomaticPayouts.");
-});
+      logger.info(
+        `[Cron] Found ${eventsSnap.size} events awaiting automatic payout.`
+      );
+
+      for (const doc of eventsSnap.docs) {
+        try {
+          const eventData = doc.data();
+
+          // NEVER process cancelled events
+          if (eventData.status === "cancelled") {
+            logger.info(
+              `[Cron] Skipping cancelled event ${doc.id}.`
+            );
+            continue;
+          }
+
+          await processPayoutForEventId(doc.id);
+        } catch (e) {
+          logger.error(
+            `[Cron] Failed to process payout for event ${doc.id}:`,
+            e
+          );
+        }
+      }
+    } catch (e) {
+      logger.error("[Cron] Error querying events:", e);
+    }
+
+    logger.info("[Cron] Finished processAutomaticPayouts.");
+  }
+);
 
 exports.cancelEventAndRefund = onCall({ region: REGION }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");

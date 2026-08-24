@@ -34,6 +34,65 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String _selectedFilter = 'All';
   final EventFilters _advancedFilters = EventFilters();
 
+  // ── FIX: this now actually EXCLUDES events that don't match the
+  // selected quick filter (Today / Free / This Week), instead of just
+  // sorting matches to the top while keeping every event in the list.
+  // Advanced-filter score and chronological order are only used as
+  // tiebreakers among events that already passed the quick filter. ──
+  bool _matchesQuickFilter(EventModel e, DateTime today, DateTime weekLater) {
+    switch (_selectedFilter) {
+      case 'Today':
+        return e.dateTime.year == today.year &&
+            e.dateTime.month == today.month &&
+            e.dateTime.day == today.day;
+      case 'Free':
+        return e.isFree;
+      case 'This Week':
+        return e.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) &&
+            e.dateTime.isBefore(weekLater);
+      case 'All':
+      default:
+        return true;
+    }
+  }
+
+  // ── FIX: advanced filters (category/city/free/maxPrice/date range) now
+  // actually EXCLUDE non-matching events instead of only nudging the sort
+  // order. Previously each active filter added a "score" point to matching
+  // events but never removed anything, so e.g. setting a 25-26 Aug date
+  // range still left an Aug 31 or Sep 1 event visible in the list — it was
+  // just sorted lower. ──
+  bool _matchesAdvancedFilters(EventModel e) {
+    if (_advancedFilters.category != null &&
+        e.category != _advancedFilters.category) {
+      return false;
+    }
+    if (_advancedFilters.city != null &&
+        e.city.toLowerCase() != _advancedFilters.city!.toLowerCase()) {
+      return false;
+    }
+    if (_advancedFilters.freeOnly == true && !e.isFree) {
+      return false;
+    }
+    if (_advancedFilters.maxPrice != null &&
+        !e.isFree &&
+        e.price > _advancedFilters.maxPrice!) {
+      return false;
+    }
+    if (_advancedFilters.dateFrom != null &&
+        e.dateTime.isBefore(_advancedFilters.dateFrom!)) {
+      return false;
+    }
+    if (_advancedFilters.dateTo != null) {
+      final endOfDay =
+          _advancedFilters.dateTo!.add(const Duration(hours: 23, minutes: 59));
+      if (e.dateTime.isAfter(endOfDay)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   List<EventModel> _applyQuickFilter(List<EventModel> events) {
     final DateTime now = DateTime.now();
     final DateTime today = DateTime(now.year, now.month, now.day);
@@ -42,117 +101,40 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     debugPrint(
         'EXPLORE_DEBUG: _applyQuickFilter called. Filter: $_selectedFilter. Events count: ${events.length}');
 
-    // Create a copy to reorder without mutating the source list
-    final sorted = List<EventModel>.from(events);
+    // Actually drop events that don't match the selected quick filter
+    // AND the advanced filters from the Filters sheet.
+    final matching = events
+        .where((e) =>
+            _matchesQuickFilter(e, today, weekLater) &&
+            _matchesAdvancedFilters(e))
+        .toList();
 
-    sorted.sort((a, b) {
-      // 1. Quick Filter Priority (Chips)
-      bool aMatchesQuick = false;
-      bool bMatchesQuick = false;
-
-      if (_selectedFilter == 'Today') {
-        aMatchesQuick = a.dateTime.year == today.year &&
-            a.dateTime.month == today.month &&
-            a.dateTime.day == today.day;
-        bMatchesQuick = b.dateTime.year == today.year &&
-            b.dateTime.month == today.month &&
-            b.dateTime.day == today.day;
-      } else if (_selectedFilter == 'Free') {
-        aMatchesQuick = a.isFree;
-        bMatchesQuick = b.isFree;
-      } else if (_selectedFilter == 'This Week') {
-        aMatchesQuick =
-            a.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) &&
-                a.dateTime.isBefore(weekLater);
-        bMatchesQuick =
-            b.dateTime.isAfter(today.subtract(const Duration(seconds: 1))) &&
-                b.dateTime.isBefore(weekLater);
-      }
-
-      if (aMatchesQuick != bMatchesQuick) return aMatchesQuick ? -1 : 1;
-
-      // 2. Advanced Filters Priority
-      // Scoring based on how many criteria are met
-      int aScore = 0;
-      int bScore = 0;
-
-      if (_advancedFilters.category != null) {
-        if (a.category == _advancedFilters.category) aScore++;
-        if (b.category == _advancedFilters.category) bScore++;
-      }
-      if (_advancedFilters.city != null) {
-        if (a.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) {
-          aScore++;
-        }
-        if (b.city.toLowerCase() == _advancedFilters.city!.toLowerCase()) {
-          bScore++;
-        }
-      }
-      if (_advancedFilters.freeOnly == true) {
-        if (a.isFree) aScore++;
-        if (b.isFree) bScore++;
-      }
-      if (_advancedFilters.maxPrice != null) {
-        if (a.isFree || a.price <= _advancedFilters.maxPrice!) aScore++;
-        if (b.isFree || b.price <= _advancedFilters.maxPrice!) bScore++;
-      }
-      if (_advancedFilters.dateFrom != null) {
-        if (a.dateTime.isAfter(_advancedFilters.dateFrom!)) aScore++;
-        if (b.dateTime.isAfter(_advancedFilters.dateFrom!)) bScore++;
-      }
-      if (_advancedFilters.dateTo != null) {
-        final endOfDay = _advancedFilters.dateTo!
-            .add(const Duration(hours: 23, minutes: 59));
-        if (a.dateTime.isBefore(endOfDay)) aScore++;
-        if (b.dateTime.isBefore(endOfDay)) bScore++;
-      }
-
-      if (aScore != bScore) return bScore.compareTo(aScore);
-
-      // 3. Fallback: Chronological Order
-      return a.dateTime.compareTo(b.dateTime);
-    });
+    final sorted = List<EventModel>.from(matching)
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
     debugPrint(
-        'EXPLORE_DEBUG: Sort finished. Top 3 titles: ${sorted.take(3).map((e) => e.title).toList()}');
+        'EXPLORE_DEBUG: Filter+sort finished. Matching count: ${sorted.length}. Top 3 titles: ${sorted.take(3).map((e) => e.title).toList()}');
     return sorted;
   }
 
-  // Shared logic to ensure segments also respect the Quick Filter reordering/prioritization
+  // ── FIX: segments now filter down to quick-filter matches first (same
+  // as _applyQuickFilter), then sort the remaining events by the section's
+  // own secondary criteria (e.g. attendees for Trending). Previously this
+  // only used the quick filter as a sort key, so non-matching events (e.g.
+  // events not happening today) still showed up under every section. ──
   List<EventModel> _sortSegment(List<EventModel> events,
       int Function(EventModel a, EventModel b) secondaryComparator) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final weekLater = today.add(const Duration(days: 7));
 
-    // Start with all upcoming events
-    final list = events.where((e) => e.dateTime.isAfter(now)).toList();
+    // Start with all upcoming events that also match the quick filter.
+    final list = events
+        .where((e) =>
+            e.dateTime.isAfter(now) && _matchesQuickFilter(e, today, weekLater))
+        .toList();
 
-    list.sort((a, b) {
-      bool aMatchesQuick = false;
-      bool bMatchesQuick = false;
-
-      if (_selectedFilter == 'Today') {
-        aMatchesQuick = a.dateTime.year == today.year &&
-            a.dateTime.month == today.month &&
-            a.dateTime.day == today.day;
-        bMatchesQuick = b.dateTime.year == today.year &&
-            b.dateTime.month == today.month &&
-            b.dateTime.day == today.day;
-      } else if (_selectedFilter == 'Free') {
-        aMatchesQuick = a.isFree;
-        bMatchesQuick = b.isFree;
-      } else if (_selectedFilter == 'This Week') {
-        aMatchesQuick = a.dateTime.isBefore(weekLater);
-        bMatchesQuick = b.dateTime.isBefore(weekLater);
-      }
-
-      // If one matches the priority filter and other doesn't, priority wins
-      if (aMatchesQuick != bMatchesQuick) return aMatchesQuick ? -1 : 1;
-
-      // If both (or neither) match, use the secondary criteria (e.g. attendees for Trending)
-      return secondaryComparator(a, b);
-    });
+    list.sort(secondaryComparator);
 
     return list.take(6).toList();
   }
@@ -307,11 +289,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                     physics:
                                         const NeverScrollableScrollPhysics(),
                                     scrollDirection: Axis.horizontal,
-                                    itemCount: EventConstants.exploreFilters.length,
+                                    itemCount:
+                                        EventConstants.exploreFilters.length,
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(width: 6),
                                     itemBuilder: (context, index) {
-                                      final filter = EventConstants.exploreFilters[index];
+                                      final filter =
+                                          EventConstants.exploreFilters[index];
                                       final isSelected =
                                           filter == _selectedFilter;
 

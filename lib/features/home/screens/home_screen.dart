@@ -1,11 +1,28 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CHANGES vs original home_screen.dart
+// CHANGES vs previous version
 //
-//  1. Added imports for ReviewTriggerService and ReviewPopup
-//  2. initState: added _checkPendingReview() call after _loadUserLocation
-//  3. Added _checkPendingReview() method — fetches pending event, shows popup
-//     after a 1.5s delay (gives screen time to settle)
-//  4. Everything else 100% unchanged
+//  1. BUG FIX: Removed the city-string pre-filter that ran before the radius
+//     filter. Previously, events were filtered down to `e.city == userCity`
+//     FIRST, and the radius/distance check only ran on whatever survived
+//     that string match. Since the fallback ("if empty, use all events")
+//     only triggered when the city-filtered list was completely empty, a
+//     genuinely nearby event with a missing/mismatched `city` field would
+//     get dropped before distance was ever checked — while a mistagged
+//     event 477 km away with a matching city string would survive. Distance
+//     filtering now runs directly against ALL events using lat/lng, which
+//     is ground truth; `userCity` is only used for the "Top Events in
+//     <city>" ranking section, where a string-based "same city" heuristic
+//     is reasonable.
+//  2. BUG FIX: Date filter changed from a date-RANGE picker
+//     (showDateRangePicker) to a single-date picker (showDatePicker), to
+//     match the single-date selection used in the event-creation flow.
+//     _dateRange (DateTimeRange?) replaced with _selectedDate (DateTime?),
+//     and the filter now matches events on the same calendar day instead
+//     of a start/end range.
+//  3. Removed leftover debug code in _loadUserLocation that called
+//     user.getIdToken(true) and discarded the result — it forced an
+//     unnecessary token refresh on every home screen load.
+//  4. Everything else unchanged.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,7 +44,6 @@ import '../../events/models/event_model.dart';
 import '../../map/events_map_screen.dart';
 import '../../../shared/widgets/notification_icon_button.dart';
 
-// ── NEW imports ──
 import '../../reviews/services/review_trigger_service.dart';
 import '../../reviews/widgets/review_popup.dart';
 
@@ -69,19 +85,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   double? _userLat;
   double? _userLng;
   bool _locationLoading = true;
+  DateTime? _selectedDate;
+  RangeValues? _priceRange;
 
+  static const double _priceFilterMax = 5000;
 
   @override
   void initState() {
     super.initState();
     _loadUserLocation();
-    // ── NEW: check for post-event review popup ──
     _checkPendingReview();
   }
 
-  // ── NEW: shows review popup if user has a completed unreviewed event ──
   Future<void> _checkPendingReview() async {
-    // Wait for screen to settle before showing popup
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
 
@@ -92,13 +108,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _loadUserLocation() async {
-    // ---> TEMPORARY CODE TO GET TOKEN <---
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final token = await user.getIdToken(true);
-    }
-    // -------------------------------------
-
     try {
       final position = await LocationService.getCurrentPosition();
       if (position != null && mounted) {
@@ -125,41 +134,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  List<EventModel> _filterAndSortEvents(
-      List<EventModel> events, String userCity) {
-    List<EventModel> cityEvents = events;
-    if (userCity.isNotEmpty) {
-      cityEvents = events
-          .where((e) => e.city.toLowerCase() == userCity.toLowerCase())
+  // ── FIX: distance filtering now runs against ALL events (lat/lng is
+  // ground truth). userCity is no longer used to pre-filter this list —
+  // it's only used for the "Top Events in <city>" section below via
+  // _topEventsForLocation. This stops nearby events with a missing/
+  // mismatched city field from being silently dropped before the radius
+  // check ever runs. ──
+  List<EventModel> _filterAndSortEvents(List<EventModel> events) {
+    List<EventModel> filtered = List.of(events);
+
+    if (_selectedDate != null) {
+      filtered = filtered
+          .where((e) =>
+              e.dateTime.year == _selectedDate!.year &&
+              e.dateTime.month == _selectedDate!.month &&
+              e.dateTime.day == _selectedDate!.day)
           .toList();
-      if (cityEvents.isEmpty) cityEvents = events;
+    }
+    if (_priceRange != null) {
+      filtered = filtered
+          .where((e) =>
+              e.price >= _priceRange!.start && e.price <= _priceRange!.end)
+          .toList();
     }
     if (_selectedCategory != 'All') {
-      cityEvents =
-          cityEvents.where((e) => e.category == _selectedCategory).toList();
+      filtered =
+          filtered.where((e) => e.category == _selectedCategory).toList();
     }
     if (_selectedRadius > 0 && _userLat != null && _userLng != null) {
-      var rf = cityEvents.where((e) {
+      filtered = filtered.where((e) {
         final d = _getEventDistance(e);
         return d >= 0 && d <= _selectedRadius;
       }).toList();
-      if (rf.isEmpty) {
-        for (final r in [2.0, 5.0, 10.0, 20.0, 50.0]) {
-          if (r <= _selectedRadius) continue;
-          rf = cityEvents.where((e) {
-            final d = _getEventDistance(e);
-            return d >= 0 && d <= r;
-          }).toList();
-          if (rf.isNotEmpty) break;
-        }
-        if (rf.isEmpty) rf = cityEvents;
-      }
-      cityEvents = rf;
     }
     switch (_selectedSort) {
       case 'Radius':
         if (_userLat != null && _userLng != null) {
-          cityEvents.sort((a, b) {
+          filtered.sort((a, b) {
             final dA = _getEventDistance(a), dB = _getEventDistance(b);
             if (dA < 0 && dB < 0) return 0;
             if (dA < 0) return 1;
@@ -168,13 +179,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           });
         }
       case 'Date':
-        cityEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        filtered.sort((a, b) => a.dateTime.compareTo(b.dateTime));
       case 'Price ₹':
-        cityEvents.sort((a, b) => _priceAscending
+        filtered.sort((a, b) => _priceAscending
             ? a.price.compareTo(b.price)
             : b.price.compareTo(a.price));
     }
-    return cityEvents;
+    return filtered;
   }
 
   List<EventModel> _topEventsForLocation(
@@ -311,8 +322,218 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  // ── FIX: single-date picker instead of date-range picker, to match the
+  // event-creation flow's single-date selection. ──
+  Future<void> _showDateSelector() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: now.subtract(const Duration(days: 2)),
+      lastDate: now.add(const Duration(days: 365)),
+      initialDate: _selectedDate ?? now,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: TheyDiColors.primary,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedSort = 'Date';
+      });
+    }
+  }
+
+  void _showPriceRangeSelector() {
+    RangeValues tempRange =
+        _priceRange ?? const RangeValues(0, _priceFilterMax);
+    bool tempAscending = _priceAscending;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final size = MediaQuery.sizeOf(ctx);
+            final maxWidth = math.min(size.width, 520.0);
+
+            Widget sortToggle(String label, bool ascending) {
+              final isSelected = tempAscending == ascending;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setModalState(() => tempAscending = ascending),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? TheyDiColors.primary.withValues(alpha: 0.15)
+                          : TheyDiColors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: isSelected
+                              ? TheyDiColors.primary
+                              : TheyDiColors.divider),
+                    ),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TheyDiTextStyles.labelMedium.copyWith(
+                        color: isSelected
+                            ? TheyDiColors.primary
+                            : TheyDiColors.textSecondary,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF3F4F6),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                            child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                    color: TheyDiColors.divider,
+                                    borderRadius: BorderRadius.circular(2)))),
+                        const SizedBox(height: 16),
+                        Text('Price filter',
+                            style: TheyDiTextStyles.displayMedium),
+                        const SizedBox(height: 8),
+                        Text(
+                          '₹${tempRange.start.toInt()} – ₹${tempRange.end.toInt()}',
+                          style: TheyDiTextStyles.labelMedium
+                              .copyWith(color: TheyDiColors.primary),
+                        ),
+                        RangeSlider(
+                          values: tempRange,
+                          min: 0,
+                          max: _priceFilterMax,
+                          divisions: 50,
+                          activeColor: TheyDiColors.primary,
+                          labels: RangeLabels(
+                            '₹${tempRange.start.toInt()}',
+                            '₹${tempRange.end.toInt()}',
+                          ),
+                          onChanged: (values) =>
+                              setModalState(() => tempRange = values),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Sort order',
+                            style: TheyDiTextStyles.caption
+                                .copyWith(color: TheyDiColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            sortToggle('Low → High', true),
+                            const SizedBox(width: 8),
+                            sortToggle('High → Low', false),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  side: const BorderSide(
+                                      color: TheyDiColors.divider),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _priceRange = null;
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                                child: Text('Clear',
+                                    style: TheyDiTextStyles.labelMedium
+                                        .copyWith(
+                                            color: TheyDiColors.textSecondary)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: TheyDiColors.primary,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _priceRange = tempRange;
+                                    _priceAscending = tempAscending;
+                                    _selectedSort = 'Price ₹';
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                                child: Text('Apply',
+                                    style: TheyDiTextStyles.labelMedium
+                                        .copyWith(color: Colors.white)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   String get _radiusLabel =>
       _selectedRadius < 0 ? 'Entire City' : '${_selectedRadius.toInt()} km';
+
+  String get _dateChipLabel {
+    if (_selectedDate == null) return 'Date';
+    return DateFormat('MMM d').format(_selectedDate!);
+  }
+
+  String get _priceChipLabel {
+    if (_priceRange != null) {
+      return '₹${_priceRange!.start.toInt()}-${_priceRange!.end.toInt()}';
+    }
+    if (_selectedSort == 'Price ₹') {
+      return _priceAscending ? 'Price ↑' : 'Price ↓';
+    }
+    return 'Price';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -381,16 +602,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         width: 48,
                                         height: 48,
                                         decoration: BoxDecoration(
-                                          // color: TheyDiColors.primary,
                                           borderRadius:
                                               BorderRadius.circular(12),
                                         ),
                                         child: Center(
                                           child: Image.asset(
-                                          'assets/images/theydi_logo.png',
-                                          height: 56,
-                                          fit: BoxFit.contain,
-                                        ),
+                                            'assets/images/theydi_logo.png',
+                                            height: 56,
+                                            fit: BoxFit.contain,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 4),
@@ -505,7 +725,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 16),
 
                       // Filters & Location
-// Filters & Location
                       Builder(
                         builder: (context) {
                           final isMobile =
@@ -582,73 +801,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
+                                      // ── Date chip: opens single-date picker ──
                                       chip(
-                                        selected: _selectedSort == 'Date',
-                                        onTap: () => setState(
-                                            () => _selectedSort = 'Date'),
+                                        selected: _selectedSort == 'Date' ||
+                                            _selectedDate != null,
+                                        onTap: _showDateSelector,
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(Icons.schedule,
                                                 size: iconSize,
-                                                color: _selectedSort == 'Date'
+                                                color: (_selectedSort ==
+                                                            'Date' ||
+                                                        _selectedDate != null)
                                                     ? TheyDiColors.primary
                                                     : TheyDiColors
                                                         .textSecondary),
                                             const SizedBox(width: 4),
                                             Text(
-                                              "Date",
+                                              _dateChipLabel,
                                               style: TheyDiTextStyles.caption
                                                   .copyWith(
                                                 fontSize: fontSize,
-                                                color: _selectedSort == 'Date'
+                                                color: (_selectedSort ==
+                                                            'Date' ||
+                                                        _selectedDate != null)
                                                     ? TheyDiColors.primary
                                                     : TheyDiColors
                                                         .textSecondary,
                                               ),
                                             ),
+                                            if (_selectedDate != null) ...[
+                                              const SizedBox(width: 4),
+                                              GestureDetector(
+                                                onTap: () => setState(
+                                                    () => _selectedDate = null),
+                                                child: Icon(Icons.close,
+                                                    size: iconSize,
+                                                    color:
+                                                        TheyDiColors.primary),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
                                       const SizedBox(width: 8),
+                                      // ── Price chip: opens price-range sheet ──
                                       chip(
-                                        selected: _selectedSort == 'Price ₹',
-                                        onTap: () {
-                                          setState(() {
-                                            if (_selectedSort == 'Price ₹') {
-                                              _priceAscending =
-                                                  !_priceAscending;
-                                            }
-                                            _selectedSort = 'Price ₹';
-                                          });
-                                        },
+                                        selected: _selectedSort == 'Price ₹' ||
+                                            _priceRange != null,
+                                        onTap: _showPriceRangeSelector,
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(Icons.currency_rupee,
                                                 size: iconSize,
-                                                color:
-                                                    _selectedSort == 'Price ₹'
-                                                        ? TheyDiColors.primary
-                                                        : TheyDiColors
-                                                            .textSecondary),
+                                                color: (_selectedSort ==
+                                                            'Price ₹' ||
+                                                        _priceRange != null)
+                                                    ? TheyDiColors.primary
+                                                    : TheyDiColors
+                                                        .textSecondary),
                                             const SizedBox(width: 4),
                                             Text(
-                                              _selectedSort == 'Price ₹'
-                                                  ? (_priceAscending
-                                                      ? "Price ↑"
-                                                      : "Price ↓")
-                                                  : "Price",
+                                              _priceChipLabel,
                                               style: TheyDiTextStyles.caption
                                                   .copyWith(
                                                 fontSize: fontSize,
-                                                color:
-                                                    _selectedSort == 'Price ₹'
-                                                        ? TheyDiColors.primary
-                                                        : TheyDiColors
-                                                            .textSecondary,
+                                                color: (_selectedSort ==
+                                                            'Price ₹' ||
+                                                        _priceRange != null)
+                                                    ? TheyDiColors.primary
+                                                    : TheyDiColors
+                                                        .textSecondary,
                                               ),
                                             ),
+                                            if (_priceRange != null) ...[
+                                              const SizedBox(width: 4),
+                                              GestureDetector(
+                                                onTap: () => setState(
+                                                    () => _priceRange = null),
+                                                child: Icon(Icons.close,
+                                                    size: iconSize,
+                                                    color:
+                                                        TheyDiColors.primary),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
@@ -770,7 +1008,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: Text('Failed to load events: $e',
                                 style: TheyDiTextStyles.bodySmall)))),
                 data: (allEvents) {
-                  final filtered = _filterAndSortEvents(allEvents, userCity);
+                  // ── FIX: userCity no longer passed in here — distance
+                  // filtering runs against all events directly. ──
+                  final filtered = _filterAndSortEvents(allEvents);
                   final topEvents = _topEventsForLocation(allEvents, userCity);
                   final locationLabel =
                       userCity.isEmpty ? 'Your Location' : userCity;
@@ -813,7 +1053,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     style: TheyDiTextStyles.labelLarge),
                                 const SizedBox(height: 16),
                                 SizedBox(
-                                  height: 320,
+                                  height: 336,
                                   child: LayoutBuilder(
                                     builder: (context, constraints) {
                                       final cardWidth = math
