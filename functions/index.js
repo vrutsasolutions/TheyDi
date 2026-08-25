@@ -1419,6 +1419,8 @@ exports.sendPushOnNotification = onDocumentCreated(
         },
         data: {
           type: data.type || "",
+          title: data.title || "",   // ← add
+          body: data.body || "",  
           eventId: data.eventId || "",
           fromUid: data.fromUid || "",
           circleId: data.circleId || "",

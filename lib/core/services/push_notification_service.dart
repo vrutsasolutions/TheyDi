@@ -8,6 +8,9 @@ import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_router.dart'; // wherever rootNavigatorKey lives
 import 'package:theydi/core/router/app_routes.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
+
+import 'package:theydi/features/events/models/event_model.dart';
 
 class PushNotificationService {
   static final _messaging = FirebaseMessaging.instance;
@@ -52,8 +55,8 @@ class PushNotificationService {
         importance: Importance.high,
       );
       await _localNotifications
-          .resolvePlatformSpecificImplementation
-              <AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
       print('FCM DEBUG 5: Notification channel created');
 
@@ -218,36 +221,197 @@ class PushNotificationService {
       return;
     }
 
-    final type = data['type'];
+    final type = data['type']?.toString() ?? '';
+    final title = (data['title']?.toString() ?? '').toLowerCase();
+    final body = (data['body']?.toString() ?? '').toLowerCase();
+    final eventId = _nullIfEmpty(data['eventId']);
+    final fromUid = _nullIfEmpty(data['fromUid']);
+    final circleId = _nullIfEmpty(data['circleId']);
+    final chatId = _nullIfEmpty(data['chatId']);
+
+    Future<void> openEventDetail() async {
+      if (eventId != null) {
+        await _pushEventDetail(context, eventId);
+      }
+    }
+
+    void goManageEvent() {
+      if (eventId != null) {
+        context.push(AppRoutes.hostManage, extra: eventId);
+      }
+    }
 
     switch (type) {
-      case 'nearby_event':
-      case 'event':
-        final eventId = data['eventId'];
-        if (eventId != null && eventId.toString().isNotEmpty) {
-          context.push('/event/$eventId');
+      case 'system':
+        if (title.contains('completed') || title.contains('ended')) {
+          if (body.contains('marked as completed') ||
+              title.contains('event completed')) {
+            goManageEvent();
+          } else {
+            context.go(AppRoutes.myEvents, extra: {'tab': 2, 'filter': 'All'});
+          }
+        } else if (title.contains('created') || title.contains('live')) {
+          goManageEvent();
+        } else if (title.contains('cancelled') || title.contains('declined')) {
+          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
+        } else {
+          openEventDetail();
         }
         break;
 
-      case 'circle':
-        final circleId = data['circleId'];
-        if (circleId != null && circleId.toString().isNotEmpty) {
-          context.push('/circle/$circleId');
+      case 'suggested_event':
+      case 'reminder':
+      case 'nearby_event':
+      case 'event':
+        openEventDetail();
+        break;
+
+      case 'review':
+        context.push(AppRoutes.myReviews);
+        break;
+
+      case 'booking':
+        final isCompletePayment =
+            title.contains('complete payment') || body.contains('tap to pay');
+        final isApproved = title.contains('approved') &&
+            !title.contains('join request') &&
+            !isCompletePayment;
+        final isJoinRequest = title.contains('join request');
+        final isNewBooking =
+            title.contains('booking') || body.contains('booked');
+        final isCancelled =
+            title.contains('cancelled') || title.contains('spot cancelled');
+
+        if (isCompletePayment && eventId != null) {
+          _pushEventDetail(context, eventId);
+        } else if (isApproved) {
+          context.go(AppRoutes.myEvents, extra: {'tab': 0, 'filter': 'All'});
+        } else if (isJoinRequest && eventId != null) {
+          context.push(AppRoutes.hostManage, extra: eventId);
+        } else if ((isNewBooking || isCancelled) && eventId != null) {
+          context.push(AppRoutes.hostManage, extra: eventId);
+        } else if (eventId != null) {
+          _pushEventDetail(context, eventId);
+        }
+        break;
+
+      case 'payment':
+        if (title.contains('payout')) {
+          context.push(AppRoutes.hostDashboard);
+        } else if (title.contains('new attendee') ||
+            title.contains('new booking') ||
+            body.contains('booked') ||
+            body.contains('joined')) {
+          goManageEvent();
+        } else {
+          context.push(AppRoutes.paymenthistory);
+        }
+        break;
+
+      case 'dm':
+      case 'message':
+        if (circleId != null) {
+          context.go(AppRoutes.circles);
+        } else if (fromUid != null) {
+          final senderName =
+              _extractSenderName(data['title']?.toString() ?? '');
+          context.push(AppRoutes.dmChat, extra: {
+            'otherUid': fromUid,
+            'otherName': senderName,
+          });
+        } else {
+          context.go(AppRoutes.circles);
         }
         break;
 
       case 'chat':
-        // TODO: dmChat/circleChat both require an `extra` object
-        // (CircleModel, or {otherUid, otherName}) that a bare chatId
-        // string can't supply. This needs a Firestore lookup first —
-        // e.g. fetch the chat/circle doc for `chatId`, then:
-        //   context.push(AppRoutes.dmChat, extra: {...});
-        // Not wired yet — falls through to notifications screen for now.
+        // TODO: same limitation as before — needs a Firestore lookup on
+        // chatId to build the right `extra` object. Falls back for now.
+        print(
+            'FCM DEBUG: chat notification tapped, chatId=$chatId (not yet wired)');
         context.push(AppRoutes.notifications);
+        break;
+
+      case 'social':
+        final isAccepted = title.contains('accepted');
+        final isFriendRequest = title.contains('friend request') && !isAccepted;
+        final isAddedToCircle = title.contains('added to a circle') ||
+            title.contains('added you to');
+        final isReview = title.contains('review');
+
+        if (isReview) {
+          context.push(AppRoutes.myReviews);
+        } else if (isAddedToCircle) {
+          context.go(AppRoutes.circles);
+        } else if (isAccepted) {
+          context.push(AppRoutes.friendsHub);
+        } else if (isFriendRequest) {
+          context.push(AppRoutes.friendRequests);
+        } else if (fromUid != null) {
+          context.push(AppRoutes.userProfile,
+              extra: {'uid': fromUid, 'requestId': null});
+        }
+        break;
+
+      case 'suggested_friends':
+        context.push(AppRoutes.friendsHub, extra: {'initialTab': 2});
+        break;
+
+      case 'suggested_circles':
+        context.push(AppRoutes.circleDiscovery, extra: {'initialTab': 2});
+        break;
+
+      case 'circle':
+      case 'circle_added':
+      case 'circle_join_request':
+      case 'circle_approved':
+      case 'circle_rejected':
+      case 'circle_removed':
+        context.go('${AppRoutes.circles}?tab=2');
+        break;
+
+      case 'admin_verification':
+        context.push(AppRoutes.adminVerification);
+        break;
+
+      case 'verification':
+        context.go(AppRoutes.profile);
         break;
 
       default:
         print('FCM DEBUG 26b: Unhandled notification type = $type');
+        if (eventId != null) openEventDetail();
+        break;
+    }
+  }
+
+  static String? _nullIfEmpty(dynamic v) {
+    final s = v?.toString();
+    return (s == null || s.isEmpty) ? null : s;
+  }
+
+  static String _extractSenderName(String title) {
+    final match = RegExp(r'from (.+?)(?:\s*[^\w\s].*)?$').firstMatch(title);
+    return match?.group(1)?.trim() ?? 'User';
+  }
+
+  /// Fetch event from Firestore and push event detail, or show fallback snackbar
+  static Future<void> _pushEventDetail(
+      BuildContext context, String eventId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(eventId)
+          .get();
+      if (!context.mounted) return;
+      if (!doc.exists) {
+        // no scaffold context reliably available here from a push tap; just bail
+        return;
+      }
+      final event = EventModel.fromFirestore(doc);
+      context.push('/event/$eventId', extra: event);
+    } catch (_) {
+      // silent fail — no reliable ScaffoldMessenger context on a cold push tap
     }
   }
 
