@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:io' show File;
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,6 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/utils/video_thumbnail_helper.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,6 +129,10 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
   double _dragOffset = 0;
   static const double _cancelThreshold = 80.0;
 
+  // Cache generated preview thumbnails per file path so re-opening the
+  // confirmation dialog (e.g. after cropping) doesn't regenerate them.
+  final Map<String, Uint8List?> _previewThumbCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -236,6 +244,20 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
 
       final bytes = await file.readAsBytes();
       final url = await CloudflareUpload.uploadBytes(bytes, file.name);
+
+      // Generate + upload a thumbnail exactly like any other file — no paid
+// service involved. Best-effort: if it fails for any reason, the video
+// still sends fine, it just falls back to a placeholder icon in the bubble.
+      String? thumbnailUrl;
+      if (mediaType == 'video') {
+        final thumbBytes = await VideoThumbnailHelper.generate(file.path);
+        if (thumbBytes != null) {
+          thumbnailUrl = await CloudflareUpload.uploadBytes(
+            thumbBytes,
+            'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+        }
+      }
 
       if (url == null) {
         _showSnack('Upload failed', Colors.red);
@@ -659,71 +681,222 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
     }
   }
 
+  /// Opens the native crop UI for a picked image. Returns the cropped file,
+  /// or the original file if the user skips/cancels cropping, or null if
+  /// something goes wrong.
+  Future<XFile?> _cropImage(XFile file) async {
+    // image_cropper's web implementation has a layout bug (its internal
+    // Save/Cancel button row gets unbounded width and throws
+    // "BoxConstraints forces an infinite width" during performLayout).
+    // Cropping stays fully available on Android/iOS; on web we send the
+    // picked image as-is rather than crash the send flow.
+    if (kIsWeb) return file;
+    try {
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        compressQuality: 88,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Photo',
+            toolbarColor: TheyDiColors.dark,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: TheyDiColors.dark,
+            activeControlsWidgetColor: TheyDiColors.primary,
+            statusBarColor: TheyDiColors.dark,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop Photo',
+            aspectRatioLockEnabled: false,
+            resetAspectRatioEnabled: true,
+            doneButtonTitle: 'Done',
+            cancelButtonTitle: 'Cancel',
+          ),
+        ],
+      );
+      if (cropped == null) return file; // user tapped back without cropping
+      return XFile(cropped.path, name: file.name);
+    } catch (e) {
+      // Cropper not available / failed — fall back to original image so the
+      // send flow never gets blocked by a cropper error.
+      return file;
+    }
+  }
+
+  /// Generates (and caches) a JPEG preview thumbnail for a video file so the
+  /// "Send video?" confirmation dialog can show an actual frame instead of a
+  /// static camera icon. Safe to call unconditionally — VideoThumbnailHelper
+  /// already returns null on failure/unsupported platforms rather than
+  /// throwing, so this never blocks the send flow.
+  Future<Uint8List?> _getPreviewThumb(String path) async {
+    if (_previewThumbCache.containsKey(path)) {
+      return _previewThumbCache[path];
+    }
+    final bytes = await VideoThumbnailHelper.generate(path);
+    _previewThumbCache[path] = bytes;
+    return bytes;
+  }
+
   Future<void> _confirmAndSendMedia(
     XFile file,
     String type,
   ) async {
+    XFile workingFile = file;
+
+    if (type == 'image') {
+      final cropped = await _cropImage(workingFile);
+      if (cropped == null) return; // shouldn't happen, but guard anyway
+      workingFile = cropped;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: TheyDiColors.card,
-        title: Text(
-          'Send $type?',
-          style: TheyDiTextStyles.headlineMedium,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (type == 'image')
-              kIsWeb
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        file.path,
-                        height: 200,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(file.path),
-                        height: 200,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-            else
-              Icon(
-                type == 'video' ? Icons.videocam : Icons.description,
-                size: 48,
-                color: TheyDiColors.primary,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: TheyDiColors.card,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            type == 'image'
+                ? 'Send photo?'
+                : type == 'video'
+                    ? 'Send video?'
+                    : 'Send file?',
+            style: TheyDiTextStyles.headlineMedium,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (type == 'image')
+                SizedBox(
+                  width:
+                      260, // finite width — Image's width: double.infinity is what
+                  // breaks AlertDialog's internal IntrinsicWidth pass on web
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: kIsWeb
+                        ? Image.network(workingFile.path,
+                            height: 220, fit: BoxFit.cover)
+                        : Image.file(File(workingFile.path),
+                            height: 220, fit: BoxFit.cover),
+                  ),
+                )
+              else if (type == 'video')
+                SizedBox(
+                  width: 260,
+                  child: FutureBuilder<Uint8List?>(
+                    future: _getPreviewThumb(workingFile.path),
+                    builder: (context, snapshot) {
+                      final thumbBytes = snapshot.data;
+                      final loading =
+                          snapshot.connectionState != ConnectionState.done;
+                      return Container(
+                        height: 140,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: TheyDiColors.dark,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: loading
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: TheyDiColors.primary,
+                                  ),
+                                ),
+                              )
+                            : thumbBytes != null
+                                ? Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.memory(thumbBytes,
+                                          fit: BoxFit.cover),
+                                      Container(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.15),
+                                      ),
+                                      const Center(
+                                        child: Icon(
+                                          Icons.play_circle_fill,
+                                          color: Colors.white,
+                                          size: 44,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Icon(
+                                    Icons.videocam_rounded,
+                                    size: 48,
+                                    color: TheyDiColors.primary,
+                                  ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Container(
+                  height: 140,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: TheyDiColors.dark,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.description,
+                    size: 48,
+                    color: TheyDiColors.primary,
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Text(
+                workingFile.name,
+                style: TheyDiTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            const SizedBox(height: 12),
-            Text(
-              file.name,
-              style: TheyDiTextStyles.bodySmall,
-              textAlign: TextAlign.center,
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          actions: [
+            if (type == 'image' && !kIsWeb)
+              TextButton.icon(
+                onPressed: () async {
+                  final recropped = await _cropImage(workingFile);
+                  if (recropped != null) {
+                    setDialogState(() => workingFile = recropped);
+                  }
+                },
+                icon: Icon(Icons.crop_rounded,
+                    size: 18, color: TheyDiColors.primary),
+                label:
+                    Text('Crop', style: TextStyle(color: TheyDiColors.primary)),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(
+                'Send',
+                style: TextStyle(
+                    color: TheyDiColors.primary, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Send',
-              style: TextStyle(color: TheyDiColors.primary),
-            ),
-          ),
-        ],
       ),
     );
 
     if (confirmed == true) {
-      await _uploadAndSendMedia(file, type);
+      await _uploadAndSendMedia(workingFile, type);
     }
   }
 
@@ -821,6 +994,20 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         file.name,
       );
 
+      // Generate + upload a thumbnail exactly like any other file — no paid
+// service involved. Best-effort: if it fails for any reason, the video
+// still sends fine, it just falls back to a placeholder icon in the bubble.
+      String? thumbnailUrl;
+      if (type == 'video') {
+        final thumbBytes = await _getPreviewThumb(file.path);
+        if (thumbBytes != null) {
+          thumbnailUrl = await CloudflareUpload.uploadBytes(
+            thumbBytes,
+            'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+        }
+      }
+
       if (url == null) {
         throw Exception('Cloudflare upload failed');
       }
@@ -842,6 +1029,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
         'senderName': senderName,
         'type': type,
         'mediaUrl': url,
+        if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
         'fileName': file.name,
         'text': msgText,
         'circleId': _circle.id,
@@ -987,12 +1175,6 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
             onTap: () => setState(() => _showEmojiPicker = false),
             child: StreamBuilder<QuerySnapshot>(
               stream: _messagesStream,
-              // stream: FirebaseFirestore.instance
-              //     .collection('circles')
-              //     .doc(_circle.id)
-              //     .collection('messages')
-              //     .orderBy('createdAt')
-              //     .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -1068,6 +1250,7 @@ class _CircleChatScreenState extends ConsumerState<CircleChatScreen>
                         )
                       else if (msgType == 'video')
                         _CircleVideoBubble(
+                          thumbnailUrl: data['thumbnailUrl'],
                           videoUrl: mediaUrl ?? '',
                           isMine: isMine,
                           senderName: senderName,
@@ -1543,29 +1726,69 @@ class _CircleVoiceBubble extends StatefulWidget {
   State<_CircleVoiceBubble> createState() => _CircleVoiceBubbleState();
 }
 
+/// Full-screen image preview with pinch-to-zoom, hero animation, and quick
+/// actions (share / open in browser). Shared look & feel with the DM screen.
 class _ImagePreviewScreen extends StatelessWidget {
   final String imageUrl;
-  const _ImagePreviewScreen({required this.imageUrl});
+  final String heroTag;
+  const _ImagePreviewScreen({required this.imageUrl, required this.heroTag});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.black.withValues(alpha: 0.4),
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.open_in_browser, color: Colors.white),
+            tooltip: 'Open original',
+            onPressed: () {
+              if (imageUrl.isNotEmpty) {
+                launchUrl(Uri.parse(imageUrl),
+                    mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+        ],
       ),
+      extendBodyBehindAppBar: true,
       body: Center(
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4,
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.broken_image,
-              color: Colors.white,
-              size: 80,
+        child: Hero(
+          tag: heroTag,
+          child: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 5,
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                final total = progress.expectedTotalBytes;
+                final loaded = progress.cumulativeBytesLoaded;
+                return Center(
+                  child: SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: TheyDiColors.primary,
+                      value: total != null ? loaded / total : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (_, __, ___) => const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                  SizedBox(height: 8),
+                  Text('Could not load image',
+                      style: TextStyle(color: Colors.white54)),
+                ],
+              ),
             ),
           ),
         ),
@@ -1591,55 +1814,165 @@ class _CircleImageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        constraints: const BoxConstraints(maxWidth: 280),
-        child: Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                if (imageUrl.isEmpty) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => _ImagePreviewScreen(imageUrl: imageUrl),
-                    fullscreenDialog: true,
+    final heroTag = 'circle_image_${imageUrl}_$timeLabel';
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 3,
+        bottom: 3,
+        left: isMine ? 60 : 0,
+        right: isMine ? 0 : 60,
+      ),
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 260),
+          child: Column(
+            crossAxisAlignment:
+                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (!isMine)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 3),
+                  child: Text(senderName,
+                      style: TheyDiTextStyles.caption.copyWith(
+                          color: TheyDiColors.primary,
+                          fontWeight: FontWeight.w600)),
+                ),
+              GestureDetector(
+                onTap: () {
+                  if (imageUrl.isEmpty) return;
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => _ImagePreviewScreen(
+                          imageUrl: imageUrl, heroTag: heroTag),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: heroTag,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isMine ? 16 : 4),
+                      bottomRight: Radius.circular(isMine ? 4 : 16),
+                    ),
+                    child: Stack(
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: 150,
+                            maxHeight: 260,
+                          ),
+                          child: imageUrl.isEmpty
+                              ? _ImagePlaceholder()
+                              : Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    final total = progress.expectedTotalBytes;
+                                    final loaded =
+                                        progress.cumulativeBytesLoaded;
+                                    return Container(
+                                      height: 200,
+                                      color: TheyDiColors.card,
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: TheyDiColors.primary,
+                                            value: total != null
+                                                ? loaded / total
+                                                : null,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (_, __, ___) =>
+                                      _ImagePlaceholder(isError: true),
+                                ),
+                        ),
+                        // Bottom gradient scrim so the timestamp/receipt are
+                        // legible over bright photos.
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(10, 18, 8, 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0),
+                                  Colors.black.withValues(alpha: 0.55),
+                                ],
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(timeLabel,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500)),
+                                if (isMine) ...[
+                                  const SizedBox(width: 4),
+                                  _ReadReceipt(seen: seen, light: true),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.zoom_out_map,
+                                color: Colors.white, size: 14),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return const SizedBox(
-                      height: 200,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.broken_image, size: 80),
                 ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(timeLabel, style: TheyDiTextStyles.caption),
-                if (isMine) ...[
-                  const SizedBox(width: 4),
-                  _ReadReceipt(seen: seen),
-                ],
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  final bool isError;
+  const _ImagePlaceholder({this.isError = false});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 180,
+      width: double.infinity,
+      color: TheyDiColors.card,
+      alignment: Alignment.center,
+      child: Icon(
+        isError ? Icons.broken_image_outlined : Icons.image_outlined,
+        color: TheyDiColors.textMuted,
+        size: 36,
       ),
     );
   }
@@ -1988,6 +2321,7 @@ class _CircleProfileShareBubble extends StatelessWidget {
 
 class _CircleVideoBubble extends StatelessWidget {
   final String videoUrl;
+  final String? thumbnailUrl;
   final bool isMine;
   final String senderName;
   final String timeLabel;
@@ -1995,14 +2329,62 @@ class _CircleVideoBubble extends StatelessWidget {
 
   const _CircleVideoBubble({
     required this.videoUrl,
+    required this.thumbnailUrl,
     required this.isMine,
     required this.senderName,
     required this.timeLabel,
     required this.seen,
   });
 
+  Widget _buildThumbArea() {
+    final url = thumbnailUrl;
+
+    if (url == null || url.isEmpty) {
+      return _placeholderBox();
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+
+        return Container(
+          color: TheyDiColors.card,
+          child: const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: TheyDiColors.primary,
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (_, __, ___) => _placeholderBox(),
+    );
+  }
+
+  Widget _placeholderBox() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: TheyDiColors.gradientPrimary,
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.videocam_rounded,
+        color: Colors.white70,
+        size: 34,
+      ),
+    );
+  }
+
   void _openVideo(BuildContext context) {
     if (videoUrl.isEmpty) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _VideoPlayerScreen(videoUrl: videoUrl),
@@ -2022,49 +2404,142 @@ class _CircleVideoBubble extends StatelessWidget {
       ),
       child: Align(
         alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: GestureDetector(
-          onTap: () => _openVideo(context),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isMine
-                  ? TheyDiColors.primary.withValues(alpha: 0.15)
-                  : TheyDiColors.card,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (!isMine)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6, right: 0),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        senderName,
-                        style: TheyDiTextStyles.caption.copyWith(
-                          color: TheyDiColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+        child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 240,
+            minWidth: 180,
+          ),
+          child: Column(
+            crossAxisAlignment:
+                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (!isMine)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 4,
+                    bottom: 3,
+                  ),
+                  child: Text(
+                    senderName,
+                    style: TheyDiTextStyles.caption.copyWith(
+                      color: TheyDiColors.primary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                const Icon(Icons.play_circle_fill, size: 60),
-                const SizedBox(height: 8),
-                Text('Video', style: TheyDiTextStyles.caption),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(timeLabel, style: TheyDiTextStyles.caption),
-                    if (isMine) ...[
-                      const SizedBox(width: 4),
-                      _ReadReceipt(seen: seen),
-                    ],
-                  ],
                 ),
-              ],
-            ),
+              GestureDetector(
+                onTap: () => _openVideo(context),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(
+                      isMine ? 16 : 4,
+                    ),
+                    bottomRight: Radius.circular(
+                      isMine ? 4 : 16,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        height: 160,
+                        width: double.infinity,
+                        child: _buildThumbArea(),
+                      ),
+
+                      // Darken slightly so the play icon always pops.
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withValues(
+                            alpha: 0.18,
+                          ),
+                        ),
+                      ),
+
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(
+                            alpha: 0.45,
+                          ),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white70,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(
+                            10,
+                            18,
+                            8,
+                            6,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0),
+                                Colors.black.withValues(alpha: 0.6),
+                              ],
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.videocam,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'Video',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                timeLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (isMine) ...[
+                                const SizedBox(width: 4),
+                                _ReadReceipt(
+                                  seen: seen,
+                                  light: true,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2072,6 +2547,8 @@ class _CircleVideoBubble extends StatelessWidget {
   }
 }
 
+/// Full-screen video playback with a proper scrubber, play/pause, elapsed /
+/// remaining time, and tap-to-toggle controls that auto-hide while playing.
 class _VideoPlayerScreen extends StatefulWidget {
   final String videoUrl;
   const _VideoPlayerScreen({required this.videoUrl});
@@ -2083,7 +2560,9 @@ class _VideoPlayerScreen extends StatefulWidget {
 class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
   late VideoPlayerController _controller;
   bool _ready = false;
+  bool _controlsVisible = true;
   String? _error;
+  Timer? _hideTimer;
 
   @override
   void initState() {
@@ -2093,54 +2572,198 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
         if (!mounted) return;
         setState(() => _ready = true);
         _controller.play();
+        _controller.addListener(_onTick);
+        _scheduleHide();
       }).catchError((e) {
         if (!mounted) return;
         setState(() => _error = 'Could not load video');
       });
   }
 
+  void _onTick() {
+    if (mounted) setState(() {});
+  }
+
+  void _scheduleHide() {
+    if (kIsWeb) return;
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _controller.value.isPlaying) {
+        setState(() => _controlsVisible = false);
+      }
+    });
+  }
+
+  void _toggleControls() {
+    if (kIsWeb) return;
+    setState(() => _controlsVisible = !_controlsVisible);
+    if (_controlsVisible) _scheduleHide();
+  }
+
+  void _togglePlay() {
+    setState(() {
+      if (_controller.value.isPlaying) {
+        _controller.pause();
+        _hideTimer?.cancel();
+        // Always keep controls up while paused — otherwise a tap that lands
+        // on both the button and the background toggle (can happen with
+        // mouse clicks on web) can hide the play button the instant you
+        // pause, leaving no way to resume without leaving the screen.
+        _controlsVisible = true;
+      } else {
+        _controller.play();
+        _scheduleHide();
+      }
+    });
+  }
+
+  String _fmtDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
   @override
   void dispose() {
+    _hideTimer?.cancel();
+    _controller.removeListener(_onTick);
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final position = _ready ? _controller.value.position : Duration.zero;
+    final total = _ready ? _controller.value.duration : Duration.zero;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Center(
-        child: _error != null
-            ? Text(_error!, style: const TextStyle(color: Colors.white))
-            : !_ready
-                ? const CircularProgressIndicator(color: Colors.white)
-                : AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        VideoPlayer(_controller),
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            _controller.value.isPlaying
-                                ? _controller.pause()
-                                : _controller.play();
-                          }),
-                          child: AnimatedOpacity(
-                            opacity: _controller.value.isPlaying ? 0 : 1,
-                            duration: const Duration(milliseconds: 200),
-                            child: const Icon(Icons.play_arrow,
-                                color: Colors.white, size: 64),
+      extendBodyBehindAppBar: true,
+      body: _error != null
+          ? Center(
+              child: Text(_error!, style: const TextStyle(color: Colors.white)))
+          : !_ready
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.white))
+              : GestureDetector(
+                  onTap: _toggleControls,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Center(
+                        child: AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: VideoPlayer(_controller),
+                        ),
+                      ),
+                      AnimatedOpacity(
+                        opacity: _controlsVisible ? 1 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: IgnorePointer(
+                          ignoring: !_controlsVisible,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap:
+                                () {}, // absorb: don't fall through to _toggleControls
+                            child: Container(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              child: Column(
+                                children: [
+                                  const Spacer(),
+                                  GestureDetector(
+                                    onTap: _togglePlay,
+                                    child: Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.4),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white70, width: 1.5),
+                                      ),
+                                      child: Icon(
+                                        _controller.value.isPlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 38,
+                                      ),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 0, 16, 24),
+                                    child: Column(
+                                      children: [
+                                        SliderTheme(
+                                          data:
+                                              SliderTheme.of(context).copyWith(
+                                            trackHeight: 3,
+                                            thumbShape:
+                                                const RoundSliderThumbShape(
+                                                    enabledThumbRadius: 6),
+                                            overlayShape:
+                                                const RoundSliderOverlayShape(
+                                                    overlayRadius: 14),
+                                            activeTrackColor:
+                                                TheyDiColors.primary,
+                                            inactiveTrackColor: Colors.white
+                                                .withValues(alpha: 0.3),
+                                            thumbColor: TheyDiColors.primary,
+                                          ),
+                                          child: Slider(
+                                            min: 0,
+                                            max: total.inMilliseconds > 0
+                                                ? total.inMilliseconds
+                                                    .toDouble()
+                                                : 1,
+                                            value: position.inMilliseconds
+                                                .clamp(0, total.inMilliseconds)
+                                                .toDouble(),
+                                            onChangeStart: (_) {
+                                              _hideTimer?.cancel();
+                                            },
+                                            onChanged: (v) {
+                                              setState(() {
+                                                _controller.seekTo(Duration(
+                                                    milliseconds: v.round()));
+                                              });
+                                            },
+                                            onChangeEnd: (_) => _scheduleHide(),
+                                          ),
+                                        ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(_fmtDuration(position),
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12)),
+                                            Text(_fmtDuration(total),
+                                                style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 12)),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-      ),
+                ),
     );
   }
 }
@@ -2663,19 +3286,20 @@ class _CircleBubble extends StatelessWidget {
 
 class _ReadReceipt extends StatelessWidget {
   final bool seen;
-  const _ReadReceipt({required this.seen});
+  // When `light` is true, the unseen state renders in translucent white
+  // instead of grey — used when the receipt sits on top of a photo/video
+  // thumbnail where a solid grey tick would be hard to see.
+  final bool light;
+  const _ReadReceipt({required this.seen, this.light = false});
 
   @override
   Widget build(BuildContext context) {
-    // UI-only change: adjust tick icon color + tighten spacing between the two checks.
-    // Replace the existing tick rendering below (keep sizes/positions unchanged).
     // Map tick colors per existing message model semantics:
     // - single grey tick: sent/offline/not delivered (seen==false AND message not read)
     // - double grey ticks: delivered but not seen
     // - double blue ticks: seen
-    // NOTE: This widget currently only receives `seen` boolean, so we preserve existing
-    // behavior: when `seen` is true we show blue ticks; otherwise show grey ticks.
-    final tickColor = seen ? Colors.blue : Colors.grey;
+    final tickColor =
+        seen ? Colors.lightBlueAccent : (light ? Colors.white70 : Colors.grey);
     return SizedBox(
       width: 15,
       height: 11,

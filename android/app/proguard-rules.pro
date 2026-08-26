@@ -9,6 +9,7 @@
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
 
+
 # camera plugin
 -keep class io.flutter.plugins.camera.** { *; }
 -dontwarn io.flutter.plugins.camera.**
@@ -23,3 +24,9 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# image_cropper / uCrop
+-keep class com.yalantis.ucrop** { *; }
+-keep interface com.yalantis.ucrop** { *; }
+-dontwarn com.yalantis.ucrop**
+
