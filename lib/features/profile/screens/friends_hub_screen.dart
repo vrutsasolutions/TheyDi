@@ -30,7 +30,7 @@ final _connectedFriendsProvider =
           }).toList());
 });
 
-final _pendingRequestsProvider =
+final _incomingRequestsProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value([]);
@@ -44,6 +44,26 @@ final _pendingRequestsProvider =
       .map((s) => s.docs.map((d) {
             final data = d.data();
             return {'id': d.id, ...data};
+          }).toList());
+});
+
+final _outgoingRequestsProvider =
+    StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value([]);
+  return FirebaseFirestore.instance
+      .collectionGroup('friendRequests')
+      .where('fromUid', isEqualTo: uid)
+      .where('status', isEqualTo: 'pending')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) {
+            final data = d.data();
+            return {
+              'id': d.id,
+              'toUid': d.reference.parent.parent?.id ?? '',
+              ...data,
+            };
           }).toList());
 });
 
@@ -66,11 +86,18 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  int _initialTabIndex(int index) {
+    return index.clamp(0, 2);
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-        length: 3, initialIndex: widget.initialTab.clamp(0, 2), vsync: this);
+      length: 3,
+      initialIndex: _initialTabIndex(widget.initialTab),
+      vsync: this,
+    );
 
     // Fire suggested-friends notification if there are suggestions
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -96,14 +123,16 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
   void didUpdateWidget(covariant FriendsHubScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialTab != widget.initialTab) {
-      _tabController.animateTo(widget.initialTab.clamp(0, 2));
+      _tabController.animateTo(_initialTabIndex(widget.initialTab));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pendingAsync = ref.watch(_pendingRequestsProvider);
-    final pendingCount = pendingAsync.asData?.value.length ?? 0;
+    final incomingAsync = ref.watch(_incomingRequestsProvider);
+    final outgoingAsync = ref.watch(_outgoingRequestsProvider);
+    final requestsCount = incomingAsync.asData?.value.length ?? 0;
+    final pendingCount = outgoingAsync.asData?.value.length ?? 0;
 
     return Scaffold(
       body: Container(
@@ -155,7 +184,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                             Text('Requests',
                                 style: TheyDiTextStyles.labelMedium
                                     .copyWith(color: Colors.white)),
-                            if (pendingCount > 0) ...[
+                            if (requestsCount > 0) ...[
                               const SizedBox(width: 6),
                               Container(
                                 width: 18,
@@ -164,7 +193,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen>
                                     color: Colors.white,
                                     shape: BoxShape.circle),
                                 child: Center(
-                                  child: Text('$pendingCount',
+                                  child: Text('$requestsCount',
                                       style: TextStyle(
                                           color: TheyDiColors.primary,
                                           fontSize: 10,
@@ -288,11 +317,11 @@ class _ConnectedTab extends ConsumerWidget {
 // TAB 2 — PENDING REQUESTS
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _PendingTab extends ConsumerWidget {
+class _RequestsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final requestsAsync = ref.watch(_pendingRequestsProvider);
     final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final requestsAsync = ref.watch(_incomingRequestsProvider);
 
     return requestsAsync.when(
       loading: () => const Center(
@@ -303,7 +332,7 @@ class _PendingTab extends ConsumerWidget {
         if (requests.isEmpty) {
           return _EmptyState(
             icon: Icons.person_add_outlined,
-            title: 'No pending requests',
+            title: 'No requests',
             subtitle: 'Friend requests you receive will appear here',
           );
         }
@@ -317,6 +346,42 @@ class _PendingTab extends ConsumerWidget {
               fromUid: req['fromUid'] ?? '',
               fromName: req['fromName'] ?? 'Someone',
               myUid: myUid,
+            )
+                .animate(delay: Duration(milliseconds: 60 * i))
+                .fade(duration: 300.ms)
+                .slideY(begin: 0.1, end: 0);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _PendingTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final requestsAsync = ref.watch(_outgoingRequestsProvider);
+
+    return requestsAsync.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: TheyDiColors.primary)),
+      error: (e, _) =>
+          Center(child: Text('Error: $e', style: TheyDiTextStyles.bodySmall)),
+      data: (requests) {
+        if (requests.isEmpty) {
+          return _EmptyState(
+            icon: Icons.person_add_outlined,
+            title: 'No pending requests',
+            subtitle: 'People you request to connect with will appear here',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: requests.length,
+          itemBuilder: (ctx, i) {
+            final req = requests[i];
+            return _OutgoingPendingRequestCard(
+              toUid: req['toUid'] ?? '',
             )
                 .animate(delay: Duration(milliseconds: 60 * i))
                 .fade(duration: 300.ms)
@@ -364,8 +429,6 @@ class _SuggestedFriendsTab extends ConsumerWidget {
               photoUrl: s['photoUrl'] ?? '',
               interests: List<String>.from(s['interests'] ?? []),
               bio: s['bio'] ?? '',
-              onSent: () =>
-                  ref.invalidate(_suggestedFriendsProvider), // ← refetch
             )
                 .animate(delay: Duration(milliseconds: 60 * i))
                 .fade(duration: 300.ms)
@@ -502,7 +565,7 @@ class _ConnectedFriendCard extends StatelessWidget {
 
 // ── Pending Request Card ──────────────────────────────────────────────────────
 
-class _PendingRequestCard extends StatefulWidget {
+class _PendingRequestCard extends ConsumerStatefulWidget {
   final String requestId;
   final String fromUid;
   final String fromName;
@@ -516,42 +579,55 @@ class _PendingRequestCard extends StatefulWidget {
   });
 
   @override
-  State<_PendingRequestCard> createState() => _PendingRequestCardState();
+  ConsumerState<_PendingRequestCard> createState() =>
+      _PendingRequestCardState();
 }
 
-class _PendingRequestCardState extends State<_PendingRequestCard> {
+class _PendingRequestCardState extends ConsumerState<_PendingRequestCard> {
   bool _processing = false;
   bool _responded = false;
   String _responseLabel = '';
 
   Future<void> _accept() async {
     setState(() => _processing = true);
-    await FriendsService.acceptFriendRequest(
-      requestId: widget.requestId,
-      fromUid: widget.fromUid,
-      fromName: widget.fromName,
-    );
-    if (mounted) {
-      setState(() {
-        _processing = false;
-        _responded = true;
-        _responseLabel = 'Accepted';
-      });
+    try {
+      await FriendsService.acceptFriendRequest(
+        requestId: widget.requestId,
+        fromUid: widget.fromUid,
+        fromName: widget.fromName,
+      );
+      ref.invalidate(_suggestedFriendsProvider);
+      if (mounted) {
+        setState(() {
+          _responded = true;
+          _responseLabel = 'Accepted';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _processing = false);
+      }
     }
   }
 
   Future<void> _decline() async {
     setState(() => _processing = true);
-    await FriendsService.declineFriendRequest(
-      requestId: widget.requestId,
-      myUid: widget.myUid,
-    );
-    if (mounted) {
-      setState(() {
-        _processing = false;
-        _responded = true;
-        _responseLabel = 'Declined';
-      });
+    try {
+      await FriendsService.declineFriendRequest(
+        requestId: widget.requestId,
+        myUid: widget.myUid,
+      );
+      ref.invalidate(_suggestedFriendsProvider);
+      if (mounted) {
+        setState(() {
+          _responded = true;
+          _responseLabel = 'Declined';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _processing = false);
+      }
     }
   }
 
@@ -738,46 +814,109 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
 
 // ── Suggested Friend Card ─────────────────────────────────────────────────────
 
-class _SuggestedFriendCard extends StatefulWidget {
+class _OutgoingPendingRequestCard extends StatelessWidget {
+  final String toUid;
+
+  const _OutgoingPendingRequestCard({required this.toUid});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(toUid).get(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+        final displayName = data['displayName'] ?? 'Someone';
+        final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
+        final initial = displayName.isNotEmpty
+            ? displayName[0].toUpperCase()
+            : '?';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: TheyDiColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: TheyDiColors.divider),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: TheyDiColors.gradientPrimary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13),
+                  child: photoUrl.isNotEmpty
+                      ? Image.network(photoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                                child: Text(initial,
+                                    style: TheyDiTextStyles.labelLarge
+                                        .copyWith(color: Colors.white)),
+                              ))
+                      : Center(
+                          child: Text(initial,
+                              style: TheyDiTextStyles.labelLarge
+                                  .copyWith(color: Colors.white)),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(displayName, style: TheyDiTextStyles.labelLarge),
+              ),
+              Text('Requested',
+                  style: TheyDiTextStyles.labelMedium
+                      .copyWith(color: TheyDiColors.primary)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SuggestedFriendCard extends ConsumerStatefulWidget {
   final String uid;
   final String displayName;
   final String city;
   final String photoUrl;
   final List<String> interests;
   final String bio;
-  final VoidCallback? onSent; // ← new
 
   const _SuggestedFriendCard({
-    super.key, // ← accept the key
+    super.key,
     required this.uid,
     required this.displayName,
     required this.city,
     required this.photoUrl,
     required this.interests,
     required this.bio,
-    this.onSent, // ← new
   });
 
   @override
-  State<_SuggestedFriendCard> createState() => _SuggestedFriendCardState();
+  ConsumerState<_SuggestedFriendCard> createState() =>
+      _SuggestedFriendCardState();
 }
 
-class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
+class _SuggestedFriendCardState extends ConsumerState<_SuggestedFriendCard> {
   bool _loading = false;
-  bool _sent = false;
 
   Future<void> _sendRequest() async {
     setState(() => _loading = true);
-    await FriendsService.sendFriendRequest(
-        toUid: widget.uid, toName: widget.displayName);
-    if (mounted) {
-      setState(() {
-        _loading = false;
-        _sent = true;
-      });
-      widget.onSent?.call(); // ← triggers list refetch, person drops out of suggestions
+    try {
+      await FriendsService.sendFriendRequest(
+          toUid: widget.uid, toName: widget.displayName);
+      ref.invalidate(_suggestedFriendsProvider);
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
-  
   }
 
   @override
@@ -876,22 +1015,7 @@ class _SuggestedFriendCardState extends State<_SuggestedFriendCard> {
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            child: _sent
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: TheyDiColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: TheyDiColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Center(
-                      child: Text('Request Sent ✓',
-                          style: TheyDiTextStyles.labelMedium
-                              .copyWith(color: TheyDiColors.primary)),
-                    ),
-                  )
-                : DecoratedBox(
+            child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: TheyDiColors.gradientPrimary,
                       borderRadius: BorderRadius.circular(10),

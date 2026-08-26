@@ -234,7 +234,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Search bar
+                         // Search bar
                           GestureDetector(
                             onTap: () => context.push(AppRoutes.search),
                             child: Container(
@@ -259,17 +259,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                       ),
                                     ),
                                   ),
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: TheyDiColors.primary
-                                          .withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.tune,
-                                        color: TheyDiColors.primary, size: 16),
-                                  ),
+                                  // Container(
+                                  //   margin: const EdgeInsets.only(right: 8),
+                                  //   padding: const EdgeInsets.all(8),
+                                  //   decoration: BoxDecoration(
+                                  //     color: TheyDiColors.primary
+                                  //         .withValues(alpha: 0.15),
+                                  //     borderRadius: BorderRadius.circular(8),
+                                  //   ),
+                                  //   child: const Icon(Icons.tune,
+                                  //       color: TheyDiColors.primary, size: 16),
+                                  // ),
                                 ],
                               ),
                             ),

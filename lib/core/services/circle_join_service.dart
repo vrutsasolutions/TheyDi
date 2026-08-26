@@ -237,19 +237,33 @@ class CircleJoinService {
         await _db.collection('users').doc(uid).collection('friends').get();
     final friendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
-    // Requests I've SENT — these live under the RECIPIENT's friendRequests
-    // subcollection (users/{toUid}/friendRequests), not mine, so a
-    // collectionGroup query is required to find them all.
-    final sentSnap = await _db
+    final incomingRequestsSnap = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('friendRequests')
+        .where('status', isEqualTo: 'pending')
+        .get();
+    final incomingRequestUids = incomingRequestsSnap.docs
+        .map((d) => d.data()['fromUid'] as String?)
+        .whereType<String>()
+        .toSet();
+
+    final outgoingRequestsSnap = await _db
         .collectionGroup('friendRequests')
         .where('fromUid', isEqualTo: uid)
         .where('status', isEqualTo: 'pending')
         .get();
-    final pendingUids = sentSnap.docs
-        .map((d) => d.reference.parent.parent!.id) // parent doc id = toUid
+    final outgoingRequestUids = outgoingRequestsSnap.docs
+        .map((d) => d.reference.parent.parent?.id)
+        .whereType<String>()
         .toSet();
 
-    final excluded = {uid, ...friendUids, ...pendingUids};
+    final excluded = {
+      uid,
+      ...friendUids,
+      ...incomingRequestUids,
+      ...outgoingRequestUids,
+    };
 
     final userDoc = await _db.collection('users').doc(uid).get();
     final userData = userDoc.data() ?? {};
