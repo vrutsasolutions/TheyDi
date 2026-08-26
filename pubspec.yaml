@@ -1,7 +1,7 @@
 name: theydi
 description: TheyDi — Location-Based Social Gathering Marketplace
 publish_to: 'none'
-version: 1.0.0+8
+version: 1.0.0+9
  
 environment:
   sdk: '>=3.5.0 <4.0.0'
