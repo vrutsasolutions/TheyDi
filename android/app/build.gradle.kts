@@ -45,10 +45,18 @@ applicationId = "com.theydi.app"
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+            // Only wire up real release-signing values when key.properties
+            // actually exists. Without this check, keystoreProperties["..."]
+            // is null on machines that haven't created the file yet, and
+            // `as String` (a non-null cast) crashes Gradle with
+            // "null cannot be cast to non-null type kotlin.String" —
+            // that's exactly what caused the assembleRelease failure.
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
@@ -60,7 +68,16 @@ applicationId = "com.theydi.app"
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Falls back to the debug signing config when key.properties is
+            // missing, so `flutter build apk --release` still succeeds for
+            // local/testing builds. Create android/key.properties (with a
+            // real keystore) before shipping to Play Store — a debug-signed
+            // release build cannot be uploaded there.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
