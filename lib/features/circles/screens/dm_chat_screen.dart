@@ -31,6 +31,7 @@ import '../../../core/services/cloudflare_upload.dart';
 import '../../../shared/widgets/avatar_online_status_dot.dart';
 import '../../../core/services/encryption_service.dart';
 import '../../../shared/widgets/decrypted_text.dart';
+import '../../../shared/widgets/image_edit_screen.dart';
 
 const _kEmojis = [
   '😀',
@@ -1110,10 +1111,19 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
   ) async {
     XFile workingFile = file;
 
+    // Images get their own dedicated in-app edit + send screen (crop,
+    // rotate, brightness) — skip the generic "Send X?" dialog below
+    // entirely, since the edit screen's tick button is the send action.
     if (type == 'image') {
-      final cropped = await ImagePickerHelper.cropImage(workingFile);
-      if (cropped == null) return; // shouldn't happen, but guard anyway
-      workingFile = cropped;
+      final edited = await Navigator.of(context).push<XFile>(
+        MaterialPageRoute(
+          builder: (_) => ImageEditScreen(imageFile: workingFile),
+          fullscreenDialog: true,
+        ),
+      );
+      if (edited == null) return; // user cancelled editing
+      await _uploadAndSendMedia(edited, type);
+      return;
     }
 
     final confirmed = await showDialog<bool>(
@@ -1124,31 +1134,13 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            type == 'image'
-                ? 'Send photo?'
-                : type == 'video'
-                    ? 'Send video?'
-                    : 'Send file?',
+            type == 'video' ? 'Send video?' : 'Send file?',
             style: TheyDiTextStyles.headlineMedium,
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (type == 'image')
-                SizedBox(
-                  width:
-                      260, // finite width — Image's width: double.infinity is what
-                  // breaks AlertDialog's internal IntrinsicWidth pass on web
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: kIsWeb
-                        ? Image.network(workingFile.path,
-                            height: 220, fit: BoxFit.cover)
-                        : Image.file(File(workingFile.path),
-                            height: 220, fit: BoxFit.cover),
-                  ),
-                )
-              else if (type == 'video')
+              if (type == 'video')
                 SizedBox(
                   width: 260,
                   child: FutureBuilder<Uint8List?>(

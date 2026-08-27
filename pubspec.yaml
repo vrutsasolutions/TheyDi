@@ -25,6 +25,8 @@ dependencies:
   firebase_storage: ^13.4.2
   flutter_secure_storage: ^10.3.1
   image_cropper: ^8.0.0
+  crop_your_image: ^1.0.2      # NEW — powers the custom edit/crop screen
+  image: ^4.1.7
   video_thumbnail: ^0.5.3
   
   shared_preferences: ^2.2.3
