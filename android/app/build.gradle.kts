@@ -18,7 +18,7 @@ plugins {
 }
 
 android {
-namespace = "com.theydi.app"
+    namespace = "com.theydi.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,7 +34,7 @@ namespace = "com.theydi.app"
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-applicationId = "com.theydi.app"
+        applicationId = "com.theydi.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -87,6 +87,9 @@ flutter {
 }
 
 dependencies {
+    // Required by image_cropper's UCropActivity (declared in AndroidManifest.xml)
+    // — its UI is built on AppCompat widgets and needs this linked in.
+    implementation("androidx.appcompat:appcompat:1.7.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // configurations.all {

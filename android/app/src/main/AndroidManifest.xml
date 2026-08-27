@@ -54,6 +54,18 @@
                 <data android:scheme="http" android:host="theydi-cefdf.web.app" />
             </intent-filter>
         </activity>
+
+        <!-- Required by the image_cropper plugin (yalantis/uCrop wrapper).
+             Without this declared, cropImage() throws
+             ActivityNotFoundException on Android and crashes the app when
+             sending a photo. Must use an AppCompat-derived theme — uCrop's
+             UI is built on AppCompat widgets (toolbar, etc.) and will throw
+             if given a non-AppCompat theme. Requires androidx.appcompat to
+             be linked in app/build.gradle.kts (see dependencies block). -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

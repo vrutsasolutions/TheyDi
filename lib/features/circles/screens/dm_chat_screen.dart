@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io' show File;
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,8 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import '../../../core/utils/image_picker_helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1092,50 +1090,6 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     }
   }
 
-  /// Opens the native crop UI for a picked image. Returns the cropped file,
-  /// or the original file if the user skips/cancels cropping, or null if
-  /// something goes wrong.
-  Future<XFile?> _cropImage(XFile file) async {
-    // image_cropper's web implementation has a layout bug (its internal
-    // Save/Cancel button row gets unbounded width and throws
-    // "BoxConstraints forces an infinite width" during performLayout).
-    // Cropping stays fully available on Android/iOS; on web we send the
-    // picked image as-is rather than crash the send flow.
-    if (kIsWeb) return file;
-    try {
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: file.path,
-        compressQuality: 88,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Photo',
-            toolbarColor: TheyDiColors.dark,
-            toolbarWidgetColor: Colors.white,
-            backgroundColor: TheyDiColors.dark,
-            activeControlsWidgetColor: TheyDiColors.primary,
-            statusBarColor: TheyDiColors.dark,
-            initAspectRatio: CropAspectRatioPreset.original,
-            lockAspectRatio: false,
-            hideBottomControls: false,
-          ),
-          IOSUiSettings(
-            title: 'Crop Photo',
-            aspectRatioLockEnabled: false,
-            resetAspectRatioEnabled: true,
-            doneButtonTitle: 'Done',
-            cancelButtonTitle: 'Cancel',
-          ),
-        ],
-      );
-      if (cropped == null) return file; // user tapped back without cropping
-      return XFile(cropped.path, name: file.name);
-    } catch (e) {
-      // Cropper not available / failed — fall back to original image so the
-      // send flow never gets blocked by a cropper error.
-      return file;
-    }
-  }
-
   /// Generates (and caches) a JPEG preview thumbnail for a video file so the
   /// "Send video?" confirmation dialog can show an actual frame instead of a
   /// static camera icon. Safe to call unconditionally — VideoThumbnailHelper
@@ -1157,7 +1111,7 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
     XFile workingFile = file;
 
     if (type == 'image') {
-      final cropped = await _cropImage(workingFile);
+      final cropped = await ImagePickerHelper.cropImage(workingFile);
       if (cropped == null) return; // shouldn't happen, but guard anyway
       workingFile = cropped;
     }
@@ -1276,19 +1230,6 @@ class _DmChatScreenState extends ConsumerState<DmChatScreen> {
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           actions: [
-            if (type == 'image' && !kIsWeb)
-              TextButton.icon(
-                onPressed: () async {
-                  final recropped = await _cropImage(workingFile);
-                  if (recropped != null) {
-                    setDialogState(() => workingFile = recropped);
-                  }
-                },
-                icon: Icon(Icons.crop_rounded,
-                    size: 18, color: TheyDiColors.primary),
-                label:
-                    Text('Crop', style: TextStyle(color: TheyDiColors.primary)),
-              ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel'),
