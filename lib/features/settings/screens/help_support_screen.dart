@@ -7,6 +7,7 @@ import '../../../core/constants/support_constants.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import 'package:theydi/core/router/root_navigator.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});

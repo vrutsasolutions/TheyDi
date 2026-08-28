@@ -46,6 +46,8 @@ import '../../../shared/widgets/notification_icon_button.dart';
 
 import '../../reviews/services/review_trigger_service.dart';
 import '../../reviews/widgets/review_popup.dart';
+import 'package:theydi/core/router/root_navigator.dart';
+
 
 final _userCityProvider = StreamProvider.autoDispose<String>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;

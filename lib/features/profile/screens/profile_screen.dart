@@ -271,6 +271,9 @@ class _ProfileContent extends ConsumerWidget {
                     case 'helpSupport':
                       context.push(AppRoutes.helpSupport);
                       break;
+                    case 'inviteFriends':
+                      context.push(AppRoutes.inviteFriends);
+                      break;
                     case 'signOut':
                       _signOut(context);
                       break;
@@ -719,6 +722,7 @@ class _ProfileContent extends ConsumerWidget {
             subtitle: 'Chat with your groups',
             onTap: () => context.go(AppRoutes.circles),
           ).animate(delay: 270.ms).fade(duration: 300.ms),
+          
           _MenuItem(
             icon: Icons.receipt_long_outlined,
             label: 'Payment History',
@@ -779,6 +783,11 @@ class _SettingsMenuButton extends StatelessWidget {
           value: 'helpSupport',
           icon: Icons.help_outline,
           label: 'Help & Support',
+        ),
+        _settingsItem(
+          value: 'inviteFriends',
+          icon: Icons.group_add_outlined,
+          label: 'Invite Friends',
         ),
         const PopupMenuDivider(height: 8),
         if (isAdmin) ...[

@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/referral_service.dart';
 
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
   return FirebaseAuth.instance;
@@ -63,6 +64,13 @@ class AuthNotifier extends AsyncNotifier<User?> {
           email: email,
           phone: phone,
         );
+        try {
+          await ReferralService.instance.ensureReferralCode();
+          await ReferralService.instance.applyPendingReferral();
+        } catch (e) {
+          // The backend user-create trigger also creates referral codes.
+          // Do not fail a completed auth/profile signup for referral sync.
+        }
       }
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -127,6 +135,12 @@ class AuthNotifier extends AsyncNotifier<User?> {
             email: user.email ?? '',
             phone: user.phoneNumber ?? '',
           );
+          try {
+            await ReferralService.instance.ensureReferralCode();
+            await ReferralService.instance.applyPendingReferral();
+          } catch (e) {
+            // Keep Google sign-in intact if referral sync is temporarily down.
+          }
         }
       }
 

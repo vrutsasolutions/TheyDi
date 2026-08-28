@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_routes.dart';
+import 'package:theydi/core/router/root_navigator.dart';
 import 'package:theydi/features/auth/screens/splash_screen.dart';
 import 'package:theydi/features/auth/screens/login_screen.dart';
 import 'package:theydi/features/events/models/event_model.dart';
@@ -50,6 +51,8 @@ import 'package:theydi/features/circles/screens/circle_info_screen.dart';
 import 'package:theydi/features/profile/screens/friend_info_screen.dart';
 import 'package:theydi/features/profile/screens/friends_hub_screen.dart';
 import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
+import 'package:theydi/features/profile/screens/invite_friends_screen.dart';
+import 'package:theydi/features/profile/screens/referral_invite_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
 import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
 import 'package:theydi/features/settings/screens/report_problem_screen.dart';
@@ -62,8 +65,6 @@ import '../../features/settings/screens/terms_conditions_screen.dart';
 import '../../features/admin/screens/admin_verification_screen.dart';
 import '../../features/admin/screens/admin_pending_payouts_screen.dart';
 import '../../features/onboarding1/screens/onboarding_screen.dart';
-
-final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
@@ -187,6 +188,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final userId = state.pathParameters['id']!;
           return UserProfileScreen(uid: userId);
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.invite}/:code',
+        builder: (context, state) {
+          final code = state.pathParameters['code']!;
+          return ReferralInviteScreen(referralCode: code);
         },
       ),
 
@@ -406,6 +414,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.inviteFriends,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const InviteFriendsScreen(),
       ),
 
       // ── Signup flow: 1 → otp → 2 → 3 → 4 → 5 ──────────────────────────────

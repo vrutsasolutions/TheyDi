@@ -11,6 +11,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/referral_service.dart';
 import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -91,7 +92,6 @@ void main() async {
   PushNotificationService.initialize().catchError((error) {
     debugPrint('Push notification initialization failed: $error');
   });
-
   runApp(const ProviderScope(child: TheyDiApp()));
 }
 
@@ -223,6 +223,9 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
     // Handle cold-start notification
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PushNotificationService.checkInitialMessage();
+      ReferralService.instance.initializeDeepLinks().catchError((error) {
+        debugPrint('Referral deep link initialization failed: $error');
+      });
     });
 
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
@@ -232,6 +235,9 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
             WidgetsBinding.instance.lifecycleState == null) {
           _updateOnlineStatus(true);
         }
+        ReferralService.instance.ensureReferralCode().catchError((error) {
+          debugPrint('Referral code sync skipped: $error');
+        });
 
         // Initialize push notifications once we have a logged-in user.
         if (!_pushInitialized) {
