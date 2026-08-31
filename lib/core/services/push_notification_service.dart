@@ -5,12 +5,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:theydi/core/router/app_router.dart'; // wherever rootNavigatorKey lives
 import 'package:theydi/core/router/app_routes.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 
 import 'package:theydi/features/events/models/event_model.dart';
+import 'package:theydi/core/router/root_navigator.dart';
 
 class PushNotificationService {
   static final _messaging = FirebaseMessaging.instance;

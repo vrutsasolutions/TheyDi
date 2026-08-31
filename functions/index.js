@@ -26,6 +26,213 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+const REFERRAL_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const REFERRAL_CODE_LENGTH = 8;
+const REFERRAL_CODE_PATTERN = /^[A-Z0-9]{6,12}$/;
+const NEW_ACCOUNT_ATTRIBUTION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function normalizeReferralCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function isValidReferralCodeFormat(code) {
+  return REFERRAL_CODE_PATTERN.test(code);
+}
+
+function generateReferralCode() {
+  let code = "";
+  for (let i = 0; i < REFERRAL_CODE_LENGTH; i++) {
+    const index = crypto.randomInt(0, REFERRAL_ALPHABET.length);
+    code += REFERRAL_ALPHABET[index];
+  }
+  return code;
+}
+
+async function createReferralCodeForUser(uid) {
+  const userRef = db.collection("users").doc(uid);
+
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const code = generateReferralCode();
+    const codeRef = db.collection("referralCodes").doc(code);
+
+    try {
+      await db.runTransaction(async (tx) => {
+        const [userDoc, codeDoc] = await Promise.all([
+          tx.get(userRef),
+          tx.get(codeRef),
+        ]);
+
+        if (!userDoc.exists) {
+          throw new HttpsError("not-found", "User profile not found.");
+        }
+
+        const existingCode = userDoc.data().referralCode;
+        if (existingCode && isValidReferralCodeFormat(existingCode)) {
+          const existingCodeRef = db.collection("referralCodes").doc(existingCode);
+          const existingCodeDoc = await tx.get(existingCodeRef);
+          if (!existingCodeDoc.exists) {
+            tx.set(existingCodeRef, {
+              code: existingCode,
+              uid,
+              createdAt: FieldValue.serverTimestamp(),
+            });
+          } else if (existingCodeDoc.data().uid !== uid) {
+            throw new HttpsError("already-exists", "Referral code is already assigned.");
+          }
+          return;
+        }
+
+        if (codeDoc.exists) {
+          throw new Error("code-collision");
+        }
+
+        tx.set(codeRef, {
+          code,
+          uid,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        tx.set(userRef, {
+          referralCode: code,
+          referralCodeCreatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
+
+      const userDoc = await userRef.get();
+      return userDoc.data().referralCode;
+    } catch (error) {
+      if (error.message === "code-collision") continue;
+      throw error;
+    }
+  }
+
+  throw new HttpsError("resource-exhausted", "Could not generate a unique referral code.");
+}
+
+exports.ensureReferralCode = onCall({ region: REGION }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in to get an invite code.");
+  }
+
+  const uid = request.auth.uid;
+  const userDoc = await db.collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("not-found", "User profile not found.");
+  }
+
+  const existingCode = userDoc.data().referralCode;
+  if (existingCode && isValidReferralCodeFormat(existingCode)) {
+    const referralCode = await createReferralCodeForUser(uid);
+    return { referralCode };
+  }
+
+  const referralCode = await createReferralCodeForUser(uid);
+  return { referralCode };
+});
+
+exports.validateReferralCode = onCall({ region: REGION }, async (request) => {
+  const referralCode = normalizeReferralCode(request.data?.referralCode);
+  if (!isValidReferralCodeFormat(referralCode)) {
+    return { valid: false, error: "This invite link is invalid." };
+  }
+
+  const codeDoc = await db.collection("referralCodes").doc(referralCode).get();
+  if (!codeDoc.exists) {
+    return { valid: false, error: "This invite code does not exist." };
+  }
+
+  const referrerUid = codeDoc.data().uid;
+  const referrerDoc = await db.collection("users").doc(referrerUid).get();
+  if (!referrerDoc.exists) {
+    return { valid: false, error: "This invite code is no longer active." };
+  }
+
+  const referrer = referrerDoc.data();
+  return {
+    valid: true,
+    referrerUid,
+    referrerName: referrer.displayName || referrer.name || "A TheyDi friend",
+  };
+});
+
+exports.attributeReferral = onCall({ region: REGION }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in to accept an invite.");
+  }
+
+  const inviteeUid = request.auth.uid;
+  const referralCode = normalizeReferralCode(request.data?.referralCode);
+  if (!isValidReferralCodeFormat(referralCode)) {
+    throw new HttpsError("invalid-argument", "Invalid referral code.");
+  }
+
+  const inviteeRef = db.collection("users").doc(inviteeUid);
+  const codeRef = db.collection("referralCodes").doc(referralCode);
+  const authUser = await admin.auth().getUser(inviteeUid);
+  const createdAtMs = new Date(authUser.metadata.creationTime).getTime();
+  if (!createdAtMs || Date.now() - createdAtMs > NEW_ACCOUNT_ATTRIBUTION_WINDOW_MS) {
+    return { success: false, notNewSignup: true };
+  }
+
+  return db.runTransaction(async (tx) => {
+    const [inviteeDoc, codeDoc] = await Promise.all([
+      tx.get(inviteeRef),
+      tx.get(codeRef),
+    ]);
+
+    if (!inviteeDoc.exists) {
+      throw new HttpsError("not-found", "Invitee profile not found.");
+    }
+    if (!codeDoc.exists) {
+      throw new HttpsError("not-found", "Referral code not found.");
+    }
+
+    const invitee = inviteeDoc.data();
+    if (invitee.referredBy || invitee.referredByUid || invitee.referralAttributedAt) {
+      return { success: false, alreadyAttributed: true };
+    }
+
+    const referrerUid = codeDoc.data().uid;
+    if (!referrerUid || referrerUid === inviteeUid) {
+      throw new HttpsError("failed-precondition", "Self-referrals are not allowed.");
+    }
+
+    const referralRef = db.collection("referrals").doc(inviteeUid);
+    const referralDoc = await tx.get(referralRef);
+    if (referralDoc.exists) {
+      return { success: false, alreadyAttributed: true };
+    }
+
+    tx.set(referralRef, {
+      referralCode,
+      referrerUid,
+      referredUid: inviteeUid,
+      inviteeUid,
+      status: "attributed",
+      createdAt: FieldValue.serverTimestamp(),
+      attributedAt: FieldValue.serverTimestamp(),
+    });
+    tx.set(inviteeRef, {
+      referredBy: referrerUid,
+      referredByUid: referrerUid,
+      referredByCode: referralCode,
+      referralAttributedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    tx.set(db.collection("users").doc(referrerUid), {
+      referralCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { success: true, referrerUid };
+  });
+});
+
+exports.ensureReferralCodeOnUserCreate = onDocumentCreated(
+  { document: "users/{uid}", region: REGION },
+  async (event) => {
+    await createReferralCodeForUser(event.params.uid);
+  },
+);
+
 exports.notifyAllUsersAboutEvent_TEST = onDocumentCreated(
   { document: "events/{eventId}", region: REGION },
   async (event) => {

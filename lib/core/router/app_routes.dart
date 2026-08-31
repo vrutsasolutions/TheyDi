@@ -39,6 +39,8 @@ class AppRoutes {
   static const dmChat = '/dm-chat';
   static const userProfile = '/user-profile';
   static const friendInfo = '/friend-info';
+  static const inviteFriends = '/invite-friends';
+  static const invite = '/invite';
   
   
 

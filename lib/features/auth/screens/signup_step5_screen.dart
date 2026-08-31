@@ -9,6 +9,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
+import '../../../core/services/referral_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
@@ -82,6 +83,13 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
           .doc(createdUser.uid)
           .set(sd.toFirestoreMap(createdUser.uid));
 
+      try {
+        final referralCode = await ReferralService.instance.ensureReferralCode();
+        debugPrint('[Signup] Referral code ready: $referralCode');
+      } catch (e) {
+        debugPrint('[Signup] Referral code creation skipped: $e');
+      }
+
       await FirebaseFirestore.instance
           .collection('usernames')
           .doc(sd.username.toLowerCase())
@@ -107,6 +115,12 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
       }
 
       // ── 6. Navigate home ────────────────────────────────────────────────────
+      try {
+        await ReferralService.instance.applyPendingReferral();
+      } catch (e) {
+        debugPrint('[Signup] Referral attribution skipped: $e');
+      }
+
       if (mounted) context.go(AppRoutes.home);
     } on FirebaseAuthException catch (e) {
       debugPrint('[Signup] FirebaseAuthException: ${e.code} — ${e.message}');

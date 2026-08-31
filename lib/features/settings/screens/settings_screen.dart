@@ -112,6 +112,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                             const SizedBox(height: 24),
 
+                            _SectionLabel(label: 'Community')
+                                .animate(delay: 125.ms)
+                                .fade(duration: 300.ms),
+                            const SizedBox(height: 10),
+
+                            _SettingsTile(
+                              icon: Icons.group_add_outlined,
+                              label: 'Invite Friends',
+                              subtitle: 'Share your TheyDi invite link',
+                              onTap: () =>
+                                  context.push(AppRoutes.inviteFriends),
+                            ).animate(delay: 128.ms).fade(duration: 300.ms),
+
+                            const SizedBox(height: 24),
+
                             _SectionLabel(label: 'Account')
                                 .animate(delay: 130.ms)
                                 .fade(duration: 300.ms),

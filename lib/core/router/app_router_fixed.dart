@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_routes.dart';
+import 'package:theydi/core/router/root_navigator.dart';
 import 'package:theydi/features/auth/screens/splash_screen.dart';
 import 'package:theydi/features/auth/screens/login_screen.dart';
 import 'package:theydi/features/events/models/event_model.dart';
@@ -59,9 +60,6 @@ import 'package:theydi/features/support/screens/darla_chat_screen.dart';
 import '../../features/settings/screens/privacy_policy_screen.dart';
 import '../../features/settings/screens/terms_conditions_screen.dart';
 import '../../features/admin/screens/admin_verification_screen.dart';
-
-
-final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
