@@ -991,18 +991,54 @@ async function processEventCompletion(eventId) {
   let payoutId = null;
 
   if (hasPayout) {
+    // ── Check whether the host has set up bank/UPI details ──
+    const payoutDetailsDoc = await db.collection("users").doc(hostUid)
+      .collection("private").doc("payoutDetails").get();
+    const hasPayoutDetails = payoutDetailsDoc.exists && !!payoutDetailsDoc.data().payoutMethod;
+
+    if (!hasPayoutDetails) {
+      logger.warn(
+        `[EventCompletion] Host ${hostUid} has NO payout details but is owed ₹${totalPending} for event ${eventId}. ` +
+        `Creating payout with status "blocked_no_details" and alerting admin.`
+      );
+    }
+
     const payoutRef = await db.collection("payouts").add({
       hostUid,
       eventId,
       eventTitle: eventData.title || "Unknown Event",
       bookingIds: eligibleBookingIds,
       totalAmount: totalPending,
-      status: "pending",
+      status: hasPayoutDetails ? "pending" : "blocked_no_details",
+      payoutDetailsAvailable: hasPayoutDetails,
       createdAt: FieldValue.serverTimestamp(),
       completedAt: null,
       completedBy: null,
       paymentReference: null,
     });
+
+    // If details are missing, create an admin alert and notify the host
+    if (!hasPayoutDetails) {
+      await db.collection("admin_alerts").add({
+        type: "payout_no_details",
+        message: `Host ${hostUid} is owed ₹${totalPending} for event "${eventData.title || eventId}" but has not set up bank/UPI details.`,
+        hostUid,
+        eventId,
+        payoutId: payoutRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+        resolved: false,
+      });
+
+      // Notify the host to add their payout details
+      await db.collection("users").doc(hostUid).collection("notifications").add({
+        title: "⚠️ Payout details missing",
+        body: `Your event "${eventData.title || "your event"}" has ended and you're owed ₹${totalPending.toFixed(0)}, but you haven't set up your bank/UPI details yet. Please add them in your Host Dashboard so we can transfer your earnings.`,
+        type: "system",
+        eventId,
+        createdAt: FieldValue.serverTimestamp(),
+        isRead: false,
+      });
+    }
 
     payoutId = payoutRef.id;
 
@@ -1060,8 +1096,8 @@ async function processEventCompletion(eventId) {
             </p>
           `;
           hostNotificationBody = `"${eventTitle}" has ended with no bookings.`;
-        } else if (hasPayout) {
-          // Real money is owed.
+        } else if (hasPayout && hasPayoutDetails) {
+          // Real money is owed and host has bank/UPI set up.
           hostBody = `
             <h2 style="color:#000000;font-size:20px;font-weight:600;margin:0 0 16px 0;">Hello ${hostName},</h2>
             <p style="color:#4B5563;font-size:15px;line-height:24px;margin:0 0 30px 0;">
@@ -1073,6 +1109,19 @@ async function processEventCompletion(eventId) {
             </p>
           `;
           hostNotificationBody = `"${eventTitle}" is now marked as completed. Payout of ₹${totalPending.toFixed(0)} pending.`;
+        } else if (hasPayout && !hasPayoutDetails) {
+          // Real money is owed but host hasn't set up bank/UPI.
+          hostBody = `
+            <h2 style="color:#000000;font-size:20px;font-weight:600;margin:0 0 16px 0;">Hello ${hostName},</h2>
+            <p style="color:#4B5563;font-size:15px;line-height:24px;margin:0 0 30px 0;">
+              Your event "${eventTitle}" has been successfully completed.
+              <br><br>
+              You've earned ₹${totalPending.toFixed(0)} from this event, but we don't have your bank or UPI details on file yet. Please open the TheyDi app, go to your Host Dashboard, and add your payout details so we can transfer your earnings.
+              <br><br>
+              Thank you for hosting on TheyDi!
+            </p>
+          `;
+          hostNotificationBody = `"${eventTitle}" is completed. You're owed ₹${totalPending.toFixed(0)} — please add your bank/UPI details to receive your payout.`;
         } else {
           // Bookings exist (free RSVPs, or paid bookings that net to ₹0) but nothing is owed.
           hostBody = `

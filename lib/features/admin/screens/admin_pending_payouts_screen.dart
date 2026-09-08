@@ -30,14 +30,33 @@ class _AdminPendingPayoutsScreenState
       _error = null;
     });
     try {
-      final snap = await FirebaseFirestore.instance
+      // Fetch both "pending" and "blocked_no_details" payouts so the
+      // admin sees everything that needs attention.
+      final pendingSnap = await FirebaseFirestore.instance
           .collection('payouts')
           .where('status', isEqualTo: 'pending')
           .orderBy('createdAt', descending: true)
           .get();
 
+      final blockedSnap = await FirebaseFirestore.instance
+          .collection('payouts')
+          .where('status', isEqualTo: 'blocked_no_details')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      // Merge and sort by createdAt descending
+      final allDocs = [...blockedSnap.docs, ...pendingSnap.docs];
+      allDocs.sort((a, b) {
+        final aTime = a.data()['createdAt'] as Timestamp?;
+        final bTime = b.data()['createdAt'] as Timestamp?;
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+
       setState(() {
-        _payouts = snap.docs;
+        _payouts = allDocs;
         _loading = false;
       });
     } catch (e) {
@@ -77,13 +96,19 @@ class _AdminPendingPayoutsScreenState
                             (data['totalAmount'] as num?)?.toDouble() ?? 0;
                         final bookingCount =
                             (data['bookingIds'] as List?)?.length ?? 0;
+                        final isBlocked =
+                            data['status'] == 'blocked_no_details';
 
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: TheyDiColors.card,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: TheyDiColors.divider),
+                            border: Border.all(
+                              color: isBlocked
+                                  ? Colors.orange.shade300
+                                  : TheyDiColors.divider,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -113,6 +138,28 @@ class _AdminPendingPayoutsScreenState
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                    if (isBlocked) ...[
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade50,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '⚠ No bank/UPI details',
+                                          style: TheyDiTextStyles.caption
+                                              .copyWith(
+                                            color: Colors.orange.shade800,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -131,11 +178,6 @@ class _AdminPendingPayoutsScreenState
                                   );
                                   if (result == true) {
                                     _load();
-                                    // Moved here from the details screen —
-                                    // this Scaffold is guaranteed to still
-                                    // be mounted when the pop completes, so
-                                    // the SnackBar can't get orphaned by a
-                                    // route teardown mid-animation.
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(

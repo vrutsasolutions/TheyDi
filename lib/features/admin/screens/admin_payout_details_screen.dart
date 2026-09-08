@@ -41,6 +41,17 @@ class _AdminPayoutDetailsScreenState extends State<AdminPayoutDetailsScreen> {
         _details = Map<String, dynamic>.from(result.data as Map);
         _loading = false;
       });
+    } on FirebaseFunctionsException catch (e) {
+      // The Cloud Function throws "not-found" when the host hasn't set up
+      // payout details yet. That's not an error — just an empty state.
+      setState(() {
+        if (e.code == 'not-found') {
+          _details = null;
+        } else {
+          _error = e.message ?? e.toString();
+        }
+        _loading = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -125,9 +136,16 @@ class _AdminPayoutDetailsScreenState extends State<AdminPayoutDetailsScreen> {
           : _error != null
               ? Center(child: Text('Error: $_error'))
               : _details == null
-                  // Guards against a null-check crash if _loading somehow
-                  // flips false before _details is actually set.
-                  ? const Center(child: Text('No payout details found.'))
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No payout details on file for this host.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    )
                   : Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(

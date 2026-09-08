@@ -16,13 +16,32 @@ class OnboardingPage extends StatelessWidget {
         final isDesktop = constraints.maxWidth > 600;
 
         if (isDesktop) {
+          // Use the same layered approach as mobile so the full image
+          // is always visible (contain) with a blurred/tinted cover
+          // behind it to fill the remaining space.
           return SizedBox.expand(
-            child: Image.asset(
-              page.image,
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Blurred cover background fills the entire area
+                Image.asset(
+                  page.image,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
+                // Semi-opaque wash so the foreground pops
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(160),
+                  ),
+                ),
+                // Actual image, fully visible, centered
+                Image.asset(
+                  page.image,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                ),
+              ],
             ),
           );
         }

@@ -43,7 +43,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       description:
           'Discover nearby gatherings, enjoy lower platform fees, and connect with your community.',
     ),
-    
   ];
 
   @override
@@ -82,7 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop =
-          constraints.maxWidth > 600 && constraints.maxHeight > 600;
+            constraints.maxWidth > 600 && constraints.maxHeight > 600;
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -186,6 +185,26 @@ class _DesktopControlsOverlay extends StatelessWidget {
 
           return Stack(
             children: [
+              // Gradient background panel so the controls don't overlap
+              // the image content.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 160,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withAlpha(200),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               Positioned(
                 left: 24,
                 right: 24,
@@ -193,27 +212,9 @@ class _DesktopControlsOverlay extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        pageCount,
-                        (index) {
-                          final active = index == currentPage;
-
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            width: active ? 26 : 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? const Color(0xFF12B76A)
-                                  : const Color(0xFFD9DDE2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          );
-                        },
-                      ),
+                    _PageDots(
+                      currentPage: currentPage,
+                      pageCount: pageCount,
                     ),
                     const SizedBox(height: 22),
                     SizedBox(
@@ -274,73 +275,119 @@ class _MobileTapOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLastPage = currentPage == pageCount - 1;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Stack(
       children: [
-        const Positioned(
+        // White bottom panel with rounded top corners — tall enough
+        // for dots + button + safe area inset.
+        Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          height: 108,
-          child: DecoratedBox(
+          height: 140 + bottomPadding,
+          child: const DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
             ),
           ),
         ),
-        SafeArea(
-          child: Stack(
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 20,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    0,
-                    20,
-                    0,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 62,
-                    child: ElevatedButton(
-                      onPressed: onNext,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF12B76A),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 20 + bottomPadding,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Page indicator dots — now visible on mobile
+                _PageDots(
+                  currentPage: currentPage,
+                  pageCount: pageCount,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: onNext,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF12B76A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isLastPage ? 'Get Started' : 'Next',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            isLastPage ? 'Get Started' : 'Next',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Icon(
-                            Icons.arrow_forward,
-                            size: 24,
-                          ),
-                        ],
-                      ),
+                        const SizedBox(width: 10),
+                        const Icon(
+                          Icons.arrow_forward,
+                          size: 22,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shared dot indicator used by both mobile and desktop overlays.
+class _PageDots extends StatelessWidget {
+  final int currentPage;
+  final int pageCount;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const _PageDots({
+    required this.currentPage,
+    required this.pageCount,
+    this.activeColor = const Color(0xFF12B76A),
+    this.inactiveColor = const Color(0xFFD9DDE2),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        pageCount,
+        (index) {
+          final active = index == currentPage;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            width: active ? 24 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: active ? activeColor : inactiveColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          );
+        },
+      ),
     );
   }
 }
