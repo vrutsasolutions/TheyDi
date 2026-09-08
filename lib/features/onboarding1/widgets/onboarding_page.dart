@@ -15,29 +15,27 @@ class OnboardingPage extends StatelessWidget {
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 600;
 
-        if (isDesktop) {
-          // Use the same layered approach as mobile so the full image
-          // is always visible (contain) with a blurred/tinted cover
-          // behind it to fill the remaining space.
+        if (isDesktop && page.desktopImage != null) {
+          // Desktop: show the full image without cropping.
+          // A blurred cover fills any empty space behind it.
           return SizedBox.expand(
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Blurred cover background fills the entire area
+                // Blurred background fill for any letterbox areas
                 Image.asset(
-                  page.image,
+                  page.desktopImage!,
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
                 ),
-                // Semi-opaque wash so the foreground pops
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.black.withAlpha(160),
+                    color: Colors.black.withAlpha(140),
                   ),
                 ),
-                // Actual image, fully visible, centered
+                // Full image — no cropping
                 Image.asset(
-                  page.image,
+                  page.desktopImage!,
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
                 ),
@@ -46,6 +44,7 @@ class OnboardingPage extends StatelessWidget {
           );
         }
 
+        // Mobile: layered approach — blurred cover + white wash + contained image
         return SizedBox.expand(
           child: Stack(
             fit: StackFit.expand,

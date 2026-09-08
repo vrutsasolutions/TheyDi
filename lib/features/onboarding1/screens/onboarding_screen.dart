@@ -21,24 +21,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingModel> _pages = const [
     OnboardingModel(
       image: 'assets/onboarding/onboarding_1.png',
+      desktopImage: 'assets/onboarding/onboarding_1_desktop.png',
       title: 'Discover Gatherings Near You',
       description:
           'Find interesting events, activities, and gatherings happening around you.',
     ),
     OnboardingModel(
       image: 'assets/onboarding/onboarding_2.png',
+      desktopImage: 'assets/onboarding/onboarding_2_desktop.png',
       title: 'Meet People. Build Your Circle.',
       description:
           'Connect with people who share your interests and turn gatherings into meaningful connections.',
     ),
     OnboardingModel(
       image: 'assets/onboarding/onboarding_3.png',
+      desktopImage: 'assets/onboarding/onboarding_3_desktop.png',
       title: 'Gather. Chat. Connect.',
       description:
           'Join gatherings, communicate with ease, and stay connected before and after every event.',
     ),
     OnboardingModel(
       image: 'assets/onboarding/onboarding_4.png',
+      desktopImage: 'assets/onboarding/onboarding_4_desktop.png',
       title: 'More Connections. Lower Platform Fee.',
       description:
           'Discover nearby gatherings, enjoy lower platform fees, and connect with your community.',
@@ -215,6 +219,8 @@ class _DesktopControlsOverlay extends StatelessWidget {
                     _PageDots(
                       currentPage: currentPage,
                       pageCount: pageCount,
+                      activeColor: const Color(0xFF12B76A),
+                      inactiveColor: Colors.white54,
                     ),
                     const SizedBox(height: 22),
                     SizedBox(
@@ -279,8 +285,7 @@ class _MobileTapOverlay extends StatelessWidget {
 
     return Stack(
       children: [
-        // White bottom panel with rounded top corners — tall enough
-        // for dots + button + safe area inset.
+        // White bottom panel with rounded top corners
         Positioned(
           left: 0,
           right: 0,
@@ -305,7 +310,7 @@ class _MobileTapOverlay extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Page indicator dots — now visible on mobile
+                // Page indicator dots
                 _PageDots(
                   currentPage: currentPage,
                   pageCount: pageCount,
