@@ -72,9 +72,14 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.accent.withOpacity(0.4),
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),

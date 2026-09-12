@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,19 @@ final _allIndiaEventsProvider =
           snapshot.docs.map((doc) => EventModel.fromFirestore(doc)).toList());
 });
 
+// The signed-in user's home city, used to default the Explore screen to a
+// specific city (rather than all of India) until they pick a different one
+// or flip on the All India toggle. Same source as the Home screen's city.
+final _userCityProvider = StreamProvider.autoDispose<String>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value('');
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .map((doc) => (doc.data()?['city'] as String?) ?? '');
+});
+
 class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
 
@@ -33,6 +47,51 @@ class ExploreScreen extends ConsumerStatefulWidget {
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String _selectedFilter = 'All';
   final EventFilters _advancedFilters = EventFilters();
+
+  // Popular cities shown as a quick-pick strip. Tapping one scopes the
+  // whole screen to that city (same mechanism as picking a city from the
+  // Filters sheet).
+  static const List<String> _topCities = [
+    'Bengaluru',
+    'Mumbai',
+    'Delhi',
+    'Chennai',
+    'Hyderabad',
+    'Kolkata',
+    'Pune',
+    'Ahmedabad',
+    'Jaipur',
+    'Chandigarh',
+    'Lucknow',
+    'Kochi',
+  ];
+
+  // When true, ignore any selected city entirely and show events from
+  // across India.
+  bool _allIndia = false;
+
+  void _selectCity(String city) {
+    setState(() {
+      _advancedFilters.city = city;
+      _allIndia = false;
+    });
+  }
+
+  void _toggleAllIndia(bool value) {
+    setState(() => _allIndia = value);
+  }
+
+  // Resolves the city the screen is currently scoped to: null means "no
+  // city scoping — show everything". All India always wins; otherwise an
+  // explicitly picked city wins; otherwise fall back to the user's own
+  // city if we know it.
+  String? _resolveActiveCity(String userCity) {
+    if (_allIndia) return null;
+    if (_advancedFilters.city != null && _advancedFilters.city!.isNotEmpty) {
+      return _advancedFilters.city;
+    }
+    return userCity.isNotEmpty ? userCity : null;
+  }
 
   // ── FIX: this now actually EXCLUDES events that don't match the
   // selected quick filter (Today / Free / This Week), instead of just
@@ -62,13 +121,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // events but never removed anything, so e.g. setting a 25-26 Aug date
   // range still left an Aug 31 or Sep 1 event visible in the list — it was
   // just sorted lower. ──
+  // ── NOTE: city is intentionally NOT checked here anymore. It's handled
+  // by the `activeCity` parameter on `_applyQuickFilter` instead, so that
+  // the All India toggle and the "default to my city" fallback both flow
+  // through a single place. ──
   bool _matchesAdvancedFilters(EventModel e) {
     if (_advancedFilters.category != null &&
         e.category != _advancedFilters.category) {
-      return false;
-    }
-    if (_advancedFilters.city != null &&
-        e.city.toLowerCase() != _advancedFilters.city!.toLowerCase()) {
       return false;
     }
     if (_advancedFilters.freeOnly == true && !e.isFree) {
@@ -93,20 +152,24 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return true;
   }
 
-  List<EventModel> _applyQuickFilter(List<EventModel> events) {
+  List<EventModel> _applyQuickFilter(List<EventModel> events,
+      {String? activeCity}) {
     final DateTime now = DateTime.now();
     final DateTime today = DateTime(now.year, now.month, now.day);
     final DateTime weekLater = today.add(const Duration(days: 7));
 
     debugPrint(
-        'EXPLORE_DEBUG: _applyQuickFilter called. Filter: $_selectedFilter. Events count: ${events.length}');
+        'EXPLORE_DEBUG: _applyQuickFilter called. Filter: $_selectedFilter. City: $activeCity. Events count: ${events.length}');
 
-    // Actually drop events that don't match the selected quick filter
-    // AND the advanced filters from the Filters sheet.
+    // Actually drop events that don't match the selected quick filter,
+    // the advanced filters from the Filters sheet, AND the active city
+    // (unless we're in All India mode, where activeCity is null).
     final matching = events
         .where((e) =>
             _matchesQuickFilter(e, today, weekLater) &&
-            _matchesAdvancedFilters(e))
+            _matchesAdvancedFilters(e) &&
+            (activeCity == null ||
+                e.city.toLowerCase() == activeCity.toLowerCase()))
         .toList();
 
     final sorted = List<EventModel>.from(matching)
@@ -176,6 +239,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(_allIndiaEventsProvider);
+    final userCityAsync = ref.watch(_userCityProvider);
+    final userCity = userCityAsync.asData?.value ?? '';
+    final activeCity = _resolveActiveCity(userCity);
+    final showingAllIndia = activeCity == null;
+    final cityLabel = activeCity ?? 'All India';
 
     return Scaffold(
       body: Container(
@@ -199,7 +267,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
             ),
             data: (allEvents) {
-              final filtered = _applyQuickFilter(allEvents);
+              final filtered =
+                  _applyQuickFilter(allEvents, activeCity: activeCity);
               final trending = _getTrending(filtered);
               final popular = _getMostPopular(filtered);
               final parties = _getHouseParties(filtered);
@@ -220,13 +289,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               Text('Explore',
                                   style: TheyDiTextStyles.displayMedium),
                               const Spacer(),
-                              Text('All India',
+                              Icon(
+                                  showingAllIndia
+                                      ? Icons.public
+                                      : Icons.location_on,
+                                  size: 16, color: TheyDiColors.primary),
+                              const SizedBox(width: 4),
+                              Text(cityLabel,
                                   style: TheyDiTextStyles.caption.copyWith(
                                     color: TheyDiColors.primary,
+                                    fontWeight: FontWeight.w600,
                                   )),
-                              const SizedBox(width: 4),
-                              Icon(Icons.public,
-                                  size: 16, color: TheyDiColors.primary),
                               const SizedBox(width: 12),
                               const NotificationIconButton(),
                             ],
@@ -277,6 +350,148 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
                           const SizedBox(height: 14),
 
+                          // All India toggle
+                          Row(
+                            children: [
+                              Text('All India',
+                                  style: TheyDiTextStyles.labelMedium
+                                      .copyWith(
+                                          color: TheyDiColors.textSecondary)),
+                              const Spacer(),
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Switch(
+                                  value: _allIndia,
+                                  onChanged: _toggleAllIndia,
+                                  activeColor: TheyDiColors.primary,
+                                ),
+                              ),
+                            ],
+                          ).animate(delay: 120.ms).fade(duration: 400.ms),
+
+                          const SizedBox(height: 10),
+
+                          // Top Cities — boxy tiles (each one's a slot for
+                          // a city photo later; for now just an icon +
+                          // name placeholder).
+                          SizedBox(
+                            height: 84,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _topCities.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (context, index) {
+                                final city = _topCities[index];
+                                final isSelected =
+                                    !showingAllIndia && activeCity == city;
+                                return _PressableScale(
+                                  onTap: () => _selectCity(city),
+                                  child: AnimatedContainer(
+                                    duration:
+                                        const Duration(milliseconds: 200),
+                                    width: 96,
+                                    decoration: BoxDecoration(
+                                      gradient: isSelected
+                                          ? TheyDiColors.gradientPrimary
+                                          : null,
+                                      color:
+                                          isSelected ? null : TheyDiColors.card,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.transparent
+                                            : TheyDiColors.divider,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: isSelected
+                                              ? TheyDiColors.primary
+                                                  .withValues(alpha: 0.3)
+                                              : Colors.black
+                                                  .withValues(alpha: 0.04),
+                                          blurRadius: isSelected ? 10 : 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        // TODO: swap for Image.network(cityImageUrl)
+                                        // once city photos are available.
+                                        Positioned.fill(
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.location_city_rounded,
+                                              size: 26,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.9)
+                                                  : TheyDiColors.textMuted,
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          left: 6,
+                                          right: 6,
+                                          bottom: 8,
+                                          child: Text(
+                                            city,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : TheyDiColors
+                                                      .textSecondary,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ).animate(delay: 140.ms).fade(duration: 400.ms),
+
+                          const SizedBox(height: 10),
+
+                          // "Showing experiences in X" banner
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              gradient: TheyDiColors.gradientPrimary,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              showingAllIndia
+                                  ? 'Showing all experiences across India'
+                                  : 'Showing experiences in $activeCity',
+                              style: TheyDiTextStyles.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ).animate(delay: 160.ms).fade(duration: 400.ms),
+
+                          const SizedBox(height: 14),
+
                           // Filter chips + advanced filter
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
@@ -299,7 +514,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                       final isSelected =
                                           filter == _selectedFilter;
 
-                                      return GestureDetector(
+                                      return _PressableScale(
                                         onTap: () {
                                           setState(() {
                                             _selectedFilter = filter;
@@ -324,6 +539,19 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                                   ? Colors.transparent
                                                   : TheyDiColors.divider,
                                             ),
+                                            boxShadow: isSelected
+                                                ? [
+                                                    BoxShadow(
+                                                      color: TheyDiColors
+                                                          .primary
+                                                          .withValues(
+                                                              alpha: 0.25),
+                                                      blurRadius: 6,
+                                                      offset:
+                                                          const Offset(0, 2),
+                                                    ),
+                                                  ]
+                                                : null,
                                           ),
                                           child: Center(
                                             child: Text(
@@ -344,7 +572,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                GestureDetector(
+                                _PressableScale(
                                   onTap: () {
                                     FilterBottomSheet.show(
                                       context: context,
@@ -354,6 +582,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                           _advancedFilters.category =
                                               filters.category;
                                           _advancedFilters.city = filters.city;
+                                          if (filters.city != null &&
+                                              filters.city!.isNotEmpty) {
+                                            _allIndia = false;
+                                          }
                                           _advancedFilters.freeOnly =
                                               filters.freeOnly;
                                           _advancedFilters.maxPrice =
@@ -381,6 +613,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                             ? TheyDiColors.primary
                                             : TheyDiColors.divider,
                                       ),
+                                      boxShadow: _advancedFilters
+                                              .hasActiveFilters
+                                          ? [
+                                              BoxShadow(
+                                                color: TheyDiColors.primary
+                                                    .withValues(alpha: 0.2),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : null,
                                     ),
                                     child: Row(
                                       children: [
@@ -425,13 +668,29 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   if (trending.isNotEmpty)
                     SliverToBoxAdapter(
                       child: _HorizontalSection(
-                        title: 'Trending in India',
+                        title: showingAllIndia
+                            ? 'Trending Across India'
+                            : 'Trending in $activeCity',
                         subtitle: 'Most popular upcoming events',
                         icon: Icons.local_fire_department,
                         iconColor: Colors.orange,
                         events: trending,
                       ).animate(delay: 200.ms).fade(duration: 400.ms),
                     ),
+
+                  // Communities — placeholder heading until the communities
+                  // feature is wired up here; real data will replace this.
+                  SliverToBoxAdapter(
+                    child: _ExplorePlaceholderSection(
+                      title: showingAllIndia
+                          ? 'Communities Across India'
+                          : 'Communities in $activeCity',
+                      subtitle: 'Groups worth joining',
+                      icon: Icons.groups_outlined,
+                      message:
+                          "We're building this out — communities will show up here soon.",
+                    ).animate(delay: 250.ms).fade(duration: 400.ms),
+                  ),
 
                   // Most Popular
                   if (popular.isNotEmpty)
@@ -475,10 +734,16 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                       child: Row(
                         children: [
-                          Icon(Icons.public,
+                          Icon(
+                              showingAllIndia
+                                  ? Icons.public
+                                  : Icons.location_on,
                               size: 18, color: TheyDiColors.primary),
                           const SizedBox(width: 8),
-                          Text('All Events',
+                          Text(
+                              showingAllIndia
+                                  ? 'All Events'
+                                  : 'All Events in $activeCity',
                               style: TheyDiTextStyles.labelLarge),
                           const Spacer(),
                           Text(
@@ -546,6 +811,74 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 // ══════════════════════════════════════
 // SECTION WIDGETS
 // ══════════════════════════════════════
+
+// ── Placeholder section (Communities) — heading + a "coming soon" card.
+// Swap the body for a real list once a communities data source is wired
+// into this screen. ──
+class _ExplorePlaceholderSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String message;
+
+  const _ExplorePlaceholderSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: TheyDiColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 18, color: TheyDiColors.primary),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TheyDiTextStyles.labelLarge),
+                  Text(subtitle,
+                      style: TheyDiTextStyles.caption
+                          .copyWith(color: TheyDiColors.textSecondary)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: TheyDiColors.divider),
+            ),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TheyDiTextStyles.bodySmall
+                  .copyWith(color: TheyDiColors.textSecondary, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // ── Horizontal Scroll Section ──
 class _HorizontalSection extends StatelessWidget {
@@ -683,7 +1016,7 @@ class _HorizontalEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateStr = DateFormat('MMM d · h:mm a').format(event.dateTime);
 
-    return GestureDetector(
+    return _PressableScale(
       onTap: () => context.push('/event/${event.id}', extra: event),
       child: Container(
         width: 220,
@@ -691,6 +1024,13 @@ class _HorizontalEventCard extends StatelessWidget {
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -771,7 +1111,8 @@ class _HorizontalEventCard extends StatelessWidget {
                 children: [
                   // Title
                   Text(event.title,
-                      style: TheyDiTextStyles.labelMedium,
+                      style: TheyDiTextStyles.labelMedium
+                          .copyWith(letterSpacing: -0.1),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
 
@@ -884,7 +1225,7 @@ class _ExploreEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateStr = DateFormat('MMM d · h:mm a').format(event.dateTime);
 
-    return GestureDetector(
+    return _PressableScale(
       onTap: () => context.push('/event/${event.id}', extra: event),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -893,6 +1234,13 @@ class _ExploreEventCard extends StatelessWidget {
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -949,7 +1297,8 @@ class _ExploreEventCard extends StatelessWidget {
                 children: [
                   // Title
                   Text(event.title,
-                      style: TheyDiTextStyles.labelLarge,
+                      style: TheyDiTextStyles.labelLarge
+                          .copyWith(letterSpacing: -0.1),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
 
@@ -1069,6 +1418,40 @@ class _ExploreEventCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Tiny reusable press-scale wrapper — gentle scale-down on tap-down /
+// spring-back on release, so tiles/chips/cards feel a bit more tactile.
+// Purely visual; the actual tap logic still lives in the child's onTap. ──
+class _PressableScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _PressableScale({required this.child, required this.onTap});
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: widget.child,
       ),
     );
   }

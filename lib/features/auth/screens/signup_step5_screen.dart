@@ -184,9 +184,14 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
     final displayName = sd.displayName.isNotEmpty ? sd.displayName : sd.name;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.accent.withOpacity(0.4),
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -240,6 +245,13 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                           color: TheyDiColors.card,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: TheyDiColors.divider),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
                         child: Column(children: [
                           // Avatar
@@ -257,6 +269,13 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                                   ? TheyDiColors.card
                                   : null,
                               borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: TheyDiColors.primary.withOpacity(0.25),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: (sd.profileImageUrl != null &&
                                     sd.profileImageUrl!.isNotEmpty)
@@ -406,20 +425,33 @@ class _SignupStep5ScreenState extends State<SignupStep5Screen> {
                             child: CircularProgressIndicator(
                                 color: TheyDiColors.warning))
                       else
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: _completeSignup,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: TheyDiColors.warning,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: TheyDiColors.warning.withOpacity(0.35),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
                               ),
+                            ],
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _completeSignup,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: TheyDiColors.primary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text('Let\'s Go',
+                                  style: TheyDiTextStyles.labelLarge
+                                      .copyWith(color: Colors.white)),
                             ),
-                            child: Text('Let\'s Go',
-                                style: TheyDiTextStyles.labelLarge
-                                    .copyWith(color: Colors.white)),
                           ),
                         ).animate(delay: 350.ms).fade(duration: 300.ms),
                     ],

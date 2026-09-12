@@ -47,8 +47,20 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TheyDiColors.surface,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            TheyDiColors.accent.withOpacity(0.35),
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.5],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -63,6 +75,7 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen> {
         centerTitle: true,
       ),
       body: SafeArea(child: _buildBody()),
+      ),
     );
   }
 
@@ -124,9 +137,16 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen> {
         Container(
           width: 100,
           height: 100,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: TheyDiColors.gradientPrimary,
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withOpacity(0.3),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: const Icon(Icons.verified_user_outlined, color: Colors.white, size: 52),
         ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
@@ -595,12 +615,29 @@ class _StepCard extends StatelessWidget {
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: TheyDiColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(children: [
         Container(
           width: 40,
           height: 40,
-          decoration: const BoxDecoration(gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            gradient: TheyDiColors.gradientPrimary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withOpacity(0.35),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
           child: Icon(icon, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 14),

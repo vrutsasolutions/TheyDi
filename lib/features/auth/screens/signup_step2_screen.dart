@@ -49,6 +49,34 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
     });
   }
 
+  // ── NEW: city visual — real photo if available, icon as automatic fallback ──
+  // Drop a photo at assets/images/cities/<slug>.jpg (slug = lowercase, spaces
+  // → underscores, e.g. "New Delhi" → new_delhi.jpg) and it's picked up
+  // automatically — no code changes needed. Until then, the existing icon
+  // from LocationConstants.cityIcons is shown.
+  String _citySlug(String city) =>
+      city.toLowerCase().trim().replaceAll(RegExp(r'\s+'), '_');
+
+  Widget _buildCityVisual(String city) {
+    final iconPath = LocationConstants.cityIcons[city];
+    final photoPath = 'assets/images/cities/${_citySlug(city)}.jpg';
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Image.asset(
+        photoPath,
+        width: 55,
+        height: 55,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // No photo yet for this city — fall back to the icon.
+          if (iconPath == null) return const SizedBox(width: 55, height: 55);
+          return Image.asset(iconPath, width: 55, height: 55, fit: BoxFit.contain);
+        },
+      ),
+    );
+  }
+
   void _onCityTap(String city) {
     setState(() => _selectedCity = city);
     widget.signupData.city = city;
@@ -58,9 +86,14 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.accent.withOpacity(0.4),
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -100,29 +133,41 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                         .animate(delay: 80.ms)
                         .fade(duration: 300.ms),
                     const SizedBox(height: 20),
-                    TextField(
-                      controller: _searchController,
-                      onChanged: _onSearch,
-                      style: TheyDiTextStyles.bodyMedium,
-                      decoration: InputDecoration(
-                        hintText: 'Search city...',
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: TheyDiColors.divider),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: TheyDiColors.divider),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: TheyDiColors.primary, width: 1.5),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: _onSearch,
+                        style: TheyDiTextStyles.bodyMedium,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: TheyDiColors.cardLight,
+                          hintText: 'Search city...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: TheyDiColors.primary, width: 1.5),
+                          ),
                         ),
                       ),
                     ).animate(delay: 150.ms).fade(duration: 300.ms),
@@ -176,6 +221,16 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                                       ? Colors.transparent
                                       : TheyDiColors.divider,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isSelected
+                                        ? TheyDiColors.primary
+                                            .withOpacity(0.25)
+                                        : Colors.black.withOpacity(0.04),
+                                    blurRadius: isSelected ? 14 : 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
                               child: Center(
                                 child: Padding(
@@ -183,14 +238,7 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      SizedBox(
-                                        width: 55,
-                                        height: 55,
-                                        child: Image.asset(
-                                          LocationConstants.cityIcons[city]!,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      ),
+                                      _buildCityVisual(city),
                                       const SizedBox(height: 12),
                                       Text(
                                         city,
@@ -238,8 +286,10 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
 
                           return InkWell(
                             onTap: () => _onCityTap(city),
+                            borderRadius: BorderRadius.circular(10),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 4),
                               decoration: const BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
@@ -247,12 +297,26 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                                   ),
                                 ),
                               ),
-                              child: Text(
-                                city,
-                                style: TheyDiTextStyles.bodyMedium,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.location_on_outlined,
+                                      size: 16, color: TheyDiColors.textMuted),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      city,
+                                      style: TheyDiTextStyles.bodyMedium,
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right,
+                                      size: 18, color: TheyDiColors.textMuted),
+                                ],
                               ),
                             ),
-                          );
+                          )
+                              .animate(
+                                  delay: Duration(milliseconds: 15 * index))
+                              .fade(duration: 200.ms);
                         },
                       ),
                     ],

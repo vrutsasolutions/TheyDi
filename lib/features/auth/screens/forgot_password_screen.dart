@@ -233,12 +233,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
+            TheyDiColors.accent.withOpacity(0.4),
             TheyDiColors.cardLight,
             TheyDiColors.surface,
           ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -357,6 +359,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             decoration: BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+                BoxShadow(
+                  color: TheyDiColors.primary.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: const Icon(Icons.lock_reset_outlined,
                 color: Colors.white, size: 32),
@@ -441,6 +450,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           decoration: BoxDecoration(
             gradient: TheyDiColors.gradientPrimary,
             borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: const Icon(Icons.mark_email_unread_outlined,
               color: Colors.white, size: 32),
@@ -588,6 +604,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             decoration: BoxDecoration(
               gradient: TheyDiColors.gradientPrimary,
               borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+                BoxShadow(
+                  color: TheyDiColors.primary.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: const Icon(Icons.password_outlined,
                 color: Colors.white, size: 32),
@@ -692,6 +715,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 color: Colors.green.withValues(alpha: 0.4),
                 width: 2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: const Icon(
               Icons.check_circle_rounded,

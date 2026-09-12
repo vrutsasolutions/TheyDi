@@ -114,9 +114,14 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.accent.withOpacity(0.4),
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -314,16 +319,30 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
       SizedBox(
         width: double.infinity,
         height: 54,
-        child: ElevatedButton(
-          onPressed: _startVerification,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: TheyDiColors.warning,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.warning.withOpacity(0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          child: Text('Start Verification',
-              style: TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
+          child: ElevatedButton(
+            onPressed: _startVerification,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TheyDiColors.primary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: Text('Start Verification',
+                style:
+                    TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
+          ),
         ),
       ).animate(delay: 300.ms).fade(duration: 300.ms),
 
@@ -472,6 +491,13 @@ class _BenefitRow extends StatelessWidget {
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(children: [
         Container(

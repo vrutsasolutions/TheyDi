@@ -49,6 +49,19 @@ const _kGenderOptions = [
   {'label': 'Prefer not to say', 'icon': Icons.person_outline},
 ];
 
+// ── "What brings you here" options ──
+const _kPurposeOptions = [
+  {'label': 'Social', 'icon': Icons.diversity_3_outlined},
+  {'label': 'Professional', 'icon': Icons.work_outline},
+];
+
+// ── Social link platform options ──
+const _kSocialPlatforms = [
+  {'label': 'LinkedIn', 'icon': Icons.business_center_outlined},
+  {'label': 'Instagram', 'icon': Icons.camera_alt_outlined},
+  {'label': 'Twitter', 'icon': Icons.alternate_email},
+];
+
 // ── Username validation states ──
 enum _UsernameState { idle, checking, available, taken, invalid }
 
@@ -92,6 +105,13 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
   DateTime? _dateOfBirth;
   String _selectedGender = '';
 
+  // ── NEW: what brings you here / professional / social link ──
+  late final TextEditingController _jobTitleController;
+  late final TextEditingController _organizationController;
+  late final TextEditingController _socialLinkController;
+  String _purpose = '';
+  String _socialPlatform = '';
+
   // ── Username availability state ──
   _UsernameState _usernameState = _UsernameState.idle;
   String _usernameFeedback = '';
@@ -116,6 +136,14 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
     _dateOfBirth = widget.signupData.dateOfBirth;
     _selectedGender = widget.signupData.gender;
 
+    _purpose = widget.signupData.purpose;
+    _socialPlatform = widget.signupData.socialPlatform;
+    _jobTitleController = TextEditingController(text: widget.signupData.jobTitle);
+    _organizationController =
+        TextEditingController(text: widget.signupData.organization);
+    _socialLinkController =
+        TextEditingController(text: widget.signupData.socialLink);
+
     // Run check on pre-filled value if present
     if (prefill.isNotEmpty) _onUsernameChanged(prefill);
   }
@@ -124,6 +152,9 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
   void dispose() {
     _usernameController.dispose();
     _bioController.dispose();
+    _jobTitleController.dispose();
+    _organizationController.dispose();
+    _socialLinkController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -428,6 +459,30 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
       return;
     }
 
+    // ── NEW: what-brings-you-here / social-link validation ──
+    if (_purpose.isEmpty) {
+      _showSnack('Please tell us what brings you here', Colors.red);
+      return;
+    }
+    if (_purpose == 'Professional') {
+      if (_jobTitleController.text.trim().isEmpty) {
+        _showSnack('Please enter your job title', Colors.red);
+        return;
+      }
+      if (_organizationController.text.trim().isEmpty) {
+        _showSnack('Please enter your organization', Colors.red);
+        return;
+      }
+    }
+    if (_socialPlatform.isEmpty) {
+      _showSnack('Please choose a social platform to link', Colors.red);
+      return;
+    }
+    if (_socialLinkController.text.trim().isEmpty) {
+      _showSnack('Please add your $_socialPlatform link', Colors.red);
+      return;
+    }
+
     // Save both username (lowercase) and derived display name
     widget.signupData.username = stored;
     widget.signupData.displayName = _toDisplayName(raw);
@@ -438,6 +493,15 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
     if (_uploadedImageUrl != null) {
       widget.signupData.profileImageUrl = _uploadedImageUrl!;
     }
+
+    // ── NEW: persist purpose / professional info / social link ──
+    widget.signupData.purpose = _purpose;
+    widget.signupData.jobTitle =
+        _purpose == 'Professional' ? _jobTitleController.text.trim() : '';
+    widget.signupData.organization =
+        _purpose == 'Professional' ? _organizationController.text.trim() : '';
+    widget.signupData.socialPlatform = _socialPlatform;
+    widget.signupData.socialLink = _socialLinkController.text.trim();
 
     context.push(AppRoutes.signupStep4, extra: widget.signupData);
   }
@@ -513,9 +577,14 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
     final previewInitial = previewName.isNotEmpty ? previewName[0] : '?';
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.accent.withOpacity(0.4),
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -998,6 +1067,201 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                                     end: const Offset(1, 1));
                           }).toList(),
                         ),
+
+                        const SizedBox(height: 28),
+
+                        // ── What brings you here ────────────────────────────
+                        Text('What brings you here?',
+                                style: TheyDiTextStyles.labelMedium)
+                            .animate(delay: 350.ms)
+                            .fade(duration: 300.ms),
+                        const SizedBox(height: 4),
+                        Text('Helps us tailor gatherings for you',
+                                style: TheyDiTextStyles.caption)
+                            .animate(delay: 360.ms)
+                            .fade(duration: 300.ms),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: _kPurposeOptions.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final option = entry.value;
+                            final label = option['label'] as String;
+                            final icon = option['icon'] as IconData;
+                            final isSelected = _purpose == label;
+                            return Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                    right: i == 0 ? 10 : 0),
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _purpose = label),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
+                                    decoration: BoxDecoration(
+                                      gradient: isSelected
+                                          ? TheyDiColors.gradientPrimary
+                                          : null,
+                                      color:
+                                          isSelected ? null : TheyDiColors.card,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.transparent
+                                            : TheyDiColors.divider,
+                                      ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: TheyDiColors.primary
+                                                    .withOpacity(0.25),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(icon,
+                                            size: 22,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : TheyDiColors.textSecondary),
+                                        const SizedBox(height: 6),
+                                        Text(label,
+                                            style: TheyDiTextStyles.labelMedium
+                                                .copyWith(
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : TheyDiColors.textSecondary,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w400,
+                                            )),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                                .animate(
+                                    delay: Duration(milliseconds: 370 + 40 * i))
+                                .fade(duration: 250.ms)
+                                .scale(
+                                    begin: const Offset(0.9, 0.9),
+                                    end: const Offset(1, 1));
+                          }).toList(),
+                        ),
+
+                        // ── Professional details (conditional) ──────────────
+                        if (_purpose == 'Professional') ...[
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _jobTitleController,
+                            style: TheyDiTextStyles.bodyMedium,
+                            decoration: const InputDecoration(
+                              labelText: 'Job Title',
+                              hintText: 'e.g. Product Designer',
+                              prefixIcon: Icon(Icons.badge_outlined),
+                            ),
+                          ).animate().fade(duration: 250.ms),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _organizationController,
+                            style: TheyDiTextStyles.bodyMedium,
+                            decoration: const InputDecoration(
+                              labelText: 'Organization',
+                              hintText: 'e.g. Acme Inc.',
+                              prefixIcon: Icon(Icons.apartment_outlined),
+                            ),
+                          ).animate().fade(duration: 250.ms),
+                        ],
+
+                        const SizedBox(height: 24),
+
+                        // ── Social link ──────────────────────────────────────
+                        Text('Add a social link',
+                                style: TheyDiTextStyles.labelMedium)
+                            .animate(delay: 420.ms)
+                            .fade(duration: 300.ms),
+                        const SizedBox(height: 4),
+                        Text('Let others recognize and connect with you',
+                                style: TheyDiTextStyles.caption)
+                            .animate(delay: 430.ms)
+                            .fade(duration: 300.ms),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              _kSocialPlatforms.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final option = entry.value;
+                            final label = option['label'] as String;
+                            final icon = option['icon'] as IconData;
+                            final isSelected = _socialPlatform == label;
+                            return GestureDetector(
+                              onTap: () =>
+                                  setState(() => _socialPlatform = label),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  gradient: isSelected
+                                      ? TheyDiColors.gradientPrimary
+                                      : null,
+                                  color: isSelected ? null : TheyDiColors.card,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? Colors.transparent
+                                        : TheyDiColors.divider,
+                                  ),
+                                ),
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(icon,
+                                          size: 16,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : TheyDiColors.textSecondary),
+                                      const SizedBox(width: 6),
+                                      Text(label,
+                                          style: TheyDiTextStyles.labelMedium
+                                              .copyWith(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : TheyDiColors.textSecondary,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                          )),
+                                    ]),
+                              ),
+                            )
+                                .animate(
+                                    delay: Duration(milliseconds: 440 + 40 * i))
+                                .fade(duration: 250.ms);
+                          }).toList(),
+                        ),
+                        if (_socialPlatform.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _socialLinkController,
+                            keyboardType: TextInputType.url,
+                            style: TheyDiTextStyles.bodyMedium,
+                            decoration: InputDecoration(
+                              labelText: '$_socialPlatform link',
+                              hintText: 'https://...',
+                              prefixIcon: const Icon(Icons.link),
+                            ),
+                          ).animate().fade(duration: 250.ms),
+                        ],
 
                         const SizedBox(height: 36),
 

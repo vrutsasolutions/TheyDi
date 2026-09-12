@@ -118,24 +118,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 top: isDesktop ? 24 : 16,
                                 right: 18,
                               ),
-                              child: TextButton(
-                                onPressed: _skip,
-                                style: TextButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE9FDF3),
-                                  foregroundColor: const Color(0xFF079455),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isDesktop ? 22 : 24,
-                                    vertical: isDesktop ? 13 : 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(18),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
                                 ),
-                                child: const Text(
-                                  'Skip',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
+                                child: TextButton(
+                                  onPressed: _skip,
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: const Color(0xFFE9FDF3),
+                                    foregroundColor: const Color(0xFF079455),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isDesktop ? 22 : 24,
+                                      vertical: isDesktop ? 13 : 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Skip',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -223,13 +235,29 @@ class _DesktopControlsOverlay extends StatelessWidget {
                       inactiveColor: Colors.white54,
                     ),
                     const SizedBox(height: 22),
-                    SizedBox(
+                    Container(
                       width: buttonWidth,
                       height: 64,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF12B76A), Color(0xFF0E9F5A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF12B76A).withOpacity(0.4),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
                       child: ElevatedButton(
                         onPressed: onNext,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF12B76A),
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -291,13 +319,20 @@ class _MobileTapOverlay extends StatelessWidget {
           right: 0,
           bottom: 0,
           height: 140 + bottomPadding,
-          child: const DecoratedBox(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, -6),
+                ),
+              ],
             ),
           ),
         ),
@@ -316,13 +351,29 @@ class _MobileTapOverlay extends StatelessWidget {
                   pageCount: pageCount,
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
+                Container(
                   width: double.infinity,
                   height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF12B76A), Color(0xFF0E9F5A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF12B76A).withOpacity(0.35),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
                   child: ElevatedButton(
                     onPressed: onNext,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF12B76A),
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -389,6 +440,15 @@ class _PageDots extends StatelessWidget {
             decoration: BoxDecoration(
               color: active ? activeColor : inactiveColor,
               borderRadius: BorderRadius.circular(20),
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withOpacity(0.5),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
           );
         },

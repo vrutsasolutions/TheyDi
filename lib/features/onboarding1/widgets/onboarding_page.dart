@@ -64,6 +64,24 @@ class OnboardingPage extends StatelessWidget {
                 fit: BoxFit.contain,
                 alignment: Alignment.center,
               ),
+              // Soft fade so the image blends into the white bottom
+              // sheet instead of ending on a hard edge.
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  height: 160,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withAlpha(0),
+                        Colors.white.withAlpha(235),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         );

@@ -45,10 +45,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
+              TheyDiColors.accent,
               TheyDiColors.dark,
               TheyDiColors.surface,
-              TheyDiColors.dark
+              TheyDiColors.dark,
             ],
+            stops: [0.0, 0.35, 0.7, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -70,9 +72,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     borderRadius: BorderRadius.circular(28),
     boxShadow: const [
       BoxShadow(
-        color: Color(0x2210B981),
-        blurRadius: 20,
-        offset: Offset(0, 6),
+        color: Color(0x3310B981),
+        blurRadius: 32,
+        spreadRadius: 2,
+        offset: Offset(0, 10),
+      ),
+      BoxShadow(
+        color: Color(0x1A000000),
+        blurRadius: 8,
+        offset: Offset(0, 2),
       ),
     ],
   ),

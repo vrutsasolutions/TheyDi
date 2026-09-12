@@ -184,9 +184,14 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+          colors: [
+            TheyDiColors.accent.withOpacity(0.4),
+            TheyDiColors.cardLight,
+            TheyDiColors.surface,
+          ],
+          stops: const [0.0, 0.4, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -226,6 +231,13 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                         decoration: BoxDecoration(
                           gradient: TheyDiColors.gradientPrimary,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: TheyDiColors.primary.withOpacity(0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
                         child: const Icon(Icons.mark_email_read_outlined,
                             color: Colors.white, size: 38),
@@ -283,6 +295,17 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
                                       ? 2
                                       : 1,
                                 ),
+                                boxShadow: (_focusNodes[i].hasFocus ||
+                                        _controllers[i].text.isNotEmpty)
+                                    ? [
+                                        BoxShadow(
+                                          color: TheyDiColors.primary
+                                              .withOpacity(0.18),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : null,
                               ),
                               child: TextField(
                                 controller: _controllers[i],

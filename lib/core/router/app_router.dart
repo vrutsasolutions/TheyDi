@@ -1,3 +1,13 @@
+// ─────────────────────────────────────────────────────────────────────────
+// app_router.dart — canonical router.
+//
+// `app_router_fixed.dart` registered AppRoutes.blockedUsers as a GoRoute
+// twice (duplicate path in the same route table), which go_router asserts
+// against at startup — that was the crash you were hitting. This file has
+// no duplicate paths (verified) and also keeps safer nullable `state.extra`
+// casts + parentNavigatorKey usage that `_fixed` had dropped, so use this
+// one going forward and retire app_router_fixed.dart.
+// ─────────────────────────────────────────────────────────────────────────
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

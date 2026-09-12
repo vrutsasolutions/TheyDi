@@ -1,29 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// CHANGES vs previous version
-//
-//  1. BUG FIX: Removed the city-string pre-filter that ran before the radius
-//     filter. Previously, events were filtered down to `e.city == userCity`
-//     FIRST, and the radius/distance check only ran on whatever survived
-//     that string match. Since the fallback ("if empty, use all events")
-//     only triggered when the city-filtered list was completely empty, a
-//     genuinely nearby event with a missing/mismatched `city` field would
-//     get dropped before distance was ever checked — while a mistagged
-//     event 477 km away with a matching city string would survive. Distance
-//     filtering now runs directly against ALL events using lat/lng, which
-//     is ground truth; `userCity` is only used for the "Top Events in
-//     <city>" ranking section, where a string-based "same city" heuristic
-//     is reasonable.
-//  2. BUG FIX: Date filter changed from a date-RANGE picker
-//     (showDateRangePicker) to a single-date picker (showDatePicker), to
-//     match the single-date selection used in the event-creation flow.
-//     _dateRange (DateTimeRange?) replaced with _selectedDate (DateTime?),
-//     and the filter now matches events on the same calendar day instead
-//     of a start/end range.
-//  3. Removed leftover debug code in _loadUserLocation that called
-//     user.getIdToken(true) and discarded the result — it forced an
-//     unnecessary token refresh on every home screen load.
-//  4. Everything else unchanged.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -35,7 +9,6 @@ import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/event_constants.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/location_service.dart';
@@ -79,7 +52,90 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
+// Which "vibe" an event falls under, used to split events between the
+// Social and Professional tabs. This is a placeholder heuristic based on
+// the existing `category`/title/description text — the real classification
+// logic (e.g. an explicit event-type field set at creation time) will
+// replace this later.
+enum _EventVibe { social, professional }
+
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const List<String> homeTabs = ['For You', 'Social', 'Professional'];
+
+  // Category chip sets shown under the Social / Professional tabs. Not
+  // shown under For You.
+  static const List<String> _socialChipCategories = [
+    'All',
+    'Music',
+    'Food',
+    'Fitness',
+    'Gaming',
+  ];
+  static const List<String> _professionalChipCategories = [
+    'All',
+    'Tech',
+    'Business',
+    'AI',
+    'Startups',
+  ];
+
+  // Placeholder keyword sets for classifying an event as Social vs
+  // Professional. Category match takes priority; free-text keywords on
+  // the title/description are a fallback for events tagged with a
+  // category that isn't in either list.
+  static const Set<String> _professionalCategories = {
+    'tech',
+    'business',
+    'ai',
+    'startups',
+    'startup',
+    'hackathon',
+    'seminar',
+    'conference',
+    'workshop',
+    'networking',
+  };
+  static const List<String> _professionalKeywords = [
+    'hackathon',
+    'seminar',
+    'summit',
+    'conference',
+    'workshop',
+    'crypto',
+    'startup',
+    'pitch night',
+    'networking',
+    'career',
+  ];
+  static const List<String> _socialKeywords = [
+    'house party',
+    'party',
+    'art night',
+    'art & craft',
+    'art and craft',
+    'mixer',
+    'game night',
+    'yoga',
+    'music night',
+    'jam',
+    'potluck',
+  ];
+
+  _EventVibe _classifyEvent(EventModel e) {
+    final cat = e.category.toLowerCase().trim();
+    if (_professionalCategories.contains(cat)) return _EventVibe.professional;
+    final text = '${e.title} ${e.description}'.toLowerCase();
+    if (_professionalKeywords.any((k) => text.contains(k))) {
+      return _EventVibe.professional;
+    }
+    if (_socialKeywords.any((k) => text.contains(k))) {
+      return _EventVibe.social;
+    }
+    // Default fallback: everything else reads as a casual/social event.
+    return _EventVibe.social;
+  }
+
+  String _selectedHomeTab = 'For You';
   String _selectedCategory = 'All';
   String _selectedSort = 'Radius';
   double _selectedRadius = 2.0;
@@ -91,6 +147,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   RangeValues? _priceRange;
 
   static const double _priceFilterMax = 5000;
+
+  List<String> get _activeChipCategories => _selectedHomeTab == 'Social'
+      ? _socialChipCategories
+      : _professionalChipCategories;
+
+  void _selectHomeTab(String tab) {
+    if (tab == _selectedHomeTab) return;
+    setState(() {
+      _selectedHomeTab = tab;
+      _selectedCategory = 'All';
+    });
+  }
 
   @override
   void initState() {
@@ -145,6 +213,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<EventModel> _filterAndSortEvents(List<EventModel> events) {
     List<EventModel> filtered = List.of(events);
 
+    if (_selectedHomeTab == 'Social') {
+      filtered =
+          filtered.where((e) => _classifyEvent(e) == _EventVibe.social).toList();
+    } else if (_selectedHomeTab == 'Professional') {
+      filtered = filtered
+          .where((e) => _classifyEvent(e) == _EventVibe.professional)
+          .toList();
+    }
     if (_selectedDate != null) {
       filtered = filtered
           .where((e) =>
@@ -160,8 +236,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .toList();
     }
     if (_selectedCategory != 'All') {
-      filtered =
-          filtered.where((e) => e.category == _selectedCategory).toList();
+      filtered = filtered
+          .where((e) =>
+              e.category.toLowerCase() == _selectedCategory.toLowerCase())
+          .toList();
     }
     if (_selectedRadius > 0 && _userLat != null && _userLng != null) {
       filtered = filtered.where((e) {
@@ -724,6 +802,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ]).animate(delay: 100.ms).fade(duration: 400.ms),
 
+                      const SizedBox(height: 18),
+
+                      // Home tabs — For You / Social / Professional
+                      Row(
+                        children: homeTabs.map((tab) {
+                          final isSelected = tab == _selectedHomeTab;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 22),
+                            child: _PressableScale(
+                              onTap: () => _selectHomeTab(tab),
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 180),
+                                style: TheyDiTextStyles.labelLarge.copyWith(
+                                  color: isSelected
+                                      ? TheyDiColors.primary
+                                      : TheyDiColors.textMuted,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  letterSpacing: -0.1,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(tab),
+                                    const SizedBox(height: 6),
+                                    AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 180),
+                                      height: 3,
+                                      width: isSelected ? 22 : 0,
+                                      decoration: BoxDecoration(
+                                        gradient:
+                                            TheyDiColors.gradientPrimary,
+                                        borderRadius:
+                                            BorderRadius.circular(2),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: TheyDiColors.primary
+                                                      .withValues(alpha: 0.5),
+                                                  blurRadius: 4,
+                                                  offset:
+                                                      const Offset(0, 1),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ).animate(delay: 120.ms).fade(duration: 400.ms),
+
                       const SizedBox(height: 16),
 
                       // Filters & Location
@@ -742,7 +877,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             required VoidCallback onTap,
                             bool selected = false,
                           }) {
-                            return GestureDetector(
+                            return _PressableScale(
                               onTap: onTap,
                               child: Container(
                                 height: chipHeight,
@@ -759,6 +894,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ? TheyDiColors.primary
                                         : TheyDiColors.divider,
                                   ),
+                                  boxShadow: selected
+                                      ? [
+                                          BoxShadow(
+                                            color: TheyDiColors.primary
+                                                .withValues(alpha: 0.15),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
                                 ),
                                 child: child,
                               ),
@@ -947,49 +1092,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         },
                       ).animate(delay: 150.ms).fade(duration: 400.ms),
 
-                      const SizedBox(height: 14),
-
-                      // Category chips
-                      SizedBox(
-                        height: 36,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: EventConstants.homeCategories.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final cat = EventConstants.homeCategories[index];
-                            final isSelected = cat == _selectedCategory;
-                            return GestureDetector(
-                              onTap: () =>
-                                  setState(() => _selectedCategory = cat),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                decoration: BoxDecoration(
-                                  gradient: isSelected
-                                      ? TheyDiColors.gradientPrimary
-                                      : null,
-                                  color: isSelected ? null : TheyDiColors.card,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: isSelected
-                                          ? Colors.transparent
-                                          : TheyDiColors.divider),
+                      // Category chips — only shown on Social / Professional,
+                      // never on For You.
+                      if (_selectedHomeTab != 'For You') ...[
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          height: 36,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _activeChipCategories.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final cat = _activeChipCategories[index];
+                              final isSelected = cat == _selectedCategory;
+                              return _PressableScale(
+                                onTap: () =>
+                                    setState(() => _selectedCategory = cat),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    gradient: isSelected
+                                        ? TheyDiColors.gradientPrimary
+                                        : null,
+                                    color:
+                                        isSelected ? null : TheyDiColors.card,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: isSelected
+                                            ? Colors.transparent
+                                            : TheyDiColors.divider),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: TheyDiColors.primary
+                                                  .withValues(alpha: 0.28),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Center(
+                                      child: Text(cat,
+                                          style: TheyDiTextStyles.labelMedium
+                                              .copyWith(
+                                                  color: isSelected
+                                                      ? Colors.white
+                                                      : TheyDiColors
+                                                          .textSecondary))),
                                 ),
-                                child: Center(
-                                    child: Text(cat,
-                                        style: TheyDiTextStyles.labelMedium
-                                            .copyWith(
-                                                color: isSelected
-                                                    ? Colors.white
-                                                    : TheyDiColors
-                                                        .textSecondary))),
-                              ),
-                            );
-                          },
-                        ),
-                      ).animate(delay: 200.ms).fade(duration: 400.ms),
+                              );
+                            },
+                          ),
+                        ).animate(delay: 200.ms).fade(duration: 400.ms),
+                      ],
 
                       const SizedBox(height: 20),
                     ],
@@ -1013,9 +1172,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // ── FIX: userCity no longer passed in here — distance
                   // filtering runs against all events directly. ──
                   final filtered = _filterAndSortEvents(allEvents);
-                  final topEvents = _topEventsForLocation(allEvents, userCity);
                   final locationLabel =
                       userCity.isEmpty ? 'Your Location' : userCity;
+
+                  if (_selectedHomeTab != 'For You') {
+                    // ── Social / Professional: a single vibe-filtered list,
+                    // no trending carousel or people/communities sections. ──
+                    final isSocial = _selectedHomeTab == 'Social';
+                    final title =
+                        isSocial ? 'Social Experiences' : 'Professional Experiences';
+                    final subtitle = isSocial
+                        ? 'Fun meetups & social gatherings near you'
+                        : 'Career-building events & professional meetups';
+
+                    return SliverMainAxisGroup(
+                      slivers: [
+                        _EventSectionHeader(title: title, subtitle: subtitle),
+                        if (filtered.isEmpty)
+                          SliverToBoxAdapter(
+                            child: _EmptySectionMessage(
+                              message: _selectedCategory != 'All'
+                                  ? 'No ${_selectedCategory.toLowerCase()} events found. Try a different tag.'
+                                  : isSocial
+                                      ? 'No social events found yet. Check back soon!'
+                                      : 'No professional events found yet. Check back soon!',
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final event = filtered[index];
+                                  return _EventCard(
+                                    event: event,
+                                    distance: _getEventDistance(event),
+                                  )
+                                      .animate(
+                                        delay: Duration(
+                                            milliseconds: 60 * index),
+                                      )
+                                      .fade(duration: 350.ms)
+                                      .slideY(begin: 0.08, end: 0);
+                                },
+                                childCount: filtered.length,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  }
+
+                  // ── For You: trending carousel + placeholder discovery
+                  // sections + the full location-ranked feed. ──
+                  final topEvents = _topEventsForLocation(allEvents, userCity);
 
                   return SliverMainAxisGroup(
                     slivers: [
@@ -1050,9 +1262,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text('Trending Near You 🔥',
+                                    style: TheyDiTextStyles.labelLarge),
+                                const SizedBox(height: 4),
                                 Text(
                                     '${filtered.length} event${filtered.length == 1 ? '' : 's'} near you',
-                                    style: TheyDiTextStyles.labelLarge),
+                                    style: TheyDiTextStyles.caption.copyWith(
+                                        color: TheyDiColors.textSecondary)),
                                 const SizedBox(height: 16),
                                 SizedBox(
                                   height: 336,
@@ -1098,6 +1314,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         ),
+                      const SliverToBoxAdapter(
+                        child: _PlaceholderSection(
+                          title: 'People to Meet',
+                          subtitle: 'Discover people who share your interests',
+                          icon: Icons.people_alt_outlined,
+                          message:
+                              "We're building this out — people to meet will show up here soon.",
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: _PlaceholderSection(
+                          title: 'Communities For You',
+                          subtitle: 'Groups built around what you\'re into',
+                          icon: Icons.groups_outlined,
+                          message:
+                              'Communities matched to your interests will appear here soon.',
+                        ),
+                      ),
                       _EventSectionHeader(
                         title: 'Top Events in $locationLabel',
                         subtitle: 'Ranked by current registrations',
@@ -1216,6 +1450,87 @@ class _EmptySectionMessage extends StatelessWidget {
   }
 }
 
+// Lightweight placeholder for sections that don't have real data wired up
+// yet (People to Meet, Communities For You). Shows the heading + a soft
+// "coming soon" card so the layout matches the design now; swap the body
+// for a real list once the backing data source exists.
+class _PlaceholderSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String message;
+
+  const _PlaceholderSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style:
+                  TheyDiTextStyles.labelLarge.copyWith(letterSpacing: -0.1)),
+          const SizedBox(height: 4),
+          Text(subtitle,
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary)),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: TheyDiColors.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        TheyDiColors.primary.withValues(alpha: 0.18),
+                        TheyDiColors.primary.withValues(alpha: 0.06),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: TheyDiColors.primary, size: 22),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: TheyDiTextStyles.bodySmall
+                      .copyWith(color: TheyDiColors.textSecondary, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EventCard extends StatelessWidget {
   final EventModel event;
   final double distance;
@@ -1231,7 +1546,14 @@ class _EventCard extends StatelessWidget {
       decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: TheyDiColors.divider)),
+          border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Stack(children: [
           GestureDetector(
@@ -1257,6 +1579,31 @@ class _EventCard extends StatelessWidget {
                         gradient: TheyDiColors.gradientPrimary,
                       ),
                     ),
+            ),
+          ),
+          // Soft top scrim so the badges stay legible over any photo.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            child: IgnorePointer(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.28),
+                        Colors.black.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           if (event.isOngoing)
@@ -1341,7 +1688,10 @@ class _EventCard extends StatelessWidget {
                         children: [
                           Expanded(
                               child: Text(event.title,
-                                  style: TheyDiTextStyles.headlineMedium,
+                                  style: TheyDiTextStyles.headlineMedium
+                                      .copyWith(
+                                          letterSpacing: -0.2,
+                                          height: 1.15),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis)),
                           if (event.ageGroup.isNotEmpty) ...[
@@ -1427,7 +1777,15 @@ class _EventCard extends StatelessWidget {
                               horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                               gradient: TheyDiColors.gradientPrimary,
-                              borderRadius: BorderRadius.circular(20)),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]),
                           child: Text('View',
                               style: TheyDiTextStyles.labelMedium
                                   .copyWith(color: Colors.white))),
@@ -1435,6 +1793,41 @@ class _EventCard extends StatelessWidget {
                   ])),
         ),
       ]),
+    );
+  }
+}
+
+// ── Tiny reusable press-scale wrapper. Wraps any tappable widget with a
+// gentle scale-down on tap-down / spring-back on release, so interactive
+// elements (tabs, chips, cards) feel a little more tactile. Purely visual
+// — the actual tap logic still lives in the child's onTap. ──
+class _PressableScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _PressableScale({required this.child, required this.onTap});
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
     );
   }
 }

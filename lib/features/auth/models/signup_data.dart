@@ -16,6 +16,13 @@ class SignupData {
   bool emailVerified; // ← NEW: set true after OTP
   bool isVerified; // ← NEW: set true after face verify
 
+  // ── NEW: "what brings you here" + social link ──
+  String purpose; // 'Social' | 'Professional'
+  String jobTitle; // only used when purpose == 'Professional'
+  String organization; // only used when purpose == 'Professional'
+  String socialPlatform; // 'LinkedIn' | 'Instagram' | 'Twitter'
+  String socialLink;
+
   SignupData({
     required this.email,
     required this.password,
@@ -30,6 +37,11 @@ class SignupData {
     this.profileImageUrl,
     this.emailVerified = false,
     this.isVerified = false,
+    this.purpose = '',
+    this.jobTitle = '',
+    this.organization = '',
+    this.socialPlatform = '',
+    this.socialLink = '',
   }) : interests = interests ?? [];
 
   int? get age {
@@ -64,6 +76,11 @@ class SignupData {
       'isVerified': isVerified,
       'verificationStatus': isVerified ? 'verified' : 'none',
       'trustScore': isVerified ? 80 : 50,
+      'purpose': purpose,
+      'jobTitle': purpose == 'Professional' ? jobTitle : '',
+      'organization': purpose == 'Professional' ? organization : '',
+      'socialPlatform': socialPlatform,
+      'socialLink': socialLink,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
