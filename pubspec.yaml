@@ -106,6 +106,7 @@ flutter:
     - app_config.env
     - assets/city_icons/
     - assets/images/
+    - assets/images/cities/
     - assets/images/theydi_logo.png
     - assets/onboarding/
     

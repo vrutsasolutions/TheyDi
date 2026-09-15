@@ -49,30 +49,140 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
     });
   }
 
-  // ── NEW: city visual — real photo if available, icon as automatic fallback ──
+  // ── City visual — real photo if available, icon as automatic fallback ──
   // Drop a photo at assets/images/cities/<slug>.jpg (slug = lowercase, spaces
   // → underscores, e.g. "New Delhi" → new_delhi.jpg) and it's picked up
   // automatically — no code changes needed. Until then, the existing icon
   // from LocationConstants.cityIcons is shown.
+  //
+  // Supported formats: .jpg (preferred), .jpeg, .png
   String _citySlug(String city) =>
       city.toLowerCase().trim().replaceAll(RegExp(r'\s+'), '_');
 
-  Widget _buildCityVisual(String city) {
-    final iconPath = LocationConstants.cityIcons[city];
-    final photoPath = 'assets/images/cities/${_citySlug(city)}.jpg';
+  /// Returns true if a city has a photo in assets/images/cities/
+  bool _cityHasPhoto(String city) =>
+      _cityPhotoChecked.putIfAbsent(city, () => true);
+  final Map<String, bool> _cityPhotoChecked = {};
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Image.asset(
-        photoPath,
-        width: 55,
-        height: 55,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          // No photo yet for this city — fall back to the icon.
-          if (iconPath == null) return const SizedBox(width: 55, height: 55);
-          return Image.asset(iconPath, width: 55, height: 55, fit: BoxFit.contain);
-        },
+  void _markNoPhoto(String city) => _cityPhotoChecked[city] = false;
+
+  /// Full-card photo background (used by the grid card builder).
+  /// Shows the photo covering the entire card with a gradient overlay
+  /// and city name at the bottom. Falls back to the old icon-centered
+  /// layout when no photo exists for this city.
+  Widget _buildCityCardContent(String city, bool isSelected) {
+    final iconPath = LocationConstants.cityIcons[city];
+    final slug = _citySlug(city);
+    final hasPhoto = _cityHasPhoto(city);
+
+    // ── Photo card ──
+    if (hasPhoto) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          // Try .jpg first; on error try .png; on error fall back to icon layout
+          Image.asset(
+            'assets/images/cities/$slug.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) {
+              return Image.asset(
+                'assets/images/cities/$slug.png',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) {
+                  // Mark so next rebuild skips straight to icon layout
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      _markNoPhoto(city);
+                      setState(() {});
+                    }
+                  });
+                  return _buildIconFallback(iconPath, city, isSelected);
+                },
+              );
+            },
+          ),
+          // Gradient overlay so text is readable
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.65),
+                ],
+                stops: const [0.35, 1.0],
+              ),
+            ),
+          ),
+          // Green tint when selected
+          if (isSelected)
+            Container(
+              color: TheyDiColors.primary.withOpacity(0.35),
+            ),
+          // City name at bottom
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 10,
+            child: Text(
+              city,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                shadows: [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Checkmark when selected
+          if (isSelected)
+            const Positioned(
+              top: 8,
+              right: 8,
+              child: CircleAvatar(
+                radius: 12,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.check, size: 16, color: Color(0xFF12B76A)),
+              ),
+            ),
+        ],
+      );
+    }
+
+    // ── Icon fallback (no photo) ──
+    return _buildIconFallback(iconPath, city, isSelected);
+  }
+
+  /// Icon-centered fallback layout (same as the original design).
+  Widget _buildIconFallback(String? iconPath, String city, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (iconPath != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.asset(iconPath, width: 55, height: 55, fit: BoxFit.contain),
+            )
+          else
+            Icon(Icons.location_city, size: 44,
+                color: isSelected ? Colors.white70 : TheyDiColors.textMuted),
+          const SizedBox(height: 10),
+          Text(
+            city,
+            textAlign: TextAlign.center,
+            style: TheyDiTextStyles.labelMedium.copyWith(
+              color: isSelected ? Colors.white : Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -206,55 +316,40 @@ class _SignupStep2ScreenState extends State<SignupStep2Screen> {
                           final city = _filtered[index];
                           final isSelected = city == _selectedCity;
 
+                          final hasPhoto = _cityHasPhoto(city);
+
                           return GestureDetector(
                             onTap: () => _onCityTap(city),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
+                              clipBehavior: Clip.antiAlias,
                               decoration: BoxDecoration(
-                                gradient: isSelected
+                                // Only apply gradient/color when no photo
+                                gradient: (!hasPhoto && isSelected)
                                     ? TheyDiColors.gradientPrimary
                                     : null,
-                                color: isSelected ? null : TheyDiColors.card,
-                                borderRadius: BorderRadius.circular(12),
+                                color: (!hasPhoto && !isSelected)
+                                    ? TheyDiColors.card
+                                    : null,
+                                borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
                                   color: isSelected
-                                      ? Colors.transparent
+                                      ? const Color(0xFF12B76A)
                                       : TheyDiColors.divider,
+                                  width: isSelected ? 2.5 : 1,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: isSelected
                                         ? TheyDiColors.primary
                                             .withOpacity(0.25)
-                                        : Colors.black.withOpacity(0.04),
+                                        : Colors.black.withOpacity(0.06),
                                     blurRadius: isSelected ? 14 : 8,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _buildCityVisual(city),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        city,
-                                        textAlign: TextAlign.center,
-                                        style: TheyDiTextStyles.labelMedium
-                                            .copyWith(
-                                          color: isSelected
-                                              ? Colors.white
-                                              : Colors.black,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                              child: _buildCityCardContent(city, isSelected),
                             ),
                           )
                               .animate(
