@@ -299,15 +299,15 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _ShareOption(
-                icon: Icons.people_outline,
-                label: 'Circles',
+                icon: Icons.diversity_3_outlined,
+                label: 'Communities',
                 color: TheyDiColors.primary,
                 onTap: _shareInApp,
                 delay: 150,
               ),
               _ShareOption(
                 icon: Icons.person_outline,
-                label: 'Friends',
+                label: 'Connections',
                 color: TheyDiColors.info,
                 onTap: _shareToFriends,
                 delay: 165,
@@ -370,7 +370,7 @@ class _ProfileShareSheetState extends State<ProfileShareSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// In-App Share Sheet — sends profile_share message to selected circles
+// In-App Share Sheet — sends profile_share message to selected communities
 // ─────────────────────────────────────────────────────────────────────────────
 class _InAppProfileShareSheet extends StatefulWidget {
   final String userId;
@@ -388,7 +388,7 @@ class _InAppProfileShareSheet extends StatefulWidget {
 }
 
 class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
-  List<Map<String, dynamic>> _circles = [];
+  List<Map<String, dynamic>> _communities = [];
   final Set<String> _selected = {};
   bool _loading = true;
   bool _sending = false;
@@ -396,22 +396,22 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
   @override
   void initState() {
     super.initState();
-    _loadCircles();
+    _loadCommunities();
   }
 
-  Future<void> _loadCircles() async {
+  Future<void> _loadCommunities() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
     final snap = await FirebaseFirestore.instance
-        .collection('circles')
+        .collection('communities')
         .where('memberUids', arrayContains: uid)
         .get();
 
     if (mounted) {
       setState(() {
-        _circles = snap.docs
-            .map((d) => {'id': d.id, 'name': d['name'] ?? 'Circle'})
+        _communities = snap.docs
+            .map((d) => {'id': d.id, 'name': d['name'] ?? 'Community'})
             .toList();
         _loading = false;
       });
@@ -426,10 +426,10 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
         FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
     final link = ProfileShareService.profileLink(widget.userId);
 
-    for (final circleId in _selected) {
+    for (final communityId in _selected) {
       await FirebaseFirestore.instance
-          .collection('circles')
-          .doc(circleId)
+          .collection('communities')
+          .doc(communityId)
           .collection('messages')
           .add({
         'type': 'profile_share',
@@ -445,10 +445,10 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
         'seenBy': [], // ADD
       });
 
-      // keep the circle's chat-list preview in sync
+      // keep the community's chat-list preview in sync
       await FirebaseFirestore.instance
-          .collection('circles')
-          .doc(circleId)
+          .collection('communities')
+          .doc(communityId)
           .update({
         'lastMessage': '👤 Shared a profile',
         'lastMessageSender': senderName,
@@ -463,7 +463,7 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
           const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
           Text(
-              'Profile shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
+              'Profile shared to ${_selected.length} ${_selected.length > 1 ? 'communities' : 'community'}! 🎉',
               style: const TextStyle(color: TheyDiColors.textPrimary)),
         ]),
         backgroundColor: TheyDiColors.card,
@@ -501,7 +501,7 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
             const Icon(Icons.send_outlined,
                 color: TheyDiColors.primary, size: 20),
             const SizedBox(width: 10),
-            Text('Send to Circles', style: TheyDiTextStyles.displayMedium),
+            Text('Send to Communities', style: TheyDiTextStyles.displayMedium),
             const Spacer(),
             if (_selected.isNotEmpty)
               GestureDetector(
@@ -526,7 +526,7 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
               ),
           ]),
           const SizedBox(height: 6),
-          Text('Select circles to share this profile in',
+          Text('Select communities to share this profile in',
               style: TheyDiTextStyles.caption
                   .copyWith(color: TheyDiColors.textSecondary)),
           const SizedBox(height: 16),
@@ -536,12 +536,12 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
               padding: EdgeInsets.all(24),
               child: CircularProgressIndicator(color: TheyDiColors.primary),
             ))
-          else if (_circles.isEmpty)
+          else if (_communities.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'You have no circles to share to.',
+                  'You have no communities to share to.',
                   style: TheyDiTextStyles.bodySmall
                       .copyWith(color: TheyDiColors.textSecondary),
                   textAlign: TextAlign.center,
@@ -553,7 +553,7 @@ class _InAppProfileShareSheetState extends State<_InAppProfileShareSheet> {
               constraints: const BoxConstraints(maxHeight: 280),
               child: ListView(
                 shrinkWrap: true,
-                children: _circles.map((c) {
+                children: _communities.map((c) {
                   final isSelected = _selected.contains(c['id']);
                   return GestureDetector(
                     onTap: () => setState(() {
@@ -668,9 +668,23 @@ class _ProfilePreviewCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: TheyDiColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: TheyDiColors.divider),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            TheyDiColors.card,
+            TheyDiColors.primary.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: TheyDiColors.primary.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(children: [
         // Avatar
@@ -680,6 +694,13 @@ class _ProfilePreviewCard extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: TheyDiColors.gradientPrimary,
             borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: photoUrl.isNotEmpty
               ? ClipRRect(
@@ -734,12 +755,19 @@ class _ProfilePreviewCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: TheyDiColors.primary.withValues(alpha: 0.15),
+            gradient: TheyDiColors.gradientPrimary,
             borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withValues(alpha: 0.25),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Text('TheyDi',
               style: TheyDiTextStyles.caption.copyWith(
-                  color: TheyDiColors.primary,
+                  color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 10)),
         ),
@@ -840,10 +868,24 @@ class _ShareOption extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: bgColor ?? color.withValues(alpha: 0.15),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  (bgColor ?? color).withValues(alpha: bgColor != null ? 1 : 0.16),
+                  (bgColor ?? color).withValues(alpha: bgColor != null ? 0.85 : 0.06),
+                ],
+              ),
               borderRadius: BorderRadius.circular(16),
               border:
                   Border.all(color: color.withValues(alpha: 0.25), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Center(
               child: icon != null
@@ -915,7 +957,7 @@ class _InAppFriendProfileShareSheetState
       setState(() {
         _friends = snap.docs
             .map((d) =>
-                {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
+                {'id': d.id, 'name': d.data()['displayName'] ?? 'Connection'})
             .toList();
         _loading = false;
       });
@@ -984,7 +1026,7 @@ class _InAppFriendProfileShareSheetState
           const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
           const SizedBox(width: 8),
           Text(
-              'Profile shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+              'Profile shared to ${_selected.length} connection${_selected.length > 1 ? 's' : ''}! 🎉',
               style: const TextStyle(color: TheyDiColors.textPrimary)),
         ]),
         backgroundColor: TheyDiColors.card,
@@ -1016,14 +1058,14 @@ class _InAppFriendProfileShareSheetState
             ),
           ),
           const SizedBox(height: 16),
-          Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
+          Text('Share to Connections', style: TheyDiTextStyles.displaySmall),
           const SizedBox(height: 16),
           if (_loading)
             const Expanded(child: Center(child: CircularProgressIndicator()))
           else if (_friends.isEmpty)
             Expanded(
               child: Center(
-                child: Text('No friends yet.',
+                child: Text('No connections yet.',
                     style: TheyDiTextStyles.bodyMedium
                         .copyWith(color: TheyDiColors.textSecondary)),
               ),

@@ -64,7 +64,7 @@ class JoinValidationService {
     if (maxAttendees > 0 && currentCount >= maxAttendees) {
       return const JoinValidationResult(
         outcome: JoinOutcome.blocked,
-        userMessage: 'This event is full. No spots available.',
+        userMessage: 'This experience is full. No spots available.',
         requestTag: 'Blocked',
       );
     }
@@ -112,7 +112,7 @@ class JoinValidationService {
     if (genderBalance == 'Female Only' && userGender != 'female') {
       return JoinValidationResult(
         outcome: JoinOutcome.blocked,
-        userMessage: 'This event is for female attendees only.',
+        userMessage: 'This experience is for female attendees only.',
         requestTag: 'Blocked',
       );
     }
@@ -120,7 +120,7 @@ class JoinValidationService {
     if (genderBalance == 'Male Only' && userGender != 'male') {
       return JoinValidationResult(
         outcome: JoinOutcome.blocked,
-        userMessage: 'This event is for male attendees only.',
+        userMessage: 'This experience is for male attendees only.',
         requestTag: 'Blocked',
       );
     }

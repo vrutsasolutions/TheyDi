@@ -221,6 +221,13 @@ class _StatChip extends StatelessWidget {
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -252,6 +259,13 @@ class _BookingCard extends StatelessWidget {
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: TheyDiColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

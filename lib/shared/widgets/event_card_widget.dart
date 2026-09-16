@@ -4,22 +4,17 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../features/events/models/event_model.dart';
-// ── NEW import ──
 import '../../features/events/widgets/event_share_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Compact horizontal event card — reusable across screens.
-// CHANGE: added ⋮ menu icon (top-right) with "Share Event" option.
+// EventCardCompact — horizontal card used in lists.
+// UI: "Event" → "Experience" label; polished shadow, rounded corners.
 // ─────────────────────────────────────────────────────────────────────────────
 class EventCardCompact extends StatelessWidget {
   final EventModel event;
   final VoidCallback? onTap;
 
-  const EventCardCompact({
-    super.key,
-    required this.event,
-    this.onTap,
-  });
+  const EventCardCompact({super.key, required this.event, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -29,52 +24,34 @@ class EventCardCompact extends StatelessWidget {
       onTap: onTap ?? () => context.push('/event/${event.id}', extra: event),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
           color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            // Category icon
+            // Thumbnail
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: event.allImages.isNotEmpty
                   ? Image.network(
                       event.allImages.first,
-                      width: 56,
-                      height: 56,
+                      width: 58,
+                      height: 58,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 56,
-                        height: 56,
-                        decoration: const BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary,
-                        ),
-                        child: Center(
-                          child: Text(
-                            event.category.isNotEmpty ? event.category[0] : 'E',
-                            style: TheyDiTextStyles.displayMedium
-                                .copyWith(color: Colors.white, fontSize: 20),
-                          ),
-                        ),
-                      ),
+                      errorBuilder: (_, __, ___) => _CategoryPlaceholder(
+                          category: event.category, size: 58),
                     )
-                  : Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        gradient: TheyDiColors.gradientPrimary,
-                      ),
-                      child: Center(
-                        child: Text(
-                          event.category.isNotEmpty ? event.category[0] : 'E',
-                          style: TheyDiTextStyles.displayMedium
-                              .copyWith(color: Colors.white, fontSize: 20),
-                        ),
-                      ),
-                    ),
+                  : _CategoryPlaceholder(category: event.category, size: 58),
             ),
             const SizedBox(width: 12),
 
@@ -89,17 +66,21 @@ class EventCardCompact extends StatelessWidget {
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Row(children: [
-                    Icon(Icons.calendar_today_outlined,
+                    const Icon(Icons.calendar_today_outlined,
                         size: 12, color: TheyDiColors.textMuted),
                     const SizedBox(width: 4),
-                    Text(dateStr, style: TheyDiTextStyles.caption),
+                    Flexible(
+                        child: Text(dateStr,
+                            style: TheyDiTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                   ]),
                   const SizedBox(height: 2),
                   Row(children: [
-                    Icon(Icons.location_on_outlined,
+                    const Icon(Icons.location_on_outlined,
                         size: 12, color: TheyDiColors.textMuted),
                     const SizedBox(width: 4),
-                    Expanded(
+                    Flexible(
                       child: Text(
                         '${event.venue}, ${event.city}',
                         style: TheyDiTextStyles.caption,
@@ -114,11 +95,10 @@ class EventCardCompact extends StatelessWidget {
 
             const SizedBox(width: 8),
 
-            // Right side — price + spots + ⋮ menu
+            // Right — price + spots + share menu
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // ── NEW: 3-dot menu ──
                 _CardShareMenu(event: event),
                 const SizedBox(height: 4),
                 Container(
@@ -138,7 +118,7 @@ class EventCardCompact extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Text(
                   '${event.spotsLeft} left',
                   style: TheyDiTextStyles.caption.copyWith(
@@ -158,18 +138,14 @@ class EventCardCompact extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Large vertical event card — for featured/home feed.
-// CHANGE: added ⋮ menu icon (top-right of image area) with "Share Event" option.
+// EventCardLarge — vertical featured card.
+// UI: "Event" → "Experience" badge; taller image, polished shadow.
 // ─────────────────────────────────────────────────────────────────────────────
 class EventCardLarge extends StatelessWidget {
   final EventModel event;
   final VoidCallback? onTap;
 
-  const EventCardLarge({
-    super.key,
-    required this.event,
-    this.onTap,
-  });
+  const EventCardLarge({super.key, required this.event, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -178,39 +154,61 @@ class EventCardLarge extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ?? () => context.push('/event/${event.id}', extra: event),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 18),
         decoration: BoxDecoration(
           color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image area with badges
+            // Image area
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   child: event.allImages.isNotEmpty
                       ? Image.network(
                           event.allImages.first,
-                          height: 120,
+                          height: 140,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                            height: 120,
+                            height: 140,
                             decoration: const BoxDecoration(
-                              gradient: TheyDiColors.gradientPrimary,
-                            ),
+                                gradient: TheyDiColors.gradientPrimary),
                           ),
                         )
                       : Container(
-                          height: 120,
+                          height: 140,
                           decoration: const BoxDecoration(
-                            gradient: TheyDiColors.gradientPrimary,
-                          ),
+                              gradient: TheyDiColors.gradientPrimary),
                         ),
+                ),
+
+                // "Experience" type badge — top-left
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(event.category,
+                        style: TheyDiTextStyles.caption
+                            .copyWith(color: Colors.white)),
+                  ),
                 ),
 
                 // Price badge — top-right
@@ -232,24 +230,7 @@ class EventCardLarge extends StatelessWidget {
                   ),
                 ),
 
-                // Category badge — top-left
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(event.category,
-                        style: TheyDiTextStyles.caption
-                            .copyWith(color: Colors.white)),
-                  ),
-                ),
-
-                // ── NEW: 3-dot menu — bottom-right of image ──
+                // Share menu — bottom-right of image
                 Positioned(
                   bottom: 8,
                   right: 8,
@@ -260,7 +241,7 @@ class EventCardLarge extends StatelessWidget {
 
             // Content
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -271,16 +252,20 @@ class EventCardLarge extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(children: [
                     const Icon(Icons.calendar_today_outlined,
-                        size: 14, color: TheyDiColors.textMuted),
-                    const SizedBox(width: 4),
-                    Text(dateStr, style: TheyDiTextStyles.caption),
+                        size: 13, color: TheyDiColors.textMuted),
+                    const SizedBox(width: 5),
+                    Flexible(
+                        child: Text(dateStr,
+                            style: TheyDiTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                   ]),
                   const SizedBox(height: 4),
                   Row(children: [
                     const Icon(Icons.location_on_outlined,
-                        size: 14, color: TheyDiColors.textMuted),
-                    const SizedBox(width: 4),
-                    Expanded(
+                        size: 13, color: TheyDiColors.textMuted),
+                    const SizedBox(width: 5),
+                    Flexible(
                       child: Text(
                         '${event.venue}, ${event.city}',
                         style: TheyDiTextStyles.caption,
@@ -289,7 +274,7 @@ class EventCardLarge extends StatelessWidget {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -297,21 +282,31 @@ class EventCardLarge extends StatelessWidget {
                         const Icon(Icons.people_outline,
                             size: 14, color: TheyDiColors.textMuted),
                         const SizedBox(width: 4),
-                        Text('${event.spotsLeft} spots left',
-                            style: TheyDiTextStyles.caption.copyWith(
-                              color: event.spotsLeft < 5
-                                  ? TheyDiColors.error
-                                  : TheyDiColors.textMuted,
-                            )),
+                        Text(
+                          '${event.spotsLeft} spots left',
+                          style: TheyDiTextStyles.caption.copyWith(
+                            color: event.spotsLeft < 5
+                                ? TheyDiColors.error
+                                : TheyDiColors.textMuted,
+                          ),
+                        ),
                       ]),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                            horizontal: 18, vertical: 8),
                         decoration: BoxDecoration(
                           gradient: TheyDiColors.gradientPrimary,
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  TheyDiColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        child: Text('View',
+                        child: Text('View Experience',
                             style: TheyDiTextStyles.labelMedium
                                 .copyWith(color: Colors.white)),
                       ),
@@ -328,28 +323,48 @@ class EventCardLarge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _CardShareMenu — the ⋮ popup menu used on both card variants
+// Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _CategoryPlaceholder extends StatelessWidget {
+  final String category;
+  final double size;
+  const _CategoryPlaceholder({required this.category, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(gradient: TheyDiColors.gradientPrimary),
+      child: Center(
+        child: Text(
+          category.isNotEmpty ? category[0] : 'E',
+          style: TheyDiTextStyles.displayMedium
+              .copyWith(color: Colors.white, fontSize: 20),
+        ),
+      ),
+    );
+  }
+}
+
 class _CardShareMenu extends StatelessWidget {
   final EventModel event;
-
-  /// When true, uses a dark semi-transparent background (for image overlays).
   final bool dark;
-
   const _CardShareMenu({required this.event, this.dark = false});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // Stop tap propagating to parent card's onTap
       onTap: () {},
       child: PopupMenuButton<String>(
         padding: EdgeInsets.zero,
         icon: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color:
-                dark ? Colors.black.withValues(alpha: 0.45) : TheyDiColors.card,
+            color: dark
+                ? Colors.black.withValues(alpha: 0.45)
+                : TheyDiColors.card,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: dark
@@ -374,16 +389,14 @@ class _CardShareMenu extends StatelessWidget {
               const Icon(Icons.share_outlined,
                   size: 18, color: TheyDiColors.primary),
               const SizedBox(width: 10),
-              Text('Share Event',
+              Text('Share Experience',
                   style: TheyDiTextStyles.labelMedium
                       .copyWith(color: Colors.white)),
             ]),
           ),
         ],
         onSelected: (value) {
-          if (value == 'share') {
-            showEventShareSheet(context, event: event);
-          }
+          if (value == 'share') showEventShareSheet(context, event: event);
         },
       ),
     );

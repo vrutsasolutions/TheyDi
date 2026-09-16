@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/services/encryption_service.dart';
+import '../../../../core/services/encryption_service.dart';
 
-import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/friends_service.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/friends_service.dart';
 import '../models/circle_model.dart';
-import '../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../../shared/widgets/avatar_online_status_dot.dart';
 
 // ── Providers ──
 

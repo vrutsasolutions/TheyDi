@@ -874,6 +874,34 @@ class NotificationService {
       return null;
     }
   }
+
+  // ─────────────────────────────────────────────────────────
+  // NEW: COMMUNITY CREATED — notify users a new community exists
+  // ─────────────────────────────────────────────────────────
+
+  /// In-app only (no email — this fans out to everyone, so email would be
+  /// spammy). MVP version notifies every uid it's given; the caller
+  /// currently passes every user in the app ("keep all of them notified"
+  /// per current scope). If/when interest-based targeting is wanted, swap
+  /// the uid list the caller builds — this method doesn't need to change.
+  /// At real scale this should move to a Cloud Function fan-out instead of
+  /// looping client-side over every user on each community creation.
+  static Future<void> notifyNewCommunityCreated({
+    required List<String> notifyUids,
+    required String communityId,
+    required String communityName,
+    required String category,
+    required String creatorName,
+  }) async {
+    for (final uid in notifyUids) {
+      await send(
+        toUid: uid,
+        title: '✨ New community: $communityName',
+        body: '$creatorName just started a "$category" community — check it out!',
+        type: 'social',
+      );
+    }
+  }
 }
 
 class _EmailAndName {

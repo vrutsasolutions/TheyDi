@@ -13,25 +13,25 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/utils/image_picker_helper.dart';
+import '../../../../core/utils/image_picker_helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
-import '../../../core/utils/video_thumbnail_helper.dart';
+import '../../../../core/utils/video_thumbnail_helper.dart';
 
-import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/friends_service.dart';
-import '../../../core/services/notification_service.dart';
-import '../../../core/utils/platform_helper.dart';
-import '../../../core/services/cloudflare_upload.dart';
-import '../../../shared/widgets/avatar_online_status_dot.dart';
-import '../../../core/services/encryption_service.dart';
-import '../../../shared/widgets/decrypted_text.dart';
-import '../../../shared/widgets/image_edit_screen.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/friends_service.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/utils/platform_helper.dart';
+import '../../../../core/services/cloudflare_upload.dart';
+import '../../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../../core/services/encryption_service.dart';
+import '../../../../shared/widgets/decrypted_text.dart';
+import '../../../../shared/widgets/image_edit_screen.dart';
 
 const _kEmojis = [
   '😀',

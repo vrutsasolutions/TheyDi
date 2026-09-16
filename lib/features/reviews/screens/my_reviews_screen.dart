@@ -98,12 +98,12 @@ class MyReviewsScreen extends ConsumerWidget {
                           provider: _receivedReviewsProvider,
                           emptyMessage: 'No reviews received yet',
                           emptySubtitle:
-                              'Host events to get reviews from attendees'),
+                              'Host experiences to get reviews from attendees'),
                       _ReviewList(
                           provider: _givenReviewsProvider,
                           emptyMessage: 'No reviews given yet',
                           emptySubtitle:
-                              'Attend events and share your feedback'),
+                              'Attend experiences and share your feedback'),
                     ],
                   ),
                 ),

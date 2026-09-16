@@ -12,7 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
-import '../../../core/utils/video_thumbnail_helper.dart';
+import '../../../../core/utils/video_thumbnail_helper.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,16 +22,16 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
 
-import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../models/circle_model.dart';
 import '../models/message_model.dart';
-import '../../../core/services/cloudflare_upload.dart';
-import '../../../core/utils/platform_helper.dart';
+import '../../../../core/services/cloudflare_upload.dart';
+import '../../../../core/utils/platform_helper.dart';
 import 'package:video_player/video_player.dart';
-import '../../../core/services/encryption_service.dart';
-import '../../../shared/widgets/decrypted_text.dart';
-import '../../../shared/widgets/image_edit_screen.dart';
+import '../../../../core/services/encryption_service.dart';
+import '../../../../shared/widgets/decrypted_text.dart';
+import '../../../../shared/widgets/image_edit_screen.dart';
 
 const _kEmojis = [
   '😀',

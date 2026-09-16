@@ -11,8 +11,8 @@ import 'package:theydi/core/theme/app_theme.dart';
 import 'package:theydi/core/utils/platform_helper.dart';
 import 'package:theydi/features/events/models/event_model.dart';
 import 'package:theydi/features/events/screens/event_detail_screen.dart';
-import 'package:theydi/features/circles/models/circle_model.dart';
-import 'package:theydi/features/circles/screens/circle_info_screen.dart';
+import 'package:theydi/features/inbox/circles/models/circle_model.dart';
+import 'package:theydi/features/inbox/circles/screens/circle_info_screen.dart';
 
 // ── Shared "sign in required" gate used by both deep-link screens below ──
 class _SignInRequiredGate extends StatelessWidget {

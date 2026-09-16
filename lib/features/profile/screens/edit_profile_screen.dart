@@ -25,10 +25,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _displayNameController = TextEditingController();
   final _bioController = TextEditingController();
   final _ageController = TextEditingController();
+  final _jobTitleController = TextEditingController();
+  final _organizationController = TextEditingController();
+  final _socialLinkController = TextEditingController();
 
   String _selectedCity = 'Chennai';
   String _selectedGender = '';
   final Set<String> _selectedInterests = {};
+
+  // ── "What brings you here" — set at signup, editable here too ──
+  String _purpose = ''; // 'Social' | 'Professional'
+  String _socialPlatform = ''; // 'LinkedIn' | 'Instagram' | 'Twitter'
+  static const _socialPlatforms = ['LinkedIn', 'Instagram', 'Twitter'];
 
   String _existingPhotoUrl = '';
   XFile? _pickedImageFile;
@@ -77,6 +85,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         final interests = List<String>.from(data['interests'] ?? []);
         _selectedInterests.addAll(interests);
+
+        _purpose = (data['purpose'] as String?) ?? '';
+        _jobTitleController.text = (data['jobTitle'] as String?) ?? '';
+        _organizationController.text = (data['organization'] as String?) ?? '';
+        final socialPlatform = (data['socialPlatform'] as String?) ?? '';
+        if (_socialPlatforms.contains(socialPlatform)) {
+          _socialPlatform = socialPlatform;
+        }
+        _socialLinkController.text = (data['socialLink'] as String?) ?? '';
       }
     } catch (e) {
       if (mounted) {
@@ -209,6 +226,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'profileImageUrl': photoUrl,
         'gender': _selectedGender,
         if (age != null) 'age': age,
+        'purpose': _purpose,
+        'jobTitle': _purpose == 'Professional'
+            ? _jobTitleController.text.trim()
+            : '',
+        'organization': _purpose == 'Professional'
+            ? _organizationController.text.trim()
+            : '',
+        'socialPlatform': _socialPlatform,
+        'socialLink': _socialLinkController.text.trim(),
       });
 
       await FirebaseAuth.instance.currentUser!
@@ -250,6 +276,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             image: imageProvider != null
                 ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
                 : null,
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: imageProvider == null
               ? ClipRRect(
@@ -272,6 +305,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               gradient: TheyDiColors.gradientPrimary,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: TheyDiColors.primary.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
           ),
@@ -285,6 +325,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _displayNameController.dispose();
     _bioController.dispose();
     _ageController.dispose();
+    _jobTitleController.dispose();
+    _organizationController.dispose();
+    _socialLinkController.dispose();
     super.dispose();
   }
 
@@ -515,6 +558,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   : _borderColor,
                               width: isSelected ? 1.5 : 1,
                             ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: TheyDiColors.primary
+                                          .withValues(alpha: 0.15),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ]
+                                : null,
                           ),
                           child: Text(
                             '$emoji $label',
@@ -534,6 +587,96 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 32),
 
+                  // ── About You: Social / Professional ──
+                  _buildLabel('What brings you here'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _PurposeChip(
+                          label: 'Social',
+                          icon: Icons.groups_outlined,
+                          isSelected: _purpose == 'Social',
+                          onTap: () => setState(() => _purpose = 'Social'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _PurposeChip(
+                          label: 'Professional',
+                          icon: Icons.work_outline,
+                          isSelected: _purpose == 'Professional',
+                          onTap: () =>
+                              setState(() => _purpose = 'Professional'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (_purpose == 'Professional') ...[
+                    const SizedBox(height: 20),
+                    _buildLabel('Job Title'),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: _jobTitleController,
+                      style: const TextStyle(color: _textColor, fontSize: 14),
+                      decoration: _inputDecoration('e.g. Product Designer'),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildLabel('Organization'),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: _organizationController,
+                      style: const TextStyle(color: _textColor, fontSize: 14),
+                      decoration: _inputDecoration('e.g. Acme Inc.'),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  _buildLabel('Social Link (optional)'),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: _fillColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _borderColor),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _socialPlatform.isEmpty ? null : _socialPlatform,
+                        hint: const Text('Select platform',
+                            style: TextStyle(color: _hintColor, fontSize: 14)),
+                        isExpanded: true,
+                        dropdownColor: Colors.white,
+                        style: const TextStyle(color: _textColor, fontSize: 14),
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            color: _hintColor),
+                        items: _socialPlatforms
+                            .map((p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(p,
+                                    style: const TextStyle(color: _textColor))))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _socialPlatform = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _socialLinkController,
+                    style: const TextStyle(color: _textColor, fontSize: 14),
+                    keyboardType: TextInputType.url,
+                    decoration:
+                        _inputDecoration('https://linkedin.com/in/you'),
+                  ),
+
+                  const SizedBox(height: 32),
+
                   // ── Save Button ──
                   SizedBox(
                     width: double.infinity,
@@ -547,6 +690,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             TheyDiColors.secondary,
                           ],
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: TheyDiColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _saveProfile,
@@ -611,6 +761,67 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+}
+
+class _PurposeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PurposeChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: isSelected ? TheyDiColors.gradientPrimary : null,
+          color: isSelected ? null : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : const Color(0xFFE5E7EB),
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: TheyDiColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 20,
+                color: isSelected ? Colors.white : const Color(0xFF4B5563)),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF4B5563),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

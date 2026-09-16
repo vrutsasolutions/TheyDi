@@ -55,7 +55,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Event circle already exists! Opening it...'),
+            content: Text('Experience circle already exists! Opening it...'),
             backgroundColor: Colors.blue,
           ),
         );
@@ -69,7 +69,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Create Event Circle?',
+        title: Text('Create Experience Circle?',
             style: TheyDiTextStyles.headlineMedium),
         content: Text(
           'This will create a group chat called '
@@ -234,7 +234,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                         widget.event.attendeeUids.contains(_myUid) &&
                         _myUid != widget.event.creatorUid)
                       Tooltip(
-                        message: 'Event has started',
+                        message: 'Experience has started',
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 7),
@@ -285,7 +285,7 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                         label: Text(
                           _creatingCircle
                               ? 'Creating...'
-                              : 'Create Event Circle',
+                              : 'Create Experience Circle',
                           style: const TextStyle(
                               color: Colors.white, fontWeight: FontWeight.w600),
                         ),

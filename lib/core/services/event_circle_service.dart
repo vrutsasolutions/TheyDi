@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../features/circles/models/circle_model.dart';
+import '../../features/inbox/circles/models/circle_model.dart';
 import '../../features/events/models/event_model.dart';
 
 class EventCircleService {

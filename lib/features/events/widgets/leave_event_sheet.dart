@@ -95,7 +95,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
               Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
               SizedBox(width: 8),
               Text(
-                'Successfully left event 🚪',
+                'Successfully left experience 🚪',
                 style:
                     TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
@@ -153,6 +153,13 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: const Icon(Icons.exit_to_app, color: Colors.red, size: 22),
             ),
@@ -161,7 +168,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Leave Event', style: TheyDiTextStyles.displayMedium),
+                    Text('Leave Experience', style: TheyDiTextStyles.displayMedium),
                     Text(widget.event.title,
                         style: TheyDiTextStyles.caption
                             .copyWith(color: TheyDiColors.textSecondary),
@@ -178,7 +185,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
             _WarningBanner(
               icon: Icons.warning_amber_rounded,
               color: Colors.orange,
-              message: 'This event has already started. '
+              message: 'This experience has already started. '
                   'Leaving now may affect your trust score more.',
             ).animate(delay: 60.ms).fade(duration: 300.ms),
             const SizedBox(height: 14),
@@ -189,7 +196,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
             _WarningBanner(
               icon: Icons.shield_outlined,
               color: Colors.amber,
-              message: 'Leaving this free event will reduce your '
+              message: 'Leaving this free experience will reduce your '
                   'TheyDi trust score by 2 points. Frequent cancellations '
                   'may limit your ability to join future events.',
             ).animate(delay: 60.ms).fade(duration: 300.ms),
@@ -253,7 +260,7 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
                       : const Icon(Icons.exit_to_app,
                           color: Colors.white, size: 16),
                   label: Text(
-                    _leaving ? 'Leaving...' : 'Leave Event',
+                    _leaving ? 'Leaving...' : 'Leave Experience',
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.w600),
                   ),
@@ -261,7 +268,8 @@ class _LeaveEventSheetState extends State<LeaveEventSheet> {
                     backgroundColor: Colors.red,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
+                    elevation: 4,
+                    shadowColor: Colors.red.withValues(alpha: 0.4),
                   ),
                 ),
               ),

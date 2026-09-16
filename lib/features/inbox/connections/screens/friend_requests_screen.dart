@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/friends_service.dart';
-import '../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/friends_service.dart';
+import '../../../../shared/widgets/avatar_online_status_dot.dart';
 
 class FriendRequestsScreen extends StatelessWidget {
   const FriendRequestsScreen({super.key});
@@ -46,7 +46,7 @@ class FriendRequestsScreen extends StatelessWidget {
                       },
                     ),
                     const SizedBox(width: 4),
-                    Text('Friend Requests',
+                    Text('Connection Requests',
                         style: TheyDiTextStyles.displayMedium),
                   ],
                 ),
@@ -73,8 +73,26 @@ class FriendRequestsScreen extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.people_outline,
-                                size: 64, color: Colors.grey[700]),
+                            Container(
+                              width: 84,
+                              height: 84,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    TheyDiColors.primary
+                                        .withValues(alpha: 0.15),
+                                    TheyDiColors.primary
+                                        .withValues(alpha: 0.05),
+                                  ],
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.people_outline,
+                                  size: 36, color: TheyDiColors.primary),
+                            ),
                             const SizedBox(height: 16),
                             Text('No pending requests',
                                 style: TheyDiTextStyles.headlineMedium),
@@ -152,7 +170,7 @@ class _RequestCardState extends State<_RequestCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('You and ${widget.fromName} are now friends! 🎉'),
+            content: Text('You and ${widget.fromName} are now connected! 🎉'),
             backgroundColor: Colors.green,
           ),
         );
@@ -174,7 +192,7 @@ class _RequestCardState extends State<_RequestCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Friend request from ${widget.fromName} declined.'),
+            content: Text('Connection request from ${widget.fromName} declined.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -214,10 +232,24 @@ class _RequestCardState extends State<_RequestCard> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: TheyDiColors.card,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  TheyDiColors.card,
+                  TheyDiColors.primary.withValues(alpha: 0.05),
+                ],
+              ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                   color: TheyDiColors.primary.withValues(alpha: 0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: TheyDiColors.primary.withValues(alpha: 0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,6 +266,14 @@ class _RequestCardState extends State<_RequestCard> {
                           decoration: BoxDecoration(
                             gradient: TheyDiColors.gradientPrimary,
                             borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    TheyDiColors.primary.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(13),

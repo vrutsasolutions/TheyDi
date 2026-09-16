@@ -46,422 +46,6 @@ class HostDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
-  Future<void> _showBankDetailsBottomSheet(BuildContext context) async {
-    // ── Load existing (masked) payout details via Cloud Function ──
-    // Real values are never sent to the device here — only masked strings
-    // like "••••9012". The Cloud Function decrypts server-side just to
-    // build the mask, then discards the plaintext.
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    Map<String, dynamic> existingData = {};
-
-    if (uid != null) {
-      try {
-        final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-            .httpsCallable('getMyPayoutDetailsMasked');
-        final result = await callable.call();
-        final payoutData = result.data as Map<dynamic, dynamic>? ?? {};
-        if (payoutData['exists'] == true) {
-          existingData = {
-            'payoutMethod': payoutData['payoutMethod'] ?? 'bank',
-            'bankAccountName': payoutData['name'],
-            'bankIfsc': payoutData['ifscMasked'],
-            'bankAccountNumber': payoutData['accountNumberMasked'],
-            'upiId': payoutData['upiIdMasked'],
-          };
-        }
-      } catch (e) {
-        debugPrint('Error fetching masked payout details: $e');
-      }
-    }
-
-    String payoutMethod = existingData['payoutMethod'] ?? 'bank';
-    final existingName = (existingData['bankAccountName'] ?? '').toString();
-    final existingIfsc = (existingData['bankIfsc'] ?? '').toString();
-    final existingAccount =
-        (existingData['bankAccountNumber'] ?? '').toString();
-    final existingUpi = (existingData['upiId'] ?? '').toString();
-
-    final hasExisting = payoutMethod == 'bank'
-        ? (existingName.isNotEmpty &&
-            existingIfsc.isNotEmpty &&
-            existingAccount.isNotEmpty)
-        : existingUpi.isNotEmpty;
-
-    // NOTE: these controllers are prefilled with MASKED values
-    // ("••••9012") when read-only. When the host taps "Update Details"
-    // and the fields become editable, we clear them so they type fresh
-    // real values instead of accidentally re-saving the mask itself.
-    final nameCtrl = TextEditingController(text: existingName);
-    final ifscCtrl = TextEditingController(text: existingIfsc);
-    final accCtrl = TextEditingController(text: existingAccount);
-    final upiCtrl = TextEditingController(text: existingUpi);
-
-    if (!context.mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: TheyDiColors.card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          // isEditing = false means read-only view; true means editable
-          bool isEditing = !hasExisting;
-          bool isSaving = false;
-
-          return StatefulBuilder(
-            builder: (context, setInnerState) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                  left: 24,
-                  right: 24,
-                  top: 24,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Header ──
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            hasExisting ? 'Bank Details' : 'Setup Host Payouts',
-                            style: TheyDiTextStyles.headlineMedium,
-                          ),
-                        ),
-                        if (hasExisting && !isEditing)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.verified_outlined,
-                                    color: Colors.green, size: 14),
-                                const SizedBox(width: 4),
-                                Text('Saved',
-                                    style: TheyDiTextStyles.caption.copyWith(
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      hasExisting
-                          ? isEditing
-                              ? 'Edit your bank details below and save.'
-                              : 'Your bank details are saved. Tap "Update Details" to change them.'
-                          : 'Add your bank details to receive automatic payouts for your paid events.',
-                      style: TheyDiTextStyles.bodySmall
-                          .copyWith(color: TheyDiColors.textSecondary),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Fields ──
-                    if (isEditing) ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          color: TheyDiColors.divider.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setInnerState(() => payoutMethod = 'bank'),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 250),
-                                  curve: Curves.easeInOut,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: payoutMethod == 'bank'
-                                        ? TheyDiColors.primary
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text('Bank Account',
-                                        style: TextStyle(
-                                          color: payoutMethod == 'bank'
-                                              ? Colors.white
-                                              : TheyDiColors.textPrimary,
-                                          fontWeight: FontWeight.w600,
-                                        )),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setInnerState(() => payoutMethod = 'upi'),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 250),
-                                  curve: Curves.easeInOut,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: payoutMethod == 'upi'
-                                        ? TheyDiColors.primary
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text('UPI',
-                                        style: TextStyle(
-                                          color: payoutMethod == 'upi'
-                                              ? Colors.white
-                                              : TheyDiColors.textPrimary,
-                                          fontWeight: FontWeight.w600,
-                                        )),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder:
-                          (Widget child, Animation<double> animation) {
-                        return FadeTransition(
-                            opacity: animation,
-                            child: SizeTransition(
-                                sizeFactor: animation, child: child));
-                      },
-                      child: payoutMethod == 'bank'
-                          ? Column(
-                              key: const ValueKey('bank'),
-                              children: [
-                                TextFormField(
-                                  controller: nameCtrl,
-                                  enabled: isEditing,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  decoration: InputDecoration(
-                                    labelText: 'Account Holder Name',
-                                    prefixIcon:
-                                        const Icon(Icons.person_outline),
-                                    filled: !isEditing,
-                                    fillColor: TheyDiColors.divider
-                                        .withValues(alpha: 0.3),
-                                    suffixIcon: !isEditing
-                                        ? const Icon(Icons.lock_outline,
-                                            size: 16,
-                                            color: TheyDiColors.textMuted)
-                                        : null,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                TextFormField(
-                                  controller: ifscCtrl,
-                                  enabled: isEditing,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  decoration: InputDecoration(
-                                    labelText: 'IFSC Code',
-                                    hintText: 'e.g. HDFC0001234',
-                                    prefixIcon: const Icon(
-                                        Icons.account_balance_outlined),
-                                    filled: !isEditing,
-                                    fillColor: TheyDiColors.divider
-                                        .withValues(alpha: 0.3),
-                                    suffixIcon: !isEditing
-                                        ? const Icon(Icons.lock_outline,
-                                            size: 16,
-                                            color: TheyDiColors.textMuted)
-                                        : null,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                TextFormField(
-                                  controller: accCtrl,
-                                  enabled: isEditing,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  keyboardType: TextInputType.number,
-                                  obscureText:
-                                      !isEditing, // mask account number when locked
-                                  decoration: InputDecoration(
-                                    labelText: 'Account Number',
-                                    prefixIcon:
-                                        const Icon(Icons.numbers_outlined),
-                                    filled: !isEditing,
-                                    fillColor: TheyDiColors.divider
-                                        .withValues(alpha: 0.3),
-                                    suffixIcon: !isEditing
-                                        ? const Icon(Icons.lock_outline,
-                                            size: 16,
-                                            color: TheyDiColors.textMuted)
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              key: const ValueKey('upi'),
-                              children: [
-                                TextFormField(
-                                  controller: upiCtrl,
-                                  enabled: isEditing,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  decoration: InputDecoration(
-                                    labelText: 'UPI ID (VPA)',
-                                    hintText: 'e.g. username@bank',
-                                    prefixIcon: const Icon(Icons.payment),
-                                    filled: !isEditing,
-                                    fillColor: TheyDiColors.divider
-                                        .withValues(alpha: 0.3),
-                                    suffixIcon: !isEditing
-                                        ? const Icon(Icons.lock_outline,
-                                            size: 16,
-                                            color: TheyDiColors.textMuted)
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Button ──
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: hasExisting && !isEditing
-                          // READ-ONLY: show "Update Details" to unlock
-                          ? OutlinedButton.icon(
-                              icon: const Icon(Icons.edit_outlined, size: 18),
-                              label: const Text('Update Details'),
-                              onPressed: () {
-                                // Clear masked values so the host types
-                                // fresh real ones instead of re-saving
-                                // "••••9012" as if it were the real number.
-                                nameCtrl.clear();
-                                ifscCtrl.clear();
-                                accCtrl.clear();
-                                upiCtrl.clear();
-                                setInnerState(() => isEditing = true);
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: TheyDiColors.primary,
-                                side: const BorderSide(
-                                    color: TheyDiColors.primary),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                            )
-                          // EDIT MODE: save button
-                          : ElevatedButton(
-                              onPressed: isSaving
-                                  ? null
-                                  : () async {
-                                      if (payoutMethod == 'bank') {
-                                        if (nameCtrl.text.trim().isEmpty ||
-                                            ifscCtrl.text.trim().isEmpty ||
-                                            accCtrl.text.trim().isEmpty) {
-                                          ScaffoldMessenger.of(ctx)
-                                              .showSnackBar(const SnackBar(
-                                                  content: Text(
-                                                      'Please fill all bank fields')));
-                                          return;
-                                        }
-                                      } else {
-                                        if (upiCtrl.text.trim().isEmpty) {
-                                          ScaffoldMessenger.of(ctx)
-                                              .showSnackBar(const SnackBar(
-                                                  content: Text(
-                                                      'Please enter your UPI ID')));
-                                          return;
-                                        }
-                                      }
-
-                                      setInnerState(() => isSaving = true);
-                                      try {
-                                        // This Cloud Function encrypts the
-                                        // sensitive fields server-side before
-                                        // writing to Firestore. This callable
-                                        // is the ONLY write path for payout
-                                        // data — Firestore rules block any
-                                        // direct client write to this doc.
-                                        final callable =
-                                            FirebaseFunctions.instanceFor(
-                                                    region: 'asia-south1')
-                                                .httpsCallable(
-                                                    'savePayoutDetails');
-                                        await callable.call({
-                                          'payoutMethod': payoutMethod,
-                                          'upiId': upiCtrl.text.trim(),
-                                          'name': nameCtrl.text.trim(),
-                                          'ifsc': ifscCtrl.text.trim(),
-                                          'accountNumber': accCtrl.text.trim(),
-                                        });
-
-                                        if (mounted) {
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(SnackBar(
-                                            content: Text(hasExisting
-                                                ? 'Payout details updated!'
-                                                : 'Payout details saved!'),
-                                            backgroundColor: Colors.green,
-                                          ));
-                                        }
-                                      } catch (e) {
-                                        setInnerState(() => isSaving = false);
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(ctx)
-                                              .showSnackBar(SnackBar(
-                                                  content: Text('Error: $e'),
-                                                  backgroundColor: Colors.red));
-                                        }
-                                      }
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: TheyDiColors.primary,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: isSaving
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                          color: Colors.white, strokeWidth: 2))
-                                  : Text(
-                                      hasExisting
-                                          ? 'Save Updated Details'
-                                          : 'Save Details',
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                            ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
   void _showPayoutSettingsSheet() {
     showDialog(
       context: context,
@@ -699,10 +283,10 @@ class _HostDashboardScreenState extends ConsumerState<HostDashboardScreen> {
         children: [
           Icon(Icons.analytics_outlined, size: 64, color: Colors.grey[700]),
           const SizedBox(height: 16),
-          Text('No events created yet', style: TheyDiTextStyles.headlineMedium),
+          Text('No experiences created yet', style: TheyDiTextStyles.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Create your first event to see analytics here',
+            'Create your first experience to see analytics here',
             style: TheyDiTextStyles.bodySmall
                 .copyWith(color: TheyDiColors.textSecondary),
           ),
@@ -800,15 +384,15 @@ class _DashboardContent extends StatelessWidget {
               const SizedBox(height: 12),
               _RuleItem(
                   text:
-                      'Payouts will be credited to your linked bank account within 24 hours after your event completes successfully.'),
+                      'Payouts will be credited to your linked bank account within 24 hours after your experience completes successfully.'),
               const SizedBox(height: 8),
               _RuleItem(
                   text:
-                      'Ensure your bank details are correct before event completion. Incorrect details may lead to payment loss.'),
+                      'Ensure your bank details are correct before experience completion. Incorrect details may lead to payment loss.'),
               const SizedBox(height: 8),
               _RuleItem(
                   text:
-                      'Events can only be cancelled up to 48 hours prior to the scheduled start time.'),
+                      'Experiences can only be cancelled up to 48 hours prior to the scheduled start time.'),
               const SizedBox(height: 8),
               _RuleItem(
                   text:
@@ -824,7 +408,7 @@ class _DashboardContent extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 icon: Icons.event,
-                label: 'Total events',
+                label: 'Total experiences',
                 value: totalEvents.toString(),
                 iconColor: Colors.blue,
               ),
@@ -868,7 +452,7 @@ class _DashboardContent extends StatelessWidget {
         const SizedBox(height: 24),
 
         // Event performance
-        Text('Event performance', style: TheyDiTextStyles.labelLarge)
+        Text('Experience performance', style: TheyDiTextStyles.labelLarge)
             .animate(delay: 250.ms)
             .fade(duration: 300.ms),
         const SizedBox(height: 4),
@@ -1071,7 +655,7 @@ class _EventPerformanceCard extends StatelessWidget {
                         TheyDiTextStyles.caption.copyWith(color: Colors.green)),
               ],
               if (event.isFree)
-                Text('Free event',
+                Text('Free experience',
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textMuted)),
             ],

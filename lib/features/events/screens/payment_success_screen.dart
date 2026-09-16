@@ -53,6 +53,13 @@ class PaymentSuccessScreen extends StatelessWidget {
                       color: Colors.green.withValues(alpha: 0.4),
                       width: 2,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withValues(alpha: 0.25),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.check_rounded,
@@ -79,7 +86,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                 const SizedBox(height: 8),
 
                 Text(
-                  'You\'re all set for this event',
+                  'You\'re all set for this experience',
                   style: TheyDiTextStyles.bodySmall
                       .copyWith(color: TheyDiColors.textSecondary),
                 ).animate(delay: 300.ms).fade(duration: 300.ms),
@@ -94,6 +101,13 @@ class PaymentSuccessScreen extends StatelessWidget {
                     color: TheyDiColors.card,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: TheyDiColors.divider),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -151,6 +165,13 @@ class PaymentSuccessScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       gradient: TheyDiColors.gradientPrimary,
+                      boxShadow: [
+                        BoxShadow(
+                          color: TheyDiColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: ElevatedButton(
                       onPressed: () => context.go(AppRoutes.myEvents),
@@ -162,7 +183,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'View My Events',
+                        'View My Experiences',
                         style: TheyDiTextStyles.labelLarge
                             .copyWith(color: Colors.white, fontSize: 16),
                       ),

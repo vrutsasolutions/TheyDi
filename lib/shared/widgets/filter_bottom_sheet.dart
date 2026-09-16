@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
-// ── Shared picker theme — white background, black text, emerald selection ──────
+// ─────────────────────────────────────────────────────────────────────────────
+// filter_bottom_sheet.dart
+// UI change: "event" → "experience" in all visible labels.
+// Responsive: DraggableScrollableSheet handles all heights safely.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Shared picker theme ────────────────────────────────────────────────────────
 ThemeData _pickerTheme(BuildContext context) => ThemeData(
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF10B981),
@@ -14,45 +20,45 @@ ThemeData _pickerTheme(BuildContext context) => ThemeData(
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFF10B981),
-        ),
+            foregroundColor: const Color(0xFF10B981)),
       ),
       datePickerTheme: DatePickerThemeData(
         backgroundColor: Colors.white,
         headerBackgroundColor: const Color(0xFF10B981),
         headerForegroundColor: Colors.white,
-        dayForegroundColor: WidgetStateColor.resolveWith((states) =>
-            states.contains(WidgetState.selected)
+        dayForegroundColor: WidgetStateColor.resolveWith((s) =>
+            s.contains(WidgetState.selected)
                 ? Colors.white
                 : const Color(0xFF111827)),
-        dayBackgroundColor: WidgetStateColor.resolveWith((states) =>
-            states.contains(WidgetState.selected)
+        dayBackgroundColor: WidgetStateColor.resolveWith((s) =>
+            s.contains(WidgetState.selected)
                 ? const Color(0xFF10B981)
                 : Colors.transparent),
-        todayForegroundColor: WidgetStateColor.resolveWith((states) =>
-            states.contains(WidgetState.selected)
+        todayForegroundColor: WidgetStateColor.resolveWith((s) =>
+            s.contains(WidgetState.selected)
                 ? Colors.white
                 : const Color(0xFF10B981)),
-        todayBackgroundColor: WidgetStateColor.resolveWith((states) =>
-            states.contains(WidgetState.selected)
+        todayBackgroundColor: WidgetStateColor.resolveWith((s) =>
+            s.contains(WidgetState.selected)
                 ? const Color(0xFF10B981)
                 : Colors.transparent),
-        todayBorder: const BorderSide(color: Color(0xFF10B981), width: 1),
+        todayBorder:
+            const BorderSide(color: Color(0xFF10B981), width: 1),
         weekdayStyle: const TextStyle(
             color: Color(0xFF4B5563), fontWeight: FontWeight.w600),
         dayStyle: const TextStyle(color: Color(0xFF111827)),
-        yearForegroundColor: WidgetStateColor.resolveWith((states) =>
-            states.contains(WidgetState.selected)
+        yearForegroundColor: WidgetStateColor.resolveWith((s) =>
+            s.contains(WidgetState.selected)
                 ? Colors.white
                 : const Color(0xFF111827)),
-        yearBackgroundColor: WidgetStateColor.resolveWith((states) =>
-            states.contains(WidgetState.selected)
+        yearBackgroundColor: WidgetStateColor.resolveWith((s) =>
+            s.contains(WidgetState.selected)
                 ? const Color(0xFF10B981)
                 : Colors.transparent),
       ),
     );
 
-// ── Filter data model ─────────────────────────────────────────────────────────
+// ── Filter data model ──────────────────────────────────────────────────────────
 class EventFilters {
   String? category;
   String? city;
@@ -88,16 +94,13 @@ class EventFilters {
     ..dateTo = dateTo;
 }
 
-// ── Filter bottom sheet ───────────────────────────────────────────────────────
+// ── Filter bottom sheet ────────────────────────────────────────────────────────
 class FilterBottomSheet extends StatefulWidget {
   final EventFilters filters;
   final ValueChanged<EventFilters> onApply;
 
-  const FilterBottomSheet({
-    super.key,
-    required this.filters,
-    required this.onApply,
-  });
+  const FilterBottomSheet(
+      {super.key, required this.filters, required this.onApply});
 
   static void show({
     required BuildContext context,
@@ -108,7 +111,8 @@ class FilterBottomSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => FilterBottomSheet(filters: filters, onApply: onApply),
+      builder: (_) =>
+          FilterBottomSheet(filters: filters, onApply: onApply),
     );
   }
 
@@ -169,14 +173,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     super.dispose();
   }
 
-  // ── Date pickers — light theme for full visibility ────────────────────────
   Future<void> _pickFrom() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _local.dateFrom ?? DateTime.now(),
       firstDate: DateTime(2024),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (ctx, child) => Theme(data: _pickerTheme(ctx), child: child!),
+      builder: (ctx, child) =>
+          Theme(data: _pickerTheme(ctx), child: child!),
     );
     if (picked != null) setState(() => _local.dateFrom = picked);
   }
@@ -185,10 +189,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _local.dateTo ??
-          (_local.dateFrom ?? DateTime.now()).add(const Duration(days: 1)),
+          (_local.dateFrom ?? DateTime.now())
+              .add(const Duration(days: 1)),
       firstDate: _local.dateFrom ?? DateTime(2024),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (ctx, child) => Theme(data: _pickerTheme(ctx), child: child!),
+      builder: (ctx, child) =>
+          Theme(data: _pickerTheme(ctx), child: child!),
     );
     if (picked != null) setState(() => _local.dateTo = picked);
   }
@@ -202,11 +208,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   void _apply() {
     final priceText = _priceController.text.trim();
-    if (priceText.isNotEmpty) {
-      _local.maxPrice = double.tryParse(priceText);
-    } else {
-      _local.maxPrice = null;
-    }
+    _local.maxPrice =
+        priceText.isNotEmpty ? double.tryParse(priceText) : null;
     widget.onApply(_local);
     Navigator.pop(context);
   }
@@ -224,7 +227,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         ),
         child: Column(
           children: [
-            // ── Handle ──
+            // Handle
             Container(
               margin: const EdgeInsets.only(top: 12, bottom: 4),
               width: 40,
@@ -235,38 +238,45 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               ),
             ),
 
-            // ── Header ──
+            // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
                 children: [
-                  Text('Filters',
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827))),
-                  const Spacer(),
-                  if (_local.hasActiveFilters)
-                    GestureDetector(
-                      onTap: _clearAll,
-                      child: const Text('Clear all',
-                          style: TextStyle(
-                              color: Color(0xFF10B981),
-                              fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Filter Experiences',
+                    style: TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _clearAll,
+                    child: const Text(
+                      'Clear all',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
 
             const Divider(height: 1, color: Color(0xFFE5E7EB)),
 
-            // ── Scrollable content ──
+            // Scrollable content
             Expanded(
               child: ListView(
                 controller: controller,
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 children: [
-                  // ── Category ──────────────────────────────────────────────
+                  // ── Category ─────────────────────────────────────────────
                   _SectionLabel('Category'),
                   const SizedBox(height: 10),
                   Wrap(
@@ -275,8 +285,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     children: _kCategories.map((cat) {
                       final selected = _local.category == cat;
                       return GestureDetector(
-                        onTap: () => setState(
-                            () => _local.category = selected ? null : cat),
+                        onTap: () => setState(() =>
+                            _local.category = selected ? null : cat),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
                           padding: const EdgeInsets.symmetric(
@@ -311,49 +321,59 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
                   const SizedBox(height: 20),
 
-                  // ── City ──────────────────────────────────────────────────
+                  // ── City ─────────────────────────────────────────────────
                   _SectionLabel('City'),
                   const SizedBox(height: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _local.city,
-                        hint: const Text('All cities',
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _kCities.map((city) {
+                      final selected = _local.city == city;
+                      return GestureDetector(
+                        onTap: () => setState(
+                            () => _local.city = selected ? null : city),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: selected
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Text(
+                            city,
                             style: TextStyle(
-                                color: Color(0xFF9CA3AF), fontSize: 14)),
-                        isExpanded: true,
-                        dropdownColor: Colors.white,
-                        icon: const Icon(Icons.keyboard_arrow_down,
-                            color: Color(0xFF9CA3AF)),
-                        style: const TextStyle(
-                            color: Color(0xFF111827), fontSize: 14),
-                        items: [
-                          const DropdownMenuItem(
-                              value: null, child: Text('All cities')),
-                          ..._kCities.map((c) =>
-                              DropdownMenuItem(value: c, child: Text(c))),
-                        ],
-                        onChanged: (v) => setState(() => _local.city = v),
-                      ),
-                    ),
+                              color: selected
+                                  ? Colors.white
+                                  : const Color(0xFF374151),
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // ── Price ─────────────────────────────────────────────────
+                  // ── Price ────────────────────────────────────────────────
                   _SectionLabel('Price'),
                   const SizedBox(height: 10),
                   Row(children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _local.freeOnly = false),
+                        onTap: () =>
+                            setState(() => _local.freeOnly = false),
                         child: _TogglePill(
                           label: 'Any price',
                           selected: _local.freeOnly != true,
@@ -363,7 +383,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _local.freeOnly = true),
+                        onTap: () =>
+                            setState(() => _local.freeOnly = true),
                         child: _TogglePill(
                           label: 'Free only',
                           selected: _local.freeOnly == true,
@@ -377,7 +398,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     TextField(
                       controller: _priceController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly
+                      ],
                       style: const TextStyle(
                           color: Color(0xFF111827), fontSize: 14),
                       decoration: InputDecoration(
@@ -392,13 +415,13 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                             horizontal: 16, vertical: 14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFE5E7EB)),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE5E7EB)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFE5E7EB)),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE5E7EB)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -411,7 +434,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
                   const SizedBox(height: 20),
 
-                  // ── Date range ────────────────────────────────────────────
+                  // ── Date range ───────────────────────────────────────────
                   _SectionLabel('Date range'),
                   const SizedBox(height: 10),
                   Row(children: [
@@ -433,9 +456,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       child: _DateTile(
                         label: 'To',
                         date: _local.dateTo,
-                        onTap: _local.dateFrom != null ? _pickTo : null,
+                        onTap:
+                            _local.dateFrom != null ? _pickTo : null,
                         onClear: _local.dateTo != null
-                            ? () => setState(() => _local.dateTo = null)
+                            ? () =>
+                                setState(() => _local.dateTo = null)
                             : null,
                       ),
                     ),
@@ -446,9 +471,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               ),
             ),
 
-            // ── Apply button ──
+            // Apply button
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              padding:
+                  const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -460,6 +486,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            const Color(0xFF10B981).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: TextButton(
                     onPressed: _apply,
@@ -484,7 +518,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 }
 
-// ── Small helper widgets ──────────────────────────────────────────────────────
+// ── Small helpers ──────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String text;
@@ -509,18 +543,24 @@ class _TogglePill extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10B981) : const Color(0xFFF3F4F6),
+          color: selected
+              ? const Color(0xFF10B981)
+              : const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF10B981) : const Color(0xFFE5E7EB),
+            color: selected
+                ? const Color(0xFF10B981)
+                : const Color(0xFFE5E7EB),
           ),
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF374151),
-              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color:
+                  selected ? Colors.white : const Color(0xFF374151),
+              fontWeight:
+                  selected ? FontWeight.w600 : FontWeight.normal,
               fontSize: 13,
             ),
           ),
@@ -544,10 +584,12 @@ class _DateTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color:
-              date != null ? const Color(0xFFECFDF5) : const Color(0xFFF3F4F6),
+          color: date != null
+              ? const Color(0xFFECFDF5)
+              : const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: date != null
@@ -567,14 +609,17 @@ class _DateTile extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                date != null ? DateFormat('d MMM').format(date!) : label,
+                date != null
+                    ? DateFormat('d MMM').format(date!)
+                    : label,
                 style: TextStyle(
                   color: date != null
                       ? const Color(0xFF111827)
                       : const Color(0xFF9CA3AF),
                   fontSize: 13,
-                  fontWeight:
-                      date != null ? FontWeight.w500 : FontWeight.normal,
+                  fontWeight: date != null
+                      ? FontWeight.w500
+                      : FontWeight.normal,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -582,8 +627,8 @@ class _DateTile extends StatelessWidget {
             if (onClear != null)
               GestureDetector(
                 onTap: onClear,
-                child:
-                    const Icon(Icons.close, size: 14, color: Color(0xFF9CA3AF)),
+                child: const Icon(Icons.close,
+                    size: 14, color: Color(0xFF9CA3AF)),
               ),
           ],
         ),

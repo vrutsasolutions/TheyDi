@@ -291,7 +291,7 @@ class _ConnectedTab extends ConsumerWidget {
           return _EmptyState(
             icon: Icons.people_outline,
             title: 'No friends yet',
-            subtitle: 'Attend events to connect with people',
+            subtitle: 'Attend experiences to connect with people',
           );
         }
         return ListView.builder(
@@ -413,7 +413,7 @@ class _SuggestedFriendsTab extends ConsumerWidget {
             icon: Icons.person_search_outlined,
             title: 'No suggestions yet',
             subtitle:
-                'Attend more events to discover people with similar interests',
+                'Attend more experiences to discover people with similar interests',
           );
         }
         return ListView.builder(

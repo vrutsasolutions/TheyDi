@@ -51,13 +51,11 @@ service cloud.firestore {
     }
     
     // ── OTPs ──────────────────────────────────────────────────────────────────
-    // Used during signup & forgot password before login
     match /otps/{email} {
       allow read, write, delete: if true;
     }
     
     // ── USERNAMES ─────────────────────────────────────────────────────────────
-    // Critical for uniqueness checks during signup
     match /usernames/{username} {
       allow read: if true;
       allow create: if isAuth();
@@ -66,10 +64,8 @@ service cloud.firestore {
 
     // ── USERS ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
-  	// Allow unauthenticated read so forgot-password can check if email exists
   	allow read: if true;
   
-  	// Allow create by owner, update by owner OR admin OR host rating system
   	allow create: if isAuth() &&
       request.auth.uid == userId &&
       !hasReferralFields(request.resource.data);
@@ -79,15 +75,12 @@ service cloud.firestore {
     isAdmin()
   	);
   
-      
       allow delete: if isAuth() && request.auth.uid == userId;
   
-      // users/{uid}/private — Used for sensitive info like bank details
       match /private/{document=**} {
          allow read, write: if isOwner(userId);
       }
 
-      // users/{uid}/friends — FriendsHubScreen connected tab reads this
       match /friends/{friendId} {
          allow read, write: if isAuth();
       }
@@ -95,12 +88,19 @@ service cloud.firestore {
       match /friendRequests/{requestId} {
          allow read, create, update, delete: if isAuth();
       }
+
+      // FIX: missing rule was causing permission-denied on every read of
+      // this subcollection — the root cause of the Suggestions/Sent tabs
+      // getting stuck (see connections_tab.dart: sentRequestsProvider and
+      // suggestionsProvider both depend on this collection).
+      match /sentFriendRequests/{requestId} {
+         allow read, create, update, delete: if isAuth();
+      }
       
       match /blocked/{blockedUid} {
          allow read, write: if isOwner(userId);
       }
       
-      // users/{uid}/notifications — NotificationsScreen reads this path
       match /notifications/{notifId} {
   		allow read: if isOwner(userId);
   		allow create: if isAuth() && (
@@ -108,17 +108,20 @@ service cloud.firestore {
     	get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
   		);
   		allow update, delete: if isOwner(userId);
-}
+      }
+
+      // users/{uid}/communityRequests — mirror of pending community join
+      // requests, so "my requested communities" is a cheap direct query.
+      match /communityRequests/{communityId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ── EVENTS ────────────────────────────────────────────────────────────────
     match /events/{eventId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      
-      // Any signed-in user can update (needed for attendees joining/leaving)
       allow update: if isAuth();
-      
       allow delete: if isAuth() && (
         resource.data.creatorUid == request.auth.uid ||
         resource.data.organizerUid == request.auth.uid
@@ -135,7 +138,6 @@ service cloud.firestore {
          allow delete: if false;
       }
       
-      // NEW: pendingMeta subcollection for tracking the status of join requests (age/gender limits)
       match /pendingMeta/{uid} {
         allow read: if isAuth();
         allow write: if isAuth() && (
@@ -153,14 +155,12 @@ service cloud.firestore {
     }
 
     // ── REVIEWS (Collection Group & Root) ─────────────────────────────────────
-    // Allows querying across all event reviews, and writing to the root reviews collection
     match /{path=**}/reviews/{reviewId} {
       allow read: if isAuth();
       allow create: if isAuth() && request.auth.uid == request.resource.data.reviewerUid;
       allow update, delete: if isAuth() && resource.data.reviewerUid == request.auth.uid;
     }
     
-    // Root level reviews collection (used by submit_review_screen.dart)
     match /reviews/{reviewId} {
       allow read: if isAuth();
       allow create: if isAuth() && request.auth.uid == request.resource.data.reviewerUid;
@@ -168,8 +168,6 @@ service cloud.firestore {
     }
 
     // ── BOOKINGS ──────────────────────────────────────────────────────────────
-    // Host Dashboard queries: .where('hostUid', isEqualTo: uid)
-    // Booking screen queries: .where('userId', isEqualTo: uid)
     match /bookings/{bookingId} {
       allow read: if isAuth() && (
         resource.data.userId == request.auth.uid ||
@@ -199,6 +197,41 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow read, write: if isCircleMember(circleId);
+      }
+
+      match /clearedBy/{userId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── COMMUNITIES ───────────────────────────────────────────────────────────
+    // Open, interest-based groups anyone can create — see CommunityModel for
+    // the comparison with Circles. Mirrors the Circles rules above, plus a
+    // joinRequests subcollection for approval-gated communities.
+    match /communities/{communityId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == request.resource.data.creatorUid;
+      allow update: if isAuth() && (
+        resource.data.creatorUid == request.auth.uid ||
+        request.auth.uid in resource.data.memberUids
+      );
+      allow delete: if isAuth() && resource.data.creatorUid == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow read, write: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/communities/$(communityId)).data.memberUids;
+      }
+
+      match /joinRequests/{uid} {
+        allow read: if isAuth() && (
+          request.auth.uid == uid ||
+          request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.creatorUid
+        );
+        allow create: if isAuth() && request.auth.uid == uid;
+        allow delete: if isAuth() && (
+          request.auth.uid == uid ||
+          request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.creatorUid
+        );
       }
 
       match /clearedBy/{userId} {
@@ -285,11 +318,10 @@ service cloud.firestore {
     }
 
     // ── REPORTS ───────────────────────────────────────────────────────────────
-    // Allows users to report accounts
     match /reports/{reportId} {
       allow create: if isAuth();
-      allow read: if isAuth() && resource.data.reporterUid == request.auth.uid; // ALLOWS users to read their own reports so report_problem_screen.dart does not break
-      allow update, delete: if false; // Only admins can update/delete reports from backend
+      allow read: if isAuth() && resource.data.reporterUid == request.auth.uid;
+      allow update, delete: if false;
     }
 		
     	match /verificationRequests/{userId} {
@@ -300,21 +332,18 @@ service cloud.firestore {
 		}
     
     // ── HOTFIX: ALLOW USERS TO SEND NOTIFICATIONS ─────────────────────────
-    // This allows attendees to trigger "Request to Join" notifications 
-    // to the host's notification subcollection.
     match /users/{userId}/notifications/{notifId} {
       allow create: if isAuth();
     }
+
     // ── REFUNDS ───────────────────────────────────────────────────────────────
-    // Allows attendees to create a refund request when leaving a paid event
     match /refunds/{refundId} {
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow read: if isAuth() && resource.data.userId == request.auth.uid;
-      allow update, delete: if false; // Only backend can process or update refunds
+      allow update, delete: if false;
     }
     
     // ── ACTIVITY LOG ──────────────────────────────────────────────────────────
-    // Allows logging user activities (e.g. trust score changes)
     match /users/{userId}/activityLog/{logId} {
       allow read, write: if isOwner(userId);
     }

@@ -195,7 +195,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _processing = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Friend request sent! 👋'),
+          content: Text('Connection request sent! 👋'),
           backgroundColor: Colors.green));
     }
   }
@@ -213,8 +213,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _processing = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('You and ${_userData['displayName']} are now friends! 🎉'),
+          content: Text(
+              'You and ${_userData['displayName']} are now connected! 🎉'),
           backgroundColor: Colors.green));
     }
   }
@@ -237,8 +237,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _removeFriend() async {
     final confirmed = await _confirmDialog(
-      title: 'Remove Friend?',
-      body: 'Remove ${_userData['displayName']} from your friends?',
+      title: 'Remove Connection?',
+      body: 'Remove ${_userData['displayName']} from your connections?',
       confirm: 'Remove',
     );
     if (!confirmed) return;
@@ -250,7 +250,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _processing = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Friend removed'), backgroundColor: Colors.grey));
+          content: Text('Connection removed'), backgroundColor: Colors.grey));
     }
   }
 
@@ -750,15 +750,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 Row(children: [
                                   if (showEventsAttended)
                                     _StatCard(
-                                        label: 'Events Attended',
-                                        value: eventsAttended),
+                                        label: 'Experiences Attended',
+                                        value: eventsAttended,
+                                        icon: Icons.local_activity_outlined),
                                   if (!showEventsAttended)
                                     const SizedBox(width: 0),
                                   if (showEventsAttended)
                                     const SizedBox(width: 12),
                                   _StatCard(
-                                      label: 'Events Created',
-                                      value: eventsCreated),
+                                      label: 'Experiences Created',
+                                      value: eventsCreated,
+                                      icon: Icons.auto_awesome_outlined),
                                 ]).animate(delay: 160.ms).fade(duration: 300.ms),
 
                                 // ── Interests ──
@@ -1097,23 +1099,66 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
-  const _StatCard({required this.label, required this.value});
+  final IconData icon;
+  const _StatCard({
+    required this.label,
+    required this.value,
+    this.icon = Icons.insights_outlined,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
         decoration: BoxDecoration(
-          color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: TheyDiColors.divider),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              TheyDiColors.card,
+              TheyDiColors.primary.withValues(alpha: 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border:
+              Border.all(color: TheyDiColors.primary.withValues(alpha: 0.18)),
+          boxShadow: [
+            BoxShadow(
+              color: TheyDiColors.primary.withValues(alpha: 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(children: [
-          Text(value, style: TheyDiTextStyles.displayMedium),
-          const SizedBox(height: 4),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              gradient: TheyDiColors.gradientPrimary,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: TheyDiColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 15),
+          ),
+          const SizedBox(height: 8),
+          Text(value,
+              style: TheyDiTextStyles.displayMedium
+                  .copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 3),
           Text(label,
-              style: TheyDiTextStyles.caption, textAlign: TextAlign.center),
+              style: TheyDiTextStyles.caption.copyWith(
+                color: TheyDiColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center),
         ]),
       ),
     );

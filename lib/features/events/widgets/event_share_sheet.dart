@@ -174,7 +174,7 @@ class _EventShareSheetState extends State<EventShareSheet> {
       content: const Row(children: [
         Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
         SizedBox(width: 8),
-        Text('Event shared successfully! 🚀',
+        Text('Experience shared successfully! 🚀',
             style: TextStyle(color: TheyDiColors.textPrimary)),
       ]),
       backgroundColor: TheyDiColors.card,
@@ -251,7 +251,7 @@ class _EventShareSheetState extends State<EventShareSheet> {
             const Icon(Icons.share_outlined,
                 color: TheyDiColors.primary, size: 22),
             const SizedBox(width: 10),
-            Text('Share Event', style: TheyDiTextStyles.displayMedium),
+            Text('Share Experience', style: TheyDiTextStyles.displayMedium),
           ]).animate().fade(duration: 250.ms).slideY(begin: 0.2, end: 0),
           const SizedBox(height: 4),
           Text(
@@ -682,7 +682,7 @@ class _InAppFriendEventShareSheetState
           'eventName': widget.event.title,
           'eventLink': link,
           'text':
-              '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
+              '🎉 $senderName shared an experience: "${widget.event.title}"\n$link',
           'createdAt': now,
           'seen': false,
           'deliveredAt': null,
@@ -690,7 +690,7 @@ class _InAppFriendEventShareSheetState
         });
 
         await chatRef.update({
-          'lastMessage': 'Shared an event',
+          'lastMessage': 'Shared an experience',
           'lastMessageSenderId': myUid,
           'updatedAt': Timestamp.now(),
         });
@@ -704,7 +704,7 @@ class _InAppFriendEventShareSheetState
                 color: Colors.green, size: 18),
             const SizedBox(width: 8),
             Text(
-                'Event shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+                'Experience shared to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
                 style: const TextStyle(color: TheyDiColors.textPrimary)),
           ]),
           backgroundColor: TheyDiColors.card,
@@ -718,7 +718,7 @@ class _InAppFriendEventShareSheetState
       if (mounted) {
         setState(() => _sending = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not share event: $e',
+          content: Text('Could not share experience: $e',
               style: const TextStyle(color: TheyDiColors.textPrimary)),
           backgroundColor: TheyDiColors.card,
           behavior: SnackBarBehavior.floating,
@@ -925,7 +925,7 @@ class _InAppCircleEventShareSheetState
           'eventName': widget.event.title,
           'eventLink': link,
           'text':
-              '🎉 $senderName shared an event: "${widget.event.title}"\n$link',
+              '🎉 $senderName shared an experience: "${widget.event.title}"\n$link',
           'senderUid': myUid,
           'senderName': senderName,
           'createdAt': now,
@@ -937,7 +937,7 @@ class _InAppCircleEventShareSheetState
             .collection('circles')
             .doc(circleId)
             .update({
-          'lastMessage': '📅 Shared an event',
+          'lastMessage': '📅 Shared an experience',
           'lastMessageSender': senderName,
           'lastMessageAt': now,
         });
@@ -954,7 +954,7 @@ class _InAppCircleEventShareSheetState
                     color: Colors.green, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Event shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
+                  'Experience shared to ${_selected.length} circle${_selected.length > 1 ? 's' : ''}! 🎉',
                   style: const TextStyle(color: TheyDiColors.textPrimary),
                 ),
               ],
@@ -975,7 +975,7 @@ class _InAppCircleEventShareSheetState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Could not share event: $e',
+              'Could not share experience: $e',
               style: const TextStyle(color: TheyDiColors.textPrimary),
             ),
             backgroundColor: TheyDiColors.card,
@@ -1028,7 +1028,7 @@ class _InAppCircleEventShareSheetState
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
-                        'You have no circles to share this event to.',
+                        'You have no circles to share this experience to.',
                         style: TheyDiTextStyles.bodyMedium
                             .copyWith(color: TheyDiColors.textSecondary),
                         textAlign: TextAlign.center,

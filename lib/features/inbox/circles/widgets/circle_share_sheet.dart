@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../services/circle_share_service.dart';
-import 'package:theydi/features/circles/models/circle_model.dart';
+import 'package:theydi/features/inbox/circles/models/circle_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Usage (from CircleInfoScreen):

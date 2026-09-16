@@ -1,0 +1,1010 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../services/community_share_service.dart';
+import 'package:theydi/features/inbox/community/models/community_model.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Usage (from CommunityInfoScreen):
+//   showCommunityShareSheet(context, community: _community);
+// ─────────────────────────────────────────────────────────────────────────────
+
+void showCommunityShareSheet(BuildContext context, {required CommunityModel community}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => CommunityShareSheet(community: community, parentContext: context),
+  );
+}
+
+class CommunityShareSheet extends StatefulWidget {
+  final CommunityModel community;
+  final BuildContext parentContext; // ← stable context from the calling screen
+  const CommunityShareSheet({
+    super.key,
+    required this.community,
+    required this.parentContext,
+  });
+
+  @override
+  State<CommunityShareSheet> createState() => _CommunityShareSheetState();
+}
+
+class _CommunityShareSheetState extends State<CommunityShareSheet> {
+  bool _linkCopied = false;
+
+  Future<void> _copyLink() async {
+    await CommunityShareService.copyLink(context, widget.community);
+    if (!mounted) return;
+    setState(() => _linkCopied = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _linkCopied = false);
+  }
+
+  Future<void> _shareExternal(String url, String platformName) async {
+    if (platformName == 'Instagram') {
+      final text = CommunityShareService.buildShareText(widget.community);
+      await Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Link copied! Paste it in Instagram.',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
+        backgroundColor: TheyDiColors.card,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ));
+    }
+
+    final launched = await CommunityShareService.launchExternal(url);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not open $platformName',
+            style: const TextStyle(color: TheyDiColors.textPrimary)),
+        backgroundColor: TheyDiColors.card,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } else if (launched && mounted) {
+      Navigator.pop(context);
+      if (platformName != 'Instagram') {
+        _showSuccessToast();
+      }
+    }
+  }
+
+  void _showSuccessToast() {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Row(children: [
+        Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+        SizedBox(width: 8),
+        Text('Community invite shared! 🚀',
+            style: TextStyle(color: TheyDiColors.textPrimary)),
+      ]),
+      backgroundColor: TheyDiColors.card,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
+  /// In-app share: sends a community_invite message to one or more of the
+  /// current user's friends via DM chat.
+  void _shareToFriends() {
+    Navigator.pop(context); // close this sheet first
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.parentContext.mounted) return;
+      showModalBottomSheet(
+        context: widget.parentContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _InAppFriendCommunityShareSheet(community: widget.community),
+      );
+    });
+  }
+
+  void _showInAppInviteSheet() {
+    Navigator.pop(context); // close this sheet first
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.parentContext.mounted) return;
+      showModalBottomSheet(
+        context: widget.parentContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _InAppCommunityInviteSheet(community: widget.community),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final community = widget.community;
+    final link = CommunityShareService.communityLink(community.id);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Handle ──
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: TheyDiColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Header ──
+          Row(children: [
+            const Icon(Icons.group_outlined,
+                color: TheyDiColors.primary, size: 22),
+            const SizedBox(width: 10),
+            Text('Invite to Community', style: TheyDiTextStyles.displayMedium),
+          ]).animate().fade(duration: 250.ms).slideY(begin: 0.2, end: 0),
+          const SizedBox(height: 4),
+          Text(
+            'Share "${community.name}" and grow your community!',
+            style: TheyDiTextStyles.caption
+                .copyWith(color: TheyDiColors.textSecondary),
+          ).animate(delay: 50.ms).fade(duration: 250.ms),
+
+          const SizedBox(height: 20),
+
+          // ── Community preview card ──
+          _CommunityPreviewCard(community: community)
+              .animate(delay: 80.ms)
+              .fade(duration: 300.ms)
+              .slideY(begin: 0.15, end: 0),
+
+          const SizedBox(height: 20),
+
+          // ── Link row ──
+          _LinkRow(link: link, copied: _linkCopied, onCopy: _copyLink)
+              .animate(delay: 120.ms)
+              .fade(duration: 300.ms),
+
+          const SizedBox(height: 20),
+
+          // ── Section label ──
+          Text('Share via',
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textMuted, letterSpacing: 0.8)),
+          const SizedBox(height: 14),
+
+          // ── Share option buttons ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _ShareOption(
+                icon: Icons.people_outline,
+                label: 'Communities',
+                color: TheyDiColors.primary,
+                onTap: _showInAppInviteSheet,
+                delay: 150,
+              ),
+              _ShareOption(
+                icon: Icons.person_outline,
+                label: 'Friends',
+                color: TheyDiColors.info,
+                onTap: _shareToFriends,
+                delay: 165,
+              ),
+              _ShareOption(
+                assetLabel: 'WA',
+                label: 'WhatsApp',
+                color: const Color(0xFF25D366),
+                onTap: () => _shareExternal(
+                    CommunityShareService.whatsAppUrl(community), 'WhatsApp'),
+                delay: 180,
+              ),
+              _ShareOption(
+                assetLabel: 'FB',
+                label: 'Facebook',
+                color: const Color(0xFF1877F2),
+                onTap: () => _shareExternal(
+                    CommunityShareService.facebookUrl(community), 'Facebook'),
+                delay: 240,
+              ),
+              _ShareOption(
+                assetLabel: 'X',
+                label: 'X / Twitter',
+                color: Colors.white,
+                bgColor: Colors.black,
+                onTap: () =>
+                    _shareExternal(CommunityShareService.twitterUrl(community), 'X'),
+                delay: 270,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Cancel ──
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel',
+                  style: TheyDiTextStyles.labelMedium
+                      .copyWith(color: TheyDiColors.textSecondary)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-App Invite Sheet — lets user forward the invite to their other communities
+// ─────────────────────────────────────────────────────────────────────────────
+class _InAppCommunityInviteSheet extends StatefulWidget {
+  final CommunityModel community;
+  const _InAppCommunityInviteSheet({required this.community});
+
+  @override
+  State<_InAppCommunityInviteSheet> createState() =>
+      _InAppCommunityInviteSheetState();
+}
+
+class _InAppCommunityInviteSheetState extends State<_InAppCommunityInviteSheet> {
+  List<Map<String, dynamic>> _otherCommunities = [];
+  final Set<String> _selected = {};
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOtherCommunities();
+  }
+
+  Future<void> _loadOtherCommunities() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snap = await FirebaseFirestore.instance
+        .collection('communities')
+        .where('memberUids', arrayContains: uid)
+        .get();
+
+    final others = snap.docs
+        .where((d) => d.id != widget.community.id)
+        .map((d) => {'id': d.id, 'name': d['name'] ?? 'Community'})
+        .toList();
+
+    if (mounted) {
+      setState(() {
+        _otherCommunities = others;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _sendInvites() async {
+    if (_selected.isEmpty) return;
+    setState(() => _sending = true);
+
+    final senderName =
+        FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+    final link = CommunityShareService.communityLink(widget.community.id);
+    final now = Timestamp.now();
+
+    for (final communityId in _selected) {
+      await FirebaseFirestore.instance
+          .collection('communities')
+          .doc(communityId)
+          .collection('messages')
+          .add({
+        'type': 'community_invite',
+
+        'communityId': widget.community.id,
+        'communityName': widget.community.name,
+        'communityLink': link,
+
+        'text':
+            '👥 $senderName invited you to join "${widget.community.name}"\n$link',
+
+        // Match the schema used by community_chat_screen
+        'senderUid': FirebaseAuth.instance.currentUser!.uid,
+        'senderName': senderName,
+        'createdAt': now,
+        'seenBy': [FirebaseAuth.instance.currentUser!.uid],
+      });
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+          const SizedBox(width: 8),
+          Text(
+              'Invite sent to ${_selected.length} community${_selected.length > 1 ? 's' : ''}! 🎉',
+              style: const TextStyle(color: TheyDiColors.textPrimary)),
+        ]),
+        backgroundColor: TheyDiColors.card,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: TheyDiColors.divider,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          Row(
+            children: [
+              const Icon(Icons.send_outlined,
+                  color: TheyDiColors.primary, size: 20),
+              const SizedBox(width: 10),
+              Text('Send to Communities', style: TheyDiTextStyles.displayMedium),
+              const Spacer(),
+              if (_selected.isNotEmpty)
+                GestureDetector(
+                  onTap: _sending ? null : _sendInvites,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      gradient: TheyDiColors.gradientPrimary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: _sending
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text('Send (${_selected.length})',
+                            style: TheyDiTextStyles.labelMedium
+                                .copyWith(color: Colors.white)),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Select communities to send the invite to',
+            style: TheyDiTextStyles.caption
+                .copyWith(color: TheyDiColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+
+          if (_loading)
+            const Center(
+                child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(color: TheyDiColors.primary),
+            ))
+          else if (_otherCommunities.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'You have no other communities to send this to.',
+                  style: TheyDiTextStyles.bodySmall
+                      .copyWith(color: TheyDiColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView(
+                shrinkWrap: true,
+                children: _otherCommunities.map((c) {
+                  final isSelected = _selected.contains(c['id']);
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      if (isSelected) {
+                        _selected.remove(c['id']);
+                      } else {
+                        _selected.add(c['id']);
+                      }
+                    }),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? TheyDiColors.primary.withValues(alpha: 0.12)
+                            : TheyDiColors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? TheyDiColors.primary
+                              : TheyDiColors.divider,
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            gradient: TheyDiColors.gradientPrimary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text(
+                              (c['name'] as String).isNotEmpty
+                                  ? (c['name'] as String)[0].toUpperCase()
+                                  : '?',
+                              style: TheyDiTextStyles.labelMedium
+                                  .copyWith(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(c['name'],
+                              style: TheyDiTextStyles.labelMedium),
+                        ),
+                        if (isSelected)
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: TheyDiColors.primary),
+                            child: const Icon(Icons.check,
+                                size: 13, color: Colors.white),
+                          )
+                        else
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: TheyDiColors.divider)),
+                          ),
+                      ]),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel',
+                  style: TheyDiTextStyles.labelMedium
+                      .copyWith(color: TheyDiColors.textSecondary)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Community Preview Card
+// ─────────────────────────────────────────────────────────────────────────────
+class _CommunityPreviewCard extends StatelessWidget {
+  final CommunityModel community;
+  const _CommunityPreviewCard({required this.community});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TheyDiColors.divider),
+      ),
+      child: Row(children: [
+        // Avatar
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            gradient: TheyDiColors.gradientPrimary,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: community.coverImageUrl != null &&
+                  community.coverImageUrl!.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(
+                    community.coverImageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _Initial(community.initials),
+                  ),
+                )
+              : _Initial(community.initials),
+        ),
+        const SizedBox(width: 12),
+
+        // Details
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                child: Text(community.name,
+                    style: TheyDiTextStyles.labelLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              if (community.requiresApproval) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Approval Req.',
+                      style: TheyDiTextStyles.caption.copyWith(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10)),
+                ),
+              ],
+            ]),
+            const SizedBox(height: 3),
+            if (community.description.isNotEmpty)
+              Text(community.description,
+                  style: TheyDiTextStyles.caption
+                      .copyWith(color: TheyDiColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 3),
+            Row(children: [
+              const Icon(Icons.people_outline,
+                  size: 12, color: TheyDiColors.textMuted),
+              const SizedBox(width: 4),
+              Text(
+                  '${community.memberCount} member${community.memberCount == 1 ? '' : 's'}',
+                  style: TheyDiTextStyles.caption),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Initial extends StatelessWidget {
+  final String text;
+  const _Initial(this.text);
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Text(text,
+            style: TheyDiTextStyles.displayMedium
+                .copyWith(color: Colors.white, fontSize: 20)),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Link Row
+// ─────────────────────────────────────────────────────────────────────────────
+class _LinkRow extends StatelessWidget {
+  final String link;
+  final bool copied;
+  final VoidCallback onCopy;
+  const _LinkRow(
+      {required this.link, required this.copied, required this.onCopy});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: copied
+              ? Colors.green.withValues(alpha: 0.6)
+              : TheyDiColors.divider,
+        ),
+      ),
+      child: Row(children: [
+        Icon(
+          copied ? Icons.check_circle_outline : Icons.link_outlined,
+          size: 16,
+          color: copied ? Colors.green : TheyDiColors.textMuted,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(link,
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onCopy,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: copied
+                ? Text('Copied!',
+                    key: const ValueKey('copied'),
+                    style: TheyDiTextStyles.caption.copyWith(
+                        color: Colors.green, fontWeight: FontWeight.w700))
+                : Text('Copy',
+                    key: const ValueKey('copy'),
+                    style: TheyDiTextStyles.caption.copyWith(
+                        color: TheyDiColors.primary,
+                        fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Share Option button
+// ─────────────────────────────────────────────────────────────────────────────
+class _ShareOption extends StatelessWidget {
+  final IconData? icon;
+  final String? assetLabel;
+  final String label;
+  final Color color;
+  final Color? bgColor;
+  final VoidCallback onTap;
+  final int delay;
+
+  const _ShareOption({
+    this.icon,
+    this.assetLabel,
+    required this.label,
+    required this.color,
+    this.bgColor,
+    required this.onTap,
+    required this.delay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: bgColor ?? color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border:
+                  Border.all(color: color.withValues(alpha: 0.25), width: 1),
+            ),
+            child: Center(
+              child: icon != null
+                  ? Icon(icon, color: color, size: 24)
+                  : Text(
+                      assetLabel!,
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label,
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: TheyDiColors.textSecondary, fontSize: 10)),
+        ],
+      )
+          .animate(delay: Duration(milliseconds: delay))
+          .fade(duration: 250.ms)
+          .scale(begin: const Offset(0.85, 0.85), end: const Offset(1, 1)),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-App Share Sheet — sends community_invite message to selected friends
+// ─────────────────────────────────────────────────────────────────────────────
+class _InAppFriendCommunityShareSheet extends StatefulWidget {
+  final CommunityModel community;
+  const _InAppFriendCommunityShareSheet({required this.community});
+
+  @override
+  State<_InAppFriendCommunityShareSheet> createState() =>
+      _InAppFriendCommunityShareSheetState();
+}
+
+class _InAppFriendCommunityShareSheetState
+    extends State<_InAppFriendCommunityShareSheet> {
+  List<Map<String, dynamic>> _friends = [];
+  final Set<String> _selected = {};
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFriends();
+  }
+
+  Future<void> _loadFriends() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('friends')
+        .get();
+
+    if (mounted) {
+      setState(() {
+        _friends = snap.docs
+            .map((d) =>
+                {'id': d.id, 'name': d.data()['displayName'] ?? 'Friend'})
+            .toList();
+        _loading = false;
+      });
+    }
+  }
+
+  String _generateChatId(String uid1, String uid2) {
+    final sorted = [uid1, uid2]..sort();
+    return '${sorted[0]}_${sorted[1]}';
+  }
+
+  Future<void> _send() async {
+    if (_selected.isEmpty) return;
+
+    setState(() => _sending = true);
+
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) {
+      setState(() => _sending = false);
+      return;
+    }
+
+    final senderName =
+        FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+    final link = CommunityShareService.communityLink(widget.community.id);
+    final now = Timestamp.now();
+
+    try {
+      for (final friendUid in _selected) {
+        final chatId = _generateChatId(myUid, friendUid);
+        final chatRef =
+            FirebaseFirestore.instance.collection('chats').doc(chatId);
+
+        final chatSnap = await chatRef.get();
+
+        if (!chatSnap.exists) {
+          await chatRef.set({
+            'participants': [myUid, friendUid],
+            'type': 'dm',
+            'lastMessage': null,
+            'lastMessageSenderId': null,
+            'updatedAt': now,
+            'createdAt': now,
+          });
+        }
+
+        await chatRef.collection('messages').add({
+          'senderId': myUid,
+          'senderName': senderName,
+
+          'type': 'community_invite',
+
+          'communityId': widget.community.id,
+          'communityName': widget.community.name,
+          'communityLink': link,
+
+          'text':
+              '👥 $senderName invited you to join "${widget.community.name}"\n$link',
+
+          // Match the format used by your normal chat messages
+          'timestamp': now,
+          'seen': false,
+          'deliveredAt': null,
+          'readBy': [myUid],
+        });
+
+        await chatRef.update({
+          'lastMessage': 'Shared a community invite',
+          'lastMessageSenderId': myUid,
+          'updatedAt': now,
+        });
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Invite sent to ${_selected.length} friend${_selected.length > 1 ? 's' : ''}! 🎉',
+                  style: const TextStyle(color: TheyDiColors.textPrimary),
+                ),
+              ],
+            ),
+            backgroundColor: TheyDiColors.card,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+        color: TheyDiColors.card,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Share to Friends', style: TheyDiTextStyles.displaySmall),
+              const SizedBox(height: 16),
+              if (_loading)
+                const Expanded(
+                    child: Center(child: CircularProgressIndicator()))
+              else if (_friends.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Text('No friends yet.',
+                        style: TheyDiTextStyles.bodyMedium
+                            .copyWith(color: TheyDiColors.textSecondary)),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _friends.length,
+                    itemBuilder: (context, index) {
+                      final f = _friends[index];
+                      final isSelected = _selected.contains(f['id']);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: TheyDiColors.primary.withAlpha(25),
+                          child: const Icon(Icons.person,
+                              color: TheyDiColors.primary),
+                        ),
+                        title:
+                            Text(f['name'], style: TheyDiTextStyles.labelLarge),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle,
+                                color: TheyDiColors.primary)
+                            : const Icon(Icons.circle_outlined,
+                                color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selected.remove(f['id']);
+                            } else {
+                              _selected.add(f['id']);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel',
+                            style: TheyDiTextStyles.labelLarge
+                                .copyWith(color: TheyDiColors.textSecondary)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TheyDiColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          elevation: 0,
+                        ),
+                        onPressed:
+                            (_selected.isEmpty || _sending) ? null : _send,
+                        child: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Text('Send (${_selected.length})',
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ));
+  }
+}

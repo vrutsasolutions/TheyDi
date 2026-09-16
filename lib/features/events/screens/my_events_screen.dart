@@ -73,7 +73,7 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen>
 children: [
   const SizedBox(width: 4),
   Text(
-    'My Events',
+    'My Experiences',
     style: TheyDiTextStyles.displayMedium,
   ).animate().fade(duration: 400.ms),
   const Spacer(),
@@ -108,8 +108,8 @@ children: [
                                 .where('attendeeUids', arrayContains: uid)
                                 .snapshots(),
                             emptyEmoji: '🎉',
-                            emptyUpcomingMessage: 'No events joined yet',
-                            emptyPastMessage: 'No past events attended',
+                            emptyUpcomingMessage: 'No experiences joined yet',
+                            emptyPastMessage: 'No past experiences attended',
                             badgeLabel: 'Attending',
                             currentUid: uid,
                             roleLabel: 'Attended',
@@ -121,7 +121,7 @@ children: [
                                 .snapshots(),
                             emptyEmoji: '⏱️',
                             emptyUpcomingMessage: 'No pending requests',
-                            emptyPastMessage: 'No past requested events',
+                            emptyPastMessage: 'No past requested experiences',
                             badgeLabel: 'Requested',
                             currentUid: uid,
                             roleLabel: 'Requested',
@@ -133,8 +133,8 @@ children: [
                                 .snapshots(),
                             emptyEmoji: '🎪',
                             emptyUpcomingMessage:
-                                'You haven\'t created any events',
-                            emptyPastMessage: 'No past hosted events',
+                                'You haven\'t created any experiences',
+                            emptyPastMessage: 'No past hosted experiences',
                             badgeLabel: 'Hosting',
                             currentUid: uid,
                             roleLabel: 'Hosted',
@@ -367,7 +367,7 @@ class _EventsTab extends StatelessWidget {
         }
         if (snapshot.hasError) {
           return Center(
-              child: Text('Error loading events',
+              child: Text('Error loading experiences',
                   style: TheyDiTextStyles.bodySmall));
         }
 
@@ -382,7 +382,7 @@ class _EventsTab extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _SectionHeader(title: 'Upcoming Events'),
+            _SectionHeader(title: 'Upcoming Experiences'),
             if (upcomingEvents.isEmpty)
               _SectionEmpty(message: emptyUpcomingMessage)
             else
@@ -397,7 +397,7 @@ class _EventsTab extends StatelessWidget {
                       .fade(duration: 300.ms)
                       .slideX(begin: 0.08, end: 0)),
             const SizedBox(height: 24),
-            _SectionHeader(title: 'Past Events'),
+            _SectionHeader(title: 'Past Experiences'),
             if (pastEvents.isEmpty)
               _SectionEmpty(message: emptyPastMessage)
             else

@@ -18,16 +18,16 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/services/cloudflare_upload.dart';
-import '../../../shared/screens/image_cropper_screen.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/event_circle_service.dart';
+import '../../../../core/services/cloudflare_upload.dart';
+import '../../../../shared/screens/image_cropper_screen.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/event_circle_service.dart';
 import '../models/circle_model.dart';
 
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
 
-import '../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../../shared/widgets/avatar_online_status_dot.dart';
 
 const _kCircleReportReasons = [
   'Spam or unwanted content',
@@ -574,8 +574,17 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                           color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
-                    Text('Circle Info', style: TheyDiTextStyles.displayMedium),
-                    const Spacer(),
+                    // FIX: was displayMedium — on a phone-width screen,
+                    // sharing this Row with the back button + two pill
+                    // buttons made the title dominate and crowd/overflow
+                    // the buttons. headlineMedium + Expanded/ellipsis
+                    // keeps it readable without squeezing the buttons.
+                    Expanded(
+                      child: Text('Circle Info',
+                          style: TheyDiTextStyles.headlineMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
 
                     // ── NEW: Share button (all members) ──
                     _buildShareButton(),
@@ -604,10 +613,29 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                   height: 14,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              : Text(_editing ? 'Save' : 'Edit',
-                                  style: TheyDiTextStyles.caption.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600)),
+                              // FIX: Share has an icon + label, Edit was
+                              // label-only with identical padding — that
+                              // mismatch is exactly what made Edit read as
+                              // "small" next to Share. Added a matching
+                              // icon (pencil / check) so both buttons carry
+                              // the same visual weight.
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                        _editing
+                                            ? Icons.check
+                                            : Icons.edit_outlined,
+                                        size: 14,
+                                        color: Colors.white),
+                                    const SizedBox(width: 5),
+                                    Text(_editing ? 'Save' : 'Edit',
+                                        style: TheyDiTextStyles.caption
+                                            .copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                         ),
                       ),
 
@@ -736,7 +764,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                           Colors.orange.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Text('Event',
+                                    child: Text('Experience',
                                         style: TheyDiTextStyles.caption
                                             .copyWith(
                                                 color: Colors.orange,

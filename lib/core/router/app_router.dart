@@ -47,22 +47,27 @@ import 'package:theydi/features/settings/screens/help_support_screen.dart';
 import 'package:theydi/features/reviews/screens/submit_review_screen.dart';
 import 'package:theydi/features/reviews/screens/my_reviews_screen.dart';
 import 'package:theydi/features/host/screens/host_dashboard_screen.dart';
-import 'package:theydi/features/circles/screens/circles_list_screen.dart';
-import 'package:theydi/features/circles/screens/create_circle_screen.dart';
-import 'package:theydi/features/circles/screens/circle_chat_screen.dart';
-import 'package:theydi/features/circles/models/circle_model.dart';
+import 'package:theydi/features/inbox/circles/screens/create_circle_screen.dart';
+import 'package:theydi/features/inbox/circles/screens/circle_chat_screen.dart';
+import 'package:theydi/features/inbox/circles/models/circle_model.dart';
 import 'package:theydi/features/events/screens/host_manage_screen.dart';
 import 'package:theydi/features/search/screens/search_screen.dart';
 import 'package:theydi/features/events/screens/attendees_screen.dart';
-import 'package:theydi/features/profile/screens/friend_requests_screen.dart';
-import 'package:theydi/features/circles/screens/dm_chat_screen.dart';
+import 'package:theydi/features/inbox/connections/screens/friend_requests_screen.dart';
+import 'package:theydi/features/inbox/circles/screens/dm_chat_screen.dart';
 import 'package:theydi/features/profile/screens/user_profile_screen.dart';
-import 'package:theydi/features/circles/screens/circle_info_screen.dart';
-import 'package:theydi/features/profile/screens/friend_info_screen.dart';
-import 'package:theydi/features/profile/screens/friends_hub_screen.dart';
-import 'package:theydi/features/profile/screens/circle_discovery_screen.dart';
-import 'package:theydi/features/profile/screens/invite_friends_screen.dart';
-import 'package:theydi/features/profile/screens/referral_invite_screen.dart';
+import 'package:theydi/features/inbox/circles/screens/circle_info_screen.dart';
+import 'package:theydi/features/inbox/connections/screens/friend_info_screen.dart';
+// FriendsHubScreen is retired in favor of InboxScreen below — its file can
+// be deleted once you've confirmed nothing else references it directly.
+import 'package:theydi/features/inbox/inbox_screen.dart';
+import 'package:theydi/features/inbox/community/screens/create_community_screen.dart';
+import 'package:theydi/features/inbox/community/screens/community_chat_screen.dart';
+import 'package:theydi/features/inbox/community/screens/community_info_screen.dart';
+import 'package:theydi/features/inbox/community/models/community_model.dart';
+import 'package:theydi/features/inbox/circles/screens/circle_discovery_screen.dart';
+import 'package:theydi/features/inbox/connections/screens/invite_friends_screen.dart';
+import 'package:theydi/features/inbox/connections/screens/referral_invite_screen.dart';
 import 'package:theydi/features/settings/screens/settings_screen.dart';
 import 'package:theydi/features/settings/screens/blocked_users_screen.dart';
 import 'package:theydi/features/settings/screens/report_problem_screen.dart';
@@ -301,7 +306,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.createCircle,
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const CreateCircleScreen(),
+        builder: (context, state) {
+          // FIX: was `const CreateCircleScreen()` — always ignored any
+          // extra data, so the post-experience-creation flow (which pushes
+          // {'eventId': ..., 'eventTitle': ...}) had nothing to receive it.
+          final extra = state.extra as Map<String, dynamic>?;
+          return CreateCircleScreen(
+            linkedEventId: extra?['eventId'] as String?,
+            linkedEventTitle: extra?['eventTitle'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.circleChat,
@@ -314,6 +328,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             );
           }
           return CircleChatScreen(circle: circle);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.communityChat,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final community = state.extra as CommunityModel?;
+          if (community == null) {
+            return const Scaffold(
+              body: Center(child: Text('Community not found')),
+            );
+          }
+          return CommunityChatScreen(community: community);
         },
       ),
       GoRoute(
@@ -378,6 +405,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.communityInfo,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final community = state.extra as CommunityModel?;
+          if (community == null) {
+            return const Scaffold(
+              body: Center(child: Text('Community not found')),
+            );
+          }
+          return CommunityInfoScreen(community: community);
+        },
+      ),
+      GoRoute(
         path: AppRoutes.friendInfo,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
@@ -401,8 +441,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final initialTab = extra is Map<String, dynamic>
               ? (extra['initialTab'] as int? ?? 0)
               : 0;
-          return FriendsHubScreen(initialTab: initialTab);
+          return InboxScreen(initialTab: initialTab);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.createCommunity,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CreateCommunityScreen(),
       ),
       GoRoute(
         path: AppRoutes.reportHistory,
@@ -576,22 +621,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.circles,
-                builder: (context, state) {
-                  final initialTab =
-                      int.tryParse(state.uri.queryParameters['tab'] ?? '0') ??
-                          0;
-                  debugPrint('Tab from URL = $initialTab');
-                  return CirclesListScreen(
-                    initialTab: initialTab,
-                  );
-                },
-              ),
-            ],
-          ),
+          // NOTE: the 5th branch that used to live here (AppRoutes.circles →
+          // CirclesListScreen) has been removed — main_shell.dart's
+          // _BottomBar only ever built 4 _NavItems (indices 0-3), so this
+          // branch was dead: reachable by no tap target, confirmed unused.
+          // Circles is now exclusively reached via Inbox.
         ],
       ),
     ],

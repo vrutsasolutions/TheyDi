@@ -45,10 +45,19 @@ class AppRoutes {
   
 
   // ── Social discovery ──
+  // friendsHub now opens InboxScreen (Connections / Circles / Communities)
+  // instead of the old FriendsHubScreen — see app_router.dart. Kept the
+  // same constant/path so nothing calling context.push(AppRoutes.friendsHub)
+  // elsewhere in the app needed to change.
   static const friendsHub = '/friends-hub';
   static const circleDiscovery = '/circle-discovery';
   static const blockedUsers = '/blocked-users';
   static const reportHistory = '/report-history';
+
+  // ── Communities (new) ──
+  static const createCommunity = '/create-community';
+  static const communityChat = '/community-chat';
+  static const communityInfo = '/community-info';
 
   // ── Settings ──
 // ── Settings ──

@@ -24,7 +24,7 @@ import 'package:theydi/core/router/app_routes.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/event_model.dart';
-import '../../circles/models/circle_model.dart';
+import '../../inbox/circles/models/circle_model.dart';
 
 class _UserAvatar extends StatelessWidget {
   final String? photoUrl;
@@ -239,7 +239,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Events can only be cancelled at least 48 hours before start time.'),
+                'Experiences can only be cancelled at least 48 hours before start time.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -252,7 +252,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Cancel Event?', style: TheyDiTextStyles.headlineMedium),
+        title: Text('Cancel Experience?', style: TheyDiTextStyles.headlineMedium),
         content: Text(
             'This will notify all ${event.currentAttendees} attendees. This cannot be undone.',
             style: TheyDiTextStyles.bodyMedium
@@ -265,7 +265,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                       .copyWith(color: TheyDiColors.textSecondary))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Cancel Event',
+              child: Text('Cancel Experience',
                   style: TheyDiTextStyles.labelMedium
                       .copyWith(color: Colors.red))),
         ],
@@ -281,7 +281,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Event cancelled and refunds initiated securely.'),
+            content: Text('Experience cancelled and refunds initiated securely.'),
             backgroundColor: Colors.red));
         context.pop();
       }
@@ -310,7 +310,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: TheyDiColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Create Event Circle?',
+        title: Text('Create Experience Circle?',
             style: TheyDiTextStyles.headlineMedium),
         content: Text(
             'This will create a group chat called "${event.title} Circle" with all ${event.currentAttendees} approved attendees.',
@@ -390,7 +390,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                         color: TheyDiColors.textPrimary),
                     onPressed: () => context.pop()),
                 const SizedBox(width: 4),
-                Text('Manage Event', style: TheyDiTextStyles.displayMedium),
+                Text('Manage Experience', style: TheyDiTextStyles.displayMedium),
               ]),
             ).animate().fade(duration: 300.ms),
             const SizedBox(height: 16),
@@ -408,7 +408,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                   }
                   if (!snapshot.hasData || !snapshot.data!.exists) {
                     return Center(
-                        child: Text('Event not found',
+                        child: Text('Experience not found',
                             style: TheyDiTextStyles.bodySmall));
                   }
                   final event = EventModel.fromFirestore(snapshot.data!);
@@ -460,34 +460,94 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                                     : SizedBox(
                                         width: double.infinity,
                                         child: _existingCircle != null
-                                            ? OutlinedButton.icon(
-                                                onPressed: () => context.push(
-                                                    AppRoutes.circleChat,
-                                                    extra: _existingCircle!),
-                                                icon: const Icon(
-                                                    Icons.chat_bubble_outline,
-                                                    color: TheyDiColors.primary,
-                                                    size: 18),
-                                                label: Text(
-                                                    'Open Circle — ${_existingCircle!.name}',
-                                                    style: TheyDiTextStyles
-                                                        .labelMedium
-                                                        .copyWith(
-                                                            color: TheyDiColors
-                                                                .primary)),
-                                                style: OutlinedButton.styleFrom(
-                                                    side: const BorderSide(
-                                                        color: TheyDiColors
-                                                            .primary),
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        12)),
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        vertical: 12)),
+                                            ? Row(
+                                                children: [
+                                                  Expanded(
+                                                    child:
+                                                        OutlinedButton.icon(
+                                                      onPressed: () =>
+                                                          context.push(
+                                                              AppRoutes
+                                                                  .circleChat,
+                                                              extra:
+                                                                  _existingCircle!),
+                                                      icon: const Icon(
+                                                          Icons
+                                                              .chat_bubble_outline,
+                                                          color: TheyDiColors
+                                                              .primary,
+                                                          size: 18),
+                                                      label: Text(
+                                                          'Open Circle',
+                                                          style: TheyDiTextStyles
+                                                              .labelMedium
+                                                              .copyWith(
+                                                                  color: TheyDiColors
+                                                                      .primary),
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis),
+                                                      style: OutlinedButton
+                                                          .styleFrom(
+                                                              side: const BorderSide(
+                                                                  color: TheyDiColors
+                                                                      .primary),
+                                                              shape: RoundedRectangleBorder(
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          12)),
+                                                              padding: const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical:
+                                                                      12)),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  // NEW: Manage Circle —
+                                                  // opens CircleInfoScreen
+                                                  // (name/description/
+                                                  // members editing) rather
+                                                  // than the chat itself.
+                                                  Expanded(
+                                                    child:
+                                                        OutlinedButton.icon(
+                                                      onPressed: () =>
+                                                          context.push(
+                                                              AppRoutes
+                                                                  .circleInfo,
+                                                              extra:
+                                                                  _existingCircle!),
+                                                      icon: const Icon(
+                                                          Icons
+                                                              .settings_outlined,
+                                                          color: TheyDiColors
+                                                              .textSecondary,
+                                                          size: 18),
+                                                      label: Text('Manage',
+                                                          style: TheyDiTextStyles
+                                                              .labelMedium
+                                                              .copyWith(
+                                                                  color: TheyDiColors
+                                                                      .textSecondary),
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis),
+                                                      style: OutlinedButton
+                                                          .styleFrom(
+                                                              side: BorderSide(
+                                                                  color: TheyDiColors
+                                                                      .divider),
+                                                              shape: RoundedRectangleBorder(
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          12)),
+                                                              padding: const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical:
+                                                                      12)),
+                                                    ),
+                                                  ),
+                                                ],
                                               )
                                             : DecoratedBox(
                                                 decoration: BoxDecoration(
@@ -520,7 +580,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                                                   label: Text(
                                                       _isProcessing
                                                           ? 'Creating...'
-                                                          : 'Create Event Circle',
+                                                          : 'Create Experience Circle',
                                                       style: const TextStyle(
                                                           color: Colors.white,
                                                           fontWeight:
@@ -550,7 +610,7 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                                   onPressed: () => _cancelEvent(event),
                                   icon: const Icon(Icons.cancel_outlined,
                                       color: Colors.red, size: 18),
-                                  label: const Text('Cancel Event',
+                                  label: const Text('Cancel Experience',
                                       style: TextStyle(
                                           color: Colors.red,
                                           fontWeight: FontWeight.w600)),

@@ -27,6 +27,15 @@ class EventModel {
   final String status;
   final String? additionalAddress;
 
+  // New: mirrors the Social/Professional purpose split used elsewhere in
+  // the app (Home tabs, signup). 'Social' | 'Professional' | '' (unset,
+  // for events created before this field existed).
+  final String purpose;
+
+  // New: optional "organized by" credit — only meaningful for
+  // Professional experiences (e.g. a company or club name). Not required.
+  final String? organizedBy;
+
   const EventModel({
     required this.id,
     required this.title,
@@ -53,6 +62,8 @@ class EventModel {
     this.ageGroup = '',
     this.status = 'upcoming',
     this.additionalAddress,
+    this.purpose = '',
+    this.organizedBy,
   });
 
   // ── Computed getters ────────────────────────────────────────────────────────
@@ -91,6 +102,7 @@ class EventModel {
   bool isPending(String uid) => pendingUids.contains(uid);
   bool isApprovedPendingPayment(String uid) =>
       approvedPendingPaymentUids.contains(uid);
+  bool get isProfessionalExperience => purpose == 'Professional';
 
   // ── Safe date parser — handles Timestamp, String, int (millis), and null ───
   static DateTime _parseDate(dynamic value, DateTime fallback) {
@@ -148,6 +160,8 @@ class EventModel {
       ageGroup: data['ageGroup'] ?? '',
       status: data['status'] ?? 'upcoming',
       additionalAddress: data['additionalAddress'],
+      purpose: data['purpose'] ?? '',
+      organizedBy: data['organizedBy'],
     );
   }
 
@@ -182,6 +196,8 @@ class EventModel {
       'status': status,
       'endTime': Timestamp.fromDate(endTime),
       'payoutProcessed': false,
+      'purpose': purpose,
+      'organizedBy': organizedBy,
     };
   }
 

@@ -528,7 +528,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                 context.push(AppRoutes.hostManage, extra: _event.id),
             icon:
                 const Icon(Icons.stars_outlined, color: Colors.white, size: 20),
-            label: const Text('Your Event',
+            label: const Text('Your Experience',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -555,7 +555,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     switch (state) {
       case _BookingState.none:
         if (isFull) {
-          label = 'Event Full';
+          label = 'Experience Full';
         } else if (_event.isFree && _approvalType == 'Host Approval') {
           label = 'Request to Join';
         } else if (_event.isFree) {
@@ -769,7 +769,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
                     const SizedBox(height: 20),
 
-                    Text('About this event',
+                    Text('About this experience',
                             style: TheyDiTextStyles.displayLarge)
                         .animate(delay: 90.ms)
                         .fade(duration: 300.ms),
@@ -1259,7 +1259,7 @@ class _EventDetailsSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Event details', style: TheyDiTextStyles.displayLarge),
+      Text('Experience details', style: TheyDiTextStyles.displayLarge),
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.all(16),

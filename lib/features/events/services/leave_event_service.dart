@@ -53,7 +53,7 @@ class LeaveEventService {
       final attendees = List<String>.from(data['attendeeUids'] ?? []);
       if (!attendees.contains(uid)) {
         return const LeaveEventResult(
-            success: false, message: 'You are not in this event.');
+            success: false, message: 'You are not in this experience.');
       }
 
       // ── Guard: duplicate refund ─────────────────────────────────────────
@@ -67,7 +67,7 @@ class LeaveEventService {
         if (refundSnap.docs.isNotEmpty) {
           return const LeaveEventResult(
               success: false,
-              message: 'A refund for this event was already processed.');
+              message: 'A refund for this experience was already processed.');
         }
       }
 
@@ -138,7 +138,7 @@ class LeaveEventService {
       if (!isFree && refundAmount > 0) {
         return LeaveEventResult(
           success: true,
-          message: 'You have left the event.',
+          message: 'You have left the experience.',
           refundInitiated: true,
           refundAmount: refundAmount,
         );
@@ -146,7 +146,7 @@ class LeaveEventService {
 
       return const LeaveEventResult(
         success: true,
-        message: 'You have successfully left the event.',
+        message: 'You have successfully left the experience.',
       );
     } catch (e) {
       return LeaveEventResult(success: false, message: 'Failed to leave: $e');

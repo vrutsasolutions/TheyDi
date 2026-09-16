@@ -10,7 +10,6 @@ import '../../../core/constants/event_constants.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/filter_bottom_sheet.dart';
-import '../../../shared/widgets/notification_icon_button.dart';
 import '../../events/models/event_model.dart';
 
 // Stream ALL events from Firestore (India-wide)
@@ -46,6 +45,76 @@ class ExploreScreen extends ConsumerStatefulWidget {
 
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String _selectedFilter = 'All';
+
+  // NEW: All / Social / Professional split, same idea as home_screen.dart's
+  // tabs. Kept as its own enum+classifier here rather than importing
+  // home_screen.dart's private version, since that one is private to that
+  // file's State class.
+  String _selectedVibe = 'All';
+
+  static const List<String> _vibeTabs = ['All', 'Social', 'Professional'];
+
+  static const Set<String> _professionalCategories = {
+    'tech',
+    'business',
+    'ai',
+    'startups',
+    'startup',
+    'hackathon',
+    'seminar',
+    'conference',
+    'workshop',
+    'networking',
+  };
+  static const List<String> _professionalKeywords = [
+    'hackathon',
+    'seminar',
+    'summit',
+    'conference',
+    'workshop',
+    'crypto',
+    'startup',
+    'pitch night',
+    'networking',
+    'career',
+  ];
+  static const List<String> _socialKeywords = [
+    'house party',
+    'party',
+    'art night',
+    'art & craft',
+    'art and craft',
+    'mixer',
+    'game night',
+    'yoga',
+    'music night',
+    'jam',
+    'potluck',
+  ];
+
+  // Same precedence as home_screen.dart: the explicit purpose field set
+  // at creation time wins; keyword heuristic is only a fallback for
+  // events created before that field existed.
+  bool _matchesSelectedVibe(EventModel e) {
+    if (_selectedVibe == 'All') return true;
+
+    String vibe;
+    if (e.purpose == 'Professional') {
+      vibe = 'Professional';
+    } else if (e.purpose == 'Social') {
+      vibe = 'Social';
+    } else {
+      final cat = e.category.toLowerCase().trim();
+      final text = '${e.title} ${e.description}'.toLowerCase();
+      if (_professionalCategories.contains(cat) ||
+          _professionalKeywords.any((k) => text.contains(k))) {
+        vibe = 'Professional';
+      } else {
+        vibe = 'Social';
+      }
+    }
+    return vibe == _selectedVibe;
+  }
   final EventFilters _advancedFilters = EventFilters();
 
   // Popular cities shown as a quick-pick strip. Tapping one scopes the
@@ -168,6 +237,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         .where((e) =>
             _matchesQuickFilter(e, today, weekLater) &&
             _matchesAdvancedFilters(e) &&
+            _matchesSelectedVibe(e) &&
             (activeCity == null ||
                 e.city.toLowerCase() == activeCity.toLowerCase()))
         .toList();
@@ -194,7 +264,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     // Start with all upcoming events that also match the quick filter.
     final list = events
         .where((e) =>
-            e.dateTime.isAfter(now) && _matchesQuickFilter(e, today, weekLater))
+            e.dateTime.isAfter(now) &&
+            _matchesQuickFilter(e, today, weekLater) &&
+            _matchesSelectedVibe(e))
         .toList();
 
     list.sort(secondaryComparator);
@@ -301,7 +373,22 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                     fontWeight: FontWeight.w600,
                                   )),
                               const SizedBox(width: 12),
-                              const NotificationIconButton(),
+                              GestureDetector(
+                              onTap: () => context.push(AppRoutes.notifications),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: TheyDiColors.divider),
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: TheyDiColors.textSecondary,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
                             ],
                           ).animate().fade(duration: 400.ms),
 
@@ -325,7 +412,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Search events across India...',
+                                      'Search experiences across India...',
                                       style:
                                           TheyDiTextStyles.bodySmall.copyWith(
                                         color: TheyDiColors.textMuted,
@@ -489,6 +576,31 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               ),
                             ),
                           ).animate(delay: 160.ms).fade(duration: 400.ms),
+
+                          const SizedBox(height: 14),
+
+                          // All / Social / Professional tabs — same large
+                          // banner style as the Home screen's tabs.
+                          Row(
+                            children: _vibeTabs.map((tab) {
+                              final isSelected = tab == _selectedVibe;
+                              final isLast = tab == _vibeTabs.last;
+                              return Expanded(
+                                child: Padding(
+                                  padding:
+                                      EdgeInsets.only(right: isLast ? 0 : 10),
+                                  child: _PressableScale(
+                                    onTap: () =>
+                                        setState(() => _selectedVibe = tab),
+                                    child: _ExploreVibeTabBanner(
+                                      tab: tab,
+                                      isSelected: isSelected,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ).animate(delay: 140.ms).fade(duration: 400.ms),
 
                           const SizedBox(height: 14),
 
@@ -671,7 +783,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         title: showingAllIndia
                             ? 'Trending Across India'
                             : 'Trending in $activeCity',
-                        subtitle: 'Most popular upcoming events',
+                        subtitle: 'Most popular upcoming experiences',
                         icon: Icons.local_fire_department,
                         iconColor: Colors.orange,
                         events: trending,
@@ -697,7 +809,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     SliverToBoxAdapter(
                       child: _VerticalSection(
                         title: 'Most Popular',
-                        subtitle: 'High engagement events',
+                        subtitle: 'High engagement experiences',
                         icon: Icons.star_rounded,
                         iconColor: Colors.amber,
                         events: popular.take(3).toList(),
@@ -709,7 +821,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     SliverToBoxAdapter(
                       child: _HorizontalSection(
                         title: 'House Parties',
-                        subtitle: 'Private gatherings & apartment events',
+                        subtitle: 'Private gatherings & apartment experiences',
                         icon: Icons.celebration,
                         iconColor: Colors.pink,
                         events: parties,
@@ -721,7 +833,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     SliverToBoxAdapter(
                       child: _VerticalSection(
                         title: 'Newly Added',
-                        subtitle: 'Fresh events just posted',
+                        subtitle: 'Fresh experiences just posted',
                         icon: Icons.new_releases_outlined,
                         iconColor: Colors.green,
                         events: newEvents.take(3).toList(),
@@ -742,8 +854,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           const SizedBox(width: 8),
                           Text(
                               showingAllIndia
-                                  ? 'All Events'
-                                  : 'All Events in $activeCity',
+                                  ? 'All Experiences'
+                                  : 'All Experiences in $activeCity',
                               style: TheyDiTextStyles.labelLarge),
                           const Spacer(),
                           Text(
@@ -767,7 +879,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               Icon(Icons.search_off,
                                   size: 56, color: Colors.grey[700]),
                               const SizedBox(height: 12),
-                              Text('No events found',
+                              Text('No experiences found',
                                   style: TheyDiTextStyles.headlineMedium),
                               const SizedBox(height: 6),
                               Text('Try a different filter or category',
@@ -1426,6 +1538,117 @@ class _ExploreEventCard extends StatelessWidget {
 // ── Tiny reusable press-scale wrapper — gentle scale-down on tap-down /
 // spring-back on release, so tiles/chips/cards feel a bit more tactile.
 // Purely visual; the actual tap logic still lives in the child's onTap. ──
+// ── Explore tabs — All / Social / Professional banner ──
+// Same visual approach as home_screen.dart's _HomeVibeTabBanner: a
+// vibrant gradient + oversized icon standing in for a real photo banner.
+// Fill in _bannerImageUrls with real photo URLs later; DecorationImage is
+// already wired up and falls back to the gradient if empty/fails to load.
+class _ExploreVibeTabBanner extends StatelessWidget {
+  final String tab;
+  final bool isSelected;
+
+  const _ExploreVibeTabBanner({required this.tab, required this.isSelected});
+
+  static const Map<String, String> _bannerImageUrls = {
+    'All': '',
+    'Social': '',
+    'Professional': '',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Color> gradientColors;
+    final Color glowColor;
+    final IconData icon;
+    switch (tab) {
+      case 'Social':
+        gradientColors = [Color(0xFFFF7A59), Color(0xFFFFB199)];
+        glowColor = const Color(0xFFFF7A59);
+        icon = Icons.celebration_outlined;
+        break;
+      case 'Professional':
+        gradientColors = [Color(0xFF4C6FFF), Color(0xFF7B5CFA)];
+        glowColor = const Color(0xFF4C6FFF);
+        icon = Icons.work_outline;
+        break;
+      case 'All':
+      default:
+        gradientColors = [TheyDiColors.primary, Color(0xFF9B6BFF)];
+        glowColor = TheyDiColors.primary;
+        icon = Icons.grid_view_rounded;
+    }
+    final bannerUrl = _bannerImageUrls[tab] ?? '';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: 76,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        image: bannerUrl.isNotEmpty
+            ? DecorationImage(
+                image: NetworkImage(bannerUrl),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withValues(alpha: 0.32),
+                  BlendMode.darken,
+                ),
+                onError: (_, __) {},
+              )
+            : null,
+        border: Border.all(
+          color: isSelected ? Colors.white : Colors.transparent,
+          width: isSelected ? 2.5 : 0,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: glowColor.withValues(alpha: 0.45),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: Icon(icon, size: 50, color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  tab,
+                  style: TheyDiTextStyles.labelLarge.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            if (isSelected)
+              const Positioned(
+                top: 8,
+                right: 8,
+                child: Icon(Icons.check_circle, color: Colors.white, size: 16),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PressableScale extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;

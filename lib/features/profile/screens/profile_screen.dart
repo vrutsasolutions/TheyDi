@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -52,12 +53,12 @@ final _friendsCountProvider = StreamProvider.autoDispose<int>((ref) {
       .map((s) => s.docs.length);
 });
 
-// ── Live count: friend circles ──
-final _circlesCountProvider = StreamProvider.autoDispose<int>((ref) {
+// ── Live count: communities ──
+final _communitiesCountProvider = StreamProvider.autoDispose<int>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value(0);
   return FirebaseFirestore.instance
-      .collection('circles')
+      .collection('communities')
       .where('memberUids', arrayContains: uid)
       .snapshots()
       .map((s) => s.docs.length);
@@ -72,7 +73,7 @@ class ProfileScreen extends ConsumerWidget {
     final createdAsync = ref.watch(_eventsCreatedCountProvider);
     final attendedAsync = ref.watch(_eventsAttendedCountProvider);
     final friendsCountAsync = ref.watch(_friendsCountProvider);
-    final circlesCountAsync = ref.watch(_circlesCountProvider);
+    final communitiesCountAsync = ref.watch(_communitiesCountProvider);
 
     return Scaffold(
       body: Container(
@@ -112,6 +113,15 @@ class ProfileScreen extends ConsumerWidget {
               final age = data['age'];
               final gender = (data['gender'] as String?) ?? '';
 
+              // ── "What brings you here" — Social vs Professional ──
+              // Set during signup (see SignupData); Professional adds a
+              // job title / organization line, both may carry a social link.
+              final purpose = (data['purpose'] as String?) ?? '';
+              final jobTitle = (data['jobTitle'] as String?) ?? '';
+              final organization = (data['organization'] as String?) ?? '';
+              final socialPlatform = (data['socialPlatform'] as String?) ?? '';
+              final socialLink = (data['socialLink'] as String?) ?? '';
+
               // Live counts — show '…' while still loading
               final eventsCreated =
                   createdAsync.asData?.value.toString() ?? '…';
@@ -119,8 +129,8 @@ class ProfileScreen extends ConsumerWidget {
                   attendedAsync.asData?.value.toString() ?? '…';
               final friendsCount =
                   friendsCountAsync.asData?.value.toString() ?? '…';
-              final circlesCount =
-                  circlesCountAsync.asData?.value.toString() ?? '…';
+              final communitiesCount =
+                  communitiesCountAsync.asData?.value.toString() ?? '…';
 
               return _ProfileContent(
                 displayName: displayName,
@@ -132,11 +142,16 @@ class ProfileScreen extends ConsumerWidget {
                 eventsCreated: eventsCreated,
                 eventsAttended: eventsAttended,
                 friendsCount: friendsCount,
-                circlesCount: circlesCount,
+                communitiesCount: communitiesCount,
                 isVerified: isVerified,
                 age: age != null ? int.tryParse(age.toString()) : null,
                 gender: gender,
                 isAdmin: isAdmin,
+                purpose: purpose,
+                jobTitle: jobTitle,
+                organization: organization,
+                socialPlatform: socialPlatform,
+                socialLink: socialLink,
               );
             },
           ),
@@ -156,11 +171,16 @@ class _ProfileContent extends ConsumerWidget {
   final String eventsCreated;
   final String eventsAttended;
   final String friendsCount;
-  final String circlesCount;
+  final String communitiesCount;
   final bool isVerified;
   final int? age;
   final String gender;
   final bool isAdmin;
+  final String purpose;
+  final String jobTitle;
+  final String organization;
+  final String socialPlatform;
+  final String socialLink;
 
   const _ProfileContent({
     required this.displayName,
@@ -172,12 +192,30 @@ class _ProfileContent extends ConsumerWidget {
     required this.eventsCreated,
     required this.eventsAttended,
     required this.friendsCount,
-    required this.circlesCount,
+    required this.communitiesCount,
     required this.isVerified,
     required this.age,
     required this.gender,
     this.isAdmin = false,
+    this.purpose = '',
+    this.jobTitle = '',
+    this.organization = '',
+    this.socialPlatform = '',
+    this.socialLink = '',
   });
+
+  Future<void> _openSocialLink() async {
+    if (socialLink.isEmpty) return;
+    var link = socialLink.trim();
+    if (!link.startsWith('http://') && !link.startsWith('https://')) {
+      link = 'https://$link';
+    }
+    final uri = Uri.tryParse(link);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   Future<void> _signOut(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -409,6 +447,18 @@ class _ProfileContent extends ConsumerWidget {
                         ),
                       ],
                     ).animate(delay: 80.ms).fade(duration: 300.ms),
+
+                    if (purpose.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _PurposeFloatingPill(
+                        purpose: purpose,
+                        jobTitle: jobTitle,
+                        organization: organization,
+                        socialPlatform: socialPlatform,
+                        socialLink: socialLink,
+                        onTapSocialLink: _openSocialLink,
+                      ).animate(delay: 100.ms).fade(duration: 300.ms),
+                    ],
 
                     if (identityLine.isNotEmpty) ...[
                       const SizedBox(height: 3),
@@ -664,8 +714,9 @@ class _ProfileContent extends ConsumerWidget {
               Row(
                 children: [
                   _StatCard(
-                    label: 'Events Created',
+                    label: 'Experiences Created',
                     value: eventsCreated,
+                    icon: Icons.auto_awesome_outlined,
                     onTap: () => context.push(
                       AppRoutes.myEvents,
                       extra: {'tab': 2, 'filter': 'Hosted'},
@@ -673,8 +724,9 @@ class _ProfileContent extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   _StatCard(
-                    label: 'Events Attended',
+                    label: 'Experiences Attended',
                     value: eventsAttended,
+                    icon: Icons.local_activity_outlined,
                     onTap: () => context.push(
                       AppRoutes.myEvents,
                       extra: {'tab': 2, 'filter': 'Attended'},
@@ -686,19 +738,24 @@ class _ProfileContent extends ConsumerWidget {
               Row(
                 children: [
                   _StatCard(
-                    label: 'Friends',
+                    label: 'Connections',
                     value: friendsCount,
-                    actionLabel: 'View Friends',
+                    icon: Icons.people_alt_outlined,
+                    actionLabel: 'View Connections',
                     actionIcon: Icons.people_outline,
                     onTap: () => context.push(AppRoutes.friendsHub),
                   ),
                   const SizedBox(width: 12),
                   _StatCard(
-                    label: 'Friend Circles',
-                    value: circlesCount,
-                    actionLabel: 'View Circles',
+                    label: 'Communities',
+                    value: communitiesCount,
+                    icon: Icons.diversity_3_outlined,
+                    actionLabel: 'View Communities',
                     actionIcon: Icons.group_outlined,
-                    onTap: () => context.push(AppRoutes.circles),
+                    onTap: () => context.push(
+                      AppRoutes.friendsHub,
+                      extra: {'initialTab': 2},
+                    ),
                   ),
                 ],
               ),
@@ -717,10 +774,13 @@ class _ProfileContent extends ConsumerWidget {
             onTap: () => context.push(AppRoutes.notifications),
           ).animate(delay: 260.ms).fade(duration: 300.ms),
           _MenuItem(
-            icon: Icons.group_outlined,
-            label: 'Friend Circle',
+            icon: Icons.diversity_3_outlined,
+            label: 'Communities',
             subtitle: 'Chat with your groups',
-            onTap: () => context.go(AppRoutes.circles),
+            onTap: () => context.push(
+              AppRoutes.friendsHub,
+              extra: {'initialTab': 2},
+            ),
           ).animate(delay: 270.ms).fade(duration: 300.ms),
           
           _MenuItem(
@@ -766,8 +826,8 @@ class _SettingsMenuButton extends StatelessWidget {
       itemBuilder: (context) => [
         _settingsItem(
           value: 'myEvents',
-          icon: Icons.event_outlined,
-          label: 'My Events',
+          icon: Icons.auto_awesome_outlined,
+          label: 'My Experiences',
         ),
         _settingsItem(
           value: 'myReviews',
@@ -787,7 +847,7 @@ class _SettingsMenuButton extends StatelessWidget {
         _settingsItem(
           value: 'inviteFriends',
           icon: Icons.group_add_outlined,
-          label: 'Invite Friends',
+          label: 'Invite Connections',
         ),
         const PopupMenuDivider(height: 8),
         if (isAdmin) ...[
@@ -917,6 +977,7 @@ class _StatCard extends StatelessWidget {
   final VoidCallback onTap;
   final String actionLabel;
   final IconData actionIcon;
+  final IconData icon;
 
   const _StatCard({
     required this.label,
@@ -924,6 +985,7 @@ class _StatCard extends StatelessWidget {
     required this.onTap,
     this.actionLabel = 'View history',
     this.actionIcon = Icons.history,
+    this.icon = Icons.insights_outlined,
   });
 
   @override
@@ -932,43 +994,176 @@ class _StatCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
-            color: TheyDiColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border:
-                Border.all(color: TheyDiColors.primary.withValues(alpha: 0.25)),
-          ),
-          child: Column(
-            children: [
-              Text(
-                value,
-                style: TheyDiTextStyles.headlineMedium.copyWith(
-                  color: TheyDiColors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                TheyDiColors.card,
+                TheyDiColors.primary.withValues(alpha: 0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+                color: TheyDiColors.primary.withValues(alpha: 0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withValues(alpha: 0.07),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(height: 4),
-              Text(label,
-                  style: TheyDiTextStyles.labelSmall.copyWith(
-                    color: TheyDiColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(actionIcon, size: 10, color: TheyDiColors.primary),
-                  const SizedBox(width: 3),
-                  Text(actionLabel,
-                      style: TheyDiTextStyles.caption
-                          .copyWith(color: TheyDiColors.primary, fontSize: 9)),
-                ],
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  gradient: TheyDiColors.gradientPrimary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 12),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: TheyDiTextStyles.labelLarge.copyWith(
+                        color: TheyDiColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        height: 1.1,
+                      ),
+                    ),
+                    Text(label,
+                        style: TheyDiTextStyles.caption.copyWith(
+                          color: TheyDiColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                          height: 1.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+
+// ══════════════════════════════════════
+// PURPOSE PILL — Social vs Professional (compact, floating)
+// ══════════════════════════════════════
+// Reflects the "what brings you here" choice made at signup (SignupData).
+// Rendered as a single small pill under the name — not a full-width card —
+// so it reads as a tag next to the verified badge rather than a section.
+// Tapping it (when a social link exists) opens that link.
+class _PurposeFloatingPill extends StatelessWidget {
+  final String purpose;
+  final String jobTitle;
+  final String organization;
+  final String socialPlatform;
+  final String socialLink;
+  final VoidCallback onTapSocialLink;
+
+  const _PurposeFloatingPill({
+    required this.purpose,
+    required this.jobTitle,
+    required this.organization,
+    required this.socialPlatform,
+    required this.socialLink,
+    required this.onTapSocialLink,
+  });
+
+  bool get _isProfessional => purpose == 'Professional';
+
+  IconData get _socialIcon {
+    switch (socialPlatform) {
+      case 'LinkedIn':
+        return Icons.business_center_outlined;
+      case 'Instagram':
+        return Icons.camera_alt_outlined;
+      case 'Twitter':
+        return Icons.alternate_email;
+      default:
+        return Icons.link;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final roleLine = _isProfessional
+        ? [jobTitle, organization].where((s) => s.isNotEmpty).join(' at ')
+        : '';
+    final accent = _isProfessional ? TheyDiColors.primary : TheyDiColors.warning;
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [accent, accent.withValues(alpha: 0.75)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.25),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _isProfessional ? Icons.work_outline : Icons.groups_outlined,
+                size: 11,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _isProfessional ? 'Professional' : 'Social',
+                style: TheyDiTextStyles.caption.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (roleLine.isNotEmpty)
+          Text(
+            roleLine,
+            style: TheyDiTextStyles.caption.copyWith(
+              color: TheyDiColors.textSecondary,
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
+            ),
+          ),
+        if (socialLink.isNotEmpty)
+          GestureDetector(
+            onTap: onTapSocialLink,
+            child: Icon(_socialIcon, size: 14, color: TheyDiColors.textMuted),
+          ),
+      ],
     );
   }
 }

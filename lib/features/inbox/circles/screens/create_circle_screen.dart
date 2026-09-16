@@ -4,13 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/app_error_utils.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_error_utils.dart';
 import '../models/circle_model.dart';
 
 class CreateCircleScreen extends StatefulWidget {
-  const CreateCircleScreen({super.key});
+  // NEW: when set, this screen was opened right after the creator
+  // published an experience (see create_event_screen.dart). The resulting
+  // circle is tagged 'type': 'event' + this eventId, same shape
+  // EventCircleService's own circles use, so getExistingEventCircle(id)
+  // and the join-time auto-add logic in event_detail_screen.dart /
+  // payment_screen.dart both find it correctly.
+  final String? linkedEventId;
+  final String? linkedEventTitle;
+
+  const CreateCircleScreen({
+    super.key,
+    this.linkedEventId,
+    this.linkedEventTitle,
+  });
 
   @override
   State<CreateCircleScreen> createState() => _CreateCircleScreenState();
@@ -28,9 +41,17 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
   bool _loadingFriends = true;
   String? _searchError;
 
+  bool get _isLinkedToEvent => widget.linkedEventId != null;
+
   @override
   void initState() {
     super.initState();
+    if (_isLinkedToEvent) {
+      // Pre-fill using the same "{title} Circle" naming convention
+      // EventCircleService already uses when it auto-creates a circle
+      // once an event has 2+ attendees.
+      _nameController.text = '${widget.linkedEventTitle} Circle';
+    }
     _loadFriends();
   }
 
@@ -179,8 +200,8 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
         'lastMessageSender': null,
         'lastMessageAt': null,
         'createdAt': Timestamp.now(),
-        'type': 'custom',
-        'eventId': null,
+        'type': _isLinkedToEvent ? 'event' : 'custom',
+        'eventId': widget.linkedEventId,
       });
 
       // Notify invited members

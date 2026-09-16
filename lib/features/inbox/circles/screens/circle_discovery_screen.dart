@@ -5,11 +5,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/circle_join_service.dart';
-import '../../../core/services/notification_service.dart';
-import 'package:theydi/features/circles/models/circle_model.dart';
+import '../../../../../core/router/app_routes.dart';
+import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/services/circle_join_service.dart';
+import '../../../../../core/services/notification_service.dart';
+import 'package:theydi/features/inbox/circles/models/circle_model.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
