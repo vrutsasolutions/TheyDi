@@ -24,7 +24,7 @@ class CommunityService {
     CommunityModel community, {
     required String userName,
   }) async {
-    if (_uid.isEmpty) return;
+    if (_uid.isEmpty) throw Exception('Not signed in. Please log in and try again.');
     await _db.collection('communities').doc(community.id).update({
       'memberUids': FieldValue.arrayUnion([_uid]),
       'memberNames': FieldValue.arrayUnion([userName]),

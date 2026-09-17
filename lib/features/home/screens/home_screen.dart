@@ -58,9 +58,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 enum _EventVibe { social, professional }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // FIX: removed 'For You' per request — home now opens straight into
-  // Social or Professional (whichever matches the user's signup purpose).
-  static const List<String> homeTabs = ['Social', 'Professional'];
+  static const List<String> homeTabs = ['For You', 'Social', 'Professional'];
 
   // Category chip sets shown under the Social / Professional tabs. Not
   // shown under For You.
@@ -122,14 +120,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   _EventVibe _classifyEvent(EventModel e) {
-    // FIX: EventModel.purpose is the actual value set at creation time
-    // (see create_event_screen.dart's _purpose / 'purpose' field) — this
-    // is authoritative and should be checked first. The keyword heuristic
-    // below is now only a fallback for events created before this field
-    // existed (purpose == '').
-    if (e.purpose == 'Professional') return _EventVibe.professional;
-    if (e.purpose == 'Social') return _EventVibe.social;
-
     final cat = e.category.toLowerCase().trim();
     if (_professionalCategories.contains(cat)) return _EventVibe.professional;
     final text = '${e.title} ${e.description}'.toLowerCase();
@@ -143,7 +133,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return _EventVibe.social;
   }
 
-  String _selectedHomeTab = 'Social';
+  String _selectedHomeTab = 'For You';
   String _selectedCategory = 'All';
   String _selectedSort = 'Radius';
   double _selectedRadius = 2.0;
@@ -173,29 +163,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _loadUserLocation();
     _checkPendingReview();
-    _loadDefaultTabFromPurpose();
-  }
-
-  // NEW: lands the user on whichever tab matches what they picked at
-  // signup ("what brings you here" — signup_data.dart's `purpose` field,
-  // 'Social' | 'Professional' | ''). One-off fetch, not a stream — this
-  // only sets the *initial* tab; the user can still switch freely
-  // afterward, and switching doesn't write anything back.
-  Future<void> _loadDefaultTabFromPurpose() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final purpose = (doc.data()?['purpose'] as String?) ?? '';
-      if (purpose == 'Professional' && mounted) {
-        setState(() => _selectedHomeTab = 'Professional');
-      }
-      // purpose == 'Social' or '' (unset) both keep the 'Social' default
-      // already set above.
-    } catch (_) {
-      // Keep the 'Social' default on any failure.
-    }
   }
 
   Future<void> _checkPendingReview() async {
@@ -241,7 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // _topEventsForLocation. This stops nearby events with a missing/
   // mismatched city field from being silently dropped before the radius
   // check ever runs. ──
-  List<EventModel> _filterAndSortEvents(List<EventModel> events) {
+  List<EventModel> _filterAndSortEvents(List<EventModel> events, String userCity) {
     List<EventModel> filtered = List.of(events);
 
     if (_selectedHomeTab == 'Social') {
@@ -272,11 +239,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               e.category.toLowerCase() == _selectedCategory.toLowerCase())
           .toList();
     }
+    // If GPS is available, filter by radius. Otherwise fall back to
+    // the user's saved city so only local events are shown by default.
     if (_selectedRadius > 0 && _userLat != null && _userLng != null) {
       filtered = filtered.where((e) {
         final d = _getEventDistance(e);
         return d >= 0 && d <= _selectedRadius;
       }).toList();
+    } else if (_userLat == null && userCity.isNotEmpty) {
+      filtered = filtered
+          .where((e) => e.city.toLowerCase() == userCity.toLowerCase())
+          .toList();
     }
     switch (_selectedSort) {
       case 'Radius':
@@ -835,24 +808,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       const SizedBox(height: 18),
 
-                      // Home tabs — Social / Professional, large banner
-                      // style. Each tab is a full-width-shared banner card
-                      // with a background image, a darkening gradient for
-                      // label legibility, and a highlighted border/glow
-                      // when selected.
+                      // Home tabs — For You / Social / Professional
                       Row(
                         children: homeTabs.map((tab) {
                           final isSelected = tab == _selectedHomeTab;
-                          final isLast = tab == homeTabs.last;
-                          return Expanded(
-                            child: Padding(
-                              padding:
-                                  EdgeInsets.only(right: isLast ? 0 : 12),
-                              child: _PressableScale(
-                                onTap: () => _selectHomeTab(tab),
-                                child: _HomeVibeTabBanner(
-                                  tab: tab,
-                                  isSelected: isSelected,
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 22),
+                            child: _PressableScale(
+                              onTap: () => _selectHomeTab(tab),
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 180),
+                                style: TheyDiTextStyles.labelLarge.copyWith(
+                                  color: isSelected
+                                      ? TheyDiColors.primary
+                                      : TheyDiColors.textMuted,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  letterSpacing: -0.1,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(tab),
+                                    const SizedBox(height: 6),
+                                    AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 180),
+                                      height: 3,
+                                      width: isSelected ? 22 : 0,
+                                      decoration: BoxDecoration(
+                                        gradient:
+                                            TheyDiColors.gradientPrimary,
+                                        borderRadius:
+                                            BorderRadius.circular(2),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: TheyDiColors.primary
+                                                      .withValues(alpha: 0.5),
+                                                  blurRadius: 4,
+                                                  offset:
+                                                      const Offset(0, 1),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1172,7 +1175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 data: (allEvents) {
                   // ── FIX: userCity no longer passed in here — distance
                   // filtering runs against all events directly. ──
-                  final filtered = _filterAndSortEvents(allEvents);
+                  final filtered = _filterAndSortEvents(allEvents, userCity);
                   final locationLabel =
                       userCity.isEmpty ? 'Your Location' : userCity;
 
@@ -1794,107 +1797,6 @@ class _EventCard extends StatelessWidget {
                   ])),
         ),
       ]),
-    );
-  }
-}
-
-// ── Home tabs — Social / Professional banner ──
-// Large image-banner style tab per request. No real photo assets exist
-// yet, so this renders a vibrant gradient + oversized icon as the
-// "banner" for now. To swap in a real photo: fill in the URL for the tab
-// in _bannerImageUrls below — the DecorationImage is already wired up and
-// falls back to the gradient automatically if the URL is empty or fails
-// to load.
-class _HomeVibeTabBanner extends StatelessWidget {
-  final String tab;
-  final bool isSelected;
-
-  const _HomeVibeTabBanner({required this.tab, required this.isSelected});
-
-  static const Map<String, String> _bannerImageUrls = {
-    'Social': '',
-    'Professional': '',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final isSocial = tab == 'Social';
-    final gradientColors = isSocial
-        ? const [Color(0xFFFF7A59), Color(0xFFFFB199)]
-        : const [Color(0xFF4C6FFF), Color(0xFF7B5CFA)];
-    final glowColor = isSocial ? const Color(0xFFFF7A59) : const Color(0xFF4C6FFF);
-    final bannerUrl = _bannerImageUrls[tab] ?? '';
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      height: 92,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        image: bannerUrl.isNotEmpty
-            ? DecorationImage(
-                image: NetworkImage(bannerUrl),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Colors.black.withValues(alpha: 0.32),
-                  BlendMode.darken,
-                ),
-                onError: (_, __) {},
-              )
-            : null,
-        border: Border.all(
-          color: isSelected ? Colors.white : Colors.transparent,
-          width: isSelected ? 2.5 : 0,
-        ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: glowColor.withValues(alpha: 0.45),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -8,
-              bottom: -8,
-              child: Icon(
-                isSocial ? Icons.celebration_outlined : Icons.work_outline,
-                size: 64,
-                color: Colors.white.withValues(alpha: 0.18),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  tab,
-                  style: TheyDiTextStyles.headlineMedium.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            if (isSelected)
-              const Positioned(
-                top: 10,
-                right: 10,
-                child: Icon(Icons.check_circle, color: Colors.white, size: 18),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }
