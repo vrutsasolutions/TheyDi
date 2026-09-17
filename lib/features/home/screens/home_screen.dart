@@ -56,10 +56,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const List<String> homeTabs = ['Social', 'Professional'];
 
   static const List<String> _socialChipCategories = [
-    'All', 'Music', 'Food', 'Fitness', 'Gaming',
+    'All', 'Party', 'Social', 'Music', 'Food', 'Fitness', 'Gaming', 'Art', 'Comedy',
   ];
   static const List<String> _professionalChipCategories = [
-    'All', 'Tech', 'Business', 'AI', 'Startups',
+    'All', 'Tech', 'Business', 'AI', 'Startups', 'Networking', 'Workshop',
   ];
 
   static const Set<String> _professionalCategories = {

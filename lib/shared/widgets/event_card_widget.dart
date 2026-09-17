@@ -194,7 +194,10 @@ class EventCardLarge extends StatelessWidget {
                         ),
                 ),
 
-                // "Experience" type badge — top-left
+                // Purpose + Category badge — top-left. Shows "Professional
+                // · Tech" style when the experience has a purpose set;
+                // falls back to just the category for older experiences
+                // created before the purpose field existed.
                 Positioned(
                   top: 12,
                   left: 12,
@@ -205,9 +208,28 @@ class EventCardLarge extends StatelessWidget {
                       color: Colors.black.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(event.category,
-                        style: TheyDiTextStyles.caption
-                            .copyWith(color: Colors.white)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (event.purpose.isNotEmpty) ...[
+                          Icon(
+                            event.purpose == 'Professional'
+                                ? Icons.work_outline
+                                : Icons.celebration_outlined,
+                            size: 11,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          event.purpose.isNotEmpty
+                              ? '${event.purpose} · ${event.category}'
+                              : event.category,
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 

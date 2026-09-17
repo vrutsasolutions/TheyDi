@@ -707,8 +707,25 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
                     // Tag Pills
                     Wrap(spacing: 8, runSpacing: 8, children: [
-                      _TagPill(
-                          label: event.category, icon: Icons.category_outlined),
+                      // Purpose (Social/Professional) is the main tag —
+                      // shown first, in its own distinct color so it reads
+                      // as the primary classification. The specific
+                      // category (e.g. "Tech", "Party") follows right
+                      // after as the subcategory.
+                      if (event.purpose.isNotEmpty)
+                        _TagPill(
+                          label: event.purpose,
+                          icon: event.purpose == 'Professional'
+                              ? Icons.work_outline
+                              : Icons.celebration_outlined,
+                          color: event.purpose == 'Professional'
+                              ? Colors.blue
+                              : TheyDiColors.primary,
+                        ),
+                      if (event.category.isNotEmpty)
+                        _TagPill(
+                            label: event.category,
+                            icon: Icons.category_outlined),
                       if (_ageGroup.isNotEmpty)
                         _TagPill(
                             label: _ageGroup, icon: Icons.people_alt_outlined),
@@ -720,6 +737,23 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                 : Icons.park_outlined),
 
                     ]).animate().fade(duration: 300.ms),
+
+                    // Organized By — only meaningful for Professional
+                    // experiences, and optional even then.
+                    if (event.purpose == 'Professional' &&
+                        (event.organizedBy?.isNotEmpty ?? false)) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Icon(Icons.apartment_outlined,
+                              size: 14, color: TheyDiColors.textMuted),
+                          const SizedBox(width: 6),
+                          Text('Organized by ${event.organizedBy}',
+                              style: TheyDiTextStyles.caption
+                                  .copyWith(color: TheyDiColors.textSecondary)),
+                        ],
+                      ).animate(delay: 50.ms).fade(duration: 300.ms),
+                    ],
 
                     const SizedBox(height: 16),
 
@@ -1182,7 +1216,7 @@ class _TagPill extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color? color;
-  const _TagPill({required this.label, required this.icon}) : color = null;
+  const _TagPill({required this.label, required this.icon, this.color});
   @override
   Widget build(BuildContext context) {
     final col = color ?? TheyDiColors.primary;
