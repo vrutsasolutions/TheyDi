@@ -2,7 +2,7 @@
 // picker_theme_helper.dart
 //
 // Single source of truth for the light Theme used by ALL showDatePicker()
-// and showTimePicker() calls across the TieIn app.
+// and showTimePicker() calls across the TheyDi app.
 //
 // Usage:
 //   final picked = await showDatePicker(
@@ -38,13 +38,13 @@ class PickerTheme {
     return Theme.of(ctx).copyWith(
       // ── Color scheme: light, white surface, emerald selections ──────────────
       colorScheme: const ColorScheme.light(
-        primary: TheyDiColors.primary, // selected circle / clock hand
-        onPrimary: Colors.white, // text on selected circle
-        surface: Colors.white, // dialog background
-        onSurface: Colors.black, // all unselected text/numbers
+        primary: TheyDiColors.primary,          // selected circle / clock hand
+        onPrimary: Colors.white,               // text on selected circle
+        surface: Colors.white,                 // dialog background
+        onSurface: Colors.black,               // all unselected text/numbers
         secondary: TheyDiColors.primary,
         onSecondary: Colors.white,
-        outline: Color(0xFFE5E7EB), // divider / border
+        outline: Color(0xFFE5E7EB),            // divider / border
       ),
 
       // ── Date picker theming ─────────────────────────────────────────────────
@@ -63,7 +63,7 @@ class PickerTheme {
         ),
         // Weekday labels (Mon, Tue …)
         weekdayStyle: const TextStyle(
-          color: Color(0xFF4B5563), // dark grey — clearly visible
+          color: Color(0xFF4B5563),       // dark grey — clearly visible
           fontWeight: FontWeight.w600,
           fontSize: 12,
         ),
@@ -85,12 +85,12 @@ class PickerTheme {
         // Foreground (text) on day cells
         dayForegroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return const Color(0xFF9CA3AF); // greyed-out past dates
+            return const Color(0xFF9CA3AF);   // greyed-out past dates
           }
           if (states.contains(WidgetState.selected)) {
-            return Colors.white; // white on green circle
+            return Colors.white;               // white on green circle
           }
-          return Colors.black; // black for all others
+          return Colors.black;                 // black for all others
         }),
         // "Today" ring
         todayBackgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -101,7 +101,7 @@ class PickerTheme {
         }),
         todayForegroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return Colors.white;
-          return TheyDiColors.primary; // emerald today-ring text
+          return TheyDiColors.primary;          // emerald today-ring text
         }),
         todayBorder: const BorderSide(
           color: TheyDiColors.primary,
@@ -114,15 +114,12 @@ class PickerTheme {
           return Colors.black;
         }),
         yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TheyDiColors.primary;
-          }
+          if (states.contains(WidgetState.selected)) return TheyDiColors.primary;
           return null;
         }),
         // Range highlight (if ever used)
         rangePickerBackgroundColor: Colors.white,
-        rangeSelectionBackgroundColor:
-            TheyDiColors.primary.withValues(alpha: 0.12),
+        rangeSelectionBackgroundColor: TheyDiColors.primary.withValues(alpha: 0.12),
         // Shape
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
@@ -194,8 +191,7 @@ class PickerTheme {
             fontSize: 14,
           ),
         ),
-      ),
-      dialogTheme: DialogThemeData(backgroundColor: Colors.white),
+      ), dialogTheme: DialogThemeData(backgroundColor: Colors.white),
     );
   }
 }

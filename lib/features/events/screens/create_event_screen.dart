@@ -23,6 +23,7 @@ import '../../../core/utils/picker_theme_helper.dart';
 
 import '../../../core/services/face_verification_service.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/constants/event_constants.dart';
 import '../../../core/constants/location_constants.dart';
 
 
@@ -124,46 +125,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return rand + (1000 + (rand.hashCode % 9000)).toString();
   }
 
+  String? _selectedCategory;
+  // 'Social' or 'Professional' — required before category can be chosen
+  String _eventAudience = 'Social';
   String? _selectedState;
   String? _selectedCity;
   final String _selectedCountry = 'India';
-
-  // ── Purpose / category restructure ──
-  // Category is now a two-step choice: Purpose (Social/Professional) narrows
-  // down to a relevant Subcategory list; picking "Other" reveals a free-text
-  // field. The final resolved string is still written to the same
-  // 'category' Firestore field EventModel already reads, so nothing
-  // downstream (search, filtering, EventModel.category) needs to change.
-  String _purpose = ''; // 'Social' | 'Professional'
-  String? _selectedSubcategory;
-  final _customCategoryController = TextEditingController();
-  final _organizerController = TextEditingController(); // optional
-
-  static const _socialSubcategories = [
-    'Party',
-    'Music',
-    'Food',
-    'Travel',
-    'Sports',
-    'Art',
-    'Gaming',
-    'Fitness',
-    'Other',
-  ];
-  static const _professionalSubcategories = [
-    'Networking',
-    'Tech',
-    'Business',
-    'Startups',
-    'AI',
-    'Workshop',
-    'Conference',
-    'Design',
-    'Other',
-  ];
-
-  List<String> get _activeSubcategories =>
-      _purpose == 'Professional' ? _professionalSubcategories : _socialSubcategories;
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -207,8 +174,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _priceController.dispose();
     _customAmenityController.dispose();
     _additionalAddressController.dispose();
-    _customCategoryController.dispose();
-    _organizerController.dispose();
     super.dispose();
   }
 
@@ -593,7 +558,7 @@ Future<void> _pickTime() async {
           builder: (context) => ImageCropperScreen(
             imageBytes: initialBytes,
             aspectRatio: 16 / 9,
-            title: 'Crop Experience Cover Photo',
+            title: 'Crop Event Cover Photo',
           ),
         ),
       );
@@ -715,31 +680,19 @@ Future<void> _pickTime() async {
         margin: const EdgeInsets.all(16)));
   }
 
-  void _onPurposeChanged(String purpose) {
+  void _onCategoryChanged(String? cat) {
     setState(() {
-      _purpose = purpose;
-      // Changing purpose invalidates whatever subcategory was picked under
-      // the other purpose's list.
-      _selectedSubcategory = null;
-      _customCategoryController.clear();
-    });
-  }
-
-  void _onSubcategoryChanged(String? cat) {
-    setState(() {
-      _selectedSubcategory = cat;
-      if (cat != 'Other') _customCategoryController.clear();
+      _selectedCategory = cat;
       if (cat == 'Party') _eventType = 'Indoor';
     });
   }
 
-  /// The value actually written to Firestore's 'category' field.
-  String get _resolvedCategory {
-    if (_selectedSubcategory == 'Other') {
-      final custom = _customCategoryController.text.trim();
-      return custom.isNotEmpty ? custom : 'Other';
-    }
-    return _selectedSubcategory ?? 'Other';
+  void _onAudienceChanged(String audience) {
+    setState(() {
+      _eventAudience = audience;
+      // Reset category because the list changes
+      _selectedCategory = null;
+    });
   }
 
   void _updateGenderRatio() {
@@ -794,7 +747,7 @@ Future<void> _pickTime() async {
                 textAlign: TextAlign.center),
             const SizedBox(height: 10),
             Text(
-              'Only verified users can create experiences.\nVerify your face now — it takes less than a minute.',
+              'Only verified users can create events.\nVerify your face now — it takes less than a minute.',
               style: TheyDiTextStyles.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -879,19 +832,6 @@ Future<void> _pickTime() async {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_purpose.isEmpty) {
-      _showError('Please choose Social or Professional');
-      return;
-    }
-    if (_selectedSubcategory == null) {
-      _showError('Please pick a category');
-      return;
-    }
-    if (_selectedSubcategory == 'Other' &&
-        _customCategoryController.text.trim().isEmpty) {
-      _showError('Please describe your category');
-      return;
-    }
     if (_selectedDate == null) {
       _showError('Please pick a date');
       return;
@@ -901,7 +841,7 @@ Future<void> _pickTime() async {
       return;
     }
     if (_pinnedLat == null || _pinnedLng == null) {
-      _showError('Please set a location for your experience');
+      _showError('Please set a location for your event');
       return;
     }
     if (_eventImages.any((img) => img.isUploading)) {
@@ -960,10 +900,7 @@ Future<void> _pickTime() async {
       final eventData = {
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
-        'category': _resolvedCategory,
-        'purpose': _purpose,
-        'organizedBy':
-            _purpose == 'Professional' ? _organizerController.text.trim() : '',
+        'category': _selectedCategory ?? 'Other',
         'state': _selectedState ?? '',
         'country': _selectedCountry,
         'city': _selectedCity ?? '',
@@ -1003,6 +940,9 @@ Future<void> _pickTime() async {
         'endTime': Timestamp.fromDate(dateTime
             .add(Duration(hours: _durationHours > 0 ? _durationHours : 2))),
         'payoutProcessed': false,
+        // B2B2C fields — audience and experience type for home feed filtering
+        'eventAudience': _eventAudience,
+        'experienceType': _eventAudience.toLowerCase(), // 'social' | 'professional'
       };
 
       final docRef =
@@ -1023,24 +963,16 @@ Future<void> _pickTime() async {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Experience created! 🎉'),
+            content: const Text('Event created! 🎉'),
             backgroundColor: TheyDiColors.success,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16)));
-        // FIX: this used to just context.pop() back to wherever the form
-        // was opened from — CreateCircleScreen's linkedEventId/
-        // linkedEventTitle support existed but nothing ever called it.
-        // pushReplacement so the back button from CreateCircleScreen
-        // doesn't return here to the (now-submitted) form.
-        context.pushReplacement(AppRoutes.createCircle, extra: {
-          'eventId': docRef.id,
-          'eventTitle': _titleController.text.trim(),
-        });
+        context.pop();
       }
     } catch (e) {
-      _showError('Failed to create experience. Please try again.');
+      _showError('Failed to create event. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1327,7 +1259,7 @@ Future<void> _pickTime() async {
                     onPressed: () => context.pop()),
                 Expanded(
                     child: Text(
-                  'Create Experience',
+                  'Create Event',
                   style: TheyDiTextStyles.displayMedium,
                   textAlign: TextAlign.center,
                 )),
@@ -1343,7 +1275,7 @@ Future<void> _pickTime() async {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Title ──
-                      const _Label('Experience Title *'),
+                      const _Label('Event Title *'),
                       const SizedBox(height: 8),
                       TextFormField(
                               controller: _titleController,
@@ -1369,7 +1301,7 @@ Future<void> _pickTime() async {
                               maxLines: 3,
                               decoration: const InputDecoration(
                                   hintText:
-                                      'Tell people what this experience is about...',
+                                      'Tell people what this event is about...',
                                   alignLabelWithHint: true),
                               validator: (v) => (v == null || v.trim().isEmpty)
                                   ? 'Description is required'
@@ -1379,87 +1311,124 @@ Future<void> _pickTime() async {
 
                       const SizedBox(height: 16),
 
-                      // ── Purpose (Social / Professional) ──
-                      const _Label('Purpose'),
+                      // ── Event Audience ──────────────────────────────────
+                      const _Label('Event Audience *'),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: TheyDiColors.inputFill,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: TheyDiColors.divider),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Row(children: [
                           Expanded(
-                            child: _PurposeSelector(
-                              label: 'Social',
-                              icon: Icons.groups_outlined,
-                              isSelected: _purpose == 'Social',
-                              onTap: () => _onPurposeChanged('Social'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _PurposeSelector(
-                              label: 'Professional',
-                              icon: Icons.work_outline,
-                              isSelected: _purpose == 'Professional',
-                              onTap: () => _onPurposeChanged('Professional'),
-                            ),
-                          ),
-                        ],
-                      ).animate(delay: 100.ms).fade(duration: 300.ms),
-
-                      // ── Subcategory (depends on Purpose) ──
-                      if (_purpose.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        const _Label('Category'),
-                        const SizedBox(height: 8),
-                        _DropdownField<String>(
-                          hint: 'Select category',
-                          value: _selectedSubcategory,
-                          items: _activeSubcategories
-                              .map(
-                                (c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(
-                                    c,
-                                    style: TheyDiTextStyles.bodyMedium,
-                                  ),
+                            child: GestureDetector(
+                              onTap: () => _onAudienceChanged('Social'),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: _eventAudience == 'Social'
+                                      ? TheyDiColors.primary
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(11),
                                 ),
-                              )
-                              .toList(),
-                          onChanged: _onSubcategoryChanged,
-                          icon: Icons.category_outlined,
-                        ).animate(delay: 120.ms).fade(duration: 300.ms),
-                      ],
-
-                      // ── Custom category (Other) ──
-                      if (_selectedSubcategory == 'Other') ...[
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _customCategoryController,
-                          style: TheyDiTextStyles.bodyMedium,
-                          decoration: const InputDecoration(
-                            hintText: 'Describe your category',
-                            prefixIcon: Icon(Icons.edit_outlined),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.people_outline,
+                                        size: 16,
+                                        color: _eventAudience == 'Social'
+                                            ? Colors.white
+                                            : TheyDiColors.textSecondary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Social',
+                                      style: TheyDiTextStyles.labelMedium.copyWith(
+                                        color: _eventAudience == 'Social'
+                                            ? Colors.white
+                                            : TheyDiColors.textSecondary,
+                                        fontWeight: _eventAudience == 'Social'
+                                            ? FontWeight.w700
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ).animate(delay: 130.ms).fade(duration: 300.ms),
-                      ],
-
-                      // ── Organizer (optional, Professional only) ──
-                      if (_purpose == 'Professional') ...[
-                        const SizedBox(height: 16),
-                        const _Label('Organized By (optional)'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _organizerController,
-                          style: TheyDiTextStyles.bodyMedium,
-                          decoration: const InputDecoration(
-                            hintText: 'e.g. Acme Inc., or your name',
-                            prefixIcon: Icon(Icons.business_outlined),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _onAudienceChanged('Professional'),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: _eventAudience == 'Professional'
+                                      ? TheyDiColors.primary
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.work_outline,
+                                        size: 16,
+                                        color: _eventAudience == 'Professional'
+                                            ? Colors.white
+                                            : TheyDiColors.textSecondary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Professional',
+                                      style: TheyDiTextStyles.labelMedium.copyWith(
+                                        color: _eventAudience == 'Professional'
+                                            ? Colors.white
+                                            : TheyDiColors.textSecondary,
+                                        fontWeight: _eventAudience == 'Professional'
+                                            ? FontWeight.w700
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ).animate(delay: 140.ms).fade(duration: 300.ms),
-                      ],
+                        ]),
+                      ).animate(delay: 95.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // ── Category (filtered by audience) ─────────────────
+                      _Label(_eventAudience == 'Social'
+                          ? 'Social Category'
+                          : 'Professional Category'),
+                      const SizedBox(height: 8),
+                      _DropdownField<String>(
+                        hint: _eventAudience == 'Social'
+                            ? 'Select Social Category'
+                            : 'Select Professional Category',
+                        value: _selectedCategory,
+                        items: (_eventAudience == 'Social'
+                                ? EventConstants.socialCategories
+                                : EventConstants.professionalCategories)
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(c, style: TheyDiTextStyles.bodyMedium),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _onCategoryChanged,
+                        icon: Icons.category_outlined,
+                      ).animate(delay: 100.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 16),
 
                       // ── Event Type ──
-                      const _Label('Experience Type'),
+                      const _Label('Event Type'),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -1850,12 +1819,22 @@ Future<void> _pickTime() async {
                                 ),
                                 onMapCreated: (controller) {
                                   _mapController = controller;
-
                                   _currentCenter = LatLng(
                                     _pinnedLat!,
                                     _pinnedLng!,
                                   );
                                   _currentZoom = 15;
+                                  // Fix web: google_maps_flutter_web ignores
+                                  // initialCameraPosition and defaults to Africa.
+                                  // Force a camera move after the map is ready.
+                                  Future.microtask(() {
+                                    controller.moveCamera(
+                                      CameraUpdate.newLatLngZoom(
+                                        _currentCenter,
+                                        _currentZoom,
+                                      ),
+                                    );
+                                  });
                                 },
                                 onTap: (LatLng position) {
                                   setState(() {
@@ -2192,7 +2171,7 @@ Future<void> _pickTime() async {
                                       size: 18,
                                       color: TheyDiColors.textSecondary),
                                   const SizedBox(width: 8),
-                                  Text('Free Experience',
+                                  Text('Free Event',
                                       style: TheyDiTextStyles.bodyMedium)
                                 ]),
                                 Switch(
@@ -2229,7 +2208,7 @@ Future<void> _pickTime() async {
                       // ── Amenities ──
                       const _Label('Amenities (Optional)'),
                       const SizedBox(height: 4),
-                      Text('Let attendees know what\'s available at your experience',
+                      Text('Let attendees know what\'s available at your event',
                           style: TheyDiTextStyles.caption
                               .copyWith(color: TheyDiColors.textSecondary)),
                       const SizedBox(height: 12),
@@ -2417,10 +2396,10 @@ Future<void> _pickTime() async {
                       const SizedBox(height: 24),
 
                       // ── Event Images ──
-                      const _Label('Experience Images'),
+                      const _Label('Event Images'),
                       const SizedBox(height: 4),
                       Text(
-                          'Add up to $_maxImages photos to showcase your experience',
+                          'Add up to $_maxImages photos to showcase your event',
                           style: TheyDiTextStyles.caption
                               .copyWith(color: TheyDiColors.textSecondary)),
                       const SizedBox(height: 8),
@@ -2596,7 +2575,7 @@ Future<void> _pickTime() async {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'By creating this experience, you agree to the Host Guidelines & Rules. Please check the Host Dashboard for important terms regarding payouts, cancellation limits, and platform fees.',
+                                'By creating this event, you agree to the Host Guidelines & Rules. Please check the Host Dashboard for important terms regarding payouts, cancellation limits, and platform fees.',
                                 style: TheyDiTextStyles.caption.copyWith(
                                     color: TheyDiColors.textPrimary,
                                     fontSize: 12,
@@ -2613,7 +2592,7 @@ Future<void> _pickTime() async {
                                 color: TheyDiColors.primary))
                       else
                         GradientButton(
-                                label: 'Create Experience 🚀',
+                                label: 'Create Event 🚀',
                                 onPressed: _handleCreateEvent)
                             .animate(delay: 250.ms)
                             .fade(duration: 300.ms),
@@ -2629,65 +2608,6 @@ Future<void> _pickTime() async {
 
 // ── Map zoom button ───────────────────────────────────────────────────────────
 // ignore: unused_element
-class _PurposeSelector extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _PurposeSelector({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          gradient: isSelected ? TheyDiColors.gradientPrimary : null,
-          color: isSelected ? null : TheyDiColors.inputFill,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? Colors.transparent : TheyDiColors.divider,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: TheyDiColors.primary.withValues(alpha: 0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 20,
-                color: isSelected ? Colors.white : TheyDiColors.textSecondary),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TheyDiTextStyles.caption.copyWith(
-                color: isSelected ? Colors.white : TheyDiColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _MapButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;

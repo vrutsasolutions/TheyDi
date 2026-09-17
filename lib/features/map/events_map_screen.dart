@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui' as ui;
 
 import '../../../core/theme/app_theme.dart';
@@ -23,12 +24,8 @@ class EventsMapScreen extends StatefulWidget {
   State<EventsMapScreen> createState() => _EventsMapScreenState();
 }
 
-// Matches the price-pill bitmap height in createPriceMarker() (pill + stem +
-// dot = 40px total), used to position the popup so its pointer touches the
-// dot instead of covering it.
 const double _kMarkerHeight = 40;
 const double _kPopupWidth = 190;
-// Fallback used only for the first frame before the real height is measured.
 const double _kPopupHeightFallback = 150;
 
 class _EventsMapScreenState extends State<EventsMapScreen> {
@@ -38,13 +35,12 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
   final Map<String, BitmapDescriptor> _markerCache = {};
   Set<Marker> _markers = {};
 
-  // Key + measured height for the marker popup card. Since the card's
-  // content (title/address) can wrap to a variable number of lines, we
-  // measure its real rendered height after each frame instead of assuming
-  // a fixed value, then reposition so the pointer always lands exactly on
-  // the pin.
   final GlobalKey _popupKey = GlobalKey();
   double _popupHeight = _kPopupHeightFallback;
+
+  // eventId → 'Social' | 'Professional' | ''
+  // Populated once in initState from a single batched Firestore fetch.
+  final Map<String, String> _audienceMap = {};
 
   void _measurePopupAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -61,14 +57,42 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
   @override
   void initState() {
     super.initState();
+    _loadAudiences();
     _loadMarkers();
+  }
+
+  // ── Batch-fetch eventAudience for every event in one go ──────────────────
+  // Events were written with 'eventAudience' by create_event_screen.dart.
+  // Events created before that field existed get an empty string (badge hidden).
+  Future<void> _loadAudiences() async {
+    final ids = widget.events.map((e) => e.id).where((id) => id.isNotEmpty).toList();
+    if (ids.isEmpty) return;
+
+    // Firestore 'in' clause supports max 30 items per call; chunk if needed.
+    const chunkSize = 30;
+    for (var i = 0; i < ids.length; i += chunkSize) {
+      final chunk = ids.skip(i).take(chunkSize).toList();
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('events')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        final updates = <String, String>{};
+        for (final doc in snap.docs) {
+          updates[doc.id] =
+              (doc.data()['eventAudience'] as String? ?? '').trim();
+        }
+        if (mounted) setState(() => _audienceMap.addAll(updates));
+      } catch (_) {
+        // Non-fatal — badges simply won't show if fetch fails.
+      }
+    }
   }
 
   LatLng get _initialCenter {
     if (widget.userLat != null && widget.userLng != null) {
       return LatLng(widget.userLat!, widget.userLng!);
     }
-    // Default to India center
     final eventsWithCoords = widget.events
         .where((e) => e.latitude != 0 && e.longitude != 0)
         .toList();
@@ -76,7 +100,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
       return LatLng(
           eventsWithCoords.first.latitude, eventsWithCoords.first.longitude);
     }
-    return const LatLng(20.5937, 78.9629); // India center
+    return const LatLng(20.5937, 78.9629);
   }
 
   Future<void> _onMarkerTap(EventModel event) async {
@@ -92,8 +116,6 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
         screenPoint.x.toDouble(),
         screenPoint.y.toDouble(),
       );
-      // Reset to the fallback height for this new card's first frame, then
-      // measure its real height once it's actually laid out.
       _popupHeight = _kPopupHeightFallback;
     });
     _measurePopupAfterFrame();
@@ -123,42 +145,23 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     }
 
     if (!mounted) return;
-
-    setState(() {
-      _markers = markerSet;
-    });
+    setState(() => _markers = markerSet);
   }
 
   Future<BitmapDescriptor> _getMarker(EventModel event) async {
     final key = event.isFree ? "FREE" : "₹${event.price.toInt()}";
-
-    if (_markerCache.containsKey(key)) {
-      return _markerCache[key]!;
-    }
-
-    final icon = await createPriceMarker(
-      key,
-      event.isFree,
-    );
-
+    if (_markerCache.containsKey(key)) return _markerCache[key]!;
+    final icon = await createPriceMarker(key, event.isFree);
     _markerCache[key] = icon;
-
     return icon;
   }
 
-  // ── Smaller price marker with a location dot ──
-  // Canvas is 56x40: the 56x26 pill sits on top (unchanged), and a thin
-  // stem + small colored dot beneath it marks the exact coordinate, since
-  // the marker's default anchor is bottom-center of the whole bitmap.
-  Future<BitmapDescriptor> createPriceMarker(
-    String text,
-    bool isFree,
-  ) async {
+  Future<BitmapDescriptor> createPriceMarker(String text, bool isFree) async {
     const double width = 56;
     const double pillHeight = 26;
     const double stemHeight = 10;
     const double dotRadius = 4;
-    const double height = pillHeight + stemHeight + dotRadius; // 40
+    const double height = pillHeight + stemHeight + dotRadius;
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -169,9 +172,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     final shadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: .18)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-
     final bgPaint = Paint()..color = Colors.white;
-
     final borderPaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
@@ -183,7 +184,6 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     );
 
     canvas.drawRRect(pill.shift(const Offset(0.5, 1)), shadowPaint);
-
     canvas.drawRRect(pill, bgPaint);
     canvas.drawRRect(pill, borderPaint);
 
@@ -198,17 +198,10 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
       ),
       textDirection: TextDirection.ltr,
     );
-
     tp.layout();
+    tp.paint(canvas,
+        Offset((width - tp.width) / 2, (pillHeight - tp.height) / 2 - 1));
 
-    tp.paint(
-        canvas,
-        Offset(
-          (width - tp.width) / 2,
-          (pillHeight - tp.height) / 2 - 1,
-        ));
-
-    // ── Stem + dot marking the exact pin location ──
     final centerX = width / 2;
     final stemStartY = pillHeight;
     final dotCenterY = height - dotRadius;
@@ -217,12 +210,8 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
       ..color = accentColor
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-
-    canvas.drawLine(
-      Offset(centerX, stemStartY),
-      Offset(centerX, dotCenterY - dotRadius),
-      stemPaint,
-    );
+    canvas.drawLine(Offset(centerX, stemStartY),
+        Offset(centerX, dotCenterY - dotRadius), stemPaint);
 
     final dotShadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: .2)
@@ -240,12 +229,8 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     canvas.drawCircle(Offset(centerX, dotCenterY), dotRadius, dotRingPaint);
 
     final picture = recorder.endRecording();
-
-    final image = await picture.toImage(
-      width.toInt(),
-      height.toInt(),
-    );
-
+    final image =
+        await picture.toImage(width.toInt(), height.toInt());
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
 
     return BitmapDescriptor.bytes(
@@ -270,31 +255,21 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               target: _initialCenter,
               zoom: widget.userLat != null ? 12 : 5,
             ),
-
             onMapCreated: (controller) {
               _mapController = controller;
             },
-
             onTap: (_) {
               setState(() {
                 _selectedEvent = null;
                 _markerScreenPosition = null;
               });
             },
-
-            // 👇 ADD THIS HERE
             onCameraMove: (_) async {
               if (_selectedEvent == null || _mapController == null) return;
-
               final point = await _mapController!.getScreenCoordinate(
-                LatLng(
-                  _selectedEvent!.latitude,
-                  _selectedEvent!.longitude,
-                ),
+                LatLng(_selectedEvent!.latitude, _selectedEvent!.longitude),
               );
-
               if (!mounted) return;
-
               setState(() {
                 _markerScreenPosition = Offset(
                   point.x.toDouble(),
@@ -302,14 +277,13 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
                 );
               });
             },
-
             myLocationEnabled: widget.userLat != null,
             myLocationButtonEnabled: true,
             zoomControlsEnabled: true,
             markers: _markers,
           ),
 
-          // ── Dark overlay for contrast (rendered first so cards on top stay crisp) ──
+          // ── Dark overlay ──
           Positioned.fill(
             child: IgnorePointer(
               child: Container(
@@ -329,10 +303,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
             ),
           ),
 
-          // ── Marker popup card, centered above the tapped pin with the
-          // pointer triangle touching it (not overlapping). Horizontal
-          // position is clamped so the card can't render off-screen near
-          // the map edges. ──
+          // ── Marker popup card ──
           if (_selectedEvent != null && _markerScreenPosition != null)
             Positioned(
               left: (_markerScreenPosition!.dx - _kPopupWidth / 2).clamp(
@@ -343,6 +314,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               child: _MarkerPopupCard(
                 key: _popupKey,
                 event: _selectedEvent!,
+                audience: _audienceMap[_selectedEvent!.id] ?? '',
               ),
             ),
 
@@ -352,7 +324,6 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Row(
                 children: [
-                  // Back / List View toggle
                   GestureDetector(
                     onTap: () => context.pop(),
                     child: Container(
@@ -376,10 +347,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
                       ),
                     ),
                   ),
-
                   const Spacer(),
-
-                  // Event count badge
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -415,11 +383,12 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               right: 16,
               child: _EventPreviewCard(
                 event: _selectedEvent!,
+                audience: _audienceMap[_selectedEvent!.id] ?? '',
                 onClose: () => setState(() => _selectedEvent = null),
               ),
             ),
 
-          // ── No events on map hint ──
+          // ── No events hint ──
           if (eventsWithCoords.isEmpty)
             Center(
               child: Container(
@@ -453,12 +422,52 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
   }
 }
 
-// ── Event preview card shown when marker is tapped ──
+// ── Shared audience badge widget ─────────────────────────────────────────────
+// Shows "Social" (green) or "Professional" (blue). Hidden when audience is ''.
+class _AudienceBadge extends StatelessWidget {
+  final String audience;
+  const _AudienceBadge({required this.audience});
+
+  @override
+  Widget build(BuildContext context) {
+    if (audience.isEmpty) return const SizedBox.shrink();
+    final isPro = audience == 'Professional';
+    final color = isPro ? Colors.blue : const Color(0xff2ECC71);
+    final icon = isPro ? Icons.work_outline : Icons.celebration_outlined;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 0.8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 10, color: color),
+        const SizedBox(width: 3),
+        Text(
+          audience,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Bottom selected-event card ───────────────────────────────────────────────
 class _EventPreviewCard extends StatelessWidget {
   final EventModel event;
+  final String audience;
   final VoidCallback onClose;
 
-  const _EventPreviewCard({required this.event, required this.onClose});
+  const _EventPreviewCard({
+    required this.event,
+    required this.audience,
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -507,75 +516,74 @@ class _EventPreviewCard extends StatelessWidget {
                       style: TheyDiTextStyles.labelLarge,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined,
-                          size: 11, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${event.dateTime.day}/${event.dateTime.month} · ${_formatTime(event.dateTime)}',
-                        style: TheyDiTextStyles.caption,
+                  const SizedBox(height: 4),
+                  // Audience badge + price on the same row
+                  Row(children: [
+                    _AudienceBadge(audience: audience),
+                    if (audience.isNotEmpty) const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: event.isFree
+                            ? Colors.green.withValues(alpha: 0.13)
+                            : TheyDiColors.primary.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 11, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Text('${event.venue}, ${event.city}',
-                            style: TheyDiTextStyles.caption,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        event.isFree ? 'FREE' : '₹${event.price.toInt()}',
+                        style: TextStyle(
+                          color: event.isFree
+                              ? Colors.green
+                              : TheyDiColors.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.calendar_today_outlined,
+                        size: 11, color: TheyDiColors.textMuted),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${event.dateTime.day}/${event.dateTime.month} · ${_formatTime(event.dateTime)}',
+                      style: TheyDiTextStyles.caption,
+                    ),
+                  ]),
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 11, color: TheyDiColors.textMuted),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text('${event.venue}, ${event.city}',
+                          style: TheyDiTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
                 ],
               ),
             ),
 
             const SizedBox(width: 8),
 
-            // Price + close
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                GestureDetector(
-                  onTap: onClose,
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: TheyDiColors.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: TheyDiColors.divider),
-                    ),
-                    child: const Icon(Icons.close,
-                        size: 12, color: TheyDiColors.textMuted),
-                  ),
+            // Close button only (price moved to info column)
+            GestureDetector(
+              onTap: onClose,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: TheyDiColors.card,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: TheyDiColors.divider),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: event.isFree
-                        ? Colors.green.withValues(alpha: 0.15)
-                        : TheyDiColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    event.isFree ? 'FREE' : '₹${event.price.toInt()}',
-                    style: TheyDiTextStyles.caption.copyWith(
-                      color: event.isFree ? Colors.green : TheyDiColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+                child: const Icon(Icons.close,
+                    size: 13, color: TheyDiColors.textMuted),
+              ),
             ),
           ],
         ),
@@ -591,12 +599,15 @@ class _EventPreviewCard extends StatelessWidget {
   }
 }
 
+// ── Map marker popup card ────────────────────────────────────────────────────
 class _MarkerPopupCard extends StatelessWidget {
   final EventModel event;
+  final String audience;
 
   const _MarkerPopupCard({
     super.key,
     required this.event,
+    required this.audience,
   });
 
   @override
@@ -606,8 +617,8 @@ class _MarkerPopupCard extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 190,
-            padding: const EdgeInsets.all(14),
+            width: _kPopupWidth,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
@@ -622,28 +633,44 @@ class _MarkerPopupCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Title
                 Text(
                   event.title,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontSize: 14,
+                    color: Color(0xFF1A1A2E),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  event.isFree ? "FREE" : "₹${event.price.toInt()}",
-                  style: TextStyle(
-                    color: event.isFree ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                const SizedBox(height: 6),
+                // Audience badge + price badge on the same row
+                Row(children: [
+                  _AudienceBadge(audience: audience),
+                  if (audience.isNotEmpty) const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: event.isFree
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : Colors.red.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      event.isFree ? 'FREE' : '₹${event.price.toInt()}',
+                      style: TextStyle(
+                        color: event.isFree ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
                   ),
-                ),
+                ]),
               ],
             ),
           ),
-
           // Pointer triangle
           CustomPaint(
             size: const Size(20, 12),
@@ -659,13 +686,11 @@ class _TrianglePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.white;
-
     final path = Path()
       ..moveTo(size.width / 2, size.height)
       ..lineTo(0, 0)
       ..lineTo(size.width, 0)
       ..close();
-
     canvas.drawShadow(path, Colors.black26, 3, true);
     canvas.drawPath(path, paint);
   }

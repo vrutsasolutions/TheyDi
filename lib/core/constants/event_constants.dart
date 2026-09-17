@@ -1,6 +1,42 @@
 class EventConstants {
   EventConstants._();
 
+  // ── Audience-specific category lists ─────────────────────────────────────────
+  static const List<String> socialCategories = [
+    'Music',
+    'Food',
+    'Gaming',
+    'Fitness',
+    'Comedy',
+    'Party',
+    'Sports',
+    'Art',
+    'Travel',
+    'Photography',
+    'Dance',
+    'Movies',
+    'Social',
+    'Other',
+  ];
+
+  static const List<String> professionalCategories = [
+    'Tech',
+    'Networking',
+    'Workshop',
+    'Hackathon',
+    'Conference',
+    'Startup',
+    'Career',
+    'Design',
+    'Marketing',
+    'Finance',
+    'Healthcare',
+    'Education',
+    'AI',
+    'Other',
+  ];
+
+  // Legacy flat list — kept for home screen filters & explore
   static const List<String> eventCategories = [
     'Music',
     'Tech',
@@ -14,33 +50,6 @@ class EventConstants {
     'Workshop',
     'Party',
     'Social',
-    'Other',
-  ];
-
-  // New: category options scoped to the Purpose selector on Create
-  // Experience (Social vs Professional), plus 'Other' in both so a host
-  // can free-type something not listed. This is a subset/regrouping of
-  // eventCategories above, not a replacement for it — eventCategories is
-  // still used for the Home feed's category chips.
-  static const List<String> socialEventCategories = [
-    'Party',
-    'Social',
-    'Music',
-    'Food',
-    'Fitness',
-    'Gaming',
-    'Art',
-    'Comedy',
-    'Other',
-  ];
-
-  static const List<String> professionalEventCategories = [
-    'Tech',
-    'Business',
-    'AI',
-    'Startups',
-    'Networking',
-    'Workshop',
     'Other',
   ];
 
