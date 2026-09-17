@@ -50,90 +50,43 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-// Which "vibe" an event falls under, used to split events between the
-// Social and Professional tabs. This is a placeholder heuristic based on
-// the existing `category`/title/description text — the real classification
-// logic (e.g. an explicit event-type field set at creation time) will
-// replace this later.
 enum _EventVibe { social, professional }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  static const List<String> homeTabs = ['For You', 'Social', 'Professional'];
+  static const List<String> homeTabs = ['Social', 'Professional'];
 
-  // Category chip sets shown under the Social / Professional tabs. Not
-  // shown under For You.
   static const List<String> _socialChipCategories = [
-    'All',
-    'Music',
-    'Food',
-    'Fitness',
-    'Gaming',
+    'All', 'Music', 'Food', 'Fitness', 'Gaming',
   ];
   static const List<String> _professionalChipCategories = [
-    'All',
-    'Tech',
-    'Business',
-    'AI',
-    'Startups',
+    'All', 'Tech', 'Business', 'AI', 'Startups',
   ];
 
-  // Placeholder keyword sets for classifying an event as Social vs
-  // Professional. Category match takes priority; free-text keywords on
-  // the title/description are a fallback for events tagged with a
-  // category that isn't in either list.
   static const Set<String> _professionalCategories = {
-    'tech',
-    'business',
-    'ai',
-    'startups',
-    'startup',
-    'hackathon',
-    'seminar',
-    'conference',
-    'workshop',
-    'networking',
+    'tech', 'business', 'ai', 'startups', 'startup',
+    'hackathon', 'seminar', 'conference', 'workshop', 'networking',
   };
   static const List<String> _professionalKeywords = [
-    'hackathon',
-    'seminar',
-    'summit',
-    'conference',
-    'workshop',
-    'crypto',
-    'startup',
-    'pitch night',
-    'networking',
-    'career',
+    'hackathon', 'seminar', 'summit', 'conference', 'workshop',
+    'crypto', 'startup', 'pitch night', 'networking', 'career',
   ];
   static const List<String> _socialKeywords = [
-    'house party',
-    'party',
-    'art night',
-    'art & craft',
-    'art and craft',
-    'mixer',
-    'game night',
-    'yoga',
-    'music night',
-    'jam',
-    'potluck',
+    'house party', 'party', 'art night', 'art & craft', 'art and craft',
+    'mixer', 'game night', 'yoga', 'music night', 'jam', 'potluck',
   ];
 
   _EventVibe _classifyEvent(EventModel e) {
+    if (e.purpose == 'Professional') return _EventVibe.professional;
+    if (e.purpose == 'Social') return _EventVibe.social;
     final cat = e.category.toLowerCase().trim();
     if (_professionalCategories.contains(cat)) return _EventVibe.professional;
     final text = '${e.title} ${e.description}'.toLowerCase();
-    if (_professionalKeywords.any((k) => text.contains(k))) {
-      return _EventVibe.professional;
-    }
-    if (_socialKeywords.any((k) => text.contains(k))) {
-      return _EventVibe.social;
-    }
-    // Default fallback: everything else reads as a casual/social event.
+    if (_professionalKeywords.any((k) => text.contains(k))) return _EventVibe.professional;
+    if (_socialKeywords.any((k) => text.contains(k))) return _EventVibe.social;
     return _EventVibe.social;
   }
 
-  String _selectedHomeTab = 'For You';
+  String _selectedHomeTab = 'Social';
   String _selectedCategory = 'All';
   String _selectedSort = 'Radius';
   double _selectedRadius = 2.0;
@@ -163,12 +116,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _loadUserLocation();
     _checkPendingReview();
+    _loadDefaultTabFromPurpose();
+  }
+
+  Future<void> _loadDefaultTabFromPurpose() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final purpose = (doc.data()?['purpose'] as String?) ?? '';
+      if (purpose == 'Professional' && mounted) {
+        setState(() => _selectedHomeTab = 'Professional');
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkPendingReview() async {
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
-
     final pendingEvent = await ReviewTriggerService.getPendingReviewEvent();
     if (pendingEvent != null && mounted) {
       showReviewPopup(context, event: pendingEvent);
@@ -195,52 +160,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   double _getEventDistance(EventModel event) {
     if (_userLat == null || _userLng == null) return -1;
     return LocationService.calculateDistanceKm(
-      lat1: _userLat!,
-      lon1: _userLng!,
-      lat2: event.latitude,
-      lon2: event.longitude,
+      lat1: _userLat!, lon1: _userLng!,
+      lat2: event.latitude, lon2: event.longitude,
     );
   }
 
-  // ── FIX: distance filtering now runs against ALL events (lat/lng is
-  // ground truth). userCity is no longer used to pre-filter this list —
-  // it's only used for the "Top Experiences in <city>" section below via
-  // _topEventsForLocation. This stops nearby events with a missing/
-  // mismatched city field from being silently dropped before the radius
-  // check ever runs. ──
   List<EventModel> _filterAndSortEvents(List<EventModel> events, String userCity) {
     List<EventModel> filtered = List.of(events);
 
     if (_selectedHomeTab == 'Social') {
-      filtered =
-          filtered.where((e) => _classifyEvent(e) == _EventVibe.social).toList();
+      filtered = filtered.where((e) => _classifyEvent(e) == _EventVibe.social).toList();
     } else if (_selectedHomeTab == 'Professional') {
-      filtered = filtered
-          .where((e) => _classifyEvent(e) == _EventVibe.professional)
-          .toList();
+      filtered = filtered.where((e) => _classifyEvent(e) == _EventVibe.professional).toList();
     }
     if (_selectedDate != null) {
-      filtered = filtered
-          .where((e) =>
-              e.dateTime.year == _selectedDate!.year &&
-              e.dateTime.month == _selectedDate!.month &&
-              e.dateTime.day == _selectedDate!.day)
-          .toList();
+      filtered = filtered.where((e) =>
+          e.dateTime.year == _selectedDate!.year &&
+          e.dateTime.month == _selectedDate!.month &&
+          e.dateTime.day == _selectedDate!.day).toList();
     }
     if (_priceRange != null) {
-      filtered = filtered
-          .where((e) =>
-              e.price >= _priceRange!.start && e.price <= _priceRange!.end)
-          .toList();
+      filtered = filtered.where((e) =>
+          e.price >= _priceRange!.start && e.price <= _priceRange!.end).toList();
     }
     if (_selectedCategory != 'All') {
-      filtered = filtered
-          .where((e) =>
-              e.category.toLowerCase() == _selectedCategory.toLowerCase())
-          .toList();
+      filtered = filtered.where((e) =>
+          e.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
     }
-    // If GPS is available, filter by radius. Otherwise fall back to
-    // the user's saved city so only local events are shown by default.
+    // GPS radius filter with city fallback when GPS unavailable
     if (_selectedRadius > 0 && _userLat != null && _userLng != null) {
       filtered = filtered.where((e) {
         final d = _getEventDistance(e);
@@ -272,13 +219,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return filtered;
   }
 
-  List<EventModel> _topEventsForLocation(
-      List<EventModel> events, String userCity) {
+  List<EventModel> _topEventsForLocation(List<EventModel> events, String userCity) {
     final locationEvents = userCity.isEmpty
         ? events.toList()
-        : events
-            .where((e) => e.city.toLowerCase() == userCity.toLowerCase())
-            .toList();
+        : events.where((e) => e.city.toLowerCase() == userCity.toLowerCase()).toList();
     locationEvents.sort((a, b) {
       final attendeeCompare = b.currentAttendees.compareTo(a.currentAttendees);
       if (attendeeCompare != 0) return attendeeCompare;
@@ -291,8 +235,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Navigator.of(context).push(PageRouteBuilder(
       pageBuilder: (_, anim, __) => FadeTransition(
         opacity: anim,
-        child: EventsMapScreen(
-            events: events, userLat: _userLat, userLng: _userLng),
+        child: EventsMapScreen(events: events, userLat: _userLat, userLng: _userLng),
       ),
       transitionDuration: const Duration(milliseconds: 300),
     ));
@@ -310,13 +253,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final options = LocationService.radiusOptions
             .where((o) => o['value'] != 50.0 && o['value'] != -1.0)
             .toList();
-
         return SafeArea(
           child: Align(
             alignment: Alignment.bottomCenter,
             child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
+              constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
               child: Container(
                 decoration: const BoxDecoration(
                   color: Color(0xFFF3F4F6),
@@ -327,16 +268,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                        child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                                color: TheyDiColors.divider,
-                                borderRadius: BorderRadius.circular(2)))),
+                    Center(child: Container(width: 40, height: 4,
+                        decoration: BoxDecoration(color: TheyDiColors.divider,
+                            borderRadius: BorderRadius.circular(2)))),
                     const SizedBox(height: 16),
-                    Text('Distance filter',
-                        style: TheyDiTextStyles.displayMedium),
+                    Text('Distance filter', style: TheyDiTextStyles.displayMedium),
                     const SizedBox(height: 16),
                     Flexible(
                       child: ListView.separated(
@@ -348,48 +284,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           final isSelected = _selectedRadius == option['value'];
                           return GestureDetector(
                             onTap: () {
-                              setState(() =>
-                                  _selectedRadius = option['value'] as double);
+                              setState(() => _selectedRadius = option['value'] as double);
                               Navigator.pop(ctx);
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? TheyDiColors.primary
-                                        .withValues(alpha: 0.15)
-                                    : TheyDiColors.card,
+                                color: isSelected ? TheyDiColors.primary.withValues(alpha: 0.15) : TheyDiColors.card,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: isSelected
-                                        ? TheyDiColors.primary
-                                        : TheyDiColors.divider),
+                                border: Border.all(color: isSelected ? TheyDiColors.primary : TheyDiColors.divider),
                               ),
                               child: Row(children: [
-                                Icon(
-                                    isSelected
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_off,
-                                    color: isSelected
-                                        ? TheyDiColors.primary
-                                        : TheyDiColors.textMuted,
-                                    size: 20),
+                                Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    color: isSelected ? TheyDiColors.primary : TheyDiColors.textMuted, size: 20),
                                 const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(option['label'] as String,
-                                      style: TheyDiTextStyles.labelMedium
-                                          .copyWith(
-                                              color: isSelected
-                                                  ? TheyDiColors.primary
-                                                  : TheyDiColors.textSecondary,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
-                                                  : FontWeight.normal)),
-                                ),
-                                if (isSelected)
-                                  const Icon(Icons.check,
-                                      color: TheyDiColors.primary, size: 18),
+                                Expanded(child: Text(option['label'] as String,
+                                    style: TheyDiTextStyles.labelMedium.copyWith(
+                                        color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary,
+                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal))),
+                                if (isSelected) const Icon(Icons.check, color: TheyDiColors.primary, size: 18),
                               ]),
                             ),
                           );
@@ -406,8 +319,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ── FIX: single-date picker instead of date-range picker, to match the
-  // event-creation flow's single-date selection. ──
   Future<void> _showDateSelector() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -418,27 +329,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: TheyDiColors.primary,
-                ),
+            colorScheme: Theme.of(context).colorScheme.copyWith(primary: TheyDiColors.primary),
           ),
           child: child!,
         );
       },
     );
     if (picked != null && mounted) {
-      setState(() {
-        _selectedDate = picked;
-        _selectedSort = 'Date';
-      });
+      setState(() { _selectedDate = picked; _selectedSort = 'Date'; });
     }
   }
 
   void _showPriceRangeSelector() {
-    RangeValues tempRange =
-        _priceRange ?? const RangeValues(0, _priceFilterMax);
+    RangeValues tempRange = _priceRange ?? const RangeValues(0, _priceFilterMax);
     bool tempAscending = _priceAscending;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -448,7 +352,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           builder: (ctx, setModalState) {
             final size = MediaQuery.sizeOf(ctx);
             final maxWidth = math.min(size.width, 520.0);
-
             Widget sortToggle(String label, bool ascending) {
               final isSelected = tempAscending == ascending;
               return Expanded(
@@ -457,140 +360,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? TheyDiColors.primary.withValues(alpha: 0.15)
-                          : TheyDiColors.card,
+                      color: isSelected ? TheyDiColors.primary.withValues(alpha: 0.15) : TheyDiColors.card,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: isSelected
-                              ? TheyDiColors.primary
-                              : TheyDiColors.divider),
+                      border: Border.all(color: isSelected ? TheyDiColors.primary : TheyDiColors.divider),
                     ),
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: TheyDiTextStyles.labelMedium.copyWith(
-                        color: isSelected
-                            ? TheyDiColors.primary
-                            : TheyDiColors.textSecondary,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
+                    child: Text(label, textAlign: TextAlign.center,
+                        style: TheyDiTextStyles.labelMedium.copyWith(
+                            color: isSelected ? TheyDiColors.primary : TheyDiColors.textSecondary,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
                   ),
                 ),
               );
             }
-
             return SafeArea(
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF3F4F6),
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
+                    decoration: const BoxDecoration(color: Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                            child: Container(
-                                width: 40,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                    color: TheyDiColors.divider,
-                                    borderRadius: BorderRadius.circular(2)))),
-                        const SizedBox(height: 16),
-                        Text('Price filter',
-                            style: TheyDiTextStyles.displayMedium),
-                        const SizedBox(height: 8),
-                        Text(
-                          '₹${tempRange.start.toInt()} – ₹${tempRange.end.toInt()}',
-                          style: TheyDiTextStyles.labelMedium
-                              .copyWith(color: TheyDiColors.primary),
-                        ),
-                        RangeSlider(
-                          values: tempRange,
-                          min: 0,
-                          max: _priceFilterMax,
-                          divisions: 50,
-                          activeColor: TheyDiColors.primary,
-                          labels: RangeLabels(
-                            '₹${tempRange.start.toInt()}',
-                            '₹${tempRange.end.toInt()}',
-                          ),
-                          onChanged: (values) =>
-                              setModalState(() => tempRange = values),
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Sort order',
-                            style: TheyDiTextStyles.caption
-                                .copyWith(color: TheyDiColors.textSecondary)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            sortToggle('Low → High', true),
-                            const SizedBox(width: 8),
-                            sortToggle('High → Low', false),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  side: const BorderSide(
-                                      color: TheyDiColors.divider),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _priceRange = null;
-                                  });
-                                  Navigator.pop(ctx);
-                                },
-                                child: Text('Clear',
-                                    style: TheyDiTextStyles.labelMedium
-                                        .copyWith(
-                                            color: TheyDiColors.textSecondary)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: TheyDiColors.primary,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _priceRange = tempRange;
-                                    _priceAscending = tempAscending;
-                                    _selectedSort = 'Price ₹';
-                                  });
-                                  Navigator.pop(ctx);
-                                },
-                                child: Text('Apply',
-                                    style: TheyDiTextStyles.labelMedium
-                                        .copyWith(color: Colors.white)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Center(child: Container(width: 40, height: 4,
+                          decoration: BoxDecoration(color: TheyDiColors.divider, borderRadius: BorderRadius.circular(2)))),
+                      const SizedBox(height: 16),
+                      Text('Price filter', style: TheyDiTextStyles.displayMedium),
+                      const SizedBox(height: 8),
+                      Text('₹${tempRange.start.toInt()} – ₹${tempRange.end.toInt()}',
+                          style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.primary)),
+                      RangeSlider(
+                        values: tempRange, min: 0, max: _priceFilterMax, divisions: 50,
+                        activeColor: TheyDiColors.primary,
+                        labels: RangeLabels('₹${tempRange.start.toInt()}', '₹${tempRange.end.toInt()}'),
+                        onChanged: (values) => setModalState(() => tempRange = values),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Sort order', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary)),
+                      const SizedBox(height: 8),
+                      Row(children: [sortToggle('Low → High', true), const SizedBox(width: 8), sortToggle('High → Low', false)]),
+                      const SizedBox(height: 16),
+                      Row(children: [
+                        Expanded(child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: TheyDiColors.divider),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          onPressed: () { setState(() => _priceRange = null); Navigator.pop(ctx); },
+                          child: Text('Clear', style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.textSecondary)),
+                        )),
+                        const SizedBox(width: 12),
+                        Expanded(child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: TheyDiColors.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          onPressed: () {
+                            setState(() { _priceRange = tempRange; _priceAscending = tempAscending; _selectedSort = 'Price ₹'; });
+                            Navigator.pop(ctx);
+                          },
+                          child: Text('Apply', style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)),
+                        )),
+                      ]),
+                    ]),
                   ),
                 ),
               ),
@@ -601,8 +431,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  String get _radiusLabel =>
-      _selectedRadius < 0 ? 'Entire City' : '${_selectedRadius.toInt()} km';
+  String get _radiusLabel => _selectedRadius < 0 ? 'Entire City' : '${_selectedRadius.toInt()} km';
 
   String get _dateChipLabel {
     if (_selectedDate == null) return 'Date';
@@ -610,12 +439,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   String get _priceChipLabel {
-    if (_priceRange != null) {
-      return '₹${_priceRange!.start.toInt()}-${_priceRange!.end.toInt()}';
-    }
-    if (_selectedSort == 'Price ₹') {
-      return _priceAscending ? 'Price ↑' : 'Price ↓';
-    }
+    if (_priceRange != null) return '₹${_priceRange!.start.toInt()}-${_priceRange!.end.toInt()}';
+    if (_selectedSort == 'Price ₹') return _priceAscending ? 'Price ↑' : 'Price ↓';
     return 'Price';
   }
 
@@ -627,37 +452,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       floatingActionButton: GestureDetector(
-        onTap: () {
-          GoRouter.of(rootNavigatorKey.currentContext!)
-              .push(AppRoutes.darlaChat);
-        },
+        onTap: () => GoRouter.of(rootNavigatorKey.currentContext!).push(AppRoutes.darlaChat),
         child: Container(
-          width: 62,
-          height: 62,
+          width: 62, height: 62,
           decoration: BoxDecoration(
-            gradient: TheyDiColors.gradientPrimary,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: TheyDiColors.primary.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: TheyDiColors.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
           ),
-          child: const Icon(
-            Icons.support_agent_rounded,
-            color: Colors.white,
-            size: 30,
-          ),
+          child: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 30),
         ),
       ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-              colors: [Color(0xFFFFFFFF), Color(0xFFF3F4F6)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter),
+          gradient: LinearGradient(colors: [Color(0xFFFFFFFF), Color(0xFFF3F4F6)],
+              begin: Alignment.topCenter, end: Alignment.bottomCenter),
         ),
         child: SafeArea(
           child: CustomScrollView(
@@ -677,101 +485,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Flexible(
-                                child: Container(
-                                  padding: EdgeInsets.zero,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Center(
-                                          child: Image.asset(
-                                            'assets/images/theydi_logo.png',
-                                            height: 56,
-                                            fit: BoxFit.contain,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Hey there 👋',
-                                        style: TheyDiTextStyles.headlineSmall
-                                            .copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Container(width: 48, height: 48,
+                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+                                      child: Center(child: Image.asset('assets/images/theydi_logo.png', height: 56, fit: BoxFit.contain))),
+                                  const SizedBox(width: 4),
+                                  Text('Hey there 👋', style: TheyDiTextStyles.headlineSmall.copyWith(fontWeight: FontWeight.w700)),
+                                ]),
                               ),
                               const SizedBox(width: 8),
                               Row(mainAxisSize: MainAxisSize.min, children: [
                                 NotificationIconButton(
-                                  borderColor:
-                                      const Color.fromARGB(255, 229, 235, 229),
-                                  iconColor:
-                                      const Color.fromARGB(255, 75, 85, 99),
+                                  borderColor: const Color.fromARGB(255, 229, 235, 229),
+                                  iconColor: const Color.fromARGB(255, 75, 85, 99),
                                 ),
                                 const SizedBox(width: 8),
                                 GestureDetector(
-                                  onTap: () =>
-                                      context.push(AppRoutes.friendsHub),
-                                  child: Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                          color: TheyDiColors.card,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: TheyDiColors.divider)),
-                                      child: const Icon(Icons.group_outlined,
-                                          color: TheyDiColors.textSecondary,
-                                          size: 20)),
+                                  onTap: () => context.push(AppRoutes.friendsHub),
+                                  child: Container(width: 44, height: 44,
+                                      decoration: BoxDecoration(color: TheyDiColors.card,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: TheyDiColors.divider)),
+                                      child: const Icon(Icons.group_outlined, color: TheyDiColors.textSecondary, size: 20)),
                                 ),
                               ]),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Discover Gatherings',
-                                    style: TheyDiTextStyles.displaySmall),
-                              ]),
+                          Text('Discover Gatherings', style: TheyDiTextStyles.displaySmall),
                         ],
                       ).animate().fade(duration: 400.ms),
 
                       const SizedBox(height: 20),
 
-                      // Search bar — no tune icon inside
+                      // ── Search bar ──
                       Row(children: [
                         Expanded(
                           child: GestureDetector(
                             onTap: () => context.push(AppRoutes.search),
-                            child: Container(
-                              height: 48,
-                              decoration: BoxDecoration(
-                                  color: TheyDiColors.card,
+                            child: Container(height: 48,
+                              decoration: BoxDecoration(color: TheyDiColors.card,
                                   borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: TheyDiColors.divider)),
+                                  border: Border.all(color: TheyDiColors.divider)),
                               child: Row(children: [
                                 const SizedBox(width: 12),
-                                const Icon(Icons.search,
-                                    color: TheyDiColors.textMuted, size: 20),
+                                const Icon(Icons.search, color: TheyDiColors.textMuted, size: 20),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                    child: Text('Search events near you...',
-                                        style: TheyDiTextStyles.bodySmall
-                                            .copyWith(
-                                                color:
-                                                    TheyDiColors.textMuted))),
+                                Expanded(child: Text('Search experiences near you...',
+                                    style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textMuted))),
                               ]),
                             ),
                           ),
@@ -780,83 +541,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         eventsAsync.maybeWhen(
                           data: (events) => GestureDetector(
                             onTap: () => _openMapView(events),
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                  color: TheyDiColors.card,
+                            child: Container(width: 48, height: 48,
+                                decoration: BoxDecoration(color: TheyDiColors.card,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: TheyDiColors.divider)),
+                                child: const Icon(Icons.map_outlined, color: TheyDiColors.textSecondary, size: 20)),
+                          ),
+                          orElse: () => Container(width: 48, height: 48,
+                              decoration: BoxDecoration(color: TheyDiColors.card,
                                   borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: TheyDiColors.divider)),
-                              child: const Icon(Icons.map_outlined,
-                                  color: TheyDiColors.textSecondary, size: 20),
-                            ),
-                          ),
-                          orElse: () => Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                                color: TheyDiColors.card,
-                                borderRadius: BorderRadius.circular(12),
-                                border:
-                                    Border.all(color: TheyDiColors.divider)),
-                            child: const Icon(Icons.map_outlined,
-                                color: TheyDiColors.textMuted, size: 20),
-                          ),
+                                  border: Border.all(color: TheyDiColors.divider)),
+                              child: const Icon(Icons.map_outlined, color: TheyDiColors.textMuted, size: 20)),
                         ),
                       ]).animate(delay: 100.ms).fade(duration: 400.ms),
 
                       const SizedBox(height: 18),
 
-                      // Home tabs — For You / Social / Professional
+                      // ── Social / Professional banner tabs ──
                       Row(
                         children: homeTabs.map((tab) {
                           final isSelected = tab == _selectedHomeTab;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 22),
-                            child: _PressableScale(
-                              onTap: () => _selectHomeTab(tab),
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 180),
-                                style: TheyDiTextStyles.labelLarge.copyWith(
-                                  color: isSelected
-                                      ? TheyDiColors.primary
-                                      : TheyDiColors.textMuted,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  letterSpacing: -0.1,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(tab),
-                                    const SizedBox(height: 6),
-                                    AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 180),
-                                      height: 3,
-                                      width: isSelected ? 22 : 0,
-                                      decoration: BoxDecoration(
-                                        gradient:
-                                            TheyDiColors.gradientPrimary,
-                                        borderRadius:
-                                            BorderRadius.circular(2),
-                                        boxShadow: isSelected
-                                            ? [
-                                                BoxShadow(
-                                                  color: TheyDiColors.primary
-                                                      .withValues(alpha: 0.5),
-                                                  blurRadius: 4,
-                                                  offset:
-                                                      const Offset(0, 1),
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          final isLast = tab == homeTabs.last;
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(right: isLast ? 0 : 12),
+                              child: _PressableScale(
+                                onTap: () => _selectHomeTab(tab),
+                                child: _HomeVibeTabBanner(tab: tab, isSelected: isSelected),
                               ),
                             ),
                           );
@@ -865,486 +576,152 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Filters & Location
-                      Builder(
-                        builder: (context) {
-                          final isMobile =
-                              MediaQuery.of(context).size.width < 600;
+                      // ── Filters & Location ──
+                      Builder(builder: (context) {
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        final chipHeight = isMobile ? 30.0 : 34.0;
+                        final chipPadding = isMobile ? 8.0 : 12.0;
+                        final iconSize = isMobile ? 12.0 : 14.0;
+                        final fontSize = isMobile ? 10.5 : 12.0;
 
-                          final chipHeight = isMobile ? 30.0 : 34.0;
-                          final chipPadding = isMobile ? 8.0 : 12.0;
-                          final iconSize = isMobile ? 12.0 : 14.0;
-                          final fontSize = isMobile ? 10.5 : 12.0;
+                        Widget chip({required Widget child, required VoidCallback onTap, bool selected = false}) {
+                          return _PressableScale(
+                            onTap: onTap,
+                            child: Container(
+                              height: chipHeight,
+                              padding: EdgeInsets.symmetric(horizontal: chipPadding),
+                              decoration: BoxDecoration(
+                                color: selected ? TheyDiColors.primary.withValues(alpha: 0.15) : TheyDiColors.card,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: selected ? TheyDiColors.primary : TheyDiColors.divider),
+                                boxShadow: selected ? [BoxShadow(color: TheyDiColors.primary.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2))] : null,
+                              ),
+                              child: child,
+                            ),
+                          );
+                        }
 
-                          Widget chip({
-                            required Widget child,
-                            required VoidCallback onTap,
-                            bool selected = false,
-                          }) {
-                            return _PressableScale(
-                              onTap: onTap,
-                              child: Container(
-                                height: chipHeight,
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: chipPadding),
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? TheyDiColors.primary
-                                          .withValues(alpha: 0.15)
-                                      : TheyDiColors.card,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: selected
-                                        ? TheyDiColors.primary
-                                        : TheyDiColors.divider,
-                                  ),
-                                  boxShadow: selected
-                                      ? [
-                                          BoxShadow(
-                                            color: TheyDiColors.primary
-                                                .withValues(alpha: 0.15),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
+                        return Row(children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: isMobile ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
+                              child: Row(children: [
+                                chip(
+                                  onTap: _showRadiusSelector,
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.radar, size: iconSize, color: TheyDiColors.primary),
+                                    const SizedBox(width: 4),
+                                    Text(_radiusLabel, style: TheyDiTextStyles.caption.copyWith(fontSize: fontSize, color: TheyDiColors.primary, fontWeight: FontWeight.w600)),
+                                    if (!isMobile) ...[const SizedBox(width: 4), Icon(Icons.keyboard_arrow_down, size: iconSize, color: TheyDiColors.primary)],
+                                  ]),
                                 ),
-                                child: child,
+                                const SizedBox(width: 8),
+                                chip(
+                                  selected: _selectedSort == 'Date' || _selectedDate != null,
+                                  onTap: _showDateSelector,
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.schedule, size: iconSize, color: (_selectedSort == 'Date' || _selectedDate != null) ? TheyDiColors.primary : TheyDiColors.textSecondary),
+                                    const SizedBox(width: 4),
+                                    Text(_dateChipLabel, style: TheyDiTextStyles.caption.copyWith(fontSize: fontSize, color: (_selectedSort == 'Date' || _selectedDate != null) ? TheyDiColors.primary : TheyDiColors.textSecondary)),
+                                    if (_selectedDate != null) ...[const SizedBox(width: 4), GestureDetector(onTap: () => setState(() => _selectedDate = null), child: Icon(Icons.close, size: iconSize, color: TheyDiColors.primary))],
+                                  ]),
+                                ),
+                                const SizedBox(width: 8),
+                                chip(
+                                  selected: _selectedSort == 'Price ₹' || _priceRange != null,
+                                  onTap: _showPriceRangeSelector,
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.currency_rupee, size: iconSize, color: (_selectedSort == 'Price ₹' || _priceRange != null) ? TheyDiColors.primary : TheyDiColors.textSecondary),
+                                    const SizedBox(width: 4),
+                                    Text(_priceChipLabel, style: TheyDiTextStyles.caption.copyWith(fontSize: fontSize, color: (_selectedSort == 'Price ₹' || _priceRange != null) ? TheyDiColors.primary : TheyDiColors.textSecondary)),
+                                    if (_priceRange != null) ...[const SizedBox(width: 4), GestureDetector(onTap: () => setState(() => _priceRange = null), child: Icon(Icons.close, size: iconSize, color: TheyDiColors.primary))],
+                                  ]),
+                                ),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.location_on, size: iconSize, color: TheyDiColors.primary),
+                            const SizedBox(width: 3),
+                            Text(userCity.isNotEmpty ? '$userCity, India' : 'All Cities',
+                                style: TheyDiTextStyles.caption.copyWith(fontSize: fontSize, color: TheyDiColors.primary, fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 4),
+                            if (_locationLoading)
+                              const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                            else if (_userLat != null)
+                              const Icon(Icons.gps_fixed, color: Colors.green, size: 12)
+                            else
+                              GestureDetector(onTap: _loadUserLocation, child: const Icon(Icons.gps_off, size: 12, color: TheyDiColors.textMuted)),
+                          ]),
+                        ]);
+                      }).animate(delay: 150.ms).fade(duration: 400.ms),
+
+                      // ── Category chips ──
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        height: 36,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _activeChipCategories.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final cat = _activeChipCategories[index];
+                            final isSelected = cat == _selectedCategory;
+                            return _PressableScale(
+                              onTap: () => setState(() => _selectedCategory = cat),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                  gradient: isSelected ? TheyDiColors.gradientPrimary : null,
+                                  color: isSelected ? null : TheyDiColors.card,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: isSelected ? Colors.transparent : TheyDiColors.divider),
+                                  boxShadow: isSelected ? [BoxShadow(color: TheyDiColors.primary.withValues(alpha: 0.28), blurRadius: 8, offset: const Offset(0, 3))] : null,
+                                ),
+                                child: Center(child: Text(cat, style: TheyDiTextStyles.labelMedium.copyWith(color: isSelected ? Colors.white : TheyDiColors.textSecondary))),
                               ),
                             );
-                          }
-
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  physics: isMobile
-                                      ? const NeverScrollableScrollPhysics()
-                                      : const BouncingScrollPhysics(),
-                                  child: Row(
-                                    children: [
-                                      chip(
-                                        onTap: _showRadiusSelector,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.radar,
-                                                size: iconSize,
-                                                color: TheyDiColors.primary),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              _radiusLabel,
-                                              style: TheyDiTextStyles.caption
-                                                  .copyWith(
-                                                fontSize: fontSize,
-                                                color: TheyDiColors.primary,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            if (!isMobile) ...[
-                                              const SizedBox(width: 4),
-                                              Icon(Icons.keyboard_arrow_down,
-                                                  size: iconSize,
-                                                  color: TheyDiColors.primary),
-                                            ]
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      // ── Date chip: opens single-date picker ──
-                                      chip(
-                                        selected: _selectedSort == 'Date' ||
-                                            _selectedDate != null,
-                                        onTap: _showDateSelector,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.schedule,
-                                                size: iconSize,
-                                                color: (_selectedSort ==
-                                                            'Date' ||
-                                                        _selectedDate != null)
-                                                    ? TheyDiColors.primary
-                                                    : TheyDiColors
-                                                        .textSecondary),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              _dateChipLabel,
-                                              style: TheyDiTextStyles.caption
-                                                  .copyWith(
-                                                fontSize: fontSize,
-                                                color: (_selectedSort ==
-                                                            'Date' ||
-                                                        _selectedDate != null)
-                                                    ? TheyDiColors.primary
-                                                    : TheyDiColors
-                                                        .textSecondary,
-                                              ),
-                                            ),
-                                            if (_selectedDate != null) ...[
-                                              const SizedBox(width: 4),
-                                              GestureDetector(
-                                                onTap: () => setState(
-                                                    () => _selectedDate = null),
-                                                child: Icon(Icons.close,
-                                                    size: iconSize,
-                                                    color:
-                                                        TheyDiColors.primary),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      // ── Price chip: opens price-range sheet ──
-                                      chip(
-                                        selected: _selectedSort == 'Price ₹' ||
-                                            _priceRange != null,
-                                        onTap: _showPriceRangeSelector,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.currency_rupee,
-                                                size: iconSize,
-                                                color: (_selectedSort ==
-                                                            'Price ₹' ||
-                                                        _priceRange != null)
-                                                    ? TheyDiColors.primary
-                                                    : TheyDiColors
-                                                        .textSecondary),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              _priceChipLabel,
-                                              style: TheyDiTextStyles.caption
-                                                  .copyWith(
-                                                fontSize: fontSize,
-                                                color: (_selectedSort ==
-                                                            'Price ₹' ||
-                                                        _priceRange != null)
-                                                    ? TheyDiColors.primary
-                                                    : TheyDiColors
-                                                        .textSecondary,
-                                              ),
-                                            ),
-                                            if (_priceRange != null) ...[
-                                              const SizedBox(width: 4),
-                                              GestureDetector(
-                                                onTap: () => setState(
-                                                    () => _priceRange = null),
-                                                child: Icon(Icons.close,
-                                                    size: iconSize,
-                                                    color:
-                                                        TheyDiColors.primary),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(width: 12),
-
-                              // Location fixed on right
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.location_on,
-                                      size: iconSize,
-                                      color: TheyDiColors.primary),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    userCity.isNotEmpty
-                                        ? '$userCity, India'
-                                        : 'All Cities',
-                                    style: TheyDiTextStyles.caption.copyWith(
-                                      fontSize: fontSize,
-                                      color: TheyDiColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  if (_locationLoading)
-                                    const SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    )
-                                  else if (_userLat != null)
-                                    const Icon(
-                                      Icons.gps_fixed,
-                                      color: Colors.green,
-                                      size: 12,
-                                    )
-                                  else
-                                    GestureDetector(
-                                      onTap: _loadUserLocation,
-                                      child: const Icon(
-                                        Icons.gps_off,
-                                        size: 12,
-                                        color: TheyDiColors.textMuted,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
-                      ).animate(delay: 150.ms).fade(duration: 400.ms),
-
-                      // Category chips — only shown on Social / Professional,
-                      // never on For You.
-                      if (_selectedHomeTab != 'For You') ...[
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          height: 36,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _activeChipCategories.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final cat = _activeChipCategories[index];
-                              final isSelected = cat == _selectedCategory;
-                              return _PressableScale(
-                                onTap: () =>
-                                    setState(() => _selectedCategory = cat),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16),
-                                  decoration: BoxDecoration(
-                                    gradient: isSelected
-                                        ? TheyDiColors.gradientPrimary
-                                        : null,
-                                    color:
-                                        isSelected ? null : TheyDiColors.card,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                        color: isSelected
-                                            ? Colors.transparent
-                                            : TheyDiColors.divider),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: TheyDiColors.primary
-                                                  .withValues(alpha: 0.28),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Center(
-                                      child: Text(cat,
-                                          style: TheyDiTextStyles.labelMedium
-                                              .copyWith(
-                                                  color: isSelected
-                                                      ? Colors.white
-                                                      : TheyDiColors
-                                                          .textSecondary))),
-                                ),
-                              );
-                            },
-                          ),
-                        ).animate(delay: 200.ms).fade(duration: 400.ms),
-                      ],
+                          },
+                        ),
+                      ).animate(delay: 200.ms).fade(duration: 400.ms),
 
                       const SizedBox(height: 20),
                     ],
                   ),
                 ),
               ),
+
               eventsAsync.when(
                 loading: () => const SliverToBoxAdapter(
-                    child: Padding(
-                        padding: EdgeInsets.only(top: 60),
-                        child: Center(
-                            child: CircularProgressIndicator(
-                                color: TheyDiColors.primary)))),
+                    child: Padding(padding: EdgeInsets.only(top: 60),
+                        child: Center(child: CircularProgressIndicator(color: TheyDiColors.primary)))),
                 error: (e, _) => SliverToBoxAdapter(
-                    child: Center(
-                        child: Padding(
-                            padding: const EdgeInsets.all(40),
-                            child: Text('Failed to load events: $e',
-                                style: TheyDiTextStyles.bodySmall)))),
+                    child: Center(child: Padding(padding: const EdgeInsets.all(40),
+                        child: Text('Failed to load events: $e', style: TheyDiTextStyles.bodySmall)))),
                 data: (allEvents) {
-                  // ── FIX: userCity no longer passed in here — distance
-                  // filtering runs against all events directly. ──
                   final filtered = _filterAndSortEvents(allEvents, userCity);
-                  final locationLabel =
-                      userCity.isEmpty ? 'Your Location' : userCity;
-
-                  if (_selectedHomeTab != 'For You') {
-                    // ── Social / Professional: a single vibe-filtered list,
-                    // no trending carousel or people/communities sections. ──
-                    final isSocial = _selectedHomeTab == 'Social';
-                    final title =
-                        isSocial ? 'Social Experiences' : 'Professional Experiences';
-                    final subtitle = isSocial
-                        ? 'Fun meetups & social gatherings near you'
-                        : 'Career-building events & professional meetups';
-
-                    return SliverMainAxisGroup(
-                      slivers: [
-                        _EventSectionHeader(title: title, subtitle: subtitle),
-                        if (filtered.isEmpty)
-                          SliverToBoxAdapter(
-                            child: _EmptySectionMessage(
-                              message: _selectedCategory != 'All'
-                                  ? 'No ${_selectedCategory.toLowerCase()} experiences found. Try a different tag.'
-                                  : isSocial
-                                      ? 'No social experiences found yet. Check back soon!'
-                                      : 'No professional experiences found yet. Check back soon!',
-                            ),
-                          )
-                        else
-                          SliverPadding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final event = filtered[index];
-                                  return _EventCard(
-                                    event: event,
-                                    distance: _getEventDistance(event),
-                                  )
-                                      .animate(
-                                        delay: Duration(
-                                            milliseconds: 60 * index),
-                                      )
-                                      .fade(duration: 350.ms)
-                                      .slideY(begin: 0.08, end: 0);
-                                },
-                                childCount: filtered.length,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  }
-
-                  // ── For You: trending carousel + placeholder discovery
-                  // sections + the full location-ranked feed. ──
-                  final topEvents = _topEventsForLocation(allEvents, userCity);
+                  final locationLabel = userCity.isEmpty ? 'Your Location' : userCity;
+                  final isSocial = _selectedHomeTab == 'Social';
+                  final title = isSocial ? 'Social Experiences' : 'Professional Experiences';
+                  final subtitle = isSocial
+                      ? 'Fun meetups & social gatherings near you'
+                      : 'Career-building events & professional meetups';
 
                   return SliverMainAxisGroup(
                     slivers: [
+                      _EventSectionHeader(title: title, subtitle: subtitle),
                       if (filtered.isEmpty)
                         SliverToBoxAdapter(
-                            child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 40),
-                                child: Column(children: [
-                                  Icon(Icons.event_busy,
-                                      size: 64, color: Colors.grey[700]),
-                                  const SizedBox(height: 16),
-                                  Text('No experiences found',
-                                      style: TheyDiTextStyles.headlineMedium),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                      _selectedRadius > 0
-                                          ? 'No experiences within $_radiusLabel. Try expanding the radius.'
-                                          : _selectedCategory != 'All'
-                                              ? 'Try a different category'
-                                              : 'Be the first to create an experience!',
-                                      style: TheyDiTextStyles.bodySmall
-                                          .copyWith(
-                                              color:
-                                                  TheyDiColors.textSecondary),
-                                      textAlign: TextAlign.center),
-                                ])))
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          sliver: SliverToBoxAdapter(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Trending Near You 🔥',
-                                    style: TheyDiTextStyles.labelLarge),
-                                const SizedBox(height: 4),
-                                Text(
-                                    '${filtered.length} event${filtered.length == 1 ? '' : 's'} near you',
-                                    style: TheyDiTextStyles.caption.copyWith(
-                                        color: TheyDiColors.textSecondary)),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  height: 336,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final cardWidth = math
-                                          .min(
-                                              360,
-                                              math.max(280,
-                                                  constraints.maxWidth * 0.85))
-                                          .toDouble();
-                                      return ListView.separated(
-                                        scrollDirection: Axis.horizontal,
-                                        physics: const ClampingScrollPhysics(),
-                                        padding:
-                                            const EdgeInsets.only(right: 20),
-                                        primary: false,
-                                        itemCount: filtered.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(width: 16),
-                                        itemBuilder: (context, index) {
-                                          final event = filtered[index];
-                                          return SizedBox(
-                                            width: cardWidth,
-                                            child: _EventCard(
-                                                    event: event,
-                                                    distance: _getEventDistance(
-                                                        event))
-                                                .animate(
-                                                    delay: Duration(
-                                                        milliseconds:
-                                                            100 * index))
-                                                .fade(duration: 400.ms)
-                                                .slideY(begin: 0.2, end: 0),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
-                            ),
-                          ),
-                        ),
-                      const SliverToBoxAdapter(
-                        child: _PlaceholderSection(
-                          title: 'People to Meet',
-                          subtitle: 'Discover people who share your interests',
-                          icon: Icons.people_alt_outlined,
-                          message:
-                              "We're building this out — people to meet will show up here soon.",
-                        ),
-                      ),
-                      const SliverToBoxAdapter(
-                        child: _PlaceholderSection(
-                          title: 'Communities For You',
-                          subtitle: 'Groups built around what you\'re into',
-                          icon: Icons.groups_outlined,
-                          message:
-                              'Communities matched to your interests will appear here soon.',
-                        ),
-                      ),
-                      _EventSectionHeader(
-                        title: 'Top Experiences in $locationLabel',
-                        subtitle: 'Ranked by current registrations',
-                      ),
-                      if (topEvents.isEmpty)
-                        const SliverToBoxAdapter(
                           child: _EmptySectionMessage(
-                              message:
-                                  'No experiences found for this location yet.'),
+                            message: _selectedCategory != 'All'
+                                ? 'No ${_selectedCategory.toLowerCase()} experiences found. Try a different tag.'
+                                : isSocial
+                                    ? 'No social experiences found yet. Check back soon!'
+                                    : 'No professional experiences found yet. Check back soon!',
+                          ),
                         )
                       else
                         SliverPadding(
@@ -1352,43 +729,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final event = topEvents[index];
-                                return _EventCard(
-                                  event: event,
-                                  distance: _getEventDistance(event),
-                                )
-                                    .animate(
-                                      delay: Duration(milliseconds: 75 * index),
-                                    )
+                                final event = filtered[index];
+                                return _EventCard(event: event, distance: _getEventDistance(event))
+                                    .animate(delay: Duration(milliseconds: 60 * index))
                                     .fade(duration: 350.ms)
                                     .slideY(begin: 0.08, end: 0);
                               },
-                              childCount: topEvents.length,
-                            ),
-                          ),
-                        ),
-                      const _EventSectionHeader(
-                        title: 'All Events',
-                        subtitle: 'Events available globally',
-                      ),
-                      if (allEvents.isEmpty)
-                        const SliverToBoxAdapter(
-                          child: _EmptySectionMessage(
-                              message: 'No global events available yet.'),
-                        )
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final event = allEvents[index];
-                                return _EventCard(
-                                  event: event,
-                                  distance: _getEventDistance(event),
-                                );
-                              },
-                              childCount: allEvents.length,
+                              childCount: filtered.length,
                             ),
                           ),
                         ),
@@ -1408,29 +755,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 class _EventSectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-
-  const _EventSectionHeader({
-    required this.title,
-    required this.subtitle,
-  });
+  const _EventSectionHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TheyDiTextStyles.labelLarge),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TheyDiTextStyles.caption
-                  .copyWith(color: TheyDiColors.textSecondary),
-            ),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TheyDiTextStyles.labelLarge),
+          const SizedBox(height: 4),
+          Text(subtitle, style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary)),
+        ]),
       ),
     );
   }
@@ -1438,99 +774,13 @@ class _EventSectionHeader extends StatelessWidget {
 
 class _EmptySectionMessage extends StatelessWidget {
   final String message;
-
   const _EmptySectionMessage({required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Text(
-        message,
-        style: TheyDiTextStyles.bodySmall
-            .copyWith(color: TheyDiColors.textSecondary),
-      ),
-    );
-  }
-}
-
-// Lightweight placeholder for sections that don't have real data wired up
-// yet (People to Meet, Communities For You). Shows the heading + a soft
-// "coming soon" card so the layout matches the design now; swap the body
-// for a real list once the backing data source exists.
-class _PlaceholderSection extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final String message;
-
-  const _PlaceholderSection({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style:
-                  TheyDiTextStyles.labelLarge.copyWith(letterSpacing: -0.1)),
-          const SizedBox(height: 4),
-          Text(subtitle,
-              style: TheyDiTextStyles.caption
-                  .copyWith(color: TheyDiColors.textSecondary)),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-            decoration: BoxDecoration(
-              color: TheyDiColors.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: TheyDiColors.divider),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        TheyDiColors.primary.withValues(alpha: 0.18),
-                        TheyDiColors.primary.withValues(alpha: 0.06),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: TheyDiColors.primary, size: 22),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: TheyDiTextStyles.bodySmall
-                      .copyWith(color: TheyDiColors.textSecondary, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: Text(message, style: TheyDiTextStyles.bodySmall.copyWith(color: TheyDiColors.textSecondary)),
     );
   }
 }
@@ -1551,13 +801,7 @@ class _EventCard extends StatelessWidget {
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: TheyDiColors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ]),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 16, offset: const Offset(0, 6))]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Stack(children: [
           GestureDetector(
@@ -1565,250 +809,144 @@ class _EventCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: event.allImages.isNotEmpty
-                  ? Image.network(
-                      event.allImages.first,
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 120,
-                        decoration: const BoxDecoration(
-                          gradient: TheyDiColors.gradientPrimary,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      height: 120,
-                      decoration: const BoxDecoration(
-                        gradient: TheyDiColors.gradientPrimary,
-                      ),
-                    ),
-            ),
-          ),
-          // Soft top scrim so the badges stay legible over any photo.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 56,
-            child: IgnorePointer(
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.28),
-                        Colors.black.withValues(alpha: 0.0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+                  ? Image.network(event.allImages.first, height: 120, width: double.infinity, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(height: 120, decoration: const BoxDecoration(gradient: TheyDiColors.gradientPrimary)))
+                  : Container(height: 120, decoration: const BoxDecoration(gradient: TheyDiColors.gradientPrimary)),
             ),
           ),
           if (event.isOngoing)
-            Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle)),
-                    const SizedBox(width: 4),
-                    Text('Live',
-                        style: TheyDiTextStyles.caption
-                            .copyWith(color: Colors.white)),
-                  ]),
-                ))
+            Positioned(top: 12, left: 12,
+                child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                      const SizedBox(width: 4),
+                      Text('Live', style: TheyDiTextStyles.caption.copyWith(color: Colors.white)),
+                    ])))
           else
-            Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Text(event.category,
-                      style: TheyDiTextStyles.caption
-                          .copyWith(color: Colors.white)),
-                )),
-          Positioned(
-              top: 12,
-              right: 12,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                    color: event.isFree
-                        ? Colors.green
-                        : Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text(event.isFree ? 'FREE' : '₹${event.price.toInt()}',
-                    style: TheyDiTextStyles.labelMedium
-                        .copyWith(color: Colors.white)),
-              )),
+            Positioned(top: 12, left: 12,
+                child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(20)),
+                    child: Text(event.category, style: TheyDiTextStyles.caption.copyWith(color: Colors.white)))),
+          Positioned(top: 12, right: 12,
+              child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: event.isFree ? Colors.green : Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(20)),
+                  child: Text(event.isFree ? 'FREE' : '₹${event.price.toInt()}', style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)))),
           if (distanceLabel.isNotEmpty)
-            Positioned(
-                bottom: 12,
-                left: 12,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.near_me, size: 10, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text(distanceLabel,
-                        style: TheyDiTextStyles.caption
-                            .copyWith(color: Colors.white70, fontSize: 10)),
-                  ]),
-                )),
+            Positioned(bottom: 12, left: 12,
+                child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(12)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.near_me, size: 10, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Text(distanceLabel, style: TheyDiTextStyles.caption.copyWith(color: Colors.white70, fontSize: 10)),
+                    ]))),
         ]),
         GestureDetector(
           onTap: () => context.push('/event/${event.id}', extra: event),
           child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                              child: Text(event.title,
-                                  style: TheyDiTextStyles.headlineMedium
-                                      .copyWith(
-                                          letterSpacing: -0.2,
-                                          height: 1.15),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis)),
-                          if (event.ageGroup.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                    color: TheyDiColors.primary
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8)),
-                                child: Text(event.ageGroup,
-                                    style: TheyDiTextStyles.caption.copyWith(
-                                        color: TheyDiColors.primary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600))),
-                          ],
-                        ]),
-                    if (event.description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(event.description,
-                          style: TheyDiTextStyles.caption.copyWith(
-                              color: TheyDiColors.textSecondary, height: 1.4),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis)
-                    ],
-                    const SizedBox(height: 10),
-                    Row(children: [
-                      const Icon(Icons.calendar_today_outlined,
-                          size: 14, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 4),
-                      Text(dateStr, style: TheyDiTextStyles.caption)
-                    ]),
-                    const SizedBox(height: 4),
-                    if (distanceLabel.isNotEmpty) ...[
-                      Row(children: [
-                        const Icon(Icons.near_me,
-                            size: 14, color: TheyDiColors.primary),
-                        const SizedBox(width: 4),
-                        Text(distanceLabel,
-                            style: TheyDiTextStyles.caption
-                                .copyWith(color: TheyDiColors.primary))
-                      ]),
-                      const SizedBox(height: 4)
-                    ],
-                    Row(children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 14, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 4),
-                      Expanded(
-                          child: Text(event.location,
-                              style: TheyDiTextStyles.caption,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis))
-                    ]),
-                    const SizedBox(height: 10),
-                    Row(children: [
-                      Row(children: [
-                        const Icon(Icons.people_outline,
-                            size: 14, color: TheyDiColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                            '${event.currentAttendees} / ${event.maxAttendees} going',
-                            style: TheyDiTextStyles.caption.copyWith(
-                                color: event.spotsLeft < 5
-                                    ? TheyDiColors.error
-                                    : TheyDiColors.textMuted))
-                      ]),
-                      if (event.durationHours > 0) ...[
-                        const SizedBox(width: 10),
-                        Row(children: [
-                          const Icon(Icons.timer_outlined,
-                              size: 14, color: TheyDiColors.textMuted),
-                          const SizedBox(width: 4),
-                          Text('${event.durationHours}h',
-                              style: TheyDiTextStyles.caption
-                                  .copyWith(color: TheyDiColors.textMuted))
-                        ])
-                      ],
-                      const Spacer(),
-                      Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                              gradient: TheyDiColors.gradientPrimary,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: TheyDiColors.primary
-                                      .withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]),
-                          child: Text('View',
-                              style: TheyDiTextStyles.labelMedium
-                                  .copyWith(color: Colors.white))),
-                    ]),
-                  ])),
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: Text(event.title, style: TheyDiTextStyles.headlineMedium.copyWith(letterSpacing: -0.2, height: 1.15), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                if (event.ageGroup.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: TheyDiColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                      child: Text(event.ageGroup, style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
+                ],
+              ]),
+              if (event.description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(event.description, style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+              const SizedBox(height: 10),
+              Row(children: [const Icon(Icons.calendar_today_outlined, size: 14, color: TheyDiColors.textMuted), const SizedBox(width: 4), Text(dateStr, style: TheyDiTextStyles.caption)]),
+              const SizedBox(height: 4),
+              if (distanceLabel.isNotEmpty) ...[
+                Row(children: [const Icon(Icons.near_me, size: 14, color: TheyDiColors.primary), const SizedBox(width: 4), Text(distanceLabel, style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.primary))]),
+                const SizedBox(height: 4),
+              ],
+              Row(children: [const Icon(Icons.location_on_outlined, size: 14, color: TheyDiColors.textMuted), const SizedBox(width: 4), Expanded(child: Text(event.location, style: TheyDiTextStyles.caption, maxLines: 1, overflow: TextOverflow.ellipsis))]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Row(children: [
+                  const Icon(Icons.people_outline, size: 14, color: TheyDiColors.textMuted),
+                  const SizedBox(width: 4),
+                  Text('${event.currentAttendees} / ${event.maxAttendees} going',
+                      style: TheyDiTextStyles.caption.copyWith(color: event.spotsLeft < 5 ? TheyDiColors.error : TheyDiColors.textMuted)),
+                ]),
+                if (event.durationHours > 0) ...[
+                  const SizedBox(width: 10),
+                  Row(children: [const Icon(Icons.timer_outlined, size: 14, color: TheyDiColors.textMuted), const SizedBox(width: 4), Text('${event.durationHours}h', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted))]),
+                ],
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: TheyDiColors.primary.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))]),
+                  child: Text('View', style: TheyDiTextStyles.labelMedium.copyWith(color: Colors.white)),
+                ),
+              ]),
+            ]),
+          ),
         ),
       ]),
     );
   }
 }
 
-// ── Tiny reusable press-scale wrapper. Wraps any tappable widget with a
-// gentle scale-down on tap-down / spring-back on release, so interactive
-// elements (tabs, chips, cards) feel a little more tactile. Purely visual
-// — the actual tap logic still lives in the child's onTap. ──
+class _HomeVibeTabBanner extends StatelessWidget {
+  final String tab;
+  final bool isSelected;
+  const _HomeVibeTabBanner({required this.tab, required this.isSelected});
+
+  static const Map<String, String> _bannerImageUrls = {
+    'Social': '',
+    'Professional': '',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final isSocial = tab == 'Social';
+    final gradientColors = isSocial
+        ? const [Color(0xFFFF7A59), Color(0xFFFFB199)]
+        : const [Color(0xFF4C6FFF), Color(0xFF7B5CFA)];
+    final glowColor = isSocial ? const Color(0xFFFF7A59) : const Color(0xFF4C6FFF);
+    final bannerUrl = _bannerImageUrls[tab] ?? '';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: 92,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        image: bannerUrl.isNotEmpty
+            ? DecorationImage(image: NetworkImage(bannerUrl), fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.32), BlendMode.darken),
+                onError: (_, __) {})
+            : null,
+        border: Border.all(color: isSelected ? Colors.white : Colors.transparent, width: isSelected ? 2.5 : 0),
+        boxShadow: isSelected ? [BoxShadow(color: glowColor.withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 6))] : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(children: [
+          Positioned(right: -8, bottom: -8,
+              child: Icon(isSocial ? Icons.celebration_outlined : Icons.work_outline, size: 64, color: Colors.white.withValues(alpha: 0.18))),
+          Padding(padding: const EdgeInsets.all(14),
+              child: Align(alignment: Alignment.bottomLeft,
+                  child: Text(tab, style: TheyDiTextStyles.headlineMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700)))),
+          if (isSelected) const Positioned(top: 10, right: 10, child: Icon(Icons.check_circle, color: Colors.white, size: 18)),
+        ]),
+      ),
+    );
+  }
+}
+
 class _PressableScale extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
-
   const _PressableScale({required this.child, required this.onTap});
 
   @override

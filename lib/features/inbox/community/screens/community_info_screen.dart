@@ -532,15 +532,11 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                       icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
-                    // Title — shrinks & ellipsizes before pushing action buttons off
-                    // FIX: displayMedium was still too large sharing this Row
-                    // with two pill buttons on a phone — same issue as
-                    // circle_info_screen.dart. headlineMedium matches the
-                    // size used there now.
-                    Flexible(
+                    // Title — takes all remaining space, buttons stay on the right
+                    Expanded(
                       child: Text(
                         'Community Info',
-                        style: TheyDiTextStyles.headlineMedium,
+                        style: TheyDiTextStyles.displayMedium,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -571,22 +567,10 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                                   height: 14,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              // FIX: Share has an icon + label at this same
-                              // padding, Edit was label-only — that's what
-                              // made Edit read as "small" next to Share.
-                              // Added a matching icon.
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(_editing ? Icons.check : Icons.edit_outlined,
-                                        size: 14, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _editing ? 'Save' : 'Edit',
-                                      style: TheyDiTextStyles.caption.copyWith(
-                                          color: Colors.white, fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
+                              : Text(
+                                  _editing ? 'Save' : 'Edit',
+                                  style: TheyDiTextStyles.caption
+                                      .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
                                 ),
                         ),
                       ),
