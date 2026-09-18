@@ -102,7 +102,24 @@ class EventModel {
   bool isPending(String uid) => pendingUids.contains(uid);
   bool isApprovedPendingPayment(String uid) =>
       approvedPendingPaymentUids.contains(uid);
-  bool get isProfessionalExperience => purpose == 'Professional';
+  // Case-insensitive by design: Purpose is meant to be 'Social' or
+  // 'Professional', but different Create Experience versions (or manual
+  // Firestore edits) can end up writing 'social', 'SOCIAL', etc. Comparing
+  // case-insensitively here means every screen that reads purpose through
+  // these getters is automatically safe, instead of each one needing its
+  // own exact-match check that can silently break on a case mismatch.
+  bool get isProfessionalExperience =>
+      purpose.trim().toLowerCase() == 'professional';
+  bool get isSocialExperience => purpose.trim().toLowerCase() == 'social';
+
+  // Display-safe label: normalizes whatever case was stored into
+  // "Social" / "Professional" for showing in the UI. Empty purpose
+  // (events created before this field existed) stays empty.
+  String get purposeLabel {
+    final p = purpose.trim();
+    if (p.isEmpty) return '';
+    return p[0].toUpperCase() + p.substring(1).toLowerCase();
+  }
 
   // ── Safe date parser — handles Timestamp, String, int (millis), and null ───
   static DateTime _parseDate(dynamic value, DateTime fallback) {

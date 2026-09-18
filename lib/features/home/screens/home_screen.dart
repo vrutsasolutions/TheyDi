@@ -76,8 +76,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   _EventVibe _classifyEvent(EventModel e) {
-    if (e.purpose == 'Professional') return _EventVibe.professional;
-    if (e.purpose == 'Social') return _EventVibe.social;
+    if (e.isProfessionalExperience) return _EventVibe.professional;
+    if (e.isSocialExperience) return _EventVibe.social;
     final cat = e.category.toLowerCase().trim();
     if (_professionalCategories.contains(cat)) return _EventVibe.professional;
     final text = '${e.title} ${e.description}'.toLowerCase();
