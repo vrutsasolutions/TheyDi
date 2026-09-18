@@ -37,7 +37,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     'Art',
   ];
   String? _selectedCategory;
-  String _type = 'Social'; // 'Social' | 'Professional'
+  String _vibe = 'Social'; // Social | Professional
   String _city = '';
   final Set<String> _selectedInterests = {};
   bool _requiresApproval = false;
@@ -68,7 +68,12 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick a category for your community')),
+        SnackBar(
+          content: const Text('Please select a category'),
+          backgroundColor: TheyDiColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
@@ -89,7 +94,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'category': _selectedCategory,
-        'type': _type,
+        'vibe': _vibe,
         'city': _city.trim(),
         'interests': _selectedInterests.toList(),
         'creatorUid': user.uid,
@@ -172,41 +177,44 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                                 'What is this community about, and who should join?'),
                       ),
                       const SizedBox(height: 18),
-
-                      // ── Type: Social / Professional ──
-                      _label('Type *'),
+                      // ── Category: Social / Professional ──
+                      _label('Category *'),
                       const SizedBox(height: 8),
                       Row(
-                        children: ['Social', 'Professional'].map((t) {
-                          final isSelected = _type == t;
+                        children: ['Social', 'Professional'].map((v) {
+                          final isSel = _vibe == v;
+                          final isLast = v == 'Professional';
                           return Expanded(
                             child: Padding(
-                              padding: EdgeInsets.only(right: t == 'Social' ? 8 : 0),
+                              padding: EdgeInsets.only(right: isLast ? 0 : 10),
                               child: GestureDetector(
                                 onTap: () => setState(() {
-                                  _type = t;
+                                  _vibe = v;
                                   _selectedInterests.clear();
+                                  _selectedCategory = null;
                                 }),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 180),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  height: 46,
                                   decoration: BoxDecoration(
-                                    gradient: isSelected ? TheyDiColors.gradientPrimary : null,
-                                    color: isSelected ? null : TheyDiColors.card,
+                                    gradient: isSel ? TheyDiColors.gradientPrimary : null,
+                                    color: isSel ? null : TheyDiColors.card,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: isSelected ? Colors.transparent : TheyDiColors.divider),
+                                    border: Border.all(
+                                        color: isSel ? Colors.transparent : TheyDiColors.divider),
                                   ),
-                                  child: Center(child: Text(t,
-                                      style: TheyDiTextStyles.labelMedium.copyWith(
-                                          color: isSelected ? Colors.white : TheyDiColors.textSecondary,
-                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal))),
+                                  child: Center(
+                                    child: Text(v,
+                                        style: TheyDiTextStyles.labelMedium.copyWith(
+                                            color: isSel ? Colors.white : TheyDiColors.textSecondary,
+                                            fontWeight: isSel ? FontWeight.w700 : FontWeight.w400)),
+                                  ),
                                 ),
                               ),
                             ),
                           );
                         }).toList(),
                       ),
-
                       const SizedBox(height: 18),
 
                       // ── City / Location ──
@@ -215,88 +223,58 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                         initialValue: _city,
                         style: TheyDiTextStyles.bodyMedium,
                         decoration: const InputDecoration(
-                            hintText: 'e.g. Chennai, Mumbai',
-                            prefixIcon: Icon(Icons.location_on_outlined)),
+                          hintText: 'e.g. Mumbai, Chennai',
+                          prefixIcon: Icon(Icons.location_on_outlined),
+                        ),
                         onChanged: (v) => setState(() => _city = v),
                       ),
-
                       const SizedBox(height: 18),
 
                       // ── Interests ──
                       _label('Interests (select multiple)'),
                       const SizedBox(height: 8),
                       Builder(builder: (context) {
-                        final interests = _type == 'Social'
+                        final interests = _vibe == 'Social'
                             ? EventConstants.socialCategories
                             : EventConstants.professionalCategories;
                         return Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: interests.map((interest) {
-                            final isSelected = _selectedInterests.contains(interest);
+                            final isSel = _selectedInterests.contains(interest);
                             return GestureDetector(
                               onTap: () => setState(() {
-                                if (isSelected) {
+                                if (isSel) {
                                   _selectedInterests.remove(interest);
                                 } else {
                                   _selectedInterests.add(interest);
+                                  // Auto-set category from first interest
+                                  _selectedCategory ??= interest;
                                 }
                               }),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
                                 decoration: BoxDecoration(
-                                  gradient: isSelected ? TheyDiColors.gradientPrimary : null,
-                                  color: isSelected ? null : TheyDiColors.card,
+                                  gradient: isSel ? TheyDiColors.gradientPrimary : null,
+                                  color: isSel ? null : TheyDiColors.card,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: isSelected ? Colors.transparent : TheyDiColors.divider),
+                                  border: Border.all(
+                                      color: isSel
+                                          ? Colors.transparent
+                                          : TheyDiColors.divider),
                                 ),
                                 child: Text(interest,
                                     style: TheyDiTextStyles.labelMedium.copyWith(
-                                        color: isSelected ? Colors.white : TheyDiColors.textSecondary)),
+                                        color: isSel
+                                            ? Colors.white
+                                            : TheyDiColors.textSecondary)),
                               ),
                             );
                           }).toList(),
                         );
                       }),
-
-                      const SizedBox(height: 18),
-
-                      _label('Category *'),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _categories.map((cat) {
-                          final isSelected = cat == _selectedCategory;
-                          return GestureDetector(
-                            onTap: () =>
-                                setState(() => _selectedCategory = cat),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                gradient: isSelected
-                                    ? TheyDiColors.gradientPrimary
-                                    : null,
-                                color: isSelected ? null : TheyDiColors.card,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Colors.transparent
-                                      : TheyDiColors.divider,
-                                ),
-                              ),
-                              child: Text(cat,
-                                  style: TheyDiTextStyles.labelMedium.copyWith(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : TheyDiColors.textSecondary)),
-                            ),
-                          );
-                        }).toList(),
-                      ),
                       const SizedBox(height: 22),
                       Container(
                         padding: const EdgeInsets.all(14),

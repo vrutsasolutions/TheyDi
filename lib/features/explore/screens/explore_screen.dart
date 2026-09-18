@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/filter_bottom_sheet.dart';
 import '../../../shared/widgets/notification_icon_button.dart';
 import '../../events/models/event_model.dart';
+import '../../inbox/community/models/community_model.dart';
 
 // Stream ALL events from Firestore (India-wide)
 final _allIndiaEventsProvider =
@@ -27,6 +28,21 @@ final _allIndiaEventsProvider =
 // The signed-in user's home city, used to default the Explore screen to a
 // specific city (rather than all of India) until they pick a different one
 // or flip on the All India toggle. Same source as the Home screen's city.
+// Communities stream for explore screen
+final _exploreCommunitiesProvider = StreamProvider.autoDispose.family<List<CommunityModel>, String?>((ref, city) {
+  Query query = FirebaseFirestore.instance.collection('communities');
+  return query.snapshots().map((s) {
+    final all = s.docs.map((d) => CommunityModel.fromFirestore(d)).toList();
+    if (city != null && city.isNotEmpty) {
+      // City-matching first, then others
+      final cityMatch = all.where((c) => c.city.toLowerCase() == city.toLowerCase()).toList();
+      final others = all.where((c) => c.city.toLowerCase() != city.toLowerCase()).toList();
+      return [...cityMatch, ...others];
+    }
+    return all;
+  });
+});
+
 final _userCityProvider = StreamProvider.autoDispose<String>((ref) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value('');
@@ -685,19 +701,34 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       ).animate(delay: 200.ms).fade(duration: 400.ms),
                     ),
 
-                  // Communities — placeholder heading until the communities
-                  // feature is wired up here; real data will replace this.
-                  SliverToBoxAdapter(
-                    child: _ExplorePlaceholderSection(
-                      title: showingAllIndia
-                          ? 'Communities Across India'
-                          : 'Communities in $activeCity',
-                      subtitle: 'Groups worth joining',
-                      icon: Icons.groups_outlined,
-                      message:
-                          "We're building this out — communities will show up here soon.",
-                    ).animate(delay: 250.ms).fade(duration: 400.ms),
-                  ),
+                  // Communities — real data filtered by city + vibe
+                  Consumer(builder: (context, ref, _) {
+                    final commAsync = ref.watch(_exploreCommunitiesProvider(activeCity));
+                    return commAsync.when(
+                      loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                      error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                      data: (allComms) {
+                        // Filter by vibe
+                        List<CommunityModel> comms = allComms;
+                        if (_selectedVibe == 'Social') {
+                          comms = allComms.where((c) =>
+                              c.vibe.toLowerCase() == 'social').toList();
+                        } else if (_selectedVibe == 'Professional') {
+                          comms = allComms.where((c) =>
+                              c.vibe.toLowerCase() == 'professional').toList();
+                        }
+                        if (comms.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+                        return SliverToBoxAdapter(
+                          child: _ExploreCommunitySection(
+                            title: showingAllIndia
+                                ? 'Communities Across India'
+                                : 'Communities in $activeCity',
+                            communities: comms.take(6).toList(),
+                          ).animate(delay: 250.ms).fade(duration: 400.ms),
+                        );
+                      },
+                    );
+                  }),
 
                   // Most Popular
                   if (popular.isNotEmpty)
@@ -1680,6 +1711,98 @@ class _ExploreVibeBanner extends StatelessWidget {
                 right: 10,
                 child: Icon(Icons.check_circle, color: Colors.white, size: 18)),
         ]),
+      ),
+    );
+  }
+}
+
+// ── Explore Community Section ─────────────────────────────────────────────────
+class _ExploreCommunitySection extends StatelessWidget {
+  final String title;
+  final List<CommunityModel> communities;
+  const _ExploreCommunitySection(
+      {required this.title, required this.communities});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.groups_outlined,
+                size: 18, color: TheyDiColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(title,
+                  style: TheyDiTextStyles.headlineSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          ...communities.map((c) => GestureDetector(
+                onTap: () => context.push(AppRoutes.communityChat, extra: c),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(13),
+                  decoration: BoxDecoration(
+                    color: TheyDiColors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: TheyDiColors.divider),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2))
+                    ],
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                          gradient: TheyDiColors.gradientPrimary,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Center(
+                          child: Text(c.initials,
+                              style: TheyDiTextStyles.labelLarge
+                                  .copyWith(color: Colors.white))),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(c.name,
+                            style: TheyDiTextStyles.labelLarge,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Row(children: [
+                          if (c.city.isNotEmpty) ...[
+                            const Icon(Icons.location_on_outlined,
+                                size: 11, color: TheyDiColors.textMuted),
+                            const SizedBox(width: 2),
+                            Text(c.city, style: TheyDiTextStyles.caption),
+                            const SizedBox(width: 8),
+                          ],
+                          const Icon(Icons.people_outline,
+                              size: 11, color: TheyDiColors.textMuted),
+                          const SizedBox(width: 2),
+                          Text('${c.memberCount} members',
+                              style: TheyDiTextStyles.caption),
+                        ]),
+                      ],
+                    )),
+                    const Icon(Icons.chevron_right,
+                        size: 18, color: TheyDiColors.textMuted),
+                  ]),
+                ),
+              )),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

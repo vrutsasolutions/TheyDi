@@ -22,7 +22,8 @@ class CommunityModel {
   // first (tracked in the `joinRequests` subcollection). If false, tapping
   // Join adds the user to `memberUids` immediately.
   final bool requiresApproval;
-  final String type; // 'Social' | 'Professional'
+  final String type;    // kept for backward compat
+  final String vibe;    // 'Social' | 'Professional'
   final String city;
   final List<String> interests;
 
@@ -42,6 +43,7 @@ class CommunityModel {
     this.coverImageUrl,
     this.requiresApproval = false,
     this.type = 'Social',
+    this.vibe = 'Social',
     this.city = '',
     this.interests = const [],
   });
@@ -68,6 +70,7 @@ class CommunityModel {
       coverImageUrl: data['coverImageUrl'],
       requiresApproval: data['requiresApproval'] ?? false,
       type: data['type'] ?? 'Social',
+      vibe: data['vibe'] ?? data['type'] ?? 'Social',
       city: data['city'] ?? '',
       interests: List<String>.from(data['interests'] ?? []),
     );

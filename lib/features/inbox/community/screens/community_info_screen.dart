@@ -748,6 +748,62 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                           style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted)),
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // ── Community details: category, city, interests ──
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if ((_community.category ?? '').isNotEmpty)
+                          _InfoChip(
+                            icon: Icons.category_outlined,
+                            label: _community.category!,
+                            color: TheyDiColors.primary,
+                          ),
+                        if ((_community.vibe ?? '').isNotEmpty)
+                          _InfoChip(
+                            icon: _community.vibe == 'Social'
+                                ? Icons.celebration_outlined
+                                : Icons.work_outline,
+                            label: _community.vibe!,
+                            color: _community.vibe == 'Social'
+                                ? const Color(0xFFFF7A59)
+                                : const Color(0xFF4C6FFF),
+                          ),
+                        if ((_community.city ?? '').isNotEmpty)
+                          _InfoChip(
+                            icon: Icons.location_on_outlined,
+                            label: _community.city!,
+                            color: Colors.teal,
+                          ),
+                      ],
+                    ),
+
+                    if ((_community.interests ?? []).isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: (_community.interests ?? []).map((interest) =>
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: TheyDiColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.2)),
+                            ),
+                            child: Text(interest,
+                                style: TheyDiTextStyles.caption.copyWith(
+                                    color: TheyDiColors.primary,
+                                    fontWeight: FontWeight.w500)),
+                          )
+                        ).toList(),
+                      ),
+                    ],
+
                     const SizedBox(height: 28),
 
                     // ── Members Section ──
@@ -1300,6 +1356,36 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                       ),
           ),
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Info chip ─────────────────────────────────────────────────────────────────
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _InfoChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TheyDiTextStyles.caption
+                  .copyWith(color: color, fontWeight: FontWeight.w600)),
         ],
       ),
     );
