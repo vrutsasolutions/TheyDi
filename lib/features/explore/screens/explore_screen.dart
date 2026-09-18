@@ -495,25 +495,75 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
                           const SizedBox(height: 14),
 
-                          // ── All / Social / Professional banner tabs ──
-                          Row(
-                            children: ['All', 'Social', 'Professional'].map((vibe) {
-                              final isSelected = _selectedVibe == vibe;
-                              final isLast = vibe == 'Professional';
-                              return Expanded(
-                                child: Padding(
-                                  padding: EdgeInsets.only(right: isLast ? 0 : 10),
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _selectedVibe = vibe),
-                                    child: _ExploreVibeBanner(
-                                      tab: vibe,
-                                      isSelected: isSelected,
+                          // ── All / Social / Professional tabs ──
+                          // Mobile: compact pills. Tablet+: banner cards.
+                          Builder(builder: (context) {
+                            final isMobile = MediaQuery.of(context).size.width < 600;
+                            if (isMobile) {
+                              return Row(
+                                children: ['All', 'Social', 'Professional'].map((vibe) {
+                                  final isSelected = _selectedVibe == vibe;
+                                  final isAll = vibe == 'All';
+                                  final isSocial = vibe == 'Social';
+                                  final activeColor = isAll
+                                      ? TheyDiColors.primary
+                                      : isSocial
+                                          ? const Color(0xFFFF7A59)
+                                          : const Color(0xFF4C6FFF);
+                                  final isLast = vibe == 'Professional';
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(right: isLast ? 0 : 8),
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _selectedVibe = vibe),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 180),
+                                          height: 38,
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? activeColor : TheyDiColors.card,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: isSelected ? activeColor : TheyDiColors.divider,
+                                            ),
+                                            boxShadow: isSelected ? [
+                                              BoxShadow(
+                                                color: activeColor.withValues(alpha: 0.28),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              )
+                                            ] : null,
+                                          ),
+                                          child: Center(
+                                            child: Text(vibe,
+                                                style: TheyDiTextStyles.labelMedium.copyWith(
+                                                    color: isSelected ? Colors.white : TheyDiColors.textSecondary,
+                                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                                                    fontSize: 12)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              );
+                            }
+                            // Tablet/desktop: full banner cards
+                            return Row(
+                              children: ['All', 'Social', 'Professional'].map((vibe) {
+                                final isSelected = _selectedVibe == vibe;
+                                final isLast = vibe == 'Professional';
+                                return Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(right: isLast ? 0 : 10),
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _selectedVibe = vibe),
+                                      child: _ExploreVibeBanner(tab: vibe, isSelected: isSelected),
                                     ),
                                   ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
+                                );
+                              }).toList(),
+                            );
+                          }),
                           const SizedBox(height: 14),
 
                           // Filter chips + advanced filter

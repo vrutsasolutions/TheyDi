@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/constants/event_constants.dart';
 import '../../events/models/event_model.dart';
 import '../../map/events_map_screen.dart';
 import '../../../shared/widgets/notification_icon_button.dart';
@@ -55,12 +56,11 @@ enum _EventVibe { social, professional }
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const List<String> homeTabs = ['Social', 'Professional'];
 
-  static const List<String> _socialChipCategories = [
-    'All', 'Party', 'Social', 'Music', 'Food', 'Fitness', 'Gaming', 'Art', 'Comedy',
-  ];
-  static const List<String> _professionalChipCategories = [
-    'All', 'Tech', 'Business', 'AI', 'Startups', 'Networking', 'Workshop',
-  ];
+  // Chip categories come from EventConstants — 'All' prepended for the filter pill
+  static List<String> get _socialChipCategories =>
+      ['All', ...EventConstants.socialCategories];
+  static List<String> get _professionalChipCategories =>
+      ['All', ...EventConstants.professionalCategories];
 
   static const Set<String> _professionalCategories = {
     'tech', 'business', 'ai', 'startups', 'startup',
@@ -76,8 +76,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   _EventVibe _classifyEvent(EventModel e) {
-    if (e.isProfessionalExperience) return _EventVibe.professional;
-    if (e.isSocialExperience) return _EventVibe.social;
+    if (e.purpose == 'Professional') return _EventVibe.professional;
+    if (e.purpose == 'Social') return _EventVibe.social;
     final cat = e.category.toLowerCase().trim();
     if (_professionalCategories.contains(cat)) return _EventVibe.professional;
     final text = '${e.title} ${e.description}'.toLowerCase();
@@ -557,22 +557,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       const SizedBox(height: 18),
 
-                      // ── Social / Professional banner tabs ──
-                      Row(
-                        children: homeTabs.map((tab) {
-                          final isSelected = tab == _selectedHomeTab;
-                          final isLast = tab == homeTabs.last;
-                          return Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.only(right: isLast ? 0 : 12),
-                              child: _PressableScale(
-                                onTap: () => _selectHomeTab(tab),
-                                child: _HomeVibeTabBanner(tab: tab, isSelected: isSelected),
+                      // ── Social / Professional tabs ──
+                      // Mobile: compact pills. Tablet+: banner cards.
+                      Builder(builder: (context) {
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        if (isMobile) {
+                          // Compact pill tabs
+                          return Row(
+                            children: homeTabs.map((tab) {
+                              final isSelected = tab == _selectedHomeTab;
+                              final isLast = tab == homeTabs.last;
+                              final isSocial = tab == 'Social';
+                              final activeColor = isSocial
+                                  ? const Color(0xFFFF7A59)
+                                  : const Color(0xFF4C6FFF);
+                              return Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: isLast ? 0 : 10),
+                                  child: GestureDetector(
+                                    onTap: () => _selectHomeTab(tab),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? activeColor : TheyDiColors.card,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isSelected ? activeColor : TheyDiColors.divider,
+                                        ),
+                                        boxShadow: isSelected ? [
+                                          BoxShadow(
+                                            color: activeColor.withValues(alpha: 0.3),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          )
+                                        ] : null,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            isSocial ? Icons.celebration_outlined : Icons.work_outline,
+                                            size: 16,
+                                            color: isSelected ? Colors.white : TheyDiColors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(tab,
+                                              style: TheyDiTextStyles.labelMedium.copyWith(
+                                                  color: isSelected ? Colors.white : TheyDiColors.textSecondary,
+                                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ).animate(delay: 120.ms).fade(duration: 400.ms);
+                        }
+                        // Tablet/desktop: full banner cards
+                        return Row(
+                          children: homeTabs.map((tab) {
+                            final isSelected = tab == _selectedHomeTab;
+                            final isLast = tab == homeTabs.last;
+                            return Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(right: isLast ? 0 : 12),
+                                child: _PressableScale(
+                                  onTap: () => _selectHomeTab(tab),
+                                  child: _HomeVibeTabBanner(tab: tab, isSelected: isSelected),
+                                ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ).animate(delay: 120.ms).fade(duration: 400.ms),
+                            );
+                          }).toList(),
+                        ).animate(delay: 120.ms).fade(duration: 400.ms);
+                      }),
 
                       const SizedBox(height: 16),
 
