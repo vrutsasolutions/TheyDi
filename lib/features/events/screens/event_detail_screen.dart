@@ -46,6 +46,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   Map<String, dynamic>? _genderRatio;
   bool _hostVerified = false;
   bool _extraLoaded = false;
+  // B2B2C fields — loaded from Firestore in _loadExtraFields
+  String _eventAudience = ''; // 'Social' | 'Professional'
+  String _hostOrgName = '';   // host's company / organization name
+  String _hostJobTitle = '';  // host's profession / job title
   int _userAge = 99; // current user's age
   int _minAge = 0; // event min age (18)
 
@@ -92,6 +96,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           _approvalType = data['approvalType'] ?? '';
           _genderRatio = data['genderRatio'] as Map<String, dynamic>?;
           _minAge = (data['minAge'] as num?)?.toInt() ?? 0;
+          _eventAudience = data['eventAudience'] ?? '';
           _extraLoaded = true;
         });
       }
@@ -100,7 +105,22 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           .doc(widget.event.creatorUid)
           .get();
       if (hostDoc.exists) {
-        setState(() => _hostVerified = hostDoc.data()?['isVerified'] ?? true);
+        final hData = hostDoc.data() ?? {};
+        setState(() {
+          _hostVerified = hData['isVerified'] ?? true;
+          // Firestore fields written by signup_data.dart:
+          //   'organization' → org / company name
+          //   'jobTitle'     → job title / role
+          // Fallback chain covers older docs that used different keys.
+          _hostOrgName = (hData['organization'] as String? ?? '').isNotEmpty
+              ? hData['organization'] as String
+              : (hData['company'] as String? ??
+                  hData['organizationName'] as String? ?? '');
+          _hostJobTitle = (hData['jobTitle'] as String? ?? '').isNotEmpty
+              ? hData['jobTitle'] as String
+              : (hData['profession'] as String? ??
+                  hData['role'] as String? ?? '');
+        });
       }
       // Load current user's age for 18+ check
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -528,7 +548,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                 context.push(AppRoutes.hostManage, extra: _event.id),
             icon:
                 const Icon(Icons.stars_outlined, color: Colors.white, size: 20),
-            label: const Text('Your Experience',
+            label: const Text('Your Event',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -555,7 +575,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     switch (state) {
       case _BookingState.none:
         if (isFull) {
-          label = 'Experience Full';
+          label = 'Event Full';
         } else if (_event.isFree && _approvalType == 'Host Approval') {
           label = 'Request to Join';
         } else if (_event.isFree) {
@@ -660,8 +680,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       pageController: _pageController,
                       onPageChanged: (i) =>
                           setState(() => _currentImageIndex = i),
-                      event: event)
-                  : _GradientBanner(event: event),
+                      event: event,
+                      eventAudience: _eventAudience)
+                  : _GradientBanner(event: event, eventAudience: _eventAudience),
             ),
           ),
 
@@ -705,23 +726,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Tag Pills
+                    // Tag Pills — Social/Professional badge is in the
+                    // hero image (bottom-left overlay), not repeated here.
                     Wrap(spacing: 8, runSpacing: 8, children: [
-                      // Purpose (Social/Professional) is the main tag —
-                      // shown first, in its own distinct color so it reads
-                      // as the primary classification. The specific
-                      // category (e.g. "Tech", "Party") follows right
-                      // after as the subcategory.
-                      if (event.purpose.isNotEmpty)
-                        _TagPill(
-                          label: event.purpose,
-                          icon: event.purpose == 'Professional'
-                              ? Icons.work_outline
-                              : Icons.celebration_outlined,
-                          color: event.purpose == 'Professional'
-                              ? Colors.blue
-                              : TheyDiColors.primary,
-                        ),
                       if (event.category.isNotEmpty)
                         _TagPill(
                             label: event.category,
@@ -735,25 +742,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             icon: _eventType == 'Indoor'
                                 ? Icons.home_outlined
                                 : Icons.park_outlined),
-
                     ]).animate().fade(duration: 300.ms),
-
-                    // Organized By — only meaningful for Professional
-                    // experiences, and optional even then.
-                    if (event.purpose == 'Professional' &&
-                        (event.organizedBy?.isNotEmpty ?? false)) ...[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(Icons.apartment_outlined,
-                              size: 14, color: TheyDiColors.textMuted),
-                          const SizedBox(width: 6),
-                          Text('Organized by ${event.organizedBy}',
-                              style: TheyDiTextStyles.caption
-                                  .copyWith(color: TheyDiColors.textSecondary)),
-                        ],
-                      ).animate(delay: 50.ms).fade(duration: 300.ms),
-                    ],
 
                     const SizedBox(height: 16),
 
@@ -803,7 +792,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
                     const SizedBox(height: 20),
 
-                    Text('About this experience',
+                    Text('About this event',
                             style: TheyDiTextStyles.displayLarge)
                         .animate(delay: 90.ms)
                         .fade(duration: 300.ms),
@@ -957,6 +946,22 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                             color: TheyDiColors.textMuted),
                                       ],
                                     ]),
+                                    // Org name + job title from host's user doc
+                                    if (_hostOrgName.isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Text(_hostOrgName,
+                                          style: TheyDiTextStyles.caption
+                                              .copyWith(
+                                                  color: TheyDiColors.textSecondary,
+                                                  fontWeight: FontWeight.w600)),
+                                    ],
+                                    if (_hostJobTitle.isNotEmpty) ...[
+                                      const SizedBox(height: 1),
+                                      Text(_hostJobTitle,
+                                          style: TheyDiTextStyles.caption
+                                              .copyWith(
+                                                  color: TheyDiColors.textMuted)),
+                                    ],
                                   ]),
                             ]),
                           ),
@@ -1033,6 +1038,7 @@ class _ImageCarousel extends StatelessWidget {
   final PageController pageController;
   final ValueChanged<int> onPageChanged;
   final EventModel event;
+  final String eventAudience;
 
   const _ImageCarousel({
     required this.images,
@@ -1040,6 +1046,7 @@ class _ImageCarousel extends StatelessWidget {
     required this.pageController,
     required this.onPageChanged,
     required this.event,
+    this.eventAudience = '',
   });
 
   @override
@@ -1053,7 +1060,7 @@ class _ImageCarousel extends StatelessWidget {
           return Image.network(
             images[index],
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _GradientBanner(event: event),
+            errorBuilder: (_, __, ___) => _GradientBanner(event: event, eventAudience: eventAudience),
             loadingBuilder: (_, child, progress) {
               if (progress == null) return child;
               return Container(
@@ -1071,6 +1078,14 @@ class _ImageCarousel extends StatelessWidget {
           );
         },
       ),
+      // Social / Professional badge — bottom LEFT
+      if (eventAudience.isNotEmpty)
+        Positioned(
+          bottom: 16,
+          left: 16,
+          child: _HeroAudienceBadge(audience: eventAudience),
+        ),
+      // Price / FREE badge — bottom RIGHT (unchanged)
       Positioned(
           bottom: 16,
           right: 16,
@@ -1180,7 +1195,8 @@ class _ImageCarousel extends StatelessWidget {
 
 class _GradientBanner extends StatelessWidget {
   final EventModel event;
-  const _GradientBanner({required this.event});
+  final String eventAudience;
+  const _GradientBanner({required this.event, this.eventAudience = ''});
 
   @override
   Widget build(BuildContext context) {
@@ -1191,6 +1207,14 @@ class _GradientBanner extends StatelessWidget {
             child: Text(event.category,
                 style: TheyDiTextStyles.displayLarge.copyWith(
                     color: Colors.white.withValues(alpha: 0.2), fontSize: 64))),
+        // Social / Professional badge — bottom LEFT
+        if (eventAudience.isNotEmpty)
+          Positioned(
+            bottom: 16,
+            left: 16,
+            child: _HeroAudienceBadge(audience: eventAudience),
+          ),
+        // Price badge — bottom RIGHT (unchanged)
         Positioned(
             bottom: 16,
             right: 16,
@@ -1210,13 +1234,43 @@ class _GradientBanner extends StatelessWidget {
   }
 }
 
+// Reusable audience badge — used in both _GradientBanner and _ImageCarousel
+class _HeroAudienceBadge extends StatelessWidget {
+  final String audience;
+  const _HeroAudienceBadge({required this.audience});
+  @override
+  Widget build(BuildContext context) {
+    final isPro = audience == 'Professional';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: isPro
+            ? Colors.blue.withValues(alpha: 0.85)
+            : Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(
+          isPro ? Icons.work_outline : Icons.celebration_outlined,
+          size: 13,
+          color: Colors.white,
+        ),
+        const SizedBox(width: 5),
+        Text(audience,
+            style: TheyDiTextStyles.caption.copyWith(
+                color: Colors.white, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
+}
+
 // ── Helpers ──
 
 class _TagPill extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color? color;
-  const _TagPill({required this.label, required this.icon, this.color});
+  const _TagPill({required this.label, required this.icon}) : color = null;
   @override
   Widget build(BuildContext context) {
     final col = color ?? TheyDiColors.primary;
@@ -1293,7 +1347,7 @@ class _EventDetailsSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Experience details', style: TheyDiTextStyles.displayLarge),
+      Text('Event details', style: TheyDiTextStyles.displayLarge),
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.all(16),
@@ -1437,11 +1491,6 @@ class _SafetyTrustSection extends StatelessWidget {
                   ? 'Host is verified'
                   : 'Host verification pending',
               isActive: hostVerified),
-          const SizedBox(height: 10),
-          const _SafetyItem(
-              icon: Icons.phone_android,
-              text: 'Phone number verified',
-              isActive: true),
           const SizedBox(height: 10),
           const _SafetyItem(
               icon: Icons.lock_outline,
