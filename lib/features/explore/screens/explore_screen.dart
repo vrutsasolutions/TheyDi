@@ -30,16 +30,17 @@ final _allIndiaEventsProvider =
 // or flip on the All India toggle. Same source as the Home screen's city.
 // Communities stream for explore screen
 final _exploreCommunitiesProvider = StreamProvider.autoDispose.family<List<CommunityModel>, String?>((ref, city) {
-  Query query = FirebaseFirestore.instance.collection('communities');
-  return query.snapshots().map((s) {
+  return FirebaseFirestore.instance.collection('communities').snapshots().map((s) {
     final all = s.docs.map((d) => CommunityModel.fromFirestore(d)).toList();
     if (city != null && city.isNotEmpty) {
-      // City-matching first, then others
-      final cityMatch = all.where((c) => c.city.toLowerCase() == city.toLowerCase()).toList();
-      final others = all.where((c) => c.city.toLowerCase() != city.toLowerCase()).toList();
-      return [...cityMatch, ...others];
+      // Only show communities from this city
+      return all
+          .where((c) => c.city.toLowerCase() == city.toLowerCase())
+          .toList()
+        ..sort((a, b) => b.memberCount.compareTo(a.memberCount));
     }
-    return all;
+    // No city selected — show all, sorted by member count
+    return all..sort((a, b) => b.memberCount.compareTo(a.memberCount));
   });
 });
 
