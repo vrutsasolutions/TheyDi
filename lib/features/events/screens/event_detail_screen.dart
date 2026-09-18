@@ -548,7 +548,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                 context.push(AppRoutes.hostManage, extra: _event.id),
             icon:
                 const Icon(Icons.stars_outlined, color: Colors.white, size: 20),
-            label: const Text('Your Event',
+            label: const Text('Your expirence',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,

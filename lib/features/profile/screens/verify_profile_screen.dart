@@ -112,10 +112,10 @@ class _VerifyProfileScreenState extends State<VerifyProfileScreen>
                     Expanded(
                       child: Text(
                         'Verify Profile',
-                        style: TheyDiTextStyles.displaySmall.copyWith(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        // Was a local +4px override on top of displaySmall, making this
+                        // the biggest header in the app. Using the shared scale
+                        // as-is keeps every screen's title the same size.
+                        style: TheyDiTextStyles.displaySmall,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

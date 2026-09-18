@@ -22,25 +22,9 @@ import '../../../shared/widgets/gradient_button.dart';
 import '../../../shared/widgets/signup_progress_bar.dart';
 import '../models/signup_data.dart';
 import '../../../core/utils/picker_theme_helper.dart';
+import '../../../core/constants/event_constants.dart';
 
-const _kInterests = [
-  'Music',
-  'Tech',
-  'Sports',
-  'Art',
-  'Food',
-  'Travel',
-  'Gaming',
-  'Fitness',
-  'Movies',
-  'Books',
-  'Photography',
-  'Dance',
-  'Startups',
-  'Comedy',
-  'Networking',
-  'Wellness',
-];
+// Interests list is sourced from EventConstants.allInterests (event_constants.dart)
 
 const _kGenderOptions = [
   {'label': 'Male', 'icon': Icons.male},
@@ -1018,9 +1002,9 @@ class _SignupStep3ScreenState extends State<SignupStep3Screen> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: _kInterests.asMap().entries.map((entry) {
-                            final i = entry.key;
-                            final interest = entry.value;
+                          children: List.generate(EventConstants.allInterests.length, (index) {
+                            final i = index;
+                            final interest = EventConstants.allInterests[index];
                             final selected =
                                 _selectedInterests.contains(interest);
                             return GestureDetector(

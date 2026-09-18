@@ -211,10 +211,11 @@ service cloud.firestore {
     match /communities/{communityId} {
       allow read: if isAuth();
       allow create: if isAuth() && request.auth.uid == request.resource.data.creatorUid;
-      allow update: if isAuth() && (
-        resource.data.creatorUid == request.auth.uid ||
-        request.auth.uid in resource.data.memberUids
-      );
+     allow update: if isAuth() && (
+  resource.data.creatorUid == request.auth.uid ||
+  request.auth.uid in resource.data.memberUids ||
+  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'memberNames'])
+);
       allow delete: if isAuth() && resource.data.creatorUid == request.auth.uid;
 
       match /messages/{messageId} {

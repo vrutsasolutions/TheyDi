@@ -25,10 +25,31 @@ class CommunityService {
     required String userName,
   }) async {
     if (_uid.isEmpty) throw Exception('Not signed in. Please log in and try again.');
-    await _db.collection('communities').doc(community.id).update({
-      'memberUids': FieldValue.arrayUnion([_uid]),
-      'memberNames': FieldValue.arrayUnion([userName]),
-    });
+    try {
+      // First try arrayUnion update (works if rules allow member writes)
+      await _db.collection('communities').doc(community.id).update({
+        'memberUids': FieldValue.arrayUnion([_uid]),
+        'memberNames': FieldValue.arrayUnion([userName]),
+      });
+    } catch (e) {
+      // If update fails (e.g. security rules), write a join request to a
+      // user-owned subcollection so the host can approve it.
+      // Also rethrow with a clear message so the UI can show it.
+      await _db
+          .collection('users')
+          .doc(_uid)
+          .collection('pendingJoins')
+          .doc(community.id)
+          .set({
+        'communityId': community.id,
+        'communityName': community.name,
+        'userName': userName,
+        'requestedAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+      throw Exception(
+          'Could not join directly — a join request has been sent to the host instead. (${e.toString()})');
+    }
   }
 
   static Future<void> leaveCommunity(CommunityModel community) async {

@@ -84,8 +84,11 @@ class _BottomBar extends StatelessWidget {
                 isSelected: currentIndex == 1,
                 onTap: () => onTap(1),
               ),
-              // Centre gap for FAB
-              const Expanded(child: SizedBox()),
+              // Centre gap for FAB — fixed width, not Expanded, so it
+              // doesn't eat a full item's worth of space and squeeze the
+              // nav labels (that squeeze was why "My Experiences" used to
+              // get clipped).
+              const SizedBox(width: 64),
               // Right two items
               _NavItem(
                 data: _items[2],
@@ -127,44 +130,54 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-              decoration: BoxDecoration(
-                gradient: isSelected ? TheyDiColors.gradientPrimary : null,
-                borderRadius: BorderRadius.circular(20),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: TheyDiColors.primary.withValues(alpha: 0.12),
+          highlightColor: TheyDiColors.primary.withValues(alpha: 0.06),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  gradient: isSelected ? TheyDiColors.gradientPrimary : null,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  isSelected ? data.activeIcon : data.icon,
+                  size: 22,
+                  color: isSelected ? Colors.white : TheyDiColors.textMuted,
+                ),
               ),
-              child: Icon(
-                isSelected ? data.activeIcon : data.icon,
-                size: 22,
-                color:
-                    isSelected ? Colors.white : TheyDiColors.textMuted,
+              const SizedBox(height: 2),
+              // FittedBox scales the label down if it's ever too wide for
+              // its slot instead of truncating it — "My Experiences" (the
+              // longest label) now always renders in full.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TheyDiTextStyles.labelSmall.copyWith(
+                      color: isSelected
+                          ? TheyDiColors.primary
+                          : TheyDiColors.textMuted,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      fontSize: 10,
+                    ),
+                    child: Text(data.label, maxLines: 1, softWrap: false),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TheyDiTextStyles.labelSmall.copyWith(
-                color: isSelected
-                    ? TheyDiColors.primary
-                    : TheyDiColors.textMuted,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w400,
-                fontSize: 10,
-              ),
-              child: Text(data.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

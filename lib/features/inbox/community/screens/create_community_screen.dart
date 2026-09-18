@@ -5,8 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/constants/event_constants.dart';
 import '../../../../core/utils/app_error_utils.dart';
-import '../../../../core/services/notification_service.dart';
 
 /// Creates a new Community. Anyone can create one (unlike Circles, which
 /// are locked to the creator of the experience they're attached to) — so
@@ -37,8 +37,25 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     'Art',
   ];
   String? _selectedCategory;
+  String _type = 'Social'; // 'Social' | 'Professional'
+  String _city = '';
+  final Set<String> _selectedInterests = {};
   bool _requiresApproval = false;
   bool _isCreating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillCity();
+  }
+
+  Future<void> _prefillCity() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final city = (doc.data()?['city'] as String?) ?? '';
+    if (mounted && city.isNotEmpty) setState(() => _city = city);
+  }
 
   @override
   void dispose() {
@@ -68,42 +85,21 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       final creatorName =
           (userDoc.data()?['displayName'] as String?) ?? 'Member';
 
-      final communityRef =
-          await FirebaseFirestore.instance.collection('communities').add({
+      await FirebaseFirestore.instance.collection('communities').add({
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'category': _selectedCategory,
+        'type': _type,
+        'city': _city.trim(),
+        'interests': _selectedInterests.toList(),
         'creatorUid': user.uid,
         'creatorName': creatorName,
-        // Creator auto-joins their own community.
         'memberUids': [user.uid],
         'memberNames': [creatorName],
         'createdAt': Timestamp.now(),
         'coverImageUrl': null,
         'requiresApproval': _requiresApproval,
       });
-
-      // Notify everyone else that a new community exists. MVP scope per
-      // current requirements — everyone gets notified, not just
-      // interest-matched users. See notifyNewCommunityCreated's doc
-      // comment for how to narrow this later.
-      try {
-        final usersSnap =
-            await FirebaseFirestore.instance.collection('users').get();
-        final notifyUids = usersSnap.docs
-            .map((d) => d.id)
-            .where((uid) => uid != user.uid)
-            .toList();
-        await NotificationService.notifyNewCommunityCreated(
-          notifyUids: notifyUids,
-          communityId: communityRef.id,
-          communityName: _nameController.text.trim(),
-          category: _selectedCategory!,
-          creatorName: creatorName,
-        );
-      } catch (_) {
-        // Don't block community creation on notification fan-out failing.
-      }
 
       if (mounted) context.pop();
     } catch (e) {
@@ -176,6 +172,96 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                                 'What is this community about, and who should join?'),
                       ),
                       const SizedBox(height: 18),
+
+                      // ── Type: Social / Professional ──
+                      _label('Type *'),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: ['Social', 'Professional'].map((t) {
+                          final isSelected = _type == t;
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(right: t == 'Social' ? 8 : 0),
+                              child: GestureDetector(
+                                onTap: () => setState(() {
+                                  _type = t;
+                                  _selectedInterests.clear();
+                                }),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    gradient: isSelected ? TheyDiColors.gradientPrimary : null,
+                                    color: isSelected ? null : TheyDiColors.card,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: isSelected ? Colors.transparent : TheyDiColors.divider),
+                                  ),
+                                  child: Center(child: Text(t,
+                                      style: TheyDiTextStyles.labelMedium.copyWith(
+                                          color: isSelected ? Colors.white : TheyDiColors.textSecondary,
+                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal))),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // ── City / Location ──
+                      _label('City / Location'),
+                      TextFormField(
+                        initialValue: _city,
+                        style: TheyDiTextStyles.bodyMedium,
+                        decoration: const InputDecoration(
+                            hintText: 'e.g. Chennai, Mumbai',
+                            prefixIcon: Icon(Icons.location_on_outlined)),
+                        onChanged: (v) => setState(() => _city = v),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // ── Interests ──
+                      _label('Interests (select multiple)'),
+                      const SizedBox(height: 8),
+                      Builder(builder: (context) {
+                        final interests = _type == 'Social'
+                            ? EventConstants.socialCategories
+                            : EventConstants.professionalCategories;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: interests.map((interest) {
+                            final isSelected = _selectedInterests.contains(interest);
+                            return GestureDetector(
+                              onTap: () => setState(() {
+                                if (isSelected) {
+                                  _selectedInterests.remove(interest);
+                                } else {
+                                  _selectedInterests.add(interest);
+                                }
+                              }),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  gradient: isSelected ? TheyDiColors.gradientPrimary : null,
+                                  color: isSelected ? null : TheyDiColors.card,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: isSelected ? Colors.transparent : TheyDiColors.divider),
+                                ),
+                                child: Text(interest,
+                                    style: TheyDiTextStyles.labelMedium.copyWith(
+                                        color: isSelected ? Colors.white : TheyDiColors.textSecondary)),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      }),
+
+                      const SizedBox(height: 18),
+
                       _label('Category *'),
                       const SizedBox(height: 8),
                       Wrap(

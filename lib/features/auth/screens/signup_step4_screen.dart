@@ -305,7 +305,7 @@ class _SignupStep4ScreenState extends State<SignupStep4Screen>
       _BenefitRow(
         icon: Icons.trending_up,
         color: TheyDiColors.warning,
-        text: 'Higher trust score — more event approvals',
+        text: 'Higher trust score — more expirence approvals',
       ),
       const SizedBox(height: 12),
       _BenefitRow(

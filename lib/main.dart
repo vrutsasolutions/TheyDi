@@ -203,6 +203,20 @@ Future<void> _fixDatabaseMojibake() async {
   }
 }
 
+/// Prevents phones with a large system/accessibility font size from
+/// blowing headings (and everything else) up past a sane range. Doesn't
+/// touch colors or the type scale itself — only the multiplier the OS
+/// applies on top of it. Wired into MaterialApp.router's `builder` below.
+Widget _clampTextScale(BuildContext context, Widget? child) {
+  final mq = MediaQuery.of(context);
+  final clamped =
+      mq.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.15);
+  return MediaQuery(
+    data: mq.copyWith(textScaler: clamped),
+    child: child ?? const SizedBox.shrink(),
+  );
+}
+
 class TheyDiApp extends ConsumerStatefulWidget {
   const TheyDiApp({super.key});
 
@@ -306,6 +320,10 @@ class _TheyDiAppState extends ConsumerState<TheyDiApp>
       debugShowCheckedModeBanner: false,
       theme: TheyDiTheme.dark,
       routerConfig: router,
+      // Stops phones with a large system/accessibility font size from
+      // blowing headings (and everything else) up past a sane range.
+      // Doesn't touch colors — only the OS text-scale multiplier.
+      builder: (context, child) => _clampTextScale(context, child),
     );
   }
 }

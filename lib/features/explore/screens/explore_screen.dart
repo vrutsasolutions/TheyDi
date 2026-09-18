@@ -46,6 +46,7 @@ class ExploreScreen extends ConsumerStatefulWidget {
 
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String _selectedFilter = 'All';
+  String _selectedVibe = 'All'; // All | Social | Professional
   final EventFilters _advancedFilters = EventFilters();
 
   // Popular cities shown as a quick-pick strip. Tapping one scopes the
@@ -150,6 +151,24 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       }
     }
     return true;
+  }
+
+  List<EventModel> _applyVibeFilter(List<EventModel> events) {
+    if (_selectedVibe == 'Social') {
+      return events.where((e) =>
+          e.purpose.trim().toLowerCase() == 'social' ||
+          EventConstants.socialCategories
+              .map((c) => c.toLowerCase())
+              .contains(e.category.toLowerCase())).toList();
+    }
+    if (_selectedVibe == 'Professional') {
+      return events.where((e) =>
+          e.purpose.trim().toLowerCase() == 'professional' ||
+          EventConstants.professionalCategories
+              .map((c) => c.toLowerCase())
+              .contains(e.category.toLowerCase())).toList();
+    }
+    return events;
   }
 
   List<EventModel> _applyQuickFilter(List<EventModel> events,
@@ -268,7 +287,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
             data: (allEvents) {
               final filtered =
-                  _applyQuickFilter(allEvents, activeCity: activeCity);
+                  _applyVibeFilter(_applyQuickFilter(allEvents, activeCity: activeCity));
               final trending = _getTrending(filtered);
               final popular = _getMostPopular(filtered);
               final parties = _getHouseParties(filtered);
@@ -457,6 +476,27 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                             ),
                           ).animate(delay: 160.ms).fade(duration: 400.ms),
 
+                          const SizedBox(height: 14),
+
+                          // ── All / Social / Professional banner tabs ──
+                          Row(
+                            children: ['All', 'Social', 'Professional'].map((vibe) {
+                              final isSelected = _selectedVibe == vibe;
+                              final isLast = vibe == 'Professional';
+                              return Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: isLast ? 0 : 10),
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _selectedVibe = vibe),
+                                    child: _ExploreVibeBanner(
+                                      tab: vibe,
+                                      isSelected: isSelected,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
                           const SizedBox(height: 14),
 
                           // Filter chips + advanced filter
@@ -1569,6 +1609,78 @@ class _IconFallback extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Explore vibe banner — same format as home screen ─────────────────────────
+class _ExploreVibeBanner extends StatelessWidget {
+  final String tab;
+  final bool isSelected;
+  const _ExploreVibeBanner({required this.tab, required this.isSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAll = tab == 'All';
+    final isSocial = tab == 'Social';
+    final gradientColors = isAll
+        ? const [Color(0xFF10B981), Color(0xFF34D399)]
+        : isSocial
+            ? const [Color(0xFFFF7A59), Color(0xFFFFB199)]
+            : const [Color(0xFF4C6FFF), Color(0xFF7B5CFA)];
+    final glowColor = isAll
+        ? const Color(0xFF10B981)
+        : isSocial ? const Color(0xFFFF7A59) : const Color(0xFF4C6FFF);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: 92,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+            colors: gradientColors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
+        border: Border.all(
+            color: isSelected ? Colors.white : Colors.transparent,
+            width: isSelected ? 2.5 : 0),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                    color: glowColor.withValues(alpha: 0.45),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6))
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(children: [
+          Positioned(
+            right: -8,
+            bottom: -8,
+            child: Icon(
+                isAll ? Icons.explore_outlined
+                    : isSocial ? Icons.celebration_outlined : Icons.work_outline,
+                size: 64,
+                color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(tab,
+                  style: TheyDiTextStyles.headlineMedium
+                      .copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          if (isSelected)
+            const Positioned(
+                top: 10,
+                right: 10,
+                child: Icon(Icons.check_circle, color: Colors.white, size: 18)),
+        ]),
+      ),
     );
   }
 }

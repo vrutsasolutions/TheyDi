@@ -6,7 +6,7 @@ class SearchConstants {
   static const List<String> recentSearches = [
     'Music',
     'Tech meetup',
-    'Free events',
+    'Free expirences',
     'Party',
     'Networking',
   ];

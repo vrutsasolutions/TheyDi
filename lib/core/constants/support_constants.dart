@@ -5,22 +5,22 @@ class SupportConstants {
     {
       'q': 'How do I create an event?',
       'a':
-          'Go to the My Events tab and tap the + button at the bottom. Fill in your event details like title, description, venue, date, and pricing. Tap "Create Event" to publish it.',
+          'Go to the My Events tab and tap the + button at the bottom. Fill in your event details like title, description, venue, date, and pricing. Tap "Create expirence" to publish it.',
     },
     {
-      'q': 'How do I join an event?',
+      'q': 'How do I join an expirence?',
       'a':
-          'Browse events on the Home or Explore tab. Tap on an event to see details, then tap "Join" at the bottom. Free events are instant, paid events will take you through checkout.',
+          'Browse expirences on the Home or Explore tab. Tap on an expirence to see details, then tap "Join" at the bottom. Free expirences are instant, paid expirences will take you through checkout.',
     },
     {
       'q': 'Can I cancel my RSVP?',
       'a':
-          'Yes! Open the event you joined and tap the "Joined — Tap to Cancel" button. For paid events, refund requests will be processed within 3-5 business days.',
+          'Yes! Open the expirence you joined and tap the "Joined — Tap to Cancel" button. For paid expirences, refund requests will be processed within 3-5 business days.',
     },
     {
       'q': 'How do payments work?',
       'a':
-          'For paid events, you\'ll see a checkout screen with the event price plus a 10% platform fee. We support UPI, credit/debit cards, and net banking. All transactions are secured.',
+          'For paid expirences, you\'ll see a checkout screen with the expirence price plus a 10% platform fee. We support UPI, credit/debit cards, and net banking. All transactions are secured.',
     },
     {
       'q': 'How do I edit my profile?',
@@ -30,7 +30,7 @@ class SupportConstants {
     {
       'q': 'How do I change my city?',
       'a':
-          'Go to Profile → Edit Profile → change the city dropdown. The Home feed will automatically show events in your new city.',
+          'Go to Profile → Edit Profile → change the city dropdown. The Home feed will automatically show expirences in your new city.',
     },
     {
       'q': 'Is my data safe?',

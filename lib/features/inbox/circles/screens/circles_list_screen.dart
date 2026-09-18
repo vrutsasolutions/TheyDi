@@ -662,22 +662,28 @@ class _FriendCard extends StatelessWidget {
 
         final photoUrl = data['profileImageUrl'] ?? '';
 
-        return GestureDetector(
-          onTap: isSelectionMode
-              ? () => onSelected?.call(uid)
-              : () => context.push(
-                  AppRoutes.userProfile,
-                  extra: {'uid': uid, 'requestId': null},
-                ),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: TheyDiColors.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: TheyDiColors.divider),
-            ),
-            child: Row(
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: TheyDiColors.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: TheyDiColors.divider),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isSelectionMode
+                  ? () => onSelected?.call(uid)
+                  : () => context.push(
+                      AppRoutes.userProfile,
+                      extra: {'uid': uid, 'requestId': null},
+                    ),
+              splashColor: TheyDiColors.primary.withValues(alpha: 0.08),
+              highlightColor: TheyDiColors.primary.withValues(alpha: 0.04),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
               children: [
                 // Avatar
                 // Avatar + Online Status Dot
@@ -791,7 +797,9 @@ class _FriendCard extends StatelessWidget {
                     ),
                   ),
               ],
+              ),
             ),
+          ),
           ),
         );
       },
@@ -818,19 +826,25 @@ class _CircleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    return GestureDetector(
-      onTap: isSelectionMode
-          ? () => onSelected?.call(circle.id)
-          : () => context.push(AppRoutes.circleChat, extra: circle),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TheyDiColors.divider),
-        ),
-        child: Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TheyDiColors.divider),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isSelectionMode
+              ? () => onSelected?.call(circle.id)
+              : () => context.push(AppRoutes.circleChat, extra: circle),
+          splashColor: TheyDiColors.primary.withValues(alpha: 0.08),
+          highlightColor: TheyDiColors.primary.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
           children: [
             Container(
               width: 52,
@@ -932,6 +946,8 @@ class _CircleCard extends StatelessWidget {
                 color: TheyDiColors.textMuted,
               ),
           ],
+        ),
+          ),
         ),
       ),
     );

@@ -155,7 +155,7 @@ class _CircleCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     (circle.lastMessage?.isNotEmpty ?? false)
-                        ? circle.lastMessage!
+                        ? '${circle.memberCount} member${circle.memberCount == 1 ? '' : 's'} · Tap to chat'
                         : '${circle.memberCount} member${circle.memberCount == 1 ? '' : 's'}',
                     style: TheyDiTextStyles.caption
                         .copyWith(color: TheyDiColors.textSecondary),

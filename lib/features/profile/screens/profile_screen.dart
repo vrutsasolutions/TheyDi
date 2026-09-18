@@ -414,11 +414,11 @@ class _ProfileContent extends ConsumerWidget {
                               Flexible(
                                 child: Text(
                                   displayName,
-                                  style:
-                                      TheyDiTextStyles.headlineMedium.copyWith(
-                                    fontSize: 22,
+                                  // Was overridden up to 22px; using displaySmall (the shared
+                                  // "page-title" size) keeps this consistent with every
+                                  // other screen's header instead of being its own one-off.
+                                  style: TheyDiTextStyles.displaySmall.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    height: 1.15,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

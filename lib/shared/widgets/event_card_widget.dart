@@ -20,117 +20,129 @@ class EventCardCompact extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateStr = DateFormat('MMM d · h:mm a').format(event.dateTime);
 
-    return GestureDetector(
-      onTap: onTap ?? () => context.push('/event/${event.id}', extra: event),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: TheyDiColors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Thumbnail
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: event.allImages.isNotEmpty
-                  ? Image.network(
-                      event.allImages.first,
-                      width: 58,
-                      height: 58,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _CategoryPlaceholder(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TheyDiColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap:
+              onTap ?? () => context.push('/event/${event.id}', extra: event),
+          splashColor: TheyDiColors.primary.withValues(alpha: 0.08),
+          highlightColor: TheyDiColors.primary.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.all(13),
+            child: Row(
+              children: [
+                // Thumbnail
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: event.allImages.isNotEmpty
+                      ? Image.network(
+                          event.allImages.first,
+                          width: 58,
+                          height: 58,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _CategoryPlaceholder(
+                              category: event.category, size: 58),
+                        )
+                      : _CategoryPlaceholder(
                           category: event.category, size: 58),
-                    )
-                  : _CategoryPlaceholder(category: event.category, size: 58),
-            ),
-            const SizedBox(width: 12),
+                ),
+                const SizedBox(width: 12),
 
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(event.title,
-                      style: TheyDiTextStyles.labelLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 12, color: TheyDiColors.textMuted),
-                    const SizedBox(width: 4),
-                    Flexible(
-                        child: Text(dateStr,
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(event.title,
+                          style: TheyDiTextStyles.labelLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 12, color: TheyDiColors.textMuted),
+                        const SizedBox(width: 4),
+                        Flexible(
+                            child: Text(dateStr,
+                                style: TheyDiTextStyles.caption,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis)),
+                      ]),
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        const Icon(Icons.location_on_outlined,
+                            size: 12, color: TheyDiColors.textMuted),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${event.venue}, ${event.city}',
                             style: TheyDiTextStyles.caption,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis)),
-                  ]),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 12, color: TheyDiColors.textMuted),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        '${event.venue}, ${event.city}',
-                        style: TheyDiTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ]),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
-            // Right — price + spots + share menu
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _CardShareMenu(event: event),
-                const SizedBox(height: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: event.isFree
-                        ? Colors.green.withValues(alpha: 0.15)
-                        : TheyDiColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    event.isFree ? 'FREE' : '₹${event.price.toInt()}',
-                    style: TheyDiTextStyles.caption.copyWith(
-                      color: event.isFree ? Colors.green : TheyDiColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ]),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  '${event.spotsLeft} left',
-                  style: TheyDiTextStyles.caption.copyWith(
-                    color: event.spotsLeft < 5
-                        ? TheyDiColors.error
-                        : TheyDiColors.textMuted,
-                    fontSize: 10,
-                  ),
+
+                const SizedBox(width: 8),
+
+                // Right — price + spots + share menu
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _CardShareMenu(event: event),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: event.isFree
+                            ? Colors.green.withValues(alpha: 0.15)
+                            : TheyDiColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        event.isFree ? 'FREE' : '₹${event.price.toInt()}',
+                        style: TheyDiTextStyles.caption.copyWith(
+                          color: event.isFree
+                              ? Colors.green
+                              : TheyDiColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${event.spotsLeft} left',
+                      style: TheyDiTextStyles.caption.copyWith(
+                        color: event.spotsLeft < 5
+                            ? TheyDiColors.error
+                            : TheyDiColors.textMuted,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -151,25 +163,31 @@ class EventCardLarge extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateStr = DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
 
-    return GestureDetector(
-      onTap: onTap ?? () => context.push('/event/${event.id}', extra: event),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 18),
-        decoration: BoxDecoration(
-          color: TheyDiColors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: TheyDiColors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      decoration: BoxDecoration(
+        color: TheyDiColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TheyDiColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap:
+              onTap ?? () => context.push('/event/${event.id}', extra: event),
+          splashColor: TheyDiColors.primary.withValues(alpha: 0.06),
+          highlightColor: TheyDiColors.primary.withValues(alpha: 0.03),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Image area
             Stack(
               children: [
@@ -338,6 +356,7 @@ class EventCardLarge extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -411,9 +430,11 @@ class _CardShareMenu extends StatelessWidget {
               const Icon(Icons.share_outlined,
                   size: 18, color: TheyDiColors.primary),
               const SizedBox(width: 10),
+              // Was white text on a white popup background (TheyDiColors.card
+              // is #FFFFFF), which made this label invisible.
               Text('Share Experience',
                   style: TheyDiTextStyles.labelMedium
-                      .copyWith(color: Colors.white)),
+                      .copyWith(color: TheyDiColors.textPrimary)),
             ]),
           ),
         ],

@@ -15,6 +15,17 @@ import '../../inbox_shared_widgets.dart';
 // PROVIDERS
 // ══════════════════════════════════════════════════════════════════════════
 
+// User city stream for location-based community suggestions.
+final _userCityForCommProvider = StreamProvider.autoDispose<String>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value('');
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .map((doc) => (doc.data()?['city'] as String?) ?? '');
+});
+
 // All communities, client-filtered into My/Suggestions/Requested below.
 // Simple for now — same "real logic comes later" placeholder spirit as the
 // Home feed's Social/Professional classification: a proper recommendation
@@ -75,6 +86,7 @@ class _CommunitiesTabState extends ConsumerState<CommunitiesTab>
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final allAsync = ref.watch(allCommunitiesProvider);
     final requestsAsync = ref.watch(myCommunityRequestsProvider);
+    final userCity = ref.watch(_userCityForCommProvider).asData?.value ?? '';
     final requestedCount = requestsAsync.asData?.value.length ?? 0;
 
     return allAsync.when(
@@ -84,7 +96,15 @@ class _CommunitiesTabState extends ConsumerState<CommunitiesTab>
         final myCommunities = all.where((c) => c.isMember(uid)).toList();
         final suggestions = all
             .where((c) => !c.isMember(uid) && !requestedIds.contains(c.id))
-            .toList();
+            .toList()
+          ..sort((a, b) {
+            // City-matching communities first, then by member count
+            final aCity = userCity.isNotEmpty && a.city.toLowerCase() == userCity.toLowerCase();
+            final bCity = userCity.isNotEmpty && b.city.toLowerCase() == userCity.toLowerCase();
+            if (aCity && !bCity) return -1;
+            if (!aCity && bCity) return 1;
+            return b.memberCount.compareTo(a.memberCount);
+          });
         final requested = all.where((c) => requestedIds.contains(c.id)).toList();
 
         return Column(
@@ -323,11 +343,20 @@ class _CommunityCardState extends State<_CommunityCard> {
       );
     }
 
-    return PressableScale(
-      onTap: isMember
-          ? () => context.push(AppRoutes.communityChat, extra: community)
-          : () {},
-      child: Container(
+    // Non-members: no outer tap wrapper — HitTestBehavior.opaque on PressableScale
+    // would absorb taps meant for the inner Join button. Only members get the
+    // card tap (opens chat). Non-members tap only the Join button itself.
+    if (isMember) {
+      return PressableScale(
+        onTap: () => context.push(AppRoutes.communityChat, extra: community),
+        child: _buildCard(context, community, trailing),
+      );
+    }
+    return _buildCard(context, community, trailing);
+  }
+
+  Widget _buildCard(BuildContext context, CommunityModel community, Widget trailing) {
+    return Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
@@ -400,7 +429,6 @@ class _CommunityCardState extends State<_CommunityCard> {
             trailing,
           ],
         ),
-      ),
     );
   }
 }

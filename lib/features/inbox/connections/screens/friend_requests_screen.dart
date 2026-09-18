@@ -219,39 +219,45 @@ class _RequestCardState extends State<_RequestCard> {
         final initial =
             widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';
 
-        return GestureDetector(
-          // ── Tap anywhere on card → open Friend Info Screen ──
-          onTap: () => context.push(
-            AppRoutes.friendInfo,
-            extra: {
-              'uid': widget.fromUid,
-              'displayName': widget.fromName,
-            },
-          ),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  TheyDiColors.card,
-                  TheyDiColors.primary.withValues(alpha: 0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: TheyDiColors.primary.withValues(alpha: 0.3)),
-              boxShadow: [
-                BoxShadow(
-                  color: TheyDiColors.primary.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                TheyDiColors.card,
+                TheyDiColors.primary.withValues(alpha: 0.05),
               ],
             ),
-            child: Column(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: TheyDiColors.primary.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: TheyDiColors.primary.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              // ── Tap anywhere on card → open Friend Info Screen ──
+              onTap: () => context.push(
+                AppRoutes.friendInfo,
+                extra: {
+                  'uid': widget.fromUid,
+                  'displayName': widget.fromName,
+                },
+              ),
+              splashColor: TheyDiColors.primary.withValues(alpha: 0.08),
+              highlightColor: TheyDiColors.primary.withValues(alpha: 0.04),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -418,6 +424,8 @@ class _RequestCardState extends State<_RequestCard> {
                   ],
                 ),
               ],
+            ),
+              ),
             ),
           ),
         );

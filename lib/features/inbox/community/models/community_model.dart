@@ -22,6 +22,9 @@ class CommunityModel {
   // first (tracked in the `joinRequests` subcollection). If false, tapping
   // Join adds the user to `memberUids` immediately.
   final bool requiresApproval;
+  final String type; // 'Social' | 'Professional'
+  final String city;
+  final List<String> interests;
 
   const CommunityModel({
     required this.id,
@@ -38,6 +41,9 @@ class CommunityModel {
     required this.createdAt,
     this.coverImageUrl,
     this.requiresApproval = false,
+    this.type = 'Social',
+    this.city = '',
+    this.interests = const [],
   });
 
   factory CommunityModel.fromFirestore(DocumentSnapshot doc) {
@@ -61,6 +67,9 @@ class CommunityModel {
           : DateTime.now(),
       coverImageUrl: data['coverImageUrl'],
       requiresApproval: data['requiresApproval'] ?? false,
+      type: data['type'] ?? 'Social',
+      city: data['city'] ?? '',
+      interests: List<String>.from(data['interests'] ?? []),
     );
   }
 
@@ -80,6 +89,9 @@ class CommunityModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'coverImageUrl': coverImageUrl,
       'requiresApproval': requiresApproval,
+      'type': type,
+      'city': city,
+      'interests': interests,
     };
   }
 

@@ -238,7 +238,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return PaymentScreen(event: extra, fromApproval: false);
           }
           return const Scaffold(
-            body: Center(child: Text('Event details missing')),
+            body: Center(child: Text('expirence details missing')),
           );
         },
       ),
@@ -286,7 +286,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final event = state.extra as EventModel?;
           if (event == null) {
             return const Scaffold(
-              body: Center(child: Text('Event missing')),
+              body: Center(child: Text('expirence missing')),
             );
           }
           return SubmitReviewScreen(event: event);

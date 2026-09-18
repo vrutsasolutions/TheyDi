@@ -35,28 +35,31 @@ class TheyDiColors {
 class TheyDiTextStyles {
   TheyDiTextStyles._();
 
+  // Sized down from the original 36/28/22 scale — those read oversized on
+  // real phone widths (they were tuned against a larger preview/simulator).
+  // No colors touched, only fontSize/height.
   static TextStyle get displayLarge => GoogleFonts.inter(
-      fontSize: 36,
-      fontWeight: FontWeight.w700,
-      color: TheyDiColors.textPrimary,
-      height: 1.15);
-
-  static TextStyle get displayMedium => GoogleFonts.inter(
-      fontSize: 28,
+      fontSize: 30,
       fontWeight: FontWeight.w700,
       color: TheyDiColors.textPrimary,
       height: 1.2);
 
-  static TextStyle get displaySmall => GoogleFonts.inter(
-      fontSize: 22,
-      fontWeight: FontWeight.w600,
-      color: TheyDiColors.textPrimary,
-      height: 1.25);
-      static TextStyle get headlineLarge => GoogleFonts.inter(
-      fontSize: 20,
+  static TextStyle get displayMedium => GoogleFonts.inter(
+      fontSize: 24,
       fontWeight: FontWeight.w700,
       color: TheyDiColors.textPrimary,
-      height: 1.25,
+      height: 1.25);
+
+  static TextStyle get displaySmall => GoogleFonts.inter(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      color: TheyDiColors.textPrimary,
+      height: 1.3);
+      static TextStyle get headlineLarge => GoogleFonts.inter(
+      fontSize: 19,
+      fontWeight: FontWeight.w700,
+      color: TheyDiColors.textPrimary,
+      height: 1.3,
 );
 
 static TextStyle get titleLarge => GoogleFonts.inter(
