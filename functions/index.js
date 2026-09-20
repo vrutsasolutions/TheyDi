@@ -381,7 +381,7 @@ function getTransporter() {
   return nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
 }
 
-exports.createOrder = onCall({ region: REGION }, async (request) => {
+exports.createOrder = onCall({ region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in to create an order.");
   }
@@ -421,7 +421,7 @@ exports.createOrder = onCall({ region: REGION }, async (request) => {
   }
 });
 
-exports.verifyPayment = onCall({ region: REGION }, async (request) => {
+exports.verifyPayment = onCall({ region: REGION, secrets: ["RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in to verify payment.");
   }
