@@ -10,6 +10,13 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 
+// Tab indexes on the My Experiences screen that the stat cards deep-link to.
+// Hosting was already tab 2. Attended used to ALSO send tab 2, which is why it
+// landed on the hosting page. Attending is assumed to be tab 1 — if your My
+// Experiences screen orders its tabs differently, this is the one number to change.
+const int _myEventsHostingTab = 2;
+const int _myEventsAttendingTab = 1;
+
 // ── Stream user profile doc ──
 final _userProfileProvider =
     StreamProvider.autoDispose<DocumentSnapshot<Map<String, dynamic>>>((ref) {
@@ -709,58 +716,47 @@ class _ProfileContent extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          Column(
-            children: [
-              Row(
-                children: [
-                  _StatCard(
-                    label: 'Experiences Created',
-                    value: eventsCreated,
-                    icon: Icons.auto_awesome_outlined,
-                    onTap: () => context.push(
-                      AppRoutes.myEvents,
-                      extra: {'tab': 2, 'filter': 'Hosted'},
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _StatCard(
-                    label: 'Experiences Attended',
-                    value: eventsAttended,
-                    icon: Icons.local_activity_outlined,
-                    onTap: () => context.push(
-                      AppRoutes.myEvents,
-                      extra: {'tab': 2, 'filter': 'Attended'},
-                    ),
-                  ),
-                ],
+          _StatsRow(
+            cards: [
+              _StatCard(
+                label: 'Created',
+                semanticLabel: 'Experiences created',
+                value: eventsCreated,
+                icon: Icons.auto_awesome_outlined,
+                onTap: () => context.push(
+                  AppRoutes.myEvents,
+                  extra: {'tab': _myEventsHostingTab, 'filter': 'Hosted'},
+                ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _StatCard(
-                    label: 'Connections',
-                    value: friendsCount,
-                    icon: Icons.people_alt_outlined,
-                    actionLabel: 'View Connections',
-                    actionIcon: Icons.people_outline,
-                    onTap: () => context.push(AppRoutes.friendsHub),
-                  ),
-                  const SizedBox(width: 12),
-                  _StatCard(
-                    label: 'Communities',
-                    value: communitiesCount,
-                    icon: Icons.diversity_3_outlined,
-                    actionLabel: 'View Communities',
-                    actionIcon: Icons.group_outlined,
-                    onTap: () => context.push(
-                      AppRoutes.friendsHub,
-                      extra: {'initialTab': 2},
-                    ),
-                  ),
-                ],
+              _StatCard(
+                label: 'Attended',
+                semanticLabel: 'Experiences attended',
+                value: eventsAttended,
+                icon: Icons.local_activity_outlined,
+                onTap: () => context.push(
+                  AppRoutes.myEvents,
+                  extra: {'tab': _myEventsAttendingTab, 'filter': 'Attended'},
+                ),
+              ),
+              _StatCard(
+                label: 'Connections',
+                semanticLabel: 'Connections',
+                value: friendsCount,
+                icon: Icons.people_alt_outlined,
+                onTap: () => context.push(AppRoutes.friendsHub),
+              ),
+              _StatCard(
+                label: 'Communities',
+                semanticLabel: 'Communities',
+                value: communitiesCount,
+                icon: Icons.diversity_3_outlined,
+                onTap: () => context.push(
+                  AppRoutes.friendsHub,
+                  extra: {'initialTab': 2},
+                ),
               ),
             ],
-          ).animate(delay: 200.ms).fade(duration: 400.ms),
+          ),
 
           const SizedBox(height: 20),
 
@@ -971,97 +967,173 @@ class _ProfileButton extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-  final String actionLabel;
-  final IconData actionIcon;
-  final IconData icon;
+// ══════════════════════════════════════
+// STATS ROW — four small tiles
+// ══════════════════════════════════════
+// Phones: two tiles per row (2 x 2). Wide screens: all four in one row. Tiles
+// stop growing at _maxTileWidth and stay left-aligned instead of stretching.
+class _StatsRow extends StatelessWidget {
+  final List<_StatCard> cards;
+  const _StatsRow({required this.cards});
 
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.onTap,
-    this.actionLabel = 'View history',
-    this.actionIcon = Icons.history,
-    this.icon = Icons.insights_outlined,
-  });
+  static const double _gap = 10;
+  // Below this width (phones) the tiles sit two per row (2 x 2); above it
+  // all four fit on a single row.
+  static const double _wideBreakpoint = 600;
+  // Tiles never grow past this, so they stay small boxes and don't stretch
+  // across the whole row.
+  static const double _maxTileWidth = 128;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < _wideBreakpoint ? 2 : 4;
+        final fit = (constraints.maxWidth - _gap * (columns - 1)) / columns;
+        final tileWidth = fit > _maxTileWidth ? _maxTileWidth : fit;
+
+        return Wrap(
+          spacing: _gap,
+          runSpacing: _gap,
+          children: [
+            for (var i = 0; i < cards.length; i++)
+              SizedBox(width: tileWidth, child: cards[i])
+                  .animate(delay: Duration(milliseconds: 200 + 60 * i))
+                  .fadeIn(duration: 350.ms)
+                  .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StatCard extends StatefulWidget {
+  final String label;
+  final String semanticLabel;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _StatCard({
+    required this.label,
+    required this.semanticLabel,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  State<_StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<_StatCard> {
+  bool _pressed = false;
+
+  void _setPressed(bool v) {
+    if (_pressed != v) setState(() => _pressed = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = int.tryParse(widget.value);
+    final valueStyle = TheyDiTextStyles.labelLarge.copyWith(
+      color: TheyDiColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      fontSize: 18,
+      height: 1.1,
+    );
+
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label: '${widget.semanticLabel}: ${widget.value}',
       child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                TheyDiColors.card,
-                TheyDiColors.primary.withValues(alpha: 0.05),
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _setPressed(true),
+        onTapUp: (_) => _setPressed(false),
+        onTapCancel: () => _setPressed(false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _pressed ? 0.95 : 1,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            decoration: BoxDecoration(
+              color: TheyDiColors.card,
+              // Barely-there wash from the top instead of the old diagonal
+              // card→primary gradient, so the tile reads as a clean box.
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  TheyDiColors.primary.withValues(alpha: 0.07),
+                  TheyDiColors.primary.withValues(alpha: 0.0),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: TheyDiColors.primary.withValues(alpha: 0.14),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(
-                color: TheyDiColors.primary.withValues(alpha: 0.18)),
-            boxShadow: [
-              BoxShadow(
-                color: TheyDiColors.primary.withValues(alpha: 0.07),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  gradient: TheyDiColors.gradientPrimary,
-                  shape: BoxShape.circle,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: TheyDiColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    widget.icon,
+                    color: TheyDiColors.primary,
+                    size: 16,
+                  ),
                 ),
-                child: Icon(icon, color: Colors.white, size: 12),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      style: TheyDiTextStyles.labelLarge.copyWith(
-                        color: TheyDiColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        height: 1.1,
-                      ),
+                const SizedBox(height: 8),
+                // Numbers count up from 0 when they load; '…' is shown as-is.
+                if (count == null)
+                  Text(widget.value, style: valueStyle)
+                else
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: count.toDouble()),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, __) =>
+                        Text(v.round().toString(), style: valueStyle),
+                  ),
+                const SizedBox(height: 3),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    style: TheyDiTextStyles.caption.copyWith(
+                      color: TheyDiColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                      height: 1.1,
                     ),
-                    Text(label,
-                        style: TheyDiTextStyles.caption.copyWith(
-                          color: TheyDiColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                          height: 1.1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-
 
 // ══════════════════════════════════════
 // PURPOSE PILL — Social vs Professional (compact, floating)
@@ -1089,6 +1161,10 @@ class _PurposeFloatingPill extends StatelessWidget {
 
   bool get _isProfessional => purpose == 'Professional';
 
+  // Professional used the brand green (same as the rest of the UI) and blended
+  // in, so it now has its own blue. Social stays the orange/amber accent.
+  static const Color _professionalColor = Color(0xFF2563EB);
+
   IconData get _socialIcon {
     switch (socialPlatform) {
       case 'LinkedIn':
@@ -1107,7 +1183,7 @@ class _PurposeFloatingPill extends StatelessWidget {
     final roleLine = _isProfessional
         ? [jobTitle, organization].where((s) => s.isNotEmpty).join(' at ')
         : '';
-    final accent = _isProfessional ? TheyDiColors.primary : TheyDiColors.warning;
+    final accent = _isProfessional ? _professionalColor : TheyDiColors.warning;
 
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -1115,7 +1191,7 @@ class _PurposeFloatingPill extends StatelessWidget {
       runSpacing: 4,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [accent, accent.withValues(alpha: 0.75)],
@@ -1134,16 +1210,16 @@ class _PurposeFloatingPill extends StatelessWidget {
             children: [
               Icon(
                 _isProfessional ? Icons.work_outline : Icons.groups_outlined,
-                size: 11,
+                size: 13,
                 color: Colors.white,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 5),
               Text(
                 _isProfessional ? 'Professional' : 'Social',
                 style: TheyDiTextStyles.caption.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: 10,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -1155,13 +1231,13 @@ class _PurposeFloatingPill extends StatelessWidget {
             style: TheyDiTextStyles.caption.copyWith(
               color: TheyDiColors.textSecondary,
               fontWeight: FontWeight.w500,
-              fontSize: 11,
+              fontSize: 12,
             ),
           ),
         if (socialLink.isNotEmpty)
           GestureDetector(
             onTap: onTapSocialLink,
-            child: Icon(_socialIcon, size: 14, color: TheyDiColors.textMuted),
+            child: Icon(_socialIcon, size: 16, color: TheyDiColors.textMuted),
           ),
       ],
     );

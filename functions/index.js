@@ -693,6 +693,23 @@ exports.savePayoutDetails = onCall(
         payoutMode: payoutMethod,
       }, { merge: true });
 
+      // If an event already ended and its payout was parked as
+      // "blocked_no_details", it can move to "pending" now that details exist.
+      try {
+        const blocked = await db.collection("payouts")
+          .where("hostUid", "==", uid)
+          .where("status", "==", "blocked_no_details")
+          .get();
+        if (!blocked.empty) {
+          const unblock = db.batch();
+          blocked.docs.forEach((d) =>
+            unblock.update(d.ref, { status: "pending", payoutDetailsAvailable: true }));
+          await unblock.commit();
+        }
+      } catch (unblockErr) {
+        logger.error("[Payout] Could not unblock waiting payouts:", unblockErr);
+      }
+
       logger.info(`[Payout] Saved payout details for UID: ${uid} (method: ${payoutMethod})`);
       return { success: true };
     } catch (e) {
@@ -1397,10 +1414,13 @@ exports.processAutomaticPayouts = onSchedule(
     const now = admin.firestore.Timestamp.now();
 
     try {
+      // Only ONE where() here on purpose: combining payoutProcessed == false
+      // with an endTime range needs a composite index, and without it this
+      // query fails and nothing ever gets a payout. The "has it ended yet?"
+      // check is done in code below instead.
       const eventsSnap = await db
         .collection("events")
         .where("payoutProcessed", "==", false)
-        .where("endTime", "<=", now)
         .get();
 
       if (eventsSnap.empty) {
@@ -1415,6 +1435,11 @@ exports.processAutomaticPayouts = onSchedule(
       for (const doc of eventsSnap.docs) {
         try {
           const eventData = doc.data();
+
+          // Not finished yet — check again on the next run.
+          if (!eventData.endTime || eventData.endTime.toMillis() > now.toMillis()) {
+            continue;
+          }
 
           // NEVER process cancelled events
           if (eventData.status === "cancelled") {
@@ -1440,7 +1465,7 @@ exports.processAutomaticPayouts = onSchedule(
   }
 );
 
-exports.cancelEventAndRefund = onCall({ region: REGION }, async (request) => {
+exports.cancelEventAndRefund = onCall({ region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in.");
 
   const { eventId } = request.data;
@@ -1578,7 +1603,7 @@ exports.cancelEventAndRefund = onCall({ region: REGION }, async (request) => {
   return { success: true, refundsProcessed: refundCount };
 });
 
-exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", region: REGION }, async (event) => {
+exports.processRefund = onDocumentCreated({ document: "refunds/{refundId}", region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
 

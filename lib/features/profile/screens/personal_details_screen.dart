@@ -154,13 +154,24 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        // Return to whoever opened this screen (Create Experience, Host
+        // Dashboard...) with `true`, so callers like _ensurePayoutSetup can
+        // continue. The old context.go(profile) replaced the whole stack, so
+        // the Create Experience form was thrown away and its `push<bool>`
+        // never received `true`. Only fall back to Profile if there is
+        // nothing to go back to (e.g. opened via a deep link).
+        if (context.canPop()) {
+          context.pop(true);
+        } else {
+          context.go(AppRoutes.profile);
+        }
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Bank details updated successfully!'),
             backgroundColor: Colors.green,
           ),
         );
-        context.go(AppRoutes.profile);
       }
     } catch (e) {
       if (!mounted) return;
