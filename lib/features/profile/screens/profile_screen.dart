@@ -10,12 +10,10 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
 
-// Tab indexes on the My Experiences screen that the stat cards deep-link to.
-// Hosting was already tab 2. Attended used to ALSO send tab 2, which is why it
-// landed on the hosting page. Attending is assumed to be tab 1 — if your My
-// Experiences screen orders its tabs differently, this is the one number to change.
+// Tab indexes on the My Experiences screen (see MyEventsScreen):
+// 0 = Attending, 1 = Requested, 2 = Hosting.
+const int _myEventsAttendingTab = 0;
 const int _myEventsHostingTab = 2;
-const int _myEventsAttendingTab = 1;
 
 // ── Stream user profile doc ──
 final _userProfileProvider =
@@ -719,7 +717,7 @@ class _ProfileContent extends ConsumerWidget {
           _StatsRow(
             cards: [
               _StatCard(
-                label: 'Created',
+                label: 'Experiences Created',
                 semanticLabel: 'Experiences created',
                 value: eventsCreated,
                 icon: Icons.auto_awesome_outlined,
@@ -729,7 +727,7 @@ class _ProfileContent extends ConsumerWidget {
                 ),
               ),
               _StatCard(
-                label: 'Attended',
+                label: 'Experiences Attended',
                 semanticLabel: 'Experiences attended',
                 value: eventsAttended,
                 icon: Icons.local_activity_outlined,
@@ -970,26 +968,22 @@ class _ProfileButton extends StatelessWidget {
 // ══════════════════════════════════════
 // STATS ROW — four small tiles
 // ══════════════════════════════════════
-// Phones: two tiles per row (2 x 2). Wide screens: all four in one row. Tiles
-// stop growing at _maxTileWidth and stay left-aligned instead of stretching.
+// Four tiles laid out as a 2 x 2 grid on every screen size.
 class _StatsRow extends StatelessWidget {
   final List<_StatCard> cards;
   const _StatsRow({required this.cards});
 
-  static const double _gap = 10;
-  // Below this width (phones) the tiles sit two per row (2 x 2); above it
-  // all four fit on a single row.
-  static const double _wideBreakpoint = 600;
-  // Tiles never grow past this, so they stay small boxes and don't stretch
-  // across the whole row.
-  static const double _maxTileWidth = 128;
+  static const double _gap = 12;
+  // Always two tiles per row (2 x 2) on every screen size. Tiles stop growing
+  // at _maxTileWidth so on a wide screen they stay a compact block on the left
+  // instead of stretching across the page.
+  static const double _maxTileWidth = 156;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth < _wideBreakpoint ? 2 : 4;
-        final fit = (constraints.maxWidth - _gap * (columns - 1)) / columns;
+        final fit = (constraints.maxWidth - _gap) / 2;
         final tileWidth = fit > _maxTileWidth ? _maxTileWidth : fit;
 
         return Wrap(
@@ -1040,7 +1034,7 @@ class _StatCardState extends State<_StatCard> {
     final valueStyle = TheyDiTextStyles.labelLarge.copyWith(
       color: TheyDiColors.textPrimary,
       fontWeight: FontWeight.w800,
-      fontSize: 18,
+      fontSize: 21,
       height: 1.1,
     );
 
@@ -1059,7 +1053,7 @@ class _StatCardState extends State<_StatCard> {
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
             decoration: BoxDecoration(
               color: TheyDiColors.card,
               // Barely-there wash from the top instead of the old diagonal
@@ -1088,19 +1082,19 @@ class _StatCardState extends State<_StatCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: TheyDiColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(
                     widget.icon,
                     color: TheyDiColors.primary,
-                    size: 16,
+                    size: 19,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 // Numbers count up from 0 when they load; '…' is shown as-is.
                 if (count == null)
                   Text(widget.value, style: valueStyle)
@@ -1112,7 +1106,7 @@ class _StatCardState extends State<_StatCard> {
                     builder: (_, v, __) =>
                         Text(v.round().toString(), style: valueStyle),
                   ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
@@ -1121,7 +1115,7 @@ class _StatCardState extends State<_StatCard> {
                     style: TheyDiTextStyles.caption.copyWith(
                       color: TheyDiColors.textSecondary,
                       fontWeight: FontWeight.w600,
-                      fontSize: 10,
+                      fontSize: 11.5,
                       height: 1.1,
                     ),
                   ),
