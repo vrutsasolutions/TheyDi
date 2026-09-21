@@ -1,12 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
 // app_router.dart — canonical router.
-//
-// `app_router_fixed.dart` registered AppRoutes.blockedUsers as a GoRoute
-// twice (duplicate path in the same route table), which go_router asserts
-// against at startup — that was the crash you were hitting. This file has
-// no duplicate paths (verified) and also keeps safer nullable `state.extra`
-// casts + parentNavigatorKey usage that `_fixed` had dropped, so use this
-// one going forward and retire app_router_fixed.dart.
 // ─────────────────────────────────────────────────────────────────────────
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -58,8 +51,6 @@ import 'package:theydi/features/inbox/circles/screens/dm_chat_screen.dart';
 import 'package:theydi/features/profile/screens/user_profile_screen.dart';
 import 'package:theydi/features/inbox/circles/screens/circle_info_screen.dart';
 import 'package:theydi/features/inbox/connections/screens/friend_info_screen.dart';
-// FriendsHubScreen is retired in favor of InboxScreen below — its file can
-// be deleted once you've confirmed nothing else references it directly.
 import 'package:theydi/features/inbox/inbox_screen.dart';
 import 'package:theydi/features/inbox/community/screens/create_community_screen.dart';
 import 'package:theydi/features/inbox/community/screens/community_chat_screen.dart';
@@ -101,8 +92,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
 
-    // ── Catches unmatched/failed routes so a bad or stale share link
-    // shows a real screen instead of a blank white page. ──
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Padding(
@@ -139,22 +128,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = user != null;
       final path = state.matchedLocation;
 
-      // Auth-only pages (exact match — '/' would break startsWith)
       final isOnAuthPage = path == AppRoutes.splash ||
           path == AppRoutes.login ||
           path.startsWith('/signup');
 
-      // If logged in and on an auth-only page, go home
       if (isLoggedIn && isOnAuthPage) {
         return AppRoutes.home;
       }
 
-      // If not logged in and trying to access a protected page, go to login
       if (!isLoggedIn && protectedRoutes.any((r) => path.startsWith(r))) {
         return AppRoutes.login;
       }
 
-      return null; // no redirect needed
+      return null;
     },
     routes: [
       GoRoute(
@@ -217,13 +203,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.privacyPolicy,
         builder: (_, __) => const PrivacyPolicyScreen(),
       ),
-
       GoRoute(
         path: AppRoutes.termsConditions,
         builder: (_, __) => const TermsConditionsScreen(),
       ),
 
-      // ── Payment ─
+      // ── Payment ──
       GoRoute(
         path: AppRoutes.payment,
         builder: (context, state) {
@@ -238,7 +223,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return PaymentScreen(event: extra, fromApproval: false);
           }
           return const Scaffold(
-            body: Center(child: Text('expirence details missing')),
+            body: Center(child: Text('Experience details missing')),
           );
         },
       ),
@@ -286,7 +271,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final event = state.extra as EventModel?;
           if (event == null) {
             return const Scaffold(
-              body: Center(child: Text('expirence missing')),
+              body: Center(child: Text('Experience missing')),
             );
           }
           return SubmitReviewScreen(event: event);
@@ -302,14 +287,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const HostDashboardScreen(),
       ),
-
       GoRoute(
         path: AppRoutes.createCircle,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          // FIX: was `const CreateCircleScreen()` — always ignored any
-          // extra data, so the post-experience-creation flow (which pushes
-          // {'eventId': ..., 'eventTitle': ...}) had nothing to receive it.
           final extra = state.extra as Map<String, dynamic>?;
           return CreateCircleScreen(
             linkedEventId: extra?['eventId'] as String?,
@@ -476,7 +457,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const InviteFriendsScreen(),
       ),
 
-      // ── Signup flow: 1 → otp → 2 → 3 → 4 → 5 ──────────────────────────────
+      // ── Signup flow ──
       GoRoute(
         path: AppRoutes.signupStep1,
         builder: (context, state) => const SignupStep1Screen(),
@@ -503,7 +484,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.signupStep4, // Face Verify
+        path: AppRoutes.signupStep4,
         builder: (context, state) {
           final extra = state.extra;
           if (extra is Map<String, dynamic> && extra['fromProfile'] == true) {
@@ -516,7 +497,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.signupStep5, // Review & Complete
+        path: AppRoutes.signupStep5,
         builder: (context, state) => SignupStep5Screen(
           signupData: (state.extra as SignupData?) ??
               SignupData(name: '', email: '', password: ''),
@@ -555,30 +536,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ── Top-level routes (outside ShellRoute so URL updates correctly on web) ──
       GoRoute(
         path: AppRoutes.editprofile,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const EditProfileScreen(),
       ),
+
+      // ── Personal Details — supports returnOnSave via extra ──
+      // When extra is {'returnOnSave': true}, the screen pops with true
+      // after saving so the create-event flow can resume. When extra is
+      // null or omitted, it navigates to profile as usual.
       GoRoute(
         path: AppRoutes.personalDetails,
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const PersonalDetailsScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final returnOnSave = (extra?['returnOnSave'] as bool?) ?? false;
+          return PersonalDetailsScreen(returnOnSave: returnOnSave);
+        },
       ),
+
       GoRoute(
         path: AppRoutes.createEvent,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const CreateEventScreen(),
       ),
-      GoRoute(
-  path: '/onboarding',
-  builder: (context, state) {
-    return const OnboardingScreen();
-  },
-),
 
-      // ── Shell routes (StatefulShellRoute keeps bottom nav + correct web URLs) ──
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // ── Shell routes ──
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             MainShell(navigationShell: navigationShell),
@@ -621,11 +610,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // NOTE: the 5th branch that used to live here (AppRoutes.circles →
-          // CirclesListScreen) has been removed — main_shell.dart's
-          // _BottomBar only ever built 4 _NavItems (indices 0-3), so this
-          // branch was dead: reachable by no tap target, confirmed unused.
-          // Circles is now exclusively reached via Inbox.
         ],
       ),
     ],

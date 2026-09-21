@@ -1,13 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:razorpay_web/razorpay_web.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/services/notification_service.dart';
 import '../models/booking_model.dart';
 import '../models/event_model.dart';
 
@@ -52,12 +53,28 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
+  late final Razorpay _razorpay;
   bool _isProcessing = false;
   String? _error;
 
   double get _platformFee =>
       BookingModel.calculatePlatformFee(widget.event.price);
   double get _total => BookingModel.calculateTotal(widget.event.price);
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
 
   Future<void> _confirmAndPay() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -70,92 +87,94 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     try {
       final event = widget.event;
-      final db = FirebaseFirestore.instance;
-      final eventRef = db.collection('events').doc(event.id);
-
-      String userName =
-          FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
-      try {
-        final userDoc = await db.collection('users').doc(uid).get();
-        if (userDoc.exists) {
-          userName = userDoc.data()?['displayName'] ?? userName;
-        }
-      } catch (_) {}
-
-      // Mock transaction id — matches BookingModel.paymentMethod default
-      // ('mock') and PaymentSuccessScreen's transactionId display field.
-      final transactionId =
-          'TXN${DateTime.now().millisecondsSinceEpoch}';
-
-      final booking = BookingModel(
-        id: '',
-        eventId: event.id,
-        eventTitle: event.title,
-        userId: uid,
-        userName: userName,
-        hostUid: event.creatorUid,
-        amount: event.price,
-        platformFee: _platformFee,
-        totalAmount: _total,
-        status: BookingStatus.confirmed,
-        paymentMethod: 'mock',
-        transactionId: transactionId,
-        createdAt: DateTime.now(),
-        confirmedAt: DateTime.now(),
-      );
-
-      final batch = db.batch();
-      final bookingRef = db.collection('bookings').doc();
-      batch.set(bookingRef, booking.toFirestoreMap());
-
-      if (widget.fromApproval) {
-        batch.update(eventRef, {
-          'approvedPendingPaymentUids': FieldValue.arrayRemove([uid]),
-          'attendeeUids': FieldValue.arrayUnion([uid]),
-        });
-      } else {
-        batch.update(eventRef, {
-          'attendeeUids': FieldValue.arrayUnion([uid]),
-        });
+      final createOrder = FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('createOrder');
+      final result = await createOrder.call({
+        'amount': (_total * 100).round(),
+        'currency': 'INR',
+        'receipt': 'event_${event.id}_${uid.substring(0, 8)}',
+        'notes': {
+          'eventId': event.id,
+          'eventTitle': event.title,
+          'userId': uid,
+          'hostUid': event.creatorUid,
+          'platformFee': _platformFee.toString(),
+          'totalAmount': _total.toString(),
+          'fromApproval': widget.fromApproval.toString(),
+        },
+      });
+      final order = Map<String, dynamic>.from(result.data as Map);
+      final keyId = dotenv.env['RAZORPAY_KEY_ID']?.trim();
+      if (keyId == null || keyId.isEmpty) {
+        throw StateError('Razorpay key is not configured for this build.');
       }
+      if (!mounted) return;
 
-      final userRef = db.collection('users').doc(uid);
-      batch.update(userRef, {'eventsAttended': FieldValue.increment(1)});
+      _razorpay.open({
+        'key': keyId,
+        'amount': order['amount'],
+        'currency': order['currency'] ?? 'INR',
+        'name': 'TheyDi',
+        'description': event.title,
+        'order_id': order['orderId'],
+        'prefill': {
+          'name': FirebaseAuth.instance.currentUser?.displayName ?? '',
+          'email': FirebaseAuth.instance.currentUser?.email ?? '',
+        },
+      }, context: context);
+    } catch (e) {
+      _showPaymentError('Unable to start payment: $e');
+    }
+  }
 
-      await batch.commit();
-
-      await NotificationService.notifyAttendeeJoinedEmail(
-        toUid: uid,
-        eventTitle: event.title,
-        eventDate: DateFormat('EEE, MMM d · h:mm a').format(event.dateTime),
-        eventVenue: event.venue,
-        eventId: event.id,
-      );
-      await NotificationService.notifyHostNewAttendeeEmail(
-        hostUid: event.creatorUid,
-        attendeeName: userName,
-        eventTitle: event.title,
-        amount: _total.toStringAsFixed(0),
-        eventId: event.id,
-      );
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final event = widget.event;
+    try {
+      final verifyPayment =
+          FirebaseFunctions.instanceFor(region: 'asia-south1')
+              .httpsCallable('verifyPayment');
+      await verifyPayment.call({
+        'razorpay_payment_id': response.paymentId,
+        'razorpay_order_id': response.orderId,
+        'razorpay_signature': response.signature,
+        'eventId': event.id,
+        'eventTitle': event.title,
+        'hostUid': event.creatorUid,
+        'amount': event.price,
+        'platformFee': _platformFee,
+        'totalAmount': _total,
+        'paymentMethod': 'razorpay',
+        'fromApproval': widget.fromApproval,
+      });
 
       if (mounted) {
         context.push(AppRoutes.paymentsuccess, extra: {
           'eventTitle': event.title,
           'amount': _total,
-          'transactionId': transactionId,
+          'transactionId': response.paymentId,
           'dateTime': event.dateTime,
           'venue': event.venue,
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'Payment failed: $e';
-          _isProcessing = false;
-        });
-      }
+      _showPaymentError('Payment was received but confirmation failed: $e');
     }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    _showPaymentError('Payment failed: ${response.message ?? 'Please try again.'}');
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    _showPaymentError('External wallet selected: ${response.walletName}');
+  }
+
+  void _showPaymentError(String message) {
+    if (!mounted) return;
+    setState(() {
+      _error = message;
+      _isProcessing = false;
+    });
   }
 
   @override

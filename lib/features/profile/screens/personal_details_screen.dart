@@ -12,7 +12,17 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_error_utils.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
-  const PersonalDetailsScreen({super.key});
+  /// When [returnOnSave] is true the screen pops with `true` instead of
+  /// navigating to the profile page.  The create-event flow passes true so
+  /// it can resume event creation after the host has set up their payout
+  /// details.  The profile page passes false (or omits the argument) when
+  /// the user opens this screen to update their details directly.
+  final bool returnOnSave;
+
+  const PersonalDetailsScreen({
+    super.key,
+    this.returnOnSave = false,
+  });
 
   @override
   State<PersonalDetailsScreen> createState() => _PersonalDetailsScreenState();
@@ -85,9 +95,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   @override
   void dispose() {
-    //    FlutterWindowManager.clearFlags(
-    //   FlutterWindowManager.FLAG_SECURE,
-    // );
     _legalNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
@@ -153,26 +160,29 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         'bankName': _bankNameController.text.trim(),
       });
 
-      if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
-        // Return to whoever opened this screen (Create Experience, Host
-        // Dashboard...) with `true`, so callers like _ensurePayoutSetup can
-        // continue. The old context.go(profile) replaced the whole stack, so
-        // the Create Experience form was thrown away and its `push<bool>`
-        // never received `true`. Only fall back to Profile if there is
-        // nothing to go back to (e.g. opened via a deep link).
+      if (!mounted) return;
+
+      final messenger = ScaffoldMessenger.of(context);
+
+      // When opened from the create-event flow, return `true` so the caller
+      // can resume event creation after payout setup is complete. When opened
+      // directly from the profile page, keep the prior navigation flow.
+      if (widget.returnOnSave) {
         if (context.canPop()) {
           context.pop(true);
         } else {
           context.go(AppRoutes.profile);
         }
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Bank details updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      } else {
+        context.go(AppRoutes.profile);
       }
+
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Bank details updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);

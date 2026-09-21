@@ -50,7 +50,7 @@ class ReferralService {
   static const _allowedHosts = {'theydi.app', 'theydi-cefdf.web.app'};
   static const _codePattern = r'^[A-Z0-9]{6,12}$';
 
-  final FirebaseFunctions _functions =
+    FirebaseFunctions get _functions =>
       FirebaseFunctions.instanceFor(region: 'asia-south1');
   StreamSubscription<Uri>? _linkSub;
   bool _initialized = false;

@@ -21,10 +21,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 30,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
               decoration: BoxDecoration(
                 color: Colors.teal.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(18),
@@ -38,40 +35,30 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       color: TheyDiColors.primary.withValues(alpha: .08),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.privacy_tip_rounded,
-                      size: 42,
-                      color: TheyDiColors.primary,
-                    ),
+                    child: const Icon(Icons.privacy_tip_rounded, size: 42, color: TheyDiColors.primary),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Your privacy matters to us.',
-                    style: TheyDiTextStyles.bodyLarge.copyWith(
-                      color: TheyDiColors.textSecondary,
-                    ),
-                  ),
+                  Text('Your privacy matters to us.',
+                      style: TheyDiTextStyles.bodyLarge.copyWith(color: TheyDiColors.textSecondary)),
                   const SizedBox(height: 8),
                   Text(
-                    'Effective Date: August 20, 2026\nLast Updated: August 20, 2026',
+                    'Effective Date: August 20, 2026\nLast Updated: September 21, 2026',
                     textAlign: TextAlign.center,
-                    style: TheyDiTextStyles.bodyLarge.copyWith(
-                      color: TheyDiColors.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: TheyDiTextStyles.bodyLarge.copyWith(color: TheyDiColors.textSecondary, fontSize: 12),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
+
             _buildCard(
               icon: Icons.info_outline,
-              title: "Introduction",
+              title: "1. Introduction",
               content:
                   "Application: TheyDi\n"
                   "Operated by: Vrutsa Solutions\n"
                   "Contact Email: theydi.app@gmail.com\n\n"
-                  "Vrutsa Solutions (\"we\", \"us\", \"our\") operates the TheyDi mobile application, web application, and related services (collectively, the \"Platform\"). This Privacy Policy explains how we collect, use, disclose, store and protect your personal data when you use TheyDi.\n\n"
+                  "Vrutsa Solutions (\"we\", \"us\", \"our\") operates the TheyDi mobile application, web application, and related services (collectively, the \"Platform\"). TheyDi is a social network for discovering people, communities, organizations, and real-world experiences. This Privacy Policy explains how we collect, use, disclose, store and protect your personal data when you use TheyDi.\n\n"
                   "This Privacy Policy is issued in compliance with:\n\n"
                   "• Information Technology Act, 2000\n"
                   "• Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011\n"
@@ -94,8 +81,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.person_outline,
               title: "3. Information We Collect",
-              content:
-                  "We collect the following categories of information from users of the TheyDi Platform.",
+              content: "We collect the following categories of information from users of the TheyDi Platform.",
             ),
             const SizedBox(height: 18),
 
@@ -105,30 +91,52 @@ class PrivacyPolicyScreen extends StatelessWidget {
               bullets: const [
                 "Account Registration",
                 "• Full name and display name",
+                "• Username",
                 "• Email address",
                 "• Phone number",
                 "• Date of birth",
                 "• Gender",
-                "• City of residence",
+                "• City of residence (primary city)",
                 "• Password (stored in encrypted, hashed form)",
                 "• Profile photo and additional photos",
+                "• Bio and personal interests",
                 "• Face liveness verification data — including a short video capturing head rotation and eye-blink actions (biometric — see Section 3.6)",
 
-                "Event Data",
-                "• Events you create (including location, description, images, capacity, pricing)",
-                "• Events you book, attend, or express interest in",
+                "Professional Identity (Optional)",
+                "• Intent: Social, Professional, Creator, Student, Community Builder, or Organization",
+                "• Profession, job title, and industry",
+                "• Company or organization name",
+                "• Skills and professional interests",
+                "• \"Looking for\" preferences (networking, collaborators, co-founders, etc.)",
+                "• Social links (LinkedIn, Instagram, X, YouTube, website)",
+
+                "Organization Data (if you create an Organization)",
+                "• Organization name, type, and description",
+                "• Organization logo and images",
+                "• Organization website and social links",
+                "• Organization category and industry",
+
+                "Experience (Event) Data",
+                "• Experiences you create (including location, description, images, capacity, pricing, audience type — Social or Professional)",
+                "• Experiences you book, attend, or express interest in",
                 "• Reviews, ratings, and feedback",
+                "• Organization on whose behalf an experience is hosted",
+
+                "Community Data",
+                "• Communities you create or join",
+                "• Messages and content posted in communities or experience communities",
+                "• Community membership and participation history",
 
                 "Payment Data",
                 "• Billing name and address",
-                "• UPI ID, card details, or bank account details (processed via Razorpay— we do not store full card numbers or CVVs)",
+                "• UPI ID, card details, or bank account details (processed via Razorpay — we do not store full card numbers or CVVs)",
                 "• Transaction history",
-                "• For Hosts:bank account number, IFSC, and KYC documents",
+                "• For Hosts: bank account number, IFSC, and KYC documents",
 
                 "Social Interactions",
-                "• Friend connections, circle memberships",
+                "• Connections (friends), community memberships, organization follows",
                 "• Direct messages and chat content",
-                "• Content posted in event circles",
+                "• Content posted in communities or experience communities",
 
                 "Support Communications",
                 "• Messages sent to customer support, grievance officer, or reports of misuse",
@@ -164,8 +172,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.lock_outline,
               title: "3.4 Sensitive Personal Data",
-              content:
-                  "Under the SPDI Rules and the Digital Personal Data Protection Act (DPDP Act), the following information is considered sensitive:",
+              content: "Under the SPDI Rules and the Digital Personal Data Protection Act (DPDP Act), the following information is considered sensitive:",
               bullets: const [
                 "Financial information (payment details, bank details)",
                 "Biometric information (face verification data, if used)",
@@ -179,15 +186,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
               icon: Icons.child_care,
               title: "3.5 Children's Data",
               content:
-                  "TheyDi is open to users of all ages. There are no age-restricted (18+) events on the Platform.\n\n"
-                  "For users under 18, we process personal data only with the consent of a parent or legal guardian, in accordance with the Digital Personal Data Protection Act, 2023. We take the following measures to protect minors:",
+                  "TheyDi is open to users of all ages. For users under 18, we process personal data only with the consent of a parent or legal guardian, in accordance with the Digital Personal Data Protection Act, 2023. We take the following measures to protect minors:",
               bullets: const [
                 "We do not track, profile, or monitor minors for advertising or behavioural targeting",
                 "We do not display targeted advertisements to minors",
-                "Minors may use the free features of the Platform but cannot make paid bookings, host paid events, or receive payouts. Any paid transaction on behalf of a minor must be carried out by their parent or legal guardian using their own account",
-                "Location data, chat data, and profile data of minors are processed only to the extent necessary to deliver core Platform features, and are subject to the same security and retention safeguards as adult users' data",
-                "We rely on the date of birth provided at signup and on the supervising parent or guardian to determine and confirm the age of the user",
-                "Parents or guardians who believe their child has provided data without appropriate consent, or who wish to review, correct, or delete their child's data, may contact us at theydi.app@gmail.com. We will act on such requests within the timelines set out in Section 10 of this Policy",
+                "Minors may not create Organizations, host paid experiences, or receive payouts. Any paid transaction on behalf of a minor must be carried out by their parent or legal guardian",
+                "Location data, chat data, community data, and profile data of minors are processed only to the extent necessary to deliver core Platform features",
+                "Parents or guardians who believe their child has provided data without appropriate consent may contact us at theydi.app@gmail.com",
               ],
             ),
             const SizedBox(height: 18),
@@ -195,14 +200,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.face_retouching_natural,
               title: "3.6 Biometric Data (Face Liveness Video Verification)",
-              content:
-                  "TheyDi uses a face liveness video verification system to confirm that the person creating or accessing an account is a real, live human being. This is an active biometric check — not just a static photo.",
+              content: "TheyDi uses a face liveness video verification system to confirm that the person creating or accessing an account is a real, live human being.",
               bullets: const [
-                "What we capture: A short video (typically a few seconds) of your face while you perform simple movements such as rotating your head (left, right, up, down) and blinking your eyes. Facial feature vectors and liveness signals derived from this video (e.g. movement patterns, blink detection).",
-                "Why we capture it: To prevent fake accounts, impersonation, deepfakes, and misuse of stolen photos. To increase trust and safety across the platform, especially for social events where users meet in person.",
-                "How we use it: Solely for identity and liveness verification at the point of signup or re-verification. The verification result (pass/fail) is stored against your account; the underlying video and biometric data are handled per our retention policy (Section 9).",
-                "How we protect it: Video and biometric data are transmitted over encrypted channels (HTTPS/TLS) and stored in encrypted form. Access is strictly restricted to verification and fraud-prevention personnel on a need-to-know basis. We do not use your facial data for advertising, profiling, surveillance, behavioural tracking, or training of third-party AI models. We do not sell or share your biometric data with any third party except our verification service provider (acting solely on our instructions), or where required by law, court order, or lawful request from a competent authority.",
-                "Your rights: You may request access to, correction of, or deletion of your face liveness data at any time by writing to theydi.app@gmail.com. Deletion may result in loss of verified status on your account and may restrict access to certain features. You may withdraw consent to further biometric processing; however, this may prevent you from continuing to use features that require verification.",
+                "What we capture: A short video of your face while you perform simple movements such as rotating your head and blinking your eyes. Facial feature vectors and liveness signals derived from this video.",
+                "Why we capture it: To prevent fake accounts, impersonation, deepfakes, and misuse of stolen photos — increasing trust especially when users meet through communities and experiences.",
+                "How we use it: Solely for identity and liveness verification. The verification result (pass/fail) is stored against your account.",
+                "How we protect it: Video and biometric data are transmitted over encrypted channels (HTTPS/TLS) and stored in encrypted form. We do not use your facial data for advertising, profiling, surveillance, or training of third-party AI models.",
+                "Your rights: You may request access to, correction of, or deletion of your face liveness data at any time by writing to theydi.app@gmail.com.",
                 "Biometric data qualifies as Sensitive Personal Data under the SPDI Rules and receives the heightened security measures described in Section 8.",
               ],
             ),
@@ -219,11 +223,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
               icon: Icons.person_outline,
               title: "Providing the Service",
               bullets: const [
-                "Creating and managing your account",
-                "Enabling event discovery, booking and attendance",
+                "Creating and managing your account and professional identity",
+                "Enabling experience discovery, booking, and attendance",
+                "Enabling Organization profiles, community creation, and management",
+                "Filtering experiences by audience type (Social or Professional)",
                 "Processing payments and payouts",
-                "Enabling social features, friend connections and messaging",
-                "Sending event confirmations, reminders and notifications",
+                "Enabling social features: connections, communities, experience communities, and messaging",
+                "Sending event confirmations, reminders, and notifications",
+                "Suggesting people you may want to meet based on shared interests, intent, and industry",
               ],
             ),
             const SizedBox(height: 18),
@@ -232,9 +239,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
               icon: Icons.location_on_outlined,
               title: "Location-Based Features",
               bullets: const [
-                "Showing nearby events sorted by distance",
-                "Providing directions to event venues",
-                "Calculating radius-based recommendations",
+                "Showing nearby experiences sorted by distance and city",
+                "Providing directions to experience venues",
+                "City-based discovery across India",
               ],
             ),
             const SizedBox(height: 18),
@@ -244,8 +251,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: "Safety and Security",
               bullets: const [
                 "Verifying user identity",
-                "Detecting fraud, abuse and violations of Terms",
-                "Investigating reports of misconduct",
+                "Detecting fraud, abuse, and violations of Terms",
+                "Investigating reports of misconduct within communities and organizations",
                 "Cooperating with law enforcement where legally required",
               ],
             ),
@@ -256,6 +263,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: "Communication",
               bullets: const [
                 "Sending transactional messages (booking confirmations, OTPs, payment receipts)",
+                "Community and organization updates and announcements",
                 "Responding to support queries",
                 "Sending service updates and policy changes",
                 "With your consent, sending marketing communications (which you can opt out of)",
@@ -270,6 +278,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "Analytics and product improvement",
                 "Debugging and error resolution",
                 "Research and development",
+                "Improving experience and community recommendations",
               ],
             ),
             const SizedBox(height: 18),
@@ -286,10 +295,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.balance,
               title: "5. Legal Basis for Processing (DPDP Act)",
-              content:
-                  "Under the DPDP Act, we process personal data based on:",
+              content: "Under the DPDP Act, we process personal data based on:",
               bullets: const [
-                "Your consent, obtained at signup and for specific purposes such as location access, notifications, and marketing",
+                "Your consent, obtained at signup and for specific purposes such as location access, notifications, professional identity collection, and marketing",
                 "Legitimate uses as permitted under Section 7 of the DPDP Act including performance of contract, compliance with law, and responding to medical emergencies",
                 "You may withdraw consent at any time as described in Section 10.",
               ],
@@ -299,8 +307,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.share_outlined,
               title: "6. Sharing and Disclosure of Information",
-              content:
-                  "We do not sell your personal data. We share data only as follows:",
+              content: "We do not sell your personal data. We share data only as follows:",
             ),
             const SizedBox(height: 18),
 
@@ -308,9 +315,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
               icon: Icons.people_outline,
               title: "6.1 With Other Users",
               bullets: const [
-                "Your profile information (name, photo, city, age, gender, event participation) is visible to other Users based on your privacy settings",
-                "Hosts of events you book receive your name, contact information, and booking details",
-                "Attendees you interact with through friend requests, circles, and messages see your profile",
+                "Your profile information (name, photo, city, interests, professional identity) is visible to other Users based on your privacy settings",
+                "Your Organization profile (name, description, experiences, communities) is publicly visible to authenticated users",
+                "Hosts of experiences you book receive your name, contact information, and booking details",
+                "Community members can see your participation, posts, and profile within that community",
+                "Users you connect with through connections, communities, and experiences see your profile",
               ],
             ),
             const SizedBox(height: 18),
@@ -353,24 +362,21 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.business_center_outlined,
               title: "6.4 Business Transfers",
-              content:
-                  "In case of merger, acquisition, restructuring, or sale of assets, your data may be transferred, subject to the acquirer honouring this Privacy Policy.",
+              content: "In case of merger, acquisition, restructuring, or sale of assets, your data may be transferred, subject to the acquirer honouring this Privacy Policy.",
             ),
             const SizedBox(height: 18),
 
             _buildCard(
               icon: Icons.verified_user_outlined,
               title: "6.5 With Your Consent",
-              content:
-                  "For any other disclosure, we will obtain your explicit consent.",
+              content: "For any other disclosure, we will obtain your explicit consent.",
             ),
             const SizedBox(height: 24),
 
             _buildCard(
               icon: Icons.public,
               title: "7. Cross-Border Data Transfer",
-              content:
-                  "Some of our service providers (e.g., Google, Firebase) may store or process data outside India. Where cross-border transfer occurs, we ensure:",
+              content: "Some of our service providers (e.g., Google, Firebase) may store or process data outside India. Where cross-border transfer occurs, we ensure:",
               bullets: const [
                 "Compliance with the DPDP Act (transfers only to countries not restricted by the Central Government)",
                 "Appropriate contractual safeguards with providers",
@@ -382,13 +388,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.lock_outline,
               title: "8. Data Security",
-              content:
-                  "We implement reasonable security measures under the SPDI Rules and DPDP Act including:",
+              content: "We implement reasonable security measures under the SPDI Rules and DPDP Act including:",
               bullets: const [
                 "Encryption of data in transit (HTTPS/TLS)",
                 "Encryption of sensitive data at rest",
                 "Password hashing using industry-standard algorithms",
-                "Firebase Security Rules restricting unauthorised access",
+                "Firebase Security Rules restricting unauthorised access to user, organization, community, and experience data",
                 "Access controls limiting employee access on a need-to-know basis",
                 "Regular security reviews and updates",
                 "Secure payment handling via PCI-DSS compliant providers (Razorpay)",
@@ -399,34 +404,34 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.warning_amber_rounded,
               title: "Security Notice",
-              content:
-                  "No system is completely secure. While we take reasonable measures, we cannot guarantee absolute security. You are responsible for keeping your login credentials confidential.",
+              content: "No system is completely secure. While we take reasonable measures, we cannot guarantee absolute security. You are responsible for keeping your login credentials confidential.",
             ),
             const SizedBox(height: 18),
 
             _buildCard(
               icon: Icons.notification_important_outlined,
               title: "Data Breach Notification",
-              content:
-                  "In case of a personal data breach affecting your rights, we will notify you and the Data Protection Board of India as required by the DPDP Act.",
+              content: "In case of a personal data breach affecting your rights, we will notify you and the Data Protection Board of India as required by the DPDP Act.",
             ),
             const SizedBox(height: 24),
 
             _buildCard(
               icon: Icons.storage_outlined,
               title: "9. Data Retention",
-              content:
-                  "We retain your personal data only as long as necessary for the purposes described:",
+              content: "We retain your personal data only as long as necessary for the purposes described:",
               bullets: const [
                 "Account data (active users): Duration of account + 90 days after deletion",
+                "Professional identity data (profession, organization, skills): Duration of account + 90 days after deletion",
+                "Organization profile data: Duration of account + 90 days after organization deletion",
+                "Community data and messages: Duration of account + 90 days after deletion",
+                "Experience community data: 180 days after the experience end date",
                 "Face liveness video and biometric data: Duration of account + 90 days after deletion (or until consent is withdrawn)",
-                "Transaction records (payments, refunds, cancellations, payouts):as required by tax and accounting laws",
+                "Transaction records (payments, refunds, cancellations, payouts): as required by tax and accounting laws",
                 "KYC records for Hosts (bank details): RBI / FIU-IND norms",
-                "Chat and message history: Duration of account + 90 days after deletion",
                 "Location history: 30 days (rolling)",
                 "Log data: 12 months",
                 "Marketing preferences: Until withdrawn",
-                "Data required for legal, tax, fraud prevention, or dispute resolution purposes may be retained longer. Upon retention expiry, data is deleted or anonymised.",
+                "Data required for legal, tax, fraud prevention, or dispute resolution purposes may be retained longer.",
               ],
             ),
             const SizedBox(height: 24),
@@ -434,15 +439,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.gpp_good_outlined,
               title: "10. Your Rights (DPDP Act)",
-              content:
-                  "As a Data Principal under the DPDP Act, you have the following rights:",
+              content: "As a Data Principal under the DPDP Act, you have the following rights:",
               bullets: const [
                 "Right to Access: Request a summary of personal data we process about you",
                 "Right to Correction and Erasure: Correct inaccurate data or request deletion of data no longer needed",
                 "Right to Withdraw Consent: Withdraw consent at any time. Withdrawal does not affect prior lawful processing",
                 "Right to Nominate: Nominate another individual to exercise your rights in the event of death or incapacity",
                 "Right to Grievance Redressal: File a complaint with our Grievance Officer, and thereafter with the Data Protection Board of India",
-
                 "Exercise your rights through:",
                 "• In-app: Settings → Privacy → Data Requests",
                 "• Email: theydi.app@gmail.com",
@@ -454,8 +457,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.cookie_outlined,
               title: "11. Cookies and Tracking Technologies",
-              content:
-                  "Our web application uses cookies and similar technologies for:",
+              content: "Our web application uses cookies and similar technologies for:",
               bullets: const [
                 "Authentication and session management",
                 "Remembering preferences",
@@ -469,14 +471,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.campaign_outlined,
               title: "12. Marketing Communications",
-              content:
-                  "With your consent, we may send promotional messages via email,push notification, or in-app messages. You may opt out at any time:",
+              content: "With your consent, we may send promotional messages via email, push notification, or in-app messages. You may opt out at any time:",
               bullets: const [
                 "Email: unsubscribe link",
-                
                 "Push notifications: Device settings",
                 "In-app: Settings → Notifications",
-                "Transactional messages (bookings, payments, security alerts) will continue regardless of marketing preferences.",
+                "Transactional messages (bookings, payments, security alerts, community updates) will continue regardless of marketing preferences.",
               ],
             ),
             const SizedBox(height: 20),
@@ -484,8 +484,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.link_outlined,
               title: "13. Third-Party Links and Services",
-              content:
-                  "The Platform may contain links to third-party websites or services (event venues, sponsors, external content). We are not responsible for their privacy practices. Review their policies separately.",
+              content: "The Platform may contain links to third-party websites or services (event venues, sponsors, external content). We are not responsible for their privacy practices. Review their policies separately.",
             ),
             const SizedBox(height: 20),
 
@@ -494,9 +493,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: "14. Automated Decision-Making",
               content: "We may use algorithms for:",
               bullets: const [
-                "Sorting events by distance and relevance",
+                "Sorting experiences by distance, relevance, and audience type (Social or Professional)",
+                "Suggesting people you may want to meet based on shared interests, intent, industry, and community overlap",
+                "Community and organization recommendations",
                 "Fraud detection",
-                "Content recommendations",
                 "We do not use fully automated decision-making that produces significant legal effects. Where automated decisions are made, human review is available on request.",
               ],
             ),
@@ -505,8 +505,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.update,
               title: "15. Changes to This Policy",
-              content:
-                  "We may update this Privacy Policy from time to time. Material changes will be notified via:",
+              content: "We may update this Privacy Policy from time to time. Material changes will be notified via:",
               bullets: const [
                 "In-app notification",
                 "Email to your registered address",
@@ -519,8 +518,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.support_agent_outlined,
               title: "16. Grievance Redressal",
-              content:
-                  "If you have concerns about data handling, contact us:",
+              content: "If you have concerns about data handling, contact us:",
               bullets: const [
                 "Email: theydi.app@gmail.com",
                 "Acknowledgement: within 24 hours",
@@ -533,19 +531,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildCard(
               icon: Icons.email_outlined,
               title: "17. Contact Us",
-              content:
-                  "Vrutsa Solutions\n\n"
-                  "Email: theydi.app@gmail.com",
+              content: "Vrutsa Solutions\n\nEmail: theydi.app@gmail.com",
             ),
             const SizedBox(height: 25),
             Center(
               child: Text(
                 "By using TheyDi, you acknowledge that you have read and understood this Privacy Policy.",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 30),
@@ -555,18 +548,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCard({
-    required IconData icon,
-    required String title,
-    String? content,
-    List<String>? bullets,
-  }) {
+  Widget _buildCard({required IconData icon, required String title, String? content, List<String>? bullets}) {
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 18),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -577,51 +563,24 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 Icon(icon, color: Colors.teal),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 19,
-                    ),
-                  ),
+                  child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
                 ),
               ],
             ),
             const SizedBox(height: 14),
-            if (content != null)
-              Text(
-                content,
-                style: const TextStyle(
-                  height: 1.6,
-                  fontSize: 15,
-                ),
-              ),
+            if (content != null) Text(content, style: const TextStyle(height: 1.6, fontSize: 15)),
             if (bullets != null)
-              ...bullets.map(
-                (e) => Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.teal,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          e,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ...bullets.map((e) => Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.teal, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(e, style: const TextStyle(fontSize: 15, height: 1.5))),
+                      ],
+                    ),
+                  )),
           ],
         ),
       ),

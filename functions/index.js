@@ -381,7 +381,7 @@ function getTransporter() {
   return nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
 }
 
-exports.createOrder = onCall({ region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (request) => {
+exports.createOrder = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in to create an order.");
   }
@@ -421,7 +421,7 @@ exports.createOrder = onCall({ region: REGION, secrets: ["RAZORPAY_KEY_ID", "RAZ
   }
 });
 
-exports.verifyPayment = onCall({ region: REGION, secrets: ["RAZORPAY_SECRET_KEY"] }, async (request) => {
+exports.verifyPayment = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in to verify payment.");
   }
@@ -517,7 +517,7 @@ exports.verifyPayment = onCall({ region: REGION, secrets: ["RAZORPAY_SECRET_KEY"
 });
 
 exports.razorpayWebhook = onRequest(
-  { region: REGION, secrets: ["RAZORPAY_WEBHOOK_SECRET"] },
+  { region: REGION, cpu: 0.25, secrets: ["RAZORPAY_WEBHOOK_SECRET"] },
   async (req, res) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 

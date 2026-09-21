@@ -25,7 +25,7 @@ import '../../../core/services/face_verification_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/constants/event_constants.dart';
 import '../../../core/constants/location_constants.dart';
-
+import '../../../features/profile/screens/personal_details_screen.dart';
 
 // Looks up which state a given city belongs to. Used to keep
 // `_selectedState` in sync whenever `_selectedCity` changes, either from
@@ -822,7 +822,10 @@ Future<void> _pickTime() async {
       if (payoutSetupCompleted) return true;
 
       if (!mounted) return false;
-      final completed = await context.push<bool>(AppRoutes.personalDetails);
+      final completed = await context.push<bool>(
+  AppRoutes.personalDetails,
+  extra: {'returnOnSave': true},
+);
       return completed == true;
     } catch (e) {
       _showError('Failed to check payout setup. Please try again.');
