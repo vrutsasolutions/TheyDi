@@ -66,7 +66,7 @@ class AppRoutes {
 
   static const faceVerification = '/face-verification';
 
-  static const privacyPolicy = '/privacy-policy';
+  static const privacyPolicy = '/privacypolicy';
   static const termsConditions = '/terms-conditions';
 
   static const String adminVerification = '/admin/verification';
