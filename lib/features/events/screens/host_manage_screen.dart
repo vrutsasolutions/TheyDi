@@ -142,6 +142,27 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
           amount: '0',
           eventId: widget.eventId,
         );
+
+        // A circle may already exist from before this person joined —
+        // add them and let them know it's there.
+        if (_existingCircle != null) {
+          await FirebaseFirestore.instance
+              .collection('circles')
+              .doc(_existingCircle!.id)
+              .update({
+            'memberUids': FieldValue.arrayUnion([userUid]),
+            'memberNames': FieldValue.arrayUnion([userName]),
+          });
+          await NotificationService.send(
+            toUid: userUid,
+            title: 'Join the circle 👥',
+            body:
+                'There\'s already a circle for "${event.title}" — jump in and say hi!',
+            type: 'social',
+            eventId: widget.eventId,
+          );
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text('$userName approved! ✅'),
@@ -350,6 +371,20 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
           event: event,
           attendeeUids: event.attendeeUids,
           attendeeNames: attendeeNames);
+
+      // The circle can be created any time after the event goes live, so
+      // attendees have no way of knowing it exists unless we tell them.
+      for (final uid in event.attendeeUids) {
+        await NotificationService.send(
+          toUid: uid,
+          title: 'Your circle is live 👥',
+          body:
+              '"${circle.name}" was just created for "${event.title}" — jump in and say hi!',
+          type: 'social',
+          eventId: widget.eventId,
+        );
+      }
+
       if (mounted) {
         setState(() => _existingCircle = circle);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -447,7 +482,12 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
                                           '${event.approvedPendingPaymentUids.length} awaiting payment',
                                       color: Colors.blue),
                               ]),
-                              if (event.currentAttendees >= 2) ...[
+                              // Timing is entirely up to the host now — no
+                              // attendee-count requirement to even see the
+                              // button. _createEventCircle() below still
+                              // blocks with a friendly message if there's
+                              // truly no one to add yet.
+                              if (true) ...[
                                 const SizedBox(height: 16),
                                 _checkingCircle
                                     ? const Center(

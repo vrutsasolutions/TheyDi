@@ -15,6 +15,8 @@ import '../../../core/services/notification_service.dart';
 import 'package:theydi/features/events/widgets/event_share_sheet.dart';
 
 import '../../../core/services/face_verification_service.dart';
+import '../../../core/services/event_circle_service.dart';
+
 
 
 // ─────────────────────────────────────────────────────────────
@@ -345,6 +347,30 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           amount: '0',
           eventId: _event.id,
         );
+
+        // The circle might already exist (it doesn't have to be created
+        // at the same time as the event) — if so, add this attendee and
+        // let them know, since they'd otherwise never find out.
+        final existingCircle =
+            await EventCircleService.getExistingEventCircle(_event.id);
+        if (existingCircle != null) {
+          await FirebaseFirestore.instance
+              .collection('circles')
+              .doc(existingCircle.id)
+              .update({
+            'memberUids': FieldValue.arrayUnion([uid]),
+            'memberNames': FieldValue.arrayUnion([userName]),
+          });
+          await NotificationService.send(
+            toUid: uid,
+            title: 'Join the circle 👥',
+            body:
+                'There\'s already a circle for "${_event.title}" — jump in and say hi!',
+            type: 'social',
+            eventId: _event.id,
+          );
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('You\'re in! 🎉'), backgroundColor: Colors.green));

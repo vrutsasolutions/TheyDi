@@ -89,7 +89,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _selectedHomeTab = 'Social';
   String _selectedCategory = 'All';
   String _selectedSort = 'Radius';
-  double _selectedRadius = 2.0;
+  // Was 2.0 — that's an unrealistically tight default, so the home feed
+  // looked empty even when events existed nearby. -1 is the app's existing
+  // "Entire City" sentinel (see _radiusLabel below), so nothing gets
+  // filtered out by distance until the user deliberately narrows it.
+  double _selectedRadius = -1.0;
   bool _priceAscending = true;
   double? _userLat;
   double? _userLng;

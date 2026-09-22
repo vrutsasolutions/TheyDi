@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import 'package:razorpay_web/razorpay_web.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/event_circle_service.dart';
 import '../models/booking_model.dart';
 import '../models/event_model.dart';
 
@@ -146,6 +149,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
         'paymentMethod': 'razorpay',
         'fromApproval': widget.fromApproval,
       });
+
+      // Booking is confirmed at this point (verifyPayment adds the uid to
+      // attendeeUids server-side). A circle may already exist for this
+      // event — if so, add this attendee and let them know, since they'd
+      // otherwise never find out it's there.
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final userName =
+            FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+        final existingCircle =
+            await EventCircleService.getExistingEventCircle(event.id);
+        if (existingCircle != null) {
+          await FirebaseFirestore.instance
+              .collection('circles')
+              .doc(existingCircle.id)
+              .update({
+            'memberUids': FieldValue.arrayUnion([uid]),
+            'memberNames': FieldValue.arrayUnion([userName]),
+          });
+          await NotificationService.send(
+            toUid: uid,
+            title: 'Join the circle 👥',
+            body:
+                'There\'s already a circle for "${event.title}" — jump in and say hi!',
+            type: 'social',
+            eventId: event.id,
+          );
+        }
+      }
 
       if (mounted) {
         context.push(AppRoutes.paymentsuccess, extra: {

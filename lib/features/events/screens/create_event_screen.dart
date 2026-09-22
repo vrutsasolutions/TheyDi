@@ -973,6 +973,9 @@ Future<void> _pickTime() async {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16)));
         context.pop();
+        // Circle creation now lives entirely in Manage Experience
+        // (host_manage_screen.dart) — the host can create it whenever
+        // they want, it doesn't need to happen right at event creation.
       }
     } catch (e) {
       _showError('Failed to create event. Please try again.');
