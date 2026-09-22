@@ -75,8 +75,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     // ── Fetch the profile itself (public read per Firestore rules) ──
     try {
       final userDoc = await db.collection('users').doc(widget.uid).get();
-      if (userDoc.exists) _userData = userDoc.data()!;
+      if (userDoc.exists) {
+        _userData = userDoc.data()!;
+      } else {
+        // Previously this fell through silently: _userData stayed {} and
+        // every field rendered its fallback ('User', blank bio, etc.)
+        // with no indication anything was wrong. That's indistinguishable
+        // from a real profile with empty fields, so surface it instead.
+        debugPrint(
+            'UserProfileScreen: no user doc found for uid="${widget.uid}"');
+        if (mounted) {
+          setState(() {
+            _loadError = true;
+            _loading = false;
+          });
+        }
+        return;
+      }
     } catch (e) {
+      debugPrint('UserProfileScreen: failed to load uid="${widget.uid}": $e');
       if (mounted) {
         setState(() {
           _loadError = true;

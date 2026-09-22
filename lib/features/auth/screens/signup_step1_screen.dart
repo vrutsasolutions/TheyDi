@@ -75,7 +75,7 @@ class _SignupStep1ScreenState extends ConsumerState<SignupStep1Screen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            TheyDiColors.accent.withOpacity(0.4),
+            Color.lerp(TheyDiColors.cardLight, TheyDiColors.accent, 0.4)!,
             TheyDiColors.cardLight,
             TheyDiColors.surface,
           ],

@@ -284,12 +284,29 @@ class _ProfileContent extends ConsumerWidget {
 
     final showInterests = true;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+        // Explicit, literal centering: read the actual width this screen is
+        // given, cap the content at 720 logical pixels, and pad the
+        // difference evenly on both sides ourselves. This does not lean on
+        // Center/ConstrainedBox propagating constraints "the normal way" —
+        // it reads outerConstraints.maxWidth directly, which is exactly
+        // what this screen was actually given, however it got here.
+        const maxContentWidth = 720.0;
+        final available = outerConstraints.maxWidth;
+        final contentWidth =
+            available < maxContentWidth ? available : maxContentWidth;
+        final sideMargin = (available - contentWidth) / 2;
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: sideMargin),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
             children: [
               Text(
                 'Profile',
@@ -791,8 +808,12 @@ class _ProfileContent extends ConsumerWidget {
           ).animate(delay: 290.ms).fade(duration: 300.ms),
 
           const SizedBox(height: 40),
-        ],
-      ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -968,34 +989,81 @@ class _ProfileButton extends StatelessWidget {
 // ══════════════════════════════════════
 // STATS ROW — four small tiles
 // ══════════════════════════════════════
-// Four tiles laid out as a 2 x 2 grid on every screen size.
+// Four tiles laid out as a hard 2 x 2 grid on every screen size, centered
+// in whatever width it's given rather than trusting the surrounding
+// layout's alignment. Tile WIDTH grows on a wide/desktop screen (there's
+// more room); tile HEIGHT never changes, since _StatCard sizes its height
+// from its own content (icon + number + label), not from its width.
 class _StatsRow extends StatelessWidget {
   final List<_StatCard> cards;
   const _StatsRow({required this.cards});
 
   static const double _gap = 12;
-  // Always two tiles per row (2 x 2) on every screen size. Tiles stop growing
-  // at _maxTileWidth so on a wide screen they stay a compact block on the left
-  // instead of stretching across the page.
-  static const double _maxTileWidth = 156;
+  static const double _minTileWidth = 150;
+  static const double _maxTileWidth = 260;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final fit = (constraints.maxWidth - _gap) / 2;
-        final tileWidth = fit > _maxTileWidth ? _maxTileWidth : fit;
+        final available = constraints.maxWidth;
+        // Fill up to half the available width per tile, but never let a
+        // tile shrink below _minTileWidth or grow past _maxTileWidth.
+        // If the screen is too narrow to fit two tiles at _minTileWidth
+        // side by side, fall back to a single column instead of forcing
+        // a width that would overflow.
+        final twoUpWidth = (available - _gap) / 2;
+        final canFitTwoUp = twoUpWidth >= _minTileWidth;
 
-        return Wrap(
-          spacing: _gap,
-          runSpacing: _gap,
-          children: [
-            for (var i = 0; i < cards.length; i++)
-              SizedBox(width: tileWidth, child: cards[i])
-                  .animate(delay: Duration(milliseconds: 200 + 60 * i))
-                  .fadeIn(duration: 350.ms)
-                  .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
-          ],
+        var tileWidth = canFitTwoUp
+            ? twoUpWidth.clamp(_minTileWidth, _maxTileWidth)
+            : available.clamp(0.0, _maxTileWidth);
+        final columns = canFitTwoUp ? 2 : 1;
+        final rowWidth =
+            columns == 2 ? tileWidth * 2 + _gap : tileWidth;
+
+        final rows = <Widget>[];
+        for (var i = 0; i < cards.length; i += columns) {
+          final hasSecond = columns == 2 && i + 1 < cards.length;
+          rows.add(
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: tileWidth,
+                  child: cards[i]
+                      .animate(delay: Duration(milliseconds: 200 + 60 * i))
+                      .fadeIn(duration: 350.ms)
+                      .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
+                ),
+                if (hasSecond) ...[
+                  const SizedBox(width: _gap),
+                  SizedBox(
+                    width: tileWidth,
+                    child: cards[i + 1]
+                        .animate(
+                            delay: Duration(milliseconds: 200 + 60 * (i + 1)))
+                        .fadeIn(duration: 350.ms)
+                        .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
+                  ),
+                ],
+              ],
+            ),
+          );
+          if (i + columns < cards.length) {
+            rows.add(const SizedBox(height: _gap));
+          }
+        }
+
+        // Center is the key line here: no matter what alignment the parent
+        // Column uses, this block centers itself, with equal space on both
+        // sides, on every screen size.
+        return Center(
+          child: SizedBox(
+            width: rowWidth,
+            child: Column(children: rows),
+          ),
         );
       },
     );

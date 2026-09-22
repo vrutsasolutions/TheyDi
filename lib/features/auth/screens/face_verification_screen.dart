@@ -51,7 +51,7 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            TheyDiColors.accent.withOpacity(0.35),
+            Color.lerp(TheyDiColors.surface, TheyDiColors.accent, 0.35)!,
             TheyDiColors.surface,
           ],
           stops: const [0.0, 0.5],
