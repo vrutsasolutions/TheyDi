@@ -200,9 +200,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-        path: AppRoutes.privacyPolicy,
-        builder: (_, __) => const PrivacyPolicyScreen(),
-      ),
+  path: '/privacypolicy',
+  builder: (_, __) => const PrivacyPolicyScreen(),
+),
+GoRoute(
+  path: '/privacy-policy',
+  builder: (_, __) => const PrivacyPolicyScreen(),
+),
       GoRoute(
         path: AppRoutes.termsConditions,
         builder: (_, __) => const TermsConditionsScreen(),
