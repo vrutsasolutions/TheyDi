@@ -134,18 +134,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   style: TextButton.styleFrom(
                                     backgroundColor: const Color(0xFFE9FDF3),
                                     foregroundColor: const Color(0xFF079455),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     padding: EdgeInsets.symmetric(
-                                      horizontal: isDesktop ? 22 : 24,
-                                      vertical: isDesktop ? 13 : 14,
+                                      horizontal: isDesktop ? 16 : 14,
+                                      vertical: isDesktop ? 8 : 7,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(18),
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Skip',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: isDesktop ? 14 : 13,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -237,7 +239,7 @@ class _DesktopControlsOverlay extends StatelessWidget {
                     const SizedBox(height: 22),
                     Container(
                       width: buttonWidth,
-                      height: 64,
+                      height: 52,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
                         gradient: const LinearGradient(
@@ -271,14 +273,14 @@ class _DesktopControlsOverlay extends StatelessWidget {
                             Text(
                               isLastPage ? 'Get Started' : 'Next',
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             const Icon(
                               Icons.arrow_forward,
-                              size: 24,
+                              size: 19,
                             ),
                           ],
                         ),

@@ -26,6 +26,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/constants/event_constants.dart';
 import '../../../core/constants/location_constants.dart';
 import '../../../features/profile/screens/personal_details_screen.dart';
+import '../../inbox/circles/screens/create_circle_screen.dart';
 
 // Looks up which state a given city belongs to. Used to keep
 // `_selectedState` in sync whenever `_selectedCity` changes, either from
@@ -972,10 +973,16 @@ Future<void> _pickTime() async {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16)));
-        context.pop();
-        // Circle creation now lives entirely in Manage Experience
-        // (host_manage_screen.dart) — the host can create it whenever
-        // they want, it doesn't need to happen right at event creation.
+
+        // Only the host who just created this experience can create its
+        // circle, so take them straight there instead of just closing the
+        // form. (This is the wiring that had gone missing.)
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => CreateCircleScreen(
+            linkedEventId: docRef.id,
+            linkedEventTitle: _titleController.text.trim(),
+          ),
+        ));
       }
     } catch (e) {
       _showError('Failed to create event. Please try again.');

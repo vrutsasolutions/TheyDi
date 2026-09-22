@@ -33,15 +33,16 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
 
   bool _isTyping = false;
 
+
   final List<String> _suggestedQuestions = [
-    "Create Event",
-    "Edit / Cancel Event",
-    "Friend Circles",
-    "Verification",
+    "Social Experiences",
+    "Professional Experiences",
+    "Circles",
+    "Communities",
+    "Connections",
+    "Create an Experience",
+    "Manage an Experience",
     "Payments & Refunds",
-    "Report / Block User",
-    "Account & Settings",
-    "Contact Support",
   ];
 
   @override
@@ -62,7 +63,7 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
       ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text:
-            "Hi 👋\n\nI'm Darla, your TheyDi AI Support Assistant.\n\nHow can I help today?",
+            "Hi 👋\n\nI'm Darla, your TheyDi AI Support Assistant.\n\nI can help with social and professional experiences, Connections, Circles, Communities, bookings, payments, safety, and account support.\n\nWhat do you need help with today?",
         sender: MessageSender.darla,
         timestamp: DateTime.now(),
       ),
@@ -74,8 +75,11 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
     return 'darla_chat_$uid';
   }
 
+
   Future<void> _loadPersistedMessages() async {
     final prefs = await SharedPreferences.getInstance();
+
+
     final raw = prefs.getString(_prefsKey);
     if (raw != null) {
       try {
@@ -167,10 +171,7 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
               const CircleAvatar(
                 radius: 22,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.support_agent,
-                  color: TheyDiColors.primary,
-                ),
+                child: Icon(Icons.support_agent, color: TheyDiColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -212,127 +213,137 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
           ),
         ),
         body: SafeArea(
-          child: Stack(
+          child: Column(
             children: [
-              const Positioned.fill(
-                child: FloatingDotsBackground(),
-              ),
-              Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                      itemCount: _messages.length + (_isTyping ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (_isTyping && index == _messages.length) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 8, bottom: 12),
-                            child: TypingIndicator(),
-                          );
-                        }
+              Expanded(
+                child: Stack(
+                  children: [
+                    const Positioned.fill(
+                      child: FloatingDotsBackground(),
+                    ),
+                    Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                            itemCount: _messages.length + (_isTyping ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (_isTyping && index == _messages.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.only(top: 8, bottom: 12),
+                                  child: TypingIndicator(),
+                                );
+                              }
 
-                        final message = _messages[index];
-                        final isLatestDarlaMessage =
-                            message.sender == MessageSender.darla &&
-                                index == _latestDarlaMessageIndex;
+                              final message = _messages[index];
+                              final isLatestDarlaMessage =
+                                  message.sender == MessageSender.darla &&
+                                      index == _latestDarlaMessageIndex;
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: ChatBubble(
-                                message: message,
-                                isWelcomeMessage: index == 0 &&
-                                    message.sender == MessageSender.darla,
-                                onFeedback: isLatestDarlaMessage && index != 0
-                                    ? (isHelpful) =>
-                                        _setFeedback(message, isHelpful)
-                                    : null,
-                              ),
-                            ),
-                            // Show suggested questions below the first message only
-                            if (index == 0 && _messages.length == 1)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 12, bottom: 12),
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children:
-                                      _aiService.suggestedQuestions.map((q) {
-                                    return GestureDetector(
-                                      onTap: () => _sendSuggestedQuestion(q),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: TheyDiColors.primary
-                                                .withValues(alpha: 0.4),
-                                            width: 1.2,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.04),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Text(
-                                          q,
-                                          style: TheyDiTextStyles.bodySmall
-                                              .copyWith(
-                                            color: TheyDiColors.primary,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: ChatBubble(
+                                      message: message,
+                                      isWelcomeMessage: index == 0 &&
+                                          message.sender == MessageSender.darla,
+                                      onFeedback: isLatestDarlaMessage && index != 0
+                                          ? (isHelpful) =>
+                                              _setFeedback(message, isHelpful)
+                                          : null,
+                                    ),
+                                  ),
+                                  if (index == 0 && _messages.length == 1)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        bottom: 12,
                                       ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: _aiService.suggestedQuestions
+                                            .map((q) {
+                                          return GestureDetector(
+                                            onTap: () =>
+                                                _sendSuggestedQuestion(q),
+                                            child: Container(
+                                              padding: const EdgeInsets
+                                                  .symmetric(
+                                                horizontal: 14,
+                                                vertical: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: TheyDiColors.primary
+                                                      .withValues(alpha: 0.4),
+                                                  width: 1.2,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.04),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Text(
+                                                q,
+                                                style: TheyDiTextStyles.bodySmall
+                                                    .copyWith(
+                                                  color: TheyDiColors.primary,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        Container(
+                          height: 62,
+                          color: Colors.white,
+                          alignment: Alignment.centerLeft,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _suggestedQuestions.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final question = _suggestedQuestions[index];
+                              return SuggestionChip(
+                                title: question,
+                                icon: Icons.help_outline_rounded,
+                                onTap: () =>
+                                    _sendSuggestedQuestion(question),
+                              );
+                            },
+                          ),
+                        ),
+                        MessageInput(
+                          controller: _controller,
+                          onSend: () => _sendMessage(_controller.text),
+                        ),
+                      ],
                     ),
-                  ),
-                  Container(
-                    height: 62,
-                    color: Colors.white,
-                    alignment: Alignment.centerLeft,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _suggestedQuestions.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final question = _suggestedQuestions[index];
-
-                        return SuggestionChip(
-                          title: question,
-                          icon: Icons.help_outline_rounded,
-                          onTap: () => _sendSuggestedQuestion(question),
-                        );
-                      },
-                    ),
-                  ),
-                  MessageInput(
-                    controller: _controller,
-                    onSend: () => _sendMessage(_controller.text),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -340,6 +351,7 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
       ),
     );
   }
+
 
   int get _latestDarlaMessageIndex {
     for (var index = _messages.length - 1; index >= 0; index--) {
@@ -372,8 +384,28 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
   }
 
   void _sendSuggestedQuestion(String question) {
-    _controller.text = question;
-    _sendMessage(question);
+    final prompts = <String, String>{
+      'Social Experiences':
+          'I need help with social Experiences on TheyDi.',
+      'Professional Experiences':
+          'I need help with professional Experiences on TheyDi.',
+      'Circles':
+          'I need help understanding Circles on TheyDi.',
+      'Communities':
+          'I need help understanding Communities on TheyDi.',
+      'Connections':
+          'I need help understanding Connections on TheyDi.',
+      'Create an Experience':
+          'How do I create an Experience on TheyDi?',
+      'Manage an Experience':
+          'How do I manage an Experience I am hosting on TheyDi?',
+      'Payments & Refunds':
+          'I need help with payments or refunds for an Experience.',
+    };
+
+    final prompt = prompts[question] ?? question;
+    _controller.text = prompt;
+    _sendMessage(prompt);
   }
 
   Future<void> _generateAIReply(String userMessage) async {
@@ -383,7 +415,29 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
 
     _scrollToBottom();
 
-    final response = await _aiService.getReply(userMessage);
+    // The current user message is already in _messages, so exclude it from
+    // history here; getReply adds it as the newest user turn itself.
+    final currentIndex = _messages.length - 1;
+    final history = _messages
+        .take(currentIndex)
+        .where((message) => message.text.trim().isNotEmpty)
+        .toList()
+        .reversed
+        .take(12)
+        .toList()
+        .reversed
+        .map(
+          (message) => <String, String>{
+            'role': message.sender == MessageSender.user ? 'user' : 'assistant',
+            'content': message.text,
+          },
+        )
+        .toList();
+
+    final response = await _aiService.getReply(
+      userMessage,
+      history: history,
+    );
 
     if (!mounted) return;
 

@@ -1129,22 +1129,23 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
         decoration: BoxDecoration(
+          color: TheyDiColors.card,
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              TheyDiColors.card,
-              TheyDiColors.primary.withValues(alpha: 0.05),
+              TheyDiColors.primary.withValues(alpha: 0.045),
+              TheyDiColors.primary.withValues(alpha: 0.0),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
           border:
-              Border.all(color: TheyDiColors.primary.withValues(alpha: 0.18)),
+              Border.all(color: TheyDiColors.primary.withValues(alpha: 0.10)),
           boxShadow: [
             BoxShadow(
-              color: TheyDiColors.primary.withValues(alpha: 0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),

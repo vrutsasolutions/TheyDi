@@ -529,7 +529,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0D0D14), Color(0xFF1A1A2E)],
+            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -543,7 +543,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, color: TheyDiColors.textPrimary),
                       onPressed: () => context.pop(),
                     ),
                     Expanded(
@@ -675,7 +675,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                     gradient: TheyDiColors.gradientPrimary,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                        color: const Color(0xFF0D0D14),
+                                        color: TheyDiColors.card,
                                         width: 2),
                                   ),
                                   child: const Icon(Icons.camera_alt,

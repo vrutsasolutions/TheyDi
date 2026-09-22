@@ -25,6 +25,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/event_model.dart';
 import '../../inbox/circles/models/circle_model.dart';
+import '../../inbox/circles/screens/create_circle_screen.dart';
 
 class _UserAvatar extends StatelessWidget {
   final String? photoUrl;
@@ -144,20 +145,15 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
         );
 
         // A circle may already exist from before this person joined —
-        // add them and let them know it's there.
+        // let them know it's there. They're not added as a member
+        // automatically; the host invites people into the circle from the
+        // circle itself (Add Members) or the create-circle form.
         if (_existingCircle != null) {
-          await FirebaseFirestore.instance
-              .collection('circles')
-              .doc(_existingCircle!.id)
-              .update({
-            'memberUids': FieldValue.arrayUnion([userUid]),
-            'memberNames': FieldValue.arrayUnion([userName]),
-          });
           await NotificationService.send(
             toUid: userUid,
-            title: 'Join the circle 👥',
+            title: 'There\'s a circle for this event 👥',
             body:
-                'There\'s already a circle for "${event.title}" — jump in and say hi!',
+                '"${_existingCircle!.name}" is the circle for "${event.title}" — ask the host to add you, or open it to request to join.',
             type: 'social',
             eventId: widget.eventId,
           );
@@ -320,85 +316,22 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
       context.push(AppRoutes.circleChat, extra: _existingCircle!);
       return;
     }
-    if (event.attendeeUids.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No approved attendees yet'),
-          backgroundColor: Colors.orange));
-      return;
-    }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: TheyDiColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Create Experience Circle?',
-            style: TheyDiTextStyles.headlineMedium),
-        content: Text(
-            'This will create a group chat called "${event.title} Circle" with all ${event.currentAttendees} approved attendees.',
-            style: TheyDiTextStyles.bodyMedium
-                .copyWith(color: TheyDiColors.textSecondary)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel',
-                  style: TheyDiTextStyles.labelMedium
-                      .copyWith(color: TheyDiColors.textSecondary))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Create',
-                  style: TheyDiTextStyles.labelMedium
-                      .copyWith(color: TheyDiColors.primary))),
-        ],
+    // Opens the same Create Circle form used everywhere else: the host
+    // names it, writes a description, and picks who to invite (friends,
+    // suggested, or by username) — it isn't auto-created with every
+    // attendee, and it doesn't require any attendees to exist yet.
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateCircleScreen(
+          linkedEventId: event.id,
+          linkedEventTitle: event.title,
+        ),
       ),
     );
-    if (confirmed != true) return;
-    if (_isProcessing) return;
-    setState(() => _isProcessing = true);
-    try {
-      final List<String> attendeeNames = [];
-      for (final uid in event.attendeeUids) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .get();
-          attendeeNames.add(userDoc.data()?['displayName'] ?? 'Member');
-        } catch (_) {
-          attendeeNames.add('Member');
-        }
-      }
-      final circle = await EventCircleService.createEventCircle(
-          event: event,
-          attendeeUids: event.attendeeUids,
-          attendeeNames: attendeeNames);
-
-      // The circle can be created any time after the event goes live, so
-      // attendees have no way of knowing it exists unless we tell them.
-      for (final uid in event.attendeeUids) {
-        await NotificationService.send(
-          toUid: uid,
-          title: 'Your circle is live 👥',
-          body:
-              '"${circle.name}" was just created for "${event.title}" — jump in and say hi!',
-          type: 'social',
-          eventId: widget.eventId,
-        );
-      }
-
-      if (mounted) {
-        setState(() => _existingCircle = circle);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('"${circle.name}" created! 🎉'),
-            backgroundColor: Colors.green));
-        context.push(AppRoutes.circleChat, extra: circle);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
-      }
-    }
-    if (mounted) setState(() => _isProcessing = false);
+    // The form may have just created the circle — refresh so the button
+    // switches from "Create" to "Open Circle" without needing a reload.
+    if (mounted) _checkExistingCircle();
   }
 
   void _viewProfile(BuildContext context, String uid) {

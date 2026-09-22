@@ -18,7 +18,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/friends_service.dart';
-import '../../../core/services/event_circle_service.dart';
 import '../models/event_model.dart';
 
 // ── NEW import ──
@@ -33,8 +32,6 @@ class AttendeesScreen extends StatefulWidget {
 }
 
 class _AttendeesScreenState extends State<AttendeesScreen> {
-  bool _creatingCircle = false;
-
   // ── NEW: tracks whether current user just left ──
   bool _hasLeft = false;
 
@@ -47,96 +44,6 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
         _myUid != widget.event.creatorUid;
   }
 
-  Future<void> _createEventCircle() async {
-    final event = widget.event;
-
-    final existing = await EventCircleService.getExistingEventCircle(event.id);
-    if (existing != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Experience circle already exists! Opening it...'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-        context.push(AppRoutes.circleChat, extra: existing);
-      }
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: TheyDiColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Create Experience Circle?',
-            style: TheyDiTextStyles.headlineMedium),
-        content: Text(
-          'This will create a group chat called '
-          '"${event.title} Circle" with all '
-          '${event.currentAttendees} attendees.',
-          style: TheyDiTextStyles.bodyMedium
-              .copyWith(color: TheyDiColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: TheyDiColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Create',
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: TheyDiColors.primary)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-    setState(() => _creatingCircle = true);
-
-    try {
-      final List<String> attendeeNames = [];
-      for (final uid in event.attendeeUids) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .get();
-          attendeeNames.add(userDoc.data()?['displayName'] ?? 'Member');
-        } catch (_) {
-          attendeeNames.add('Member');
-        }
-      }
-
-      final circle = await EventCircleService.createEventCircle(
-        event: event,
-        attendeeUids: event.attendeeUids,
-        attendeeNames: attendeeNames,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('"${circle.name}" created! 🎉'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        context.push(AppRoutes.circleChat, extra: circle);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-
-    if (mounted) setState(() => _creatingCircle = false);
-  }
 
   // ── NEW: opens the leave event bottom sheet ──
   void _openLeaveSheet() {
@@ -152,7 +59,6 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canCreateCircle = widget.event.currentAttendees >= 2;
     final eventStarted = widget.event.isOngoing || widget.event.isCompleted;
 
     return Scaffold(
@@ -259,49 +165,6 @@ class _AttendeesScreenState extends State<AttendeesScreen> {
                   ],
                 ),
               ).animate().fade(duration: 300.ms),
-
-              // ── Create Event Circle Button ──
-              if (canCreateCircle)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: TheyDiColors.gradientPrimary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: _creatingCircle ? null : _createEventCircle,
-                        icon: _creatingCircle
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.group_add_outlined,
-                                color: Colors.white, size: 18),
-                        label: Text(
-                          _creatingCircle
-                              ? 'Creating...'
-                              : 'Create Experience Circle',
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.w600),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ).animate(delay: 100.ms).fade(duration: 300.ms),
-
-              const SizedBox(height: 12),
 
               // ── Attendees List ──
               Expanded(

@@ -469,7 +469,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
         if (mounted) showCommunityShareSheet(context, community: _community);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: TheyDiColors.primary.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),
@@ -479,7 +479,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.share_outlined, size: 14, color: TheyDiColors.primary),
-            const SizedBox(width: 4),
+            const SizedBox(width: 5),
             Text('Share',
                 style: TheyDiTextStyles.caption
                     .copyWith(color: TheyDiColors.primary, fontWeight: FontWeight.w600)),
@@ -567,10 +567,21 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                                   height: 14,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              : Text(
-                                  _editing ? 'Save' : 'Edit',
-                                  style: TheyDiTextStyles.caption
-                                      .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _editing ? Icons.check : Icons.edit_outlined,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _editing ? 'Save' : 'Edit',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: Colors.white, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
                                 ),
                         ),
                       ),
