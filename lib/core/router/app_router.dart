@@ -2,10 +2,12 @@
 // app_router.dart — canonical router.
 // ─────────────────────────────────────────────────────────────────────────
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
+import 'package:theydi/core/services/guest_mode_provider.dart';
 import 'package:theydi/core/router/app_routes.dart';
 import 'package:theydi/core/router/root_navigator.dart';
 import 'package:theydi/features/auth/screens/splash_screen.dart';
@@ -136,7 +138,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.home;
       }
 
-      if (!isLoggedIn && protectedRoutes.any((r) => path.startsWith(r))) {
+      // ── Guest mode: web-only, set by the "Continue as Guest" button on
+      // LoginScreen. Never true on the native app build. Lets a guest
+      // reach Home and Explore without signing in; every other protected
+      // route still redirects to login exactly as before. ──
+      final isGuest = kIsWeb && ref.read(isGuestModeProvider);
+      const guestAllowedRoutes = [
+        AppRoutes.home,
+        AppRoutes.explore,
+        AppRoutes.profile,
+        AppRoutes.myEvents,
+        AppRoutes.createEvent,
+      ];
+      final isGuestAllowedHere =
+          isGuest && guestAllowedRoutes.any((r) => path.startsWith(r));
+
+      if (!isLoggedIn &&
+          !isGuestAllowedHere &&
+          protectedRoutes.any((r) => path.startsWith(r))) {
         return AppRoutes.login;
       }
 

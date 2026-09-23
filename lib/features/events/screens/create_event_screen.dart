@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -14,11 +16,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/places_autocomplete_service.dart';
 
 import '../../../core/services/cloudflare_upload.dart';
+import '../../../core/services/guest_mode_provider.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/screens/image_cropper_screen.dart';
 import '../../../shared/widgets/gradient_button.dart';
+import '../../../shared/widgets/guest_screen_placeholder.dart';
 import '../../../core/utils/picker_theme_helper.dart';
 
 import '../../../core/services/face_verification_service.dart';
@@ -82,14 +86,14 @@ class _GeoResult {
 //   const _PlacePrediction({required this.placeId, required this.description});
 // }
 
-class CreateEventScreen extends StatefulWidget {
+class CreateEventScreen extends ConsumerStatefulWidget {
   const CreateEventScreen({super.key});
 
   @override
-  State<CreateEventScreen> createState() => _CreateEventScreenState();
+  ConsumerState<CreateEventScreen> createState() => _CreateEventScreenState();
 }
 
-class _CreateEventScreenState extends State<CreateEventScreen> {
+class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
@@ -1251,6 +1255,17 @@ Future<void> _pickTime() async {
 
   @override
   Widget build(BuildContext context) {
+    final isGuest = kIsWeb && ref.watch(isGuestModeProvider);
+    if (isGuest) {
+      return const GuestScreenPlaceholder(
+        icon: Icons.celebration_outlined,
+        dialogTitle: 'Host your own experience',
+        dialogMessage: 'Log in or create an account to start hosting '
+            'experiences on TheyDi.',
+        placeholderText: 'Log in to create an experience',
+      );
+    }
+
     final suggestions =
         _kImageSuggestions[_eventType] ?? _kImageSuggestions['Indoor']!;
 

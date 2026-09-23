@@ -1,23 +1,27 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/guest_mode_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/guest_promo_dialog.dart';
 import 'circles/screens/circles_tab.dart';
 import 'community/screens/communities_tab.dart';
 import 'connections/screens/connections_tab.dart';
 import 'inbox_shared_widgets.dart';
 
-class InboxScreen extends StatefulWidget {
+class InboxScreen extends ConsumerStatefulWidget {
   final int initialTab;
   const InboxScreen({super.key, this.initialTab = 0});
 
   @override
-  State<InboxScreen> createState() => _InboxScreenState();
+  ConsumerState<InboxScreen> createState() => _InboxScreenState();
 }
 
-class _InboxScreenState extends State<InboxScreen>
+class _InboxScreenState extends ConsumerState<InboxScreen>
     with SingleTickerProviderStateMixin {
   static const _tabs = ['Connections', 'Circles', 'Communities'];
   late final TabController _tabController;
@@ -30,6 +34,22 @@ class _InboxScreenState extends State<InboxScreen>
       vsync: this,
       initialIndex: widget.initialTab.clamp(0, _tabs.length - 1),
     );
+
+    // ── Guest mode: web-only. The real tabs below need a signed-in
+    // user's data, so a guest gets a prompt instead — the underlying
+    // logic for signed-in/logged-out visitors is untouched. ──
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final isGuest = kIsWeb && ref.read(isGuestModeProvider);
+      if (isGuest) {
+        GuestPromoDialog.show(
+          context,
+          title: 'Join the conversation',
+          message: 'Log in or create an account to chat, connect, and '
+              'see your messages, circles, and communities.',
+        );
+      }
+    });
   }
 
   @override
@@ -173,14 +193,38 @@ class _InboxScreenState extends State<InboxScreen>
               Divider(color: TheyDiColors.divider, height: 1),
 
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: const [
-                    ConnectionsTab(),
-                    CirclesTab(),
-                    CommunitiesTab(),
-                  ],
-                ),
+                child: Builder(builder: (context) {
+                  final isGuest = kIsWeb && ref.watch(isGuestModeProvider);
+                  if (isGuest) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.forum_outlined,
+                                size: 40, color: TheyDiColors.textMuted),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Sign in to see your messages, circles, and communities.',
+                              style: TheyDiTextStyles.bodySmall
+                                  .copyWith(color: TheyDiColors.textSecondary),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return TabBarView(
+                    controller: _tabController,
+                    children: const [
+                      ConnectionsTab(),
+                      CirclesTab(),
+                      CommunitiesTab(),
+                    ],
+                  );
+                }),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:theydi/core/router/app_routes.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/guest_mode_provider.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../providers/auth_provider.dart';
 
@@ -123,8 +125,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: SingleChildScrollView(
+        body: Stack(
+          children: [
+            SafeArea(
+              child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: Form(
               key: _formKey,
@@ -348,7 +352,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
             ),
-          ),
+              ),
+            ),
+            // ── Continue as Guest — web only, app build never shows this.
+            // Pinned to the top-right corner instead of sitting at the
+            // bottom of the form. ──
+            if (kIsWeb)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: SafeArea(
+                  child: _GuestModeButton(
+                    onTap: () {
+                      ref.read(isGuestModeProvider.notifier).state = true;
+                      context.go(AppRoutes.home);
+                    },
+                  ).animate(delay: 300.ms).fade(duration: 300.ms),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GuestModeButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _GuestModeButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: TheyDiColors.cardLight.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.visibility_outlined,
+                size: 14, color: TheyDiColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              'Continue as Guest',
+              style: TheyDiTextStyles.labelSmall.copyWith(
+                color: TheyDiColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

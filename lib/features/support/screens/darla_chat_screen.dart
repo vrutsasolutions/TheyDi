@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/services/guest_mode_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/guest_promo_dialog.dart';
 import '../models/chat_message.dart';
 import '../services/ai_service.dart';
 import '../widgets/chat_bubble.dart';
@@ -17,14 +21,14 @@ import '../widgets/message_input.dart';
 import '../widgets/suggestion_chip.dart';
 import '../widgets/typing_indicator.dart';
 
-class DarlaChatScreen extends StatefulWidget {
+class DarlaChatScreen extends ConsumerStatefulWidget {
   const DarlaChatScreen({super.key});
 
   @override
-  State<DarlaChatScreen> createState() => _DarlaChatScreenState();
+  ConsumerState<DarlaChatScreen> createState() => _DarlaChatScreenState();
 }
 
-class _DarlaChatScreenState extends State<DarlaChatScreen> {
+class _DarlaChatScreenState extends ConsumerState<DarlaChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _controller = TextEditingController();
   final AIService _aiService = AIService.instance;
@@ -32,6 +36,11 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
   final List<ChatMessage> _messages = [];
 
   bool _isTyping = false;
+
+  // Guest mode (web only): how many messages a guest can send before
+  // Darla asks them to sign in. Existing logged-in behavior is unlimited,
+  // unchanged.
+  static const _guestMessageLimit = 3;
 
 
   final List<String> _suggestedQuestions = [
@@ -365,6 +374,23 @@ class _DarlaChatScreenState extends State<DarlaChatScreen> {
   void _sendMessage(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+
+    // Guest mode (web only): let them try Darla, then ask for sign-in
+    // after a few messages instead of cutting them off with nothing.
+    final isGuest = kIsWeb && ref.read(isGuestModeProvider);
+    if (isGuest) {
+      final userMessageCount =
+          _messages.where((m) => m.sender == MessageSender.user).length;
+      if (userMessageCount >= _guestMessageLimit) {
+        GuestPromoDialog.show(
+          context,
+          title: 'Keep chatting with Darla',
+          message: 'Log in or create an account to continue getting '
+              'help from Darla.',
+        );
+        return;
+      }
+    }
 
     final message = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),

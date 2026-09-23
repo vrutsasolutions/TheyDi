@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/event_constants.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/services/guest_mode_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/filter_bottom_sheet.dart';
 import '../../../shared/widgets/notification_icon_button.dart';
@@ -97,6 +99,38 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   void _toggleAllIndia(bool value) {
     setState(() => _allIndia = value);
+  }
+
+  // Guests can browse All India but city/category/price/date filtering is a
+  // signed-in feature. Show a prompt instead of opening the filter sheet.
+  void _showGuestFilterPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TheyDiColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Sign in to filter', style: TheyDiTextStyles.headlineMedium),
+        content: Text(
+          'Create a free account to filter events by city, category, price, and date.',
+          style: TheyDiTextStyles.bodyMedium.copyWith(color: TheyDiColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Not now',
+                style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.go(AppRoutes.login);
+            },
+            child: Text('Sign In',
+                style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.primary)),
+          ),
+        ],
+      ),
+    );
   }
 
   // Resolves the city the screen is currently scoped to: null means "no
@@ -277,6 +311,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final eventsAsync = ref.watch(_allIndiaEventsProvider);
     final userCityAsync = ref.watch(_userCityProvider);
     final userCity = userCityAsync.asData?.value ?? '';
+    final isGuest = kIsWeb && ref.watch(isGuestModeProvider);
     final activeCity = _resolveActiveCity(userCity);
     final showingAllIndia = activeCity == null;
     final cityLabel = activeCity ?? 'All India';
@@ -299,8 +334,39 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               child: CircularProgressIndicator(color: TheyDiColors.primary),
             ),
             error: (e, _) => Center(
-              child:
-                  Text('Failed to load: $e', style: TheyDiTextStyles.bodySmall),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off, color: TheyDiColors.textMuted, size: 32),
+                    const SizedBox(height: 12),
+                    Text(
+                      isGuest
+                          ? 'Couldn\'t load events for guest browsing right now.'
+                          : 'Couldn\'t load events right now.',
+                      style: TheyDiTextStyles.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isGuest
+                          ? 'Please check your connection, or sign in to continue.'
+                          : 'Please check your connection and try again.',
+                      style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (isGuest) ...[
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () => context.go(AppRoutes.login),
+                        child: Text('Sign In',
+                            style: TheyDiTextStyles.labelMedium.copyWith(color: TheyDiColors.primary)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
             data: (allEvents) {
               final filtered =
@@ -386,84 +452,108 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
                           const SizedBox(height: 14),
 
-                          // All India toggle
-                          Row(
-                            children: [
-                              Text('All India',
-                                  style: TheyDiTextStyles.labelMedium
-                                      .copyWith(
-                                          color: TheyDiColors.textSecondary)),
-                              const Spacer(),
-                              Transform.scale(
-                                scale: 0.8,
-                                child: Switch(
-                                  value: _allIndia,
-                                  onChanged: _toggleAllIndia,
-                                  activeColor: TheyDiColors.primary,
+                          // All India toggle — hidden for guests, who can
+                          // only browse All India (no city picking).
+                          if (!isGuest)
+                            Row(
+                              children: [
+                                Text('All India',
+                                    style: TheyDiTextStyles.labelMedium
+                                        .copyWith(
+                                            color: TheyDiColors.textSecondary)),
+                                const Spacer(),
+                                Transform.scale(
+                                  scale: 0.8,
+                                  child: Switch(
+                                    value: _allIndia,
+                                    onChanged: _toggleAllIndia,
+                                    activeColor: TheyDiColors.primary,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ).animate(delay: 120.ms).fade(duration: 400.ms),
+                              ],
+                            ).animate(delay: 120.ms).fade(duration: 400.ms),
 
-                          const SizedBox(height: 10),
+                          if (!isGuest) const SizedBox(height: 10),
 
                           // Top Cities — boxy tiles (each one's a slot for
                           // a city photo later; for now just an icon +
-                          // name placeholder).
-                          SizedBox(
-                            height: 84,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _topCities.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 10),
-                              itemBuilder: (context, index) {
-                                final city = _topCities[index];
-                                final isSelected =
-                                    !showingAllIndia && activeCity == city;
-                                return _PressableScale(
-                                  onTap: () => _selectCity(city),
-                                  child: AnimatedContainer(
-                                    duration:
-                                        const Duration(milliseconds: 200),
-                                    width: 96,
-                                    decoration: BoxDecoration(
-                                      // No fill — the _CityCardPhoto widget
-                                      // owns its own background (photo or
-                                      // gradient). We keep only the border
-                                      // and shadow here.
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? TheyDiColors.primary
-                                            : TheyDiColors.divider,
-                                        width: isSelected ? 2.0 : 1.0,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
+                          // name placeholder). Guests don't get this picker
+                          // at all — they always see All India.
+                          if (!isGuest)
+                            SizedBox(
+                              height: 84,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _topCities.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (context, index) {
+                                  final city = _topCities[index];
+                                  final isSelected =
+                                      !showingAllIndia && activeCity == city;
+                                  return _PressableScale(
+                                    onTap: () => _selectCity(city),
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      width: 96,
+                                      decoration: BoxDecoration(
+                                        // No fill — the _CityCardPhoto widget
+                                        // owns its own background (photo or
+                                        // gradient). We keep only the border
+                                        // and shadow here.
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
                                           color: isSelected
                                               ? TheyDiColors.primary
-                                                  .withValues(alpha: 0.35)
-                                              : Colors.black
-                                                  .withValues(alpha: 0.06),
-                                          blurRadius: isSelected ? 10 : 8,
-                                          offset: const Offset(0, 3),
+                                              : TheyDiColors.divider,
+                                          width: isSelected ? 2.0 : 1.0,
                                         ),
-                                      ],
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isSelected
+                                                ? TheyDiColors.primary
+                                                    .withValues(alpha: 0.35)
+                                                : Colors.black
+                                                    .withValues(alpha: 0.06),
+                                            blurRadius: isSelected ? 10 : 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      // Reuses the same assets/images/cities/
+                                      // slug mapping as signup_step2_screen.
+                                      child: _CityCardPhoto(
+                                        city: city,
+                                        isSelected: isSelected,
+                                      ),
                                     ),
-                                    // Reuses the same assets/images/cities/
-                                    // slug mapping as signup_step2_screen.
-                                    child: _CityCardPhoto(
-                                      city: city,
-                                      isSelected: isSelected,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ).animate(delay: 140.ms).fade(duration: 400.ms),
+                                  );
+                                },
+                              ),
+                            ).animate(delay: 140.ms).fade(duration: 400.ms),
 
-                          const SizedBox(height: 10),
+                          if (isGuest)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.public,
+                                      size: 16,
+                                      color: TheyDiColors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Browsing All India — sign in to filter by city',
+                                    style: TheyDiTextStyles.labelSmall
+                                        .copyWith(
+                                            color:
+                                                TheyDiColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ).animate(delay: 120.ms).fade(duration: 400.ms),
+
+                          if (!isGuest) const SizedBox(height: 10),
 
                           // "Showing experiences in X" banner
                           Container(
@@ -648,6 +738,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                 const SizedBox(width: 8),
                                 _PressableScale(
                                   onTap: () {
+                                    if (isGuest) {
+                                      _showGuestFilterPrompt(context);
+                                      return;
+                                    }
                                     FilterBottomSheet.show(
                                       context: context,
                                       filters: _advancedFilters,

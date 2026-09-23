@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/services/guest_mode_provider.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
@@ -74,6 +76,16 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Guests have no Firebase uid, so `_userProfileProvider` (and the count
+    // providers below) resolve to a stream that never emits a value —
+    // that's why this screen used to sit on a spinner forever for a guest
+    // session. Skip the Firestore providers entirely and show a dedicated
+    // guest view instead.
+    final isGuest = kIsWeb && ref.watch(isGuestModeProvider);
+    if (isGuest) {
+      return const _GuestProfileView();
+    }
+
     final profileAsync = ref.watch(_userProfileProvider);
     final createdAsync = ref.watch(_eventsCreatedCountProvider);
     final attendedAsync = ref.watch(_eventsAttendedCountProvider);
@@ -159,6 +171,87 @@ class ProfileScreen extends ConsumerWidget {
                 socialLink: socialLink,
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuestProfileView extends ConsumerWidget {
+  const _GuestProfileView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [TheyDiColors.cardLight, TheyDiColors.surface],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: TheyDiColors.primary.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_outline,
+                        color: TheyDiColors.primary, size: 32),
+                  ),
+                  const SizedBox(height: 20),
+                  Text('You\'re browsing as a guest',
+                      style: TheyDiTextStyles.headlineMedium,
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sign in or create an account to set up your profile, save events, and connect with people.',
+                    style: TheyDiTextStyles.bodyMedium
+                        .copyWith(color: TheyDiColors.textSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: TheyDiColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        ref.read(isGuestModeProvider.notifier).state = false;
+                        context.go(AppRoutes.login);
+                      },
+                      child: Text('Sign In',
+                          style: TheyDiTextStyles.labelLarge
+                              .copyWith(color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () {
+                      ref.read(isGuestModeProvider.notifier).state = false;
+                      context.push(AppRoutes.signupStep1);
+                    },
+                    child: Text('Create an account',
+                        style: TheyDiTextStyles.labelMedium
+                            .copyWith(color: TheyDiColors.primary)),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

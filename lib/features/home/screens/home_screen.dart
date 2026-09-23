@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/services/guest_mode_provider.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -435,7 +437,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  String get _radiusLabel => _selectedRadius < 0 ? 'Entire City' : '${_selectedRadius.toInt()} km';
+  // "Entire City" only makes sense once we actually know a city/location —
+  // showing it as the default before we know where the user is was
+  // confusing, so fall back to a neutral label until a location is known.
+  String get _radiusLabel {
+    if (_selectedRadius >= 0) return '${_selectedRadius.toInt()} km';
+    return _userLat != null ? 'Entire City' : 'No location set';
+  }
 
   String get _dateChipLabel {
     if (_selectedDate == null) return 'Date';
@@ -448,11 +456,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return 'Price';
   }
 
+  // Guests haven't set a city / interests yet, so Home has nothing
+  // personalized to show them — same empty state used when a signed-in
+  // user's area genuinely has no events nearby.
+  Widget _buildEventsSection(List<EventModel> allEvents, String userCity, {required bool isGuest}) {
+    final filtered = isGuest ? <EventModel>[] : _filterAndSortEvents(allEvents, userCity);
+    final isSocial = _selectedHomeTab == 'Social';
+    final title = isSocial ? 'Social Experiences' : 'Professional Experiences';
+    final subtitle = isSocial
+        ? 'Fun meetups & social gatherings near you'
+        : 'Career-building events & professional meetups';
+
+    return SliverMainAxisGroup(
+      slivers: [
+        _EventSectionHeader(title: title, subtitle: subtitle),
+        if (filtered.isEmpty)
+          SliverToBoxAdapter(
+            child: _EmptySectionMessage(
+              message: isGuest
+                  ? 'Sign in to see experiences picked for you — or head to Explore to browse everything.'
+                  : _selectedCategory != 'All'
+                      ? 'No ${_selectedCategory.toLowerCase()} experiences found around you. Try a different tag.'
+                      : 'No events around you right now. Try widening your distance filter, or check Explore for what\'s happening elsewhere.',
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final event = filtered[index];
+                  return _EventCard(event: event, distance: _getEventDistance(event))
+                      .animate(delay: Duration(milliseconds: 60 * index))
+                      .fade(duration: 350.ms)
+                      .slideY(begin: 0.08, end: 0);
+                },
+                childCount: filtered.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userCityAsync = ref.watch(_userCityProvider);
-    final eventsAsync = ref.watch(_allEventsProvider);
     final userCity = userCityAsync.asData?.value ?? '';
+    // Guests aren't signed in to Firebase, so this query is rejected by
+    // Firestore rules (permission-denied) and the screen used to sit on
+    // "Failed to load events" forever. Home has nothing personalized for a
+    // guest anyway (see the empty-state below), so skip the query entirely.
+    final isGuest = kIsWeb && ref.watch(isGuestModeProvider);
+    final eventsAsync = isGuest ? null : ref.watch(_allEventsProvider);
 
     return Scaffold(
       floatingActionButton: GestureDetector(
@@ -542,21 +599,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        eventsAsync.maybeWhen(
-                          data: (events) => GestureDetector(
-                            onTap: () => _openMapView(events),
-                            child: Container(width: 48, height: 48,
+                        eventsAsync == null
+                            ? Container(width: 48, height: 48,
                                 decoration: BoxDecoration(color: TheyDiColors.card,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(color: TheyDiColors.divider)),
-                                child: const Icon(Icons.map_outlined, color: TheyDiColors.textSecondary, size: 20)),
-                          ),
-                          orElse: () => Container(width: 48, height: 48,
-                              decoration: BoxDecoration(color: TheyDiColors.card,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: TheyDiColors.divider)),
-                              child: const Icon(Icons.map_outlined, color: TheyDiColors.textMuted, size: 20)),
-                        ),
+                                child: const Icon(Icons.map_outlined, color: TheyDiColors.textMuted, size: 20))
+                            : eventsAsync.maybeWhen(
+                                data: (events) => GestureDetector(
+                                  onTap: () => _openMapView(events),
+                                  child: Container(width: 48, height: 48,
+                                      decoration: BoxDecoration(color: TheyDiColors.card,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: TheyDiColors.divider)),
+                                      child: const Icon(Icons.map_outlined, color: TheyDiColors.textSecondary, size: 20)),
+                                ),
+                                orElse: () => Container(width: 48, height: 48,
+                                    decoration: BoxDecoration(color: TheyDiColors.card,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: TheyDiColors.divider)),
+                                    child: const Icon(Icons.map_outlined, color: TheyDiColors.textMuted, size: 20)),
+                              ),
                       ]).animate(delay: 100.ms).fade(duration: 400.ms),
 
                       const SizedBox(height: 18),
@@ -757,55 +820,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
 
-              eventsAsync.when(
-                loading: () => const SliverToBoxAdapter(
-                    child: Padding(padding: EdgeInsets.only(top: 60),
-                        child: Center(child: CircularProgressIndicator(color: TheyDiColors.primary)))),
-                error: (e, _) => SliverToBoxAdapter(
-                    child: Center(child: Padding(padding: const EdgeInsets.all(40),
-                        child: Text('Failed to load events: $e', style: TheyDiTextStyles.bodySmall)))),
-                data: (allEvents) {
-                  final filtered = _filterAndSortEvents(allEvents, userCity);
-                  final locationLabel = userCity.isEmpty ? 'Your Location' : userCity;
-                  final isSocial = _selectedHomeTab == 'Social';
-                  final title = isSocial ? 'Social Experiences' : 'Professional Experiences';
-                  final subtitle = isSocial
-                      ? 'Fun meetups & social gatherings near you'
-                      : 'Career-building events & professional meetups';
-
-                  return SliverMainAxisGroup(
-                    slivers: [
-                      _EventSectionHeader(title: title, subtitle: subtitle),
-                      if (filtered.isEmpty)
-                        SliverToBoxAdapter(
-                          child: _EmptySectionMessage(
-                            message: _selectedCategory != 'All'
-                                ? 'No ${_selectedCategory.toLowerCase()} experiences found. Try a different tag.'
-                                : isSocial
-                                    ? 'No social experiences found yet. Check back soon!'
-                                    : 'No professional experiences found yet. Check back soon!',
-                          ),
-                        )
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final event = filtered[index];
-                                return _EventCard(event: event, distance: _getEventDistance(event))
-                                    .animate(delay: Duration(milliseconds: 60 * index))
-                                    .fade(duration: 350.ms)
-                                    .slideY(begin: 0.08, end: 0);
-                              },
-                              childCount: filtered.length,
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
+              // Guests never hit Firestore for this section (eventsAsync is
+              // null for them) — they go straight to the empty state below.
+              isGuest
+                  ? _buildEventsSection(const [], userCity, isGuest: true)
+                  : eventsAsync!.when(
+                      loading: () => const SliverToBoxAdapter(
+                          child: Padding(padding: EdgeInsets.only(top: 60),
+                              child: Center(child: CircularProgressIndicator(color: TheyDiColors.primary)))),
+                      error: (e, _) => SliverToBoxAdapter(
+                          child: Center(child: Padding(padding: const EdgeInsets.all(40),
+                              child: Text('Failed to load events: $e', style: TheyDiTextStyles.bodySmall)))),
+                      data: (allEvents) => _buildEventsSection(allEvents, userCity, isGuest: false),
+                    ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
