@@ -12,7 +12,6 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/event_circle_service.dart';
-import '../models/booking_model.dart';
 import '../models/event_model.dart';
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -34,8 +33,8 @@ import '../models/event_model.dart';
 //   • fromApproval == true  → "Paid + Host Approval": host already moved
 //     the uid from pendingUids to approvedPendingPaymentUids; confirming
 //     here moves it from approvedPendingPaymentUids to attendeeUids.
-// Pricing mirrors BookingModel's existing 10% platform-fee calculation
-// (same numbers payment_history_screen.dart already displays), and on
+// Pricing (event price, platform fee, any waiver, total) comes from the
+// server via the getPricingQuote callable; the app only displays it. On
 // success this pushes to AppRoutes.paymentsuccess with the same
 // eventTitle/amount/transactionId/dateTime/venue map app_router.dart's
 // GoRoute already expects.
@@ -60,9 +59,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _isProcessing = false;
   String? _error;
 
-  double get _platformFee =>
-      BookingModel.calculatePlatformFee(widget.event.price);
-  double get _total => BookingModel.calculateTotal(widget.event.price);
+  // Pricing comes from the server (getPricingQuote) so the fee and any
+  // waiver are decided in one place and can't be altered from the app.
+  Map<String, dynamic>? _quote;
+  bool _quoteLoading = true;
+  String? _quoteError;
+
+  double get _eventPrice =>
+      (_quote?['eventPrice'] as num?)?.toDouble() ?? widget.event.price;
+  double get _listedFee => (_quote?['listedFee'] as num?)?.toDouble() ?? 0;
+  double get _platformFee => (_quote?['platformFee'] as num?)?.toDouble() ?? 0;
+  double get _total => (_quote?['total'] as num?)?.toDouble() ?? 0;
+  bool get _waived => _quote?['waived'] == true;
+  int get _ratePercent => (_quote?['ratePercent'] as num?)?.toInt() ?? 10;
 
   @override
   void initState() {
@@ -71,6 +80,30 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _loadQuote();
+  }
+
+  Future<void> _loadQuote() async {
+    setState(() {
+      _quoteLoading = true;
+      _quoteError = null;
+    });
+    try {
+      final result = await FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('getPricingQuote')
+          .call({'eventId': widget.event.id});
+      if (!mounted) return;
+      setState(() {
+        _quote = Map<String, dynamic>.from(result.data as Map);
+        _quoteLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _quoteError = 'Unable to load price details. Please try again.';
+        _quoteLoading = false;
+      });
+    }
   }
 
   @override
@@ -81,7 +114,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _confirmAndPay() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || _isProcessing) return;
+    if (uid == null || _isProcessing || _quote == null) return;
 
     setState(() {
       _isProcessing = true;
@@ -93,6 +126,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       final createOrder = FirebaseFunctions.instanceFor(region: 'asia-south1')
           .httpsCallable('createOrder');
       final result = await createOrder.call({
+        'eventId': event.id,
+        // The server recomputes the charge; this value is not trusted.
         'amount': (_total * 100).round(),
         'currency': 'INR',
         'receipt': 'event_${event.id}_${uid.substring(0, 8)}',
@@ -143,7 +178,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         'eventId': event.id,
         'eventTitle': event.title,
         'hostUid': event.creatorUid,
-        'amount': event.price,
+        'amount': _eventPrice,
         'platformFee': _platformFee,
         'totalAmount': _total,
         'paymentMethod': 'razorpay',
@@ -302,31 +337,84 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: TheyDiColors.divider),
                         ),
-                        child: Column(
-                          children: [
-                            _priceRow('Experience price',
-                                '₹${event.price.toStringAsFixed(0)}'),
-                            const SizedBox(height: 8),
-                            _priceRow('Platform fee (10%)',
-                                '₹${_platformFee.toStringAsFixed(0)}'),
-                            const SizedBox(height: 12),
-                            Container(
-                                height: 1, color: TheyDiColors.divider),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Total',
-                                    style: TheyDiTextStyles.labelLarge),
-                                Text('₹${_total.toStringAsFixed(0)}',
-                                    style: TheyDiTextStyles.displayMedium
-                                        .copyWith(
-                                            color: TheyDiColors.primary)),
-                              ],
-                            ),
-                          ],
-                        ),
+                        child: _quoteLoading
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                      color: TheyDiColors.primary),
+                                ),
+                              )
+                            : _quoteError != null
+                                ? Column(
+                                    children: [
+                                      Text(_quoteError!,
+                                          style: TheyDiTextStyles.caption
+                                              .copyWith(
+                                                  color: TheyDiColors.error)),
+                                      const SizedBox(height: 8),
+                                      TextButton(
+                                        onPressed: _loadQuote,
+                                        child: const Text('Retry'),
+                                      ),
+                                    ],
+                                  )
+                                : Column(
+                                    children: [
+                                      _priceRow('Experience price',
+                                          '₹${_eventPrice.toStringAsFixed(0)}'),
+                                      const SizedBox(height: 8),
+                                      if (_waived) ...[
+                                        _priceRow(
+                                          'Platform fee ($_ratePercent%)',
+                                          '₹${_listedFee.toStringAsFixed(0)}',
+                                          struck: true,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        _priceRow(
+                                          'Platform fee (0%)',
+                                          '₹0',
+                                          valueColor: Colors.green,
+                                        ),
+                                      ] else
+                                        _priceRow(
+                                          'Platform fee ($_ratePercent%)',
+                                          '₹${_platformFee.toStringAsFixed(0)}',
+                                        ),
+                                      const SizedBox(height: 12),
+                                      Container(
+                                          height: 1,
+                                          color: TheyDiColors.divider),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Total',
+                                              style:
+                                                  TheyDiTextStyles.labelLarge),
+                                          Text('₹${_total.toStringAsFixed(0)}',
+                                              style: TheyDiTextStyles
+                                                  .displayMedium
+                                                  .copyWith(
+                                                      color: TheyDiColors
+                                                          .primary)),
+                                        ],
+                                      ),
+                                      if (_waived) ...[
+                                        const SizedBox(height: 10),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            '0% platform fee applied',
+                                            style: TheyDiTextStyles.caption
+                                                .copyWith(
+                                                    color: Colors.green),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                       ).animate(delay: 240.ms).fade(duration: 300.ms),
 
                       if (_error != null) ...[
@@ -363,7 +451,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   ],
                           ),
                           child: ElevatedButton(
-                            onPressed: _isProcessing ? null : _confirmAndPay,
+                            onPressed: (_isProcessing || _quote == null)
+                                ? null
+                                : _confirmAndPay,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -379,7 +469,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                         strokeWidth: 2.5),
                                   )
                                 : Text(
-                                    'Pay ₹${_total.toStringAsFixed(0)}',
+                                    _quote == null
+                                        ? 'Pay'
+                                        : 'Pay ₹${_total.toStringAsFixed(0)}',
                                     style: TheyDiTextStyles.labelLarge
                                         .copyWith(
                                             color: Colors.white,
@@ -413,14 +505,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _priceRow(String label, String value) {
+  Widget _priceRow(String label, String value,
+      {bool struck = false, Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: TheyDiTextStyles.bodySmall
-                .copyWith(color: TheyDiColors.textSecondary)),
-        Text(value, style: TheyDiTextStyles.bodySmall),
+            style: TheyDiTextStyles.bodySmall.copyWith(
+              color: TheyDiColors.textSecondary,
+              decoration: struck ? TextDecoration.lineThrough : null,
+            )),
+        Text(value,
+            style: TheyDiTextStyles.bodySmall.copyWith(
+              color: valueColor,
+              decoration: struck ? TextDecoration.lineThrough : null,
+            )),
       ],
     );
   }

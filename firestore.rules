@@ -321,6 +321,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Fee benefits are written only by Cloud Functions (Admin SDK bypasses
+    // rules). Clients may read their own document but never change it.
+    match /feeBenefits/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
     match /refunds/{refundId} {
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow read: if isAuth() && resource.data.userId == request.auth.uid;

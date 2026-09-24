@@ -140,7 +140,7 @@ class PrivacySafetyScreen extends ConsumerWidget {
       // Re-authenticate (required by Firebase before deletion)
       if (isGoogle) {
         if (kIsWeb) {
-          await user.reauthenticateWithProvider(GoogleAuthProvider());
+          await user.reauthenticateWithPopup(GoogleAuthProvider());
         } else {
           final GoogleSignInAccount googleUser =
               await GoogleSignIn.instance.authenticate();

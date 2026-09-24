@@ -2,7 +2,7 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
-const { FieldValue } = require("firebase-admin/firestore");
+const { FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
@@ -381,6 +381,115 @@ function getTransporter() {
   return nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// Platform fee — single source of truth (server-side).
+// Change ratePercent / attendeeFirstFree here; the apps only display what
+// getPricingQuote returns and never decide a price themselves.
+// ══════════════════════════════════════════════════════════════════════════
+const PLATFORM_FEE = {
+  ratePercent: 10,
+  attendeeFirstFree: true,
+  // How long a waiver stays held for one event while its payment is in
+  // progress, so several checkouts can't all claim it at once.
+  reservationMinutes: 30,
+};
+
+function listedPlatformFee(price) {
+  return Math.round((Number(price) * PLATFORM_FEE.ratePercent) / 100);
+}
+
+/**
+ * Prices an event for one attendee. Reads the price from Firestore (never
+ * from the client) and checks feeBenefits/{uid}, which only Cloud Functions
+ * can write. Keyed by Firebase UID, so reinstalling or switching device
+ * cannot reset it.
+ * reserve=true holds the waiver for this event (used by createOrder).
+ */
+async function quoteAttendeeFee(uid, eventId, reserve) {
+  const eventSnap = await db.collection("events").doc(eventId).get();
+  if (!eventSnap.exists) throw new HttpsError("not-found", "Event not found.");
+  const ev = eventSnap.data();
+  const eventPrice = Number(ev.price || 0);
+  if (!(eventPrice > 0)) {
+    throw new HttpsError("failed-precondition", "This event has no ticket price.");
+  }
+  const listedFee = listedPlatformFee(eventPrice);
+  const benefitRef = db.collection("feeBenefits").doc(uid);
+
+  const waived = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(benefitRef);
+    const b = snap.exists ? snap.data() : {};
+    let ok = PLATFORM_FEE.attendeeFirstFree && listedFee > 0 && b.attendeeWaiverUsed !== true;
+    if (ok && b.attendeeReservation) {
+      const r = b.attendeeReservation;
+      const live = r.expiresAt && r.expiresAt.toMillis() > Date.now();
+      if (live && r.eventId !== eventId) ok = false;
+    }
+    if (ok && reserve) {
+      tx.set(benefitRef, {
+        attendeeReservation: {
+          eventId,
+          expiresAt: Timestamp.fromMillis(Date.now() + PLATFORM_FEE.reservationMinutes * 60 * 1000),
+        },
+      }, { merge: true });
+    }
+    return ok;
+  });
+
+  const platformFee = waived ? 0 : listedFee;
+  return {
+    eventTitle: ev.title || "",
+    hostUid: ev.creatorUid || "",
+    eventPrice,
+    listedFee,
+    platformFee,
+    total: eventPrice + platformFee,
+    waived,
+    ratePercent: PLATFORM_FEE.ratePercent,
+  };
+}
+
+// Gives the waiver back when a booking that used it is fully refunded
+// (event cancelled by the host). Not called when an attendee leaves on
+// their own — that path already charges a cancellation fee.
+async function restoreAttendeeWaiver(userId, bookingId) {
+  try {
+    const ref = db.collection("feeBenefits").doc(userId);
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists && snap.data().attendeeWaiverBookingId === bookingId) {
+        tx.update(ref, {
+          attendeeWaiverUsed: false,
+          attendeeWaiverBookingId: FieldValue.delete(),
+          attendeeWaiverEventId: FieldValue.delete(),
+          attendeeWaiverUsedAt: FieldValue.delete(),
+        });
+      }
+    });
+  } catch (e) {
+    logger.error(`[FeeBenefit] Could not restore waiver for ${userId}`, e);
+  }
+}
+
+exports.getPricingQuote = onCall({ region: REGION, cpu: 0.25 }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
+  }
+  const { eventId } = request.data || {};
+  if (!eventId || typeof eventId !== "string") {
+    throw new HttpsError("invalid-argument", "eventId is required.");
+  }
+  const q = await quoteAttendeeFee(request.auth.uid, eventId, false);
+  return {
+    eventPrice: q.eventPrice,
+    listedFee: q.listedFee,
+    platformFee: q.platformFee,
+    total: q.total,
+    waived: q.waived,
+    ratePercent: q.ratePercent,
+  };
+});
+
 exports.createOrder = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in to create an order.");
@@ -391,24 +500,41 @@ exports.createOrder = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_KE
     throw new HttpsError("internal", "Razorpay is not configured on the server.");
   }
 
-  const { amount, currency, receipt, notes } = request.data;
-
-  if (!amount || typeof amount !== "number" || !Number.isInteger(amount)) {
-    throw new HttpsError("invalid-argument", "A valid integer amount (in paise) is required.");
+  // `amount` from the client is ignored on purpose: the charge is always
+  // recomputed here. eventId is also read from notes so builds already in
+  // users' hands keep working.
+  const { receipt, notes: clientNotes } = request.data || {};
+  const eventId = request.data.eventId || (clientNotes && clientNotes.eventId);
+  if (!eventId || typeof eventId !== "string") {
+    throw new HttpsError("invalid-argument", "eventId is required.");
   }
-  if (amount < 100) {
+
+  const uid = request.auth.uid;
+  const quote = await quoteAttendeeFee(uid, eventId, true);
+  const amountPaise = Math.round(quote.total * 100);
+  if (amountPaise < 100) {
     throw new HttpsError("invalid-argument", "Amount must be at least ₹1 (100 paise).");
   }
 
   try {
     const options = {
-      amount: amount,
-      currency: currency || "INR",
+      amount: amountPaise,
+      currency: "INR",
       receipt: receipt || `rcptid_${Date.now()}`,
-      notes: notes || {},
+      notes: {
+        eventId,
+        eventTitle: String(quote.eventTitle).slice(0, 200),
+        userId: uid,
+        hostUid: quote.hostUid,
+        eventPrice: String(quote.eventPrice),
+        platformFee: String(quote.platformFee),
+        totalAmount: String(quote.total),
+        waiverApplied: String(quote.waived),
+        fromApproval: String(!!clientNotes && clientNotes.fromApproval === "true"),
+      },
     };
     const order = await razorpay.orders.create(options);
-    logger.info("Order created successfully", { orderId: order.id });
+    logger.info("Order created successfully", { orderId: order.id, waived: quote.waived });
     return { orderId: order.id, amount: order.amount, currency: order.currency };
   } catch (error) {
     logger.error("Error creating Razorpay order", {
@@ -421,14 +547,13 @@ exports.createOrder = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_KE
   }
 });
 
-exports.verifyPayment = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_SECRET_KEY"] }, async (request) => {
+exports.verifyPayment = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in to verify payment.");
   }
 
   const {
     razorpay_payment_id, razorpay_order_id, razorpay_signature,
-    eventId, eventTitle, hostUid, amount, platformFee, totalAmount,
     paymentMethod, fromApproval,
   } = request.data;
 
@@ -452,63 +577,109 @@ exports.verifyPayment = onCall({ region: REGION, cpu: 0.25, secrets: ["RAZORPAY_
     throw new HttpsError("permission-denied", "Payment signature is invalid.");
   }
 
+  // Event, host and amounts come from the order itself (notes were written
+  // by createOrder), not from the request, so they can't be altered by the
+  // client after paying.
+  const razorpay = getRazorpay();
+  if (!razorpay) {
+    throw new HttpsError("internal", "Razorpay is not configured on the server.");
+  }
+  let order;
   try {
-    const existingPaymentRef = await db.collection("events").doc(eventId)
-      .collection("attendeePayments").doc(uid).get();
+    order = await razorpay.orders.fetch(razorpay_order_id);
+  } catch (e) {
+    logger.error("Could not fetch Razorpay order for verification", e);
+    throw new HttpsError("internal", "Could not verify the payment order.");
+  }
+  const notes = order.notes || {};
+  if (!notes.eventId || notes.userId !== uid) {
+    throw new HttpsError("permission-denied", "This payment does not belong to this account.");
+  }
 
-    if (existingPaymentRef.exists && existingPaymentRef.data().status === "paid") {
-      logger.info("Payment already processed by webhook. Skipping duplicate write.");
-      return { success: true, message: "Payment already verified by webhook." };
-    }
+  const eventId = notes.eventId;
+  const eventTitle = notes.eventTitle || "Unknown Event";
+  const hostUid = notes.hostUid;
+  const platformFee = parseFloat(notes.platformFee || "0") || 0;
+  const totalAmount = order.amount / 100;
+  const amount = notes.eventPrice
+    ? parseFloat(notes.eventPrice)
+    : Number((totalAmount - platformFee).toFixed(2));
+  const waiverApplied = notes.waiverApplied === "true";
 
+  try {
     const userDoc = await db.collection("users").doc(uid).get();
     if (userDoc.exists) {
       const data = userDoc.data();
       userName = data.displayName || data.fullName || data.name || userName;
     }
 
-    const bookingData = {
-      eventId, eventTitle, userId: uid, userName, hostUid,
-      amount, platformFee, totalAmount,
-      status: "confirmed",
-      paymentMethod: paymentMethod || "Unknown",
-      transactionId: razorpay_payment_id,
-      createdAt: FieldValue.serverTimestamp(),
-      confirmedAt: FieldValue.serverTimestamp(),
-    };
-
-    const batch = db.batch();
-
     const newBookingRef = db.collection("bookings").doc();
-    batch.set(newBookingRef, bookingData);
-
     const eventRef = db.collection("events").doc(eventId);
-    const eventUpdates = { attendeeUids: FieldValue.arrayUnion(uid) };
-    if (fromApproval) {
-      eventUpdates.approvedPendingPaymentUids = FieldValue.arrayRemove(uid);
-    }
-    batch.update(eventRef, eventUpdates);
-
     const paymentRef = eventRef.collection("attendeePayments").doc(uid);
-    batch.set(paymentRef, {
-      status: "paid", userName, transactionId: razorpay_payment_id,
-      paymentMethod: paymentMethod || "Unknown", amount: totalAmount,
-      paidAt: FieldValue.serverTimestamp(), eventId,
-    }, { merge: true });
-
     const userRef = db.collection("users").doc(uid);
-    batch.set(userRef, { eventsAttended: FieldValue.increment(1) }, { merge: true });
-
     const globalPaymentRef = db.collection("payment").doc(razorpay_payment_id);
-    batch.set(globalPaymentRef, {
-      amount: amount || totalAmount || 0,
-      createdAt: FieldValue.serverTimestamp(),
-      currency: "INR", eventId: eventId, orderId: razorpay_order_id,
-      paymentId: razorpay_payment_id, paymentMethod: paymentMethod || "Unknown",
-      status: "Success", uid: uid, username: userName, verified: true,
+    const benefitRef = db.collection("feeBenefits").doc(uid);
+
+    const alreadyProcessed = await db.runTransaction(async (tx) => {
+      // Reads first (Firestore requires it), then all writes.
+      const paySnap = await tx.get(paymentRef);
+      const benefitSnap = await tx.get(benefitRef);
+
+      if (paySnap.exists && paySnap.data().status === "paid") return true;
+
+      tx.set(newBookingRef, {
+        eventId, eventTitle, userId: uid, userName, hostUid,
+        amount, platformFee, totalAmount, waiverApplied,
+        status: "confirmed",
+        paymentMethod: paymentMethod || "Unknown",
+        transactionId: razorpay_payment_id,
+        createdAt: FieldValue.serverTimestamp(),
+        confirmedAt: FieldValue.serverTimestamp(),
+      });
+
+      const eventUpdates = { attendeeUids: FieldValue.arrayUnion(uid) };
+      if (fromApproval) {
+        eventUpdates.approvedPendingPaymentUids = FieldValue.arrayRemove(uid);
+      }
+      tx.update(eventRef, eventUpdates);
+
+      tx.set(paymentRef, {
+        status: "paid", userName, transactionId: razorpay_payment_id,
+        paymentMethod: paymentMethod || "Unknown", amount: totalAmount,
+        paidAt: FieldValue.serverTimestamp(), eventId,
+      }, { merge: true });
+
+      tx.set(userRef, { eventsAttended: FieldValue.increment(1) }, { merge: true });
+
+      tx.set(globalPaymentRef, {
+        amount: totalAmount,
+        createdAt: FieldValue.serverTimestamp(),
+        currency: "INR", eventId: eventId, orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id, paymentMethod: paymentMethod || "Unknown",
+        status: "Success", uid: uid, username: userName, verified: true,
+      });
+
+      if (waiverApplied) {
+        const used = benefitSnap.exists && benefitSnap.data().attendeeWaiverUsed === true;
+        if (used) {
+          logger.warn(`[FeeBenefit] Waiver already used for ${uid}; booking ${newBookingRef.id} was charged without a fee.`);
+        } else {
+          tx.set(benefitRef, {
+            attendeeWaiverUsed: true,
+            attendeeWaiverUsedAt: FieldValue.serverTimestamp(),
+            attendeeWaiverBookingId: newBookingRef.id,
+            attendeeWaiverEventId: eventId,
+            attendeeReservation: FieldValue.delete(),
+          }, { merge: true });
+        }
+      }
+      return false;
     });
 
-    await batch.commit();
+    if (alreadyProcessed) {
+      logger.info("Payment already processed by webhook. Skipping duplicate write.");
+      return { success: true, message: "Payment already verified by webhook." };
+    }
     return { success: true, message: "Payment verified and booking confirmed." };
   } catch (error) {
     logger.error("Failed to process booking after payment validation", error);
@@ -565,13 +736,23 @@ exports.razorpayWebhook = onRequest(
           }
         } catch (_) {}
 
+        const platformFee = parseFloat(notes.platformFee || "0") || 0;
+        const totalAmount = order.amount / 100;
+        // notes.eventPrice is the ticket price. (order.amount is the total
+        // charged, fee included, so it must not be used as the ticket price.)
+        const eventPrice = notes.eventPrice
+          ? parseFloat(notes.eventPrice)
+          : Number((totalAmount - platformFee).toFixed(2));
+        const waiverApplied = notes.waiverApplied === "true";
+
         const bookingData = {
           eventId: notes.eventId,
           eventTitle: notes.eventTitle || "Unknown Event",
           userId: notes.userId, userName: resolvedUserName, hostUid: notes.hostUid,
-          amount: order.amount / 100,
-          platformFee: parseFloat(notes.platformFee || "0"),
-          totalAmount: parseFloat(notes.totalAmount || "0"),
+          amount: eventPrice,
+          platformFee,
+          totalAmount,
+          waiverApplied,
           status: "confirmed",
           paymentMethod: payment.method || "Unknown",
           transactionId: payment.id,
@@ -579,38 +760,57 @@ exports.razorpayWebhook = onRequest(
           confirmedAt: FieldValue.serverTimestamp(),
         };
 
-        const batch = db.batch();
-
         const newBookingRef = db.collection("bookings").doc();
-        batch.set(newBookingRef, bookingData);
-
         const eventRef = db.collection("events").doc(notes.eventId);
-        const eventUpdates = { attendeeUids: FieldValue.arrayUnion(notes.userId) };
-        if (notes.fromApproval === "true") {
-          eventUpdates.approvedPendingPaymentUids = FieldValue.arrayRemove(notes.userId);
-        }
-        batch.update(eventRef, eventUpdates);
-
         const paymentRef = eventRef.collection("attendeePayments").doc(notes.userId);
-        batch.set(paymentRef, {
-          status: "paid", userName: resolvedUserName, transactionId: payment.id,
-          paymentMethod: payment.method || "Unknown", amount: bookingData.totalAmount,
-          paidAt: FieldValue.serverTimestamp(), eventId: notes.eventId,
-        }, { merge: true });
-
         const userRef = db.collection("users").doc(notes.userId);
-        batch.update(userRef, { eventsAttended: FieldValue.increment(1) });
-
         const globalPaymentRef = db.collection("payment").doc(payment.id);
-        batch.set(globalPaymentRef, {
-          amount: bookingData.totalAmount,
-          createdAt: FieldValue.serverTimestamp(),
-          currency: "INR", eventId: notes.eventId, orderId: order.id,
-          paymentId: payment.id, paymentMethod: payment.method || "Unknown",
-          status: "Success", uid: notes.userId, username: resolvedUserName, verified: true,
-        });
+        const benefitRef = db.collection("feeBenefits").doc(notes.userId);
 
-        await batch.commit();
+        await db.runTransaction(async (tx) => {
+          const paySnap = await tx.get(paymentRef);
+          const benefitSnap = await tx.get(benefitRef);
+          if (paySnap.exists && paySnap.data().status === "paid") return;
+
+          tx.set(newBookingRef, bookingData);
+
+          const eventUpdates = { attendeeUids: FieldValue.arrayUnion(notes.userId) };
+          if (notes.fromApproval === "true") {
+            eventUpdates.approvedPendingPaymentUids = FieldValue.arrayRemove(notes.userId);
+          }
+          tx.update(eventRef, eventUpdates);
+
+          tx.set(paymentRef, {
+            status: "paid", userName: resolvedUserName, transactionId: payment.id,
+            paymentMethod: payment.method || "Unknown", amount: bookingData.totalAmount,
+            paidAt: FieldValue.serverTimestamp(), eventId: notes.eventId,
+          }, { merge: true });
+
+          tx.update(userRef, { eventsAttended: FieldValue.increment(1) });
+
+          tx.set(globalPaymentRef, {
+            amount: bookingData.totalAmount,
+            createdAt: FieldValue.serverTimestamp(),
+            currency: "INR", eventId: notes.eventId, orderId: order.id,
+            paymentId: payment.id, paymentMethod: payment.method || "Unknown",
+            status: "Success", uid: notes.userId, username: resolvedUserName, verified: true,
+          });
+
+          if (waiverApplied) {
+            const used = benefitSnap.exists && benefitSnap.data().attendeeWaiverUsed === true;
+            if (used) {
+              logger.warn(`[FeeBenefit] Waiver already used for ${notes.userId}; booking ${newBookingRef.id} was charged without a fee.`);
+            } else {
+              tx.set(benefitRef, {
+                attendeeWaiverUsed: true,
+                attendeeWaiverUsedAt: FieldValue.serverTimestamp(),
+                attendeeWaiverBookingId: newBookingRef.id,
+                attendeeWaiverEventId: notes.eventId,
+                attendeeReservation: FieldValue.delete(),
+              }, { merge: true });
+            }
+          }
+        });
         logger.info("Webhook processed payment successfully", { orderId: order.id });
       }
 
@@ -1522,6 +1722,7 @@ exports.cancelEventAndRefund = onCall({ region: REGION, secrets: ["RAZORPAY_KEY_
         });
 
         await bookingDoc.ref.update({ status: "refunded" });
+        await restoreAttendeeWaiver(bData.userId, bookingDoc.id);
         refundCount++;
 
         const userDoc = await db.collection("users").doc(bData.userId).get();
