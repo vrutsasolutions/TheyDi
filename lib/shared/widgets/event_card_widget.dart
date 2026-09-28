@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +6,9 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/events/models/event_model.dart';
 import '../../features/events/widgets/event_share_sheet.dart';
+
+// Pink accent used for female-host highlight.
+const _kFemaleHostPink = Color.fromARGB(255, 255, 29, 162);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EventCardCompact — horizontal card used in lists.
@@ -152,15 +156,42 @@ class EventCardCompact extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // EventCardLarge — vertical featured card.
 // UI: "Event" → "Experience" badge; taller image, polished shadow.
+//     Pink border when the host is female.
 // ─────────────────────────────────────────────────────────────────────────────
-class EventCardLarge extends StatelessWidget {
+class EventCardLarge extends StatefulWidget {
   final EventModel event;
   final VoidCallback? onTap;
 
   const EventCardLarge({super.key, required this.event, this.onTap});
 
   @override
+  State<EventCardLarge> createState() => _EventCardLargeState();
+}
+
+class _EventCardLargeState extends State<EventCardLarge> {
+  bool _isFemaleHost = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHostGender();
+  }
+
+  Future<void> _fetchHostGender() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.event.creatorUid)
+          .get();
+      if (!mounted) return;
+      final gender = (doc.data()?['gender'] as String? ?? '').toLowerCase();
+      if (gender == 'female') setState(() => _isFemaleHost = true);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final event = widget.event;
     final dateStr = DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
 
     return Container(
@@ -168,21 +199,30 @@ class EventCardLarge extends StatelessWidget {
       decoration: BoxDecoration(
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: TheyDiColors.divider),
+        border: _isFemaleHost
+            ? Border.all(color: _kFemaleHostPink, width: 2)
+            : Border.all(color: TheyDiColors.divider),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
+          if (_isFemaleHost)
+            BoxShadow(
+              color: _kFemaleHostPink.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            )
+          else
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap:
-              onTap ?? () => context.push('/event/${event.id}', extra: event),
+          onTap: widget.onTap ??
+              () => context.push('/event/${event.id}', extra: event),
           splashColor: TheyDiColors.primary.withValues(alpha: 0.06),
           highlightColor: TheyDiColors.primary.withValues(alpha: 0.03),
           child: Column(
@@ -269,6 +309,33 @@ class EventCardLarge extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // Female-host badge — bottom-left of image
+                if (_isFemaleHost)
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _kFemaleHostPink.withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text('♀', style: TextStyle(fontSize: 11, color: Colors.white)),
+                          SizedBox(width: 3),
+                          Text('Women-led',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // Share menu — bottom-right of image
                 Positioned(

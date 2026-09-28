@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../shared/widgets/guest_promo_dialog.dart';
+import '../../../shared/widgets/image_preview_overlay.dart';
 
 const _kReportReasons = [
   'Spam or unwanted messages',
@@ -468,7 +469,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final name = (_userData['displayName'] as String?) ?? 'User';
+    final name = ((_userData['displayName'] as String?)?.trim().isNotEmpty == true
+            ? _userData['displayName'] as String
+            : null) ??
+        ((_userData['fullName'] as String?)?.trim().isNotEmpty == true
+            ? _userData['fullName'] as String
+            : null) ??
+        ((_userData['name'] as String?)?.trim().isNotEmpty == true
+            ? _userData['name'] as String
+            : null) ??
+        'User';
     final bio = (_userData['bio'] as String?) ?? '';
     final city = (_userData['city'] as String?) ?? '';
     final photoUrl = (_userData['profileImageUrl'] as String?) ??
@@ -585,38 +595,47 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 const SizedBox(height: 8),
 
                                 // ── Avatar ──
-                                Container(
-                                  width: 96,
-                                  height: 96,
-                                  decoration: BoxDecoration(
-                                    gradient: TheyDiColors.gradientPrimary,
-                                    borderRadius: BorderRadius.circular(28),
-                                    border: Border.all(
-                                        color: TheyDiColors.primary
-                                            .withValues(alpha: 0.4),
-                                        width: 2),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(26),
-                                    child: photoUrl.isNotEmpty
-                                        ? Image.network(photoUrl,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                Center(
-                                                    child: Text(initial,
-                                                        style: TheyDiTextStyles
-                                                            .displayLarge
-                                                            .copyWith(
-                                                                fontSize: 40,
-                                                                color: Colors
-                                                                    .white))))
-                                        : Center(
-                                            child: Text(initial,
-                                                style: TheyDiTextStyles
-                                                    .displayLarge
-                                                    .copyWith(
-                                                        fontSize: 40,
-                                                        color: Colors.white))),
+                                GestureDetector(
+                                  onTap: photoUrl.isNotEmpty
+                                      ? () => showImagePreview(
+                                            context,
+                                            imageUrl: photoUrl,
+                                            fallbackLabel: initial,
+                                          )
+                                      : null,
+                                  child: Container(
+                                    width: 96,
+                                    height: 96,
+                                    decoration: BoxDecoration(
+                                      gradient: TheyDiColors.gradientPrimary,
+                                      borderRadius: BorderRadius.circular(28),
+                                      border: Border.all(
+                                          color: TheyDiColors.primary
+                                              .withValues(alpha: 0.4),
+                                          width: 2),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(26),
+                                      child: photoUrl.isNotEmpty
+                                          ? Image.network(photoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  Center(
+                                                      child: Text(initial,
+                                                          style: TheyDiTextStyles
+                                                              .displayLarge
+                                                              .copyWith(
+                                                                  fontSize: 40,
+                                                                  color: Colors
+                                                                      .white))))
+                                          : Center(
+                                              child: Text(initial,
+                                                  style: TheyDiTextStyles
+                                                      .displayLarge
+                                                      .copyWith(
+                                                          fontSize: 40,
+                                                          color: Colors.white))),
+                                    ),
                                   ),
                                 ).animate().scale(
                                     duration: 400.ms, curve: Curves.elasticOut),
@@ -877,7 +896,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildPrimaryAction() {
-    final name = _userData['displayName'] ?? 'User';
+    final name = ((_userData['displayName'] as String?)?.trim().isNotEmpty == true
+            ? _userData['displayName'] as String
+            : null) ??
+        ((_userData['fullName'] as String?)?.trim().isNotEmpty == true
+            ? _userData['fullName'] as String
+            : null) ??
+        ((_userData['name'] as String?)?.trim().isNotEmpty == true
+            ? _userData['name'] as String
+            : null) ??
+        'User';
 
     switch (_status) {
       case FriendStatus.friends:

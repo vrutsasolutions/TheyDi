@@ -11,6 +11,7 @@ import '../../../core/services/guest_mode_provider.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/profile_share_sheet.dart';
+import '../../../shared/widgets/image_preview_overlay.dart';
 
 // Tab indexes on the My Experiences screen (see MyEventsScreen):
 // 0 = Attending, 1 = Requested, 2 = Hosting.
@@ -71,6 +72,17 @@ final _communitiesCountProvider = StreamProvider.autoDispose<int>((ref) {
       .map((s) => s.docs.length);
 });
 
+// ── Live count: circles ──
+final _circlesCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value(0);
+  return FirebaseFirestore.instance
+      .collection('circles')
+      .where('memberUids', arrayContains: uid)
+      .snapshots()
+      .map((s) => s.docs.length);
+});
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -91,6 +103,7 @@ class ProfileScreen extends ConsumerWidget {
     final attendedAsync = ref.watch(_eventsAttendedCountProvider);
     final friendsCountAsync = ref.watch(_friendsCountProvider);
     final communitiesCountAsync = ref.watch(_communitiesCountProvider);
+    final circlesCountAsync = ref.watch(_circlesCountProvider);
 
     return Scaffold(
       body: Container(
@@ -148,6 +161,8 @@ class ProfileScreen extends ConsumerWidget {
                   friendsCountAsync.asData?.value.toString() ?? '…';
               final communitiesCount =
                   communitiesCountAsync.asData?.value.toString() ?? '…';
+              final circlesCount =
+                  circlesCountAsync.asData?.value.toString() ?? '…';
 
               return _ProfileContent(
                 displayName: displayName,
@@ -160,6 +175,7 @@ class ProfileScreen extends ConsumerWidget {
                 eventsAttended: eventsAttended,
                 friendsCount: friendsCount,
                 communitiesCount: communitiesCount,
+                circlesCount: circlesCount,
                 isVerified: isVerified,
                 age: age != null ? int.tryParse(age.toString()) : null,
                 gender: gender,
@@ -270,6 +286,7 @@ class _ProfileContent extends ConsumerWidget {
   final String eventsAttended;
   final String friendsCount;
   final String communitiesCount;
+  final String circlesCount;
   final bool isVerified;
   final int? age;
   final String gender;
@@ -291,6 +308,7 @@ class _ProfileContent extends ConsumerWidget {
     required this.eventsAttended,
     required this.friendsCount,
     required this.communitiesCount,
+    required this.circlesCount,
     required this.isVerified,
     required this.age,
     required this.gender,
@@ -408,9 +426,6 @@ class _ProfileContent extends ConsumerWidget {
                 isAdmin: isAdmin, // ← ADD
                 onSelected: (value) {
                   switch (value) {
-                    case 'myEvents':
-                      context.go(AppRoutes.myEvents);
-                      break;
                     case 'myReviews':
                       context.push(AppRoutes.myReviews);
                       break;
@@ -446,33 +461,44 @@ class _ProfileContent extends ConsumerWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      gradient: TheyDiColors.gradientPrimary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: TheyDiColors.primary.withValues(alpha: 0.35),
-                        width: 2,
+                  GestureDetector(
+                    onTap: photoUrl.isNotEmpty
+                        ? () => showImagePreview(
+                              context,
+                              imageUrl: photoUrl,
+                              fallbackLabel: initial,
+                            )
+                        : null,
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: TheyDiColors.primary.withValues(alpha: 0.35),
+                          width: 2,
+                        ),
                       ),
-                    ),
-                    child: ClipOval(
-                      child: photoUrl.isNotEmpty
-                          ? Image.network(photoUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Center(
-                                    child: Text(initial,
-                                        style: TheyDiTextStyles.displayLarge
-                                            .copyWith(
-                                                fontSize: 36,
-                                                color: Colors.white)),
-                                  ))
-                          : Center(
-                              child: Text(initial,
-                                  style: TheyDiTextStyles.displayLarge.copyWith(
-                                      fontSize: 36, color: Colors.white)),
-                            ),
+                      child: ClipOval(
+                        child: photoUrl.isNotEmpty
+                            ? Image.network(photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                      child: Text(initial,
+                                          style: TheyDiTextStyles.displayLarge
+                                              .copyWith(
+                                                  fontSize: 36,
+                                                  color: Colors.white)),
+                                    ))
+                            : Center(
+                                child: Text(initial,
+                                    style: TheyDiTextStyles.displayLarge
+                                        .copyWith(
+                                            fontSize: 36,
+                                            color: Colors.white)),
+                              ),
+                      ),
                     ),
                   ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
                   const SizedBox(height: 8),
@@ -872,12 +898,12 @@ class _ProfileContent extends ConsumerWidget {
             onTap: () => context.push(AppRoutes.notifications),
           ).animate(delay: 260.ms).fade(duration: 300.ms),
           _MenuItem(
-            icon: Icons.diversity_3_outlined,
-            label: 'Communities',
-            subtitle: 'Chat with your groups',
+            icon: Icons.workspaces_outlined,
+            label: 'Circles',
+            subtitle: 'Chat with your circles',
             onTap: () => context.push(
               AppRoutes.friendsHub,
-              extra: {'initialTab': 2},
+              extra: {'initialTab': 1},
             ),
           ).animate(delay: 270.ms).fade(duration: 300.ms),
           
@@ -925,11 +951,6 @@ class _SettingsMenuButton extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       offset: const Offset(0, 44),
       itemBuilder: (context) => [
-        _settingsItem(
-          value: 'myEvents',
-          icon: Icons.auto_awesome_outlined,
-          label: 'My Experiences',
-        ),
         _settingsItem(
           value: 'myReviews',
           icon: Icons.star_outline,

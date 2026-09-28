@@ -16,6 +16,7 @@ import 'package:theydi/features/events/widgets/event_share_sheet.dart';
 
 import '../../../core/services/face_verification_service.dart';
 import '../../../core/services/event_circle_service.dart';
+import '../../../shared/widgets/image_preview_overlay.dart';
 
 
 
@@ -52,6 +53,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   String _eventAudience = ''; // 'Social' | 'Professional'
   String _hostOrgName = '';   // host's company / organization name
   String _hostJobTitle = '';  // host's profession / job title
+  String _hostPhotoUrl = '';  // host's profile image URL
+
+  // Attendee preview — first 3 names + photos for "X, Y and Z others going"
+  List<Map<String, String>> _attendeePreview = []; // [{uid, name, photo}]
+  int _totalAttendees = 0;
+
   int _userAge = 99; // current user's age
   int _minAge = 0; // event min age (18)
 
@@ -122,8 +129,45 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               ? hData['jobTitle'] as String
               : (hData['profession'] as String? ??
                   hData['role'] as String? ?? '');
+          _hostPhotoUrl = (hData['profileImageUrl'] as String? ??
+                  hData['photoUrl'] as String? ??
+                  '');
         });
       }
+      // Load attendee preview — up to 3 names + photos
+      final attendeeUids = List<String>.from(
+          (await FirebaseFirestore.instance
+                  .collection('events')
+                  .doc(widget.event.id)
+                  .get())
+              .data()?['attendeeUids'] ??
+              []);
+      if (attendeeUids.isNotEmpty) {
+        final previewUids = attendeeUids.take(3).toList();
+        final docs = await Future.wait(
+          previewUids.map((u) =>
+              FirebaseFirestore.instance.collection('users').doc(u).get()),
+        );
+        if (mounted) {
+          setState(() {
+            _totalAttendees = attendeeUids.length;
+            _attendeePreview = docs
+                .where((d) => d.exists)
+                .map((d) => {
+                      'uid': d.id,
+                      'name': (d.data()?['displayName'] as String? ??
+                          d.data()?['fullName'] as String? ??
+                          d.data()?['name'] as String? ??
+                          'User'),
+                      'photo': (d.data()?['profileImageUrl'] as String? ??
+                          d.data()?['photoUrl'] as String? ??
+                          ''),
+                    })
+                .toList();
+          });
+        }
+      }
+
       // Load current user's age for 18+ check
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
@@ -816,6 +860,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       ],
                     ]).animate(delay: 70.ms).fade(duration: 300.ms),
 
+                    // ── Attendee preview strip ──
+                    if (_attendeePreview.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _AttendeePreviewStrip(
+                        attendees: _attendeePreview,
+                        totalCount: _totalAttendees,
+                        eventId: _event.id,
+                      ).animate(delay: 80.ms).fade(duration: 300.ms),
+                    ],
+
                     const SizedBox(height: 20),
 
                     Text('About this event',
@@ -904,23 +958,60 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                           child: GestureDetector(
                             onTap: _isHost ? null : _viewHostProfile,
                             child: Row(children: [
-                              // Avatar
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                    gradient: TheyDiColors.gradientPrimary,
-                                    borderRadius: BorderRadius.circular(14)),
-                                child: Center(
-                                    child: Text(
-                                        event.organizerName.isNotEmpty
-                                            ? event.organizerName[0]
-                                                .toUpperCase()
-                                            : '?',
-                                        style: TheyDiTextStyles.displayLarge
-                                            .copyWith(
-                                                color: Colors.white,
-                                                fontSize: 22))),
+                              // Avatar — tappable for full-screen preview
+                              GestureDetector(
+                                onTap: _hostPhotoUrl.isNotEmpty
+                                    ? () => showImagePreview(
+                                          context,
+                                          imageUrl: _hostPhotoUrl,
+                                          fallbackLabel: event.organizerName,
+                                        )
+                                    : null,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                      gradient: TheyDiColors.gradientPrimary,
+                                      borderRadius:
+                                          BorderRadius.circular(14)),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: _hostPhotoUrl.isNotEmpty
+                                        ? Image.network(
+                                            _hostPhotoUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                Center(
+                                                    child: Text(
+                                                        event.organizerName
+                                                                .isNotEmpty
+                                                            ? event
+                                                                .organizerName[
+                                                                    0]
+                                                                .toUpperCase()
+                                                            : '?',
+                                                        style: TheyDiTextStyles
+                                                            .displayLarge
+                                                            .copyWith(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize:
+                                                                    22))),
+                                          )
+                                        : Center(
+                                            child: Text(
+                                                event.organizerName.isNotEmpty
+                                                    ? event.organizerName[0]
+                                                        .toUpperCase()
+                                                    : '?',
+                                                style: TheyDiTextStyles
+                                                    .displayLarge
+                                                    .copyWith(
+                                                        color: Colors.white,
+                                                        fontSize: 22)),
+                                          ),
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 12),
                               // Name + verified badge + open_in_new hint
@@ -1083,24 +1174,31 @@ class _ImageCarousel extends StatelessWidget {
         onPageChanged: onPageChanged,
         itemCount: images.length,
         itemBuilder: (context, index) {
-          return Image.network(
-            images[index],
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _GradientBanner(event: event, eventAudience: eventAudience),
-            loadingBuilder: (_, child, progress) {
-              if (progress == null) return child;
-              return Container(
-                  color: TheyDiColors.dark,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: TheyDiColors.primary,
-                      value: progress.expectedTotalBytes != null
-                          ? progress.cumulativeBytesLoaded /
-                              progress.expectedTotalBytes!
-                          : null,
-                    ),
-                  ));
-            },
+          return GestureDetector(
+            onTap: () => showImagePreview(
+              context,
+              imageUrl: images[index],
+              fallbackLabel: event.title,
+            ),
+            child: Image.network(
+              images[index],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _GradientBanner(event: event, eventAudience: eventAudience),
+              loadingBuilder: (_, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                    color: TheyDiColors.dark,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: TheyDiColors.primary,
+                        value: progress.expectedTotalBytes != null
+                            ? progress.cumulativeBytesLoaded /
+                                progress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ));
+              },
+            ),
           );
         },
       ),
@@ -1555,4 +1653,256 @@ class _SafetyItem extends StatelessWidget {
                     ? TheyDiColors.textSecondary
                     : TheyDiColors.textMuted)),
       ]);
+}
+
+// ── Attendee preview strip ────────────────────────────────────────────────────
+// Tapping anywhere → bottom sheet with ALL attendees.
+class _AttendeePreviewStrip extends StatelessWidget {
+  final List<Map<String, String>> attendees; // [{uid, name, photo}] (first 3)
+  final int totalCount;
+  final String eventId; // needed to fetch remaining attendees in the sheet
+
+  const _AttendeePreviewStrip({
+    required this.attendees,
+    required this.totalCount,
+    required this.eventId,
+  });
+
+  String _buildLabel() {
+    if (attendees.isEmpty) return '';
+    final names = attendees.map((a) => a['name']!.split(' ').first).toList();
+    final others = totalCount - attendees.length;
+    String base;
+    if (names.length == 1) {
+      base = names[0];
+    } else if (names.length == 2) {
+      base = '${names[0]} and ${names[1]}';
+    } else {
+      base = '${names[0]}, ${names[1]} and ${names[2]}';
+    }
+    if (others > 0) return '$base and $others other${others > 1 ? 's' : ''} are going';
+    return '$base ${totalCount == 1 ? 'is' : 'are'} going';
+  }
+
+  void _openAttendeeSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AttendeeListSheet(
+        eventId: eventId,
+        previewAttendees: attendees,
+        totalCount: totalCount,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openAttendeeSheet(context),
+      child: Row(
+        children: [
+          // Stacked avatars
+          SizedBox(
+            width: attendees.length * 24.0 + 8,
+            height: 32,
+            child: Stack(
+              children: [
+                for (int i = 0; i < attendees.length; i++)
+                  Positioned(
+                    left: i * 24.0,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: attendees[i]['photo']!.isNotEmpty
+                            ? Image.network(attendees[i]['photo']!, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    attendees[i]['name']!.isNotEmpty ? attendees[i]['name']![0].toUpperCase() : '?',
+                                    style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700),
+                                  ),
+                                ))
+                            : Center(
+                                child: Text(
+                                  attendees[i]['name']!.isNotEmpty ? attendees[i]['name']![0].toUpperCase() : '?',
+                                  style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              _buildLabel(),
+              style: TheyDiTextStyles.caption.copyWith(
+                color: TheyDiColors.primary,
+                fontWeight: FontWeight.w500,
+                decoration: TextDecoration.underline,
+                decorationColor: TheyDiColors.primary.withValues(alpha: 0.4),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 14, color: TheyDiColors.primary),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Full attendee list bottom sheet ──────────────────────────────────────────
+class _AttendeeListSheet extends StatefulWidget {
+  final String eventId;
+  final List<Map<String, String>> previewAttendees;
+  final int totalCount;
+
+  const _AttendeeListSheet({
+    required this.eventId,
+    required this.previewAttendees,
+    required this.totalCount,
+  });
+
+  @override
+  State<_AttendeeListSheet> createState() => _AttendeeListSheetState();
+}
+
+class _AttendeeListSheetState extends State<_AttendeeListSheet> {
+  List<Map<String, String>> _all = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    try {
+      final eventDoc = await FirebaseFirestore.instance
+          .collection('events').doc(widget.eventId).get();
+      final uids = List<String>.from(eventDoc.data()?['attendeeUids'] ?? []);
+      if (uids.isEmpty) {
+        if (mounted) setState(() { _all = []; _loading = false; });
+        return;
+      }
+      // Firestore `whereIn` is limited to 30 — fetch in batches
+      final results = <Map<String, String>>[];
+      for (int i = 0; i < uids.length; i += 30) {
+        final batch = uids.sublist(i, i + 30 > uids.length ? uids.length : i + 30);
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+        for (final doc in snap.docs) {
+          final d = doc.data();
+          results.add({
+            'uid': doc.id,
+            'name': (d['displayName'] as String? ?? d['fullName'] as String? ?? d['name'] as String? ?? 'User'),
+            'photo': (d['profileImageUrl'] as String? ?? d['photoUrl'] as String? ?? ''),
+          });
+        }
+      }
+      if (mounted) setState(() { _all = results; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _all = widget.previewAttendees; _loading = false; });
+    }
+  }
+
+  Widget _avatar(Map<String, String> a) {
+    final initial = a['name']!.isNotEmpty ? a['name']![0].toUpperCase() : '?';
+    return Container(
+      width: 44, height: 44,
+      decoration: BoxDecoration(gradient: TheyDiColors.gradientPrimary, shape: BoxShape.circle),
+      child: ClipOval(
+        child: a['photo']!.isNotEmpty
+            ? Image.network(a['photo']!, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Center(child: Text(initial,
+                    style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w700))))
+            : Center(child: Text(initial,
+                style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w700))),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.35,
+      maxChildSize: 0.92,
+      builder: (_, controller) => Container(
+        decoration: BoxDecoration(
+          color: TheyDiColors.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: TheyDiColors.divider, borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Row(children: [
+                Text('Going (${widget.totalCount})', style: TheyDiTextStyles.headlineMedium),
+              ]),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: TheyDiColors.primary, strokeWidth: 2))
+                  : _all.isEmpty
+                      ? Center(child: Text('No attendees yet', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted)))
+                      : ListView.builder(
+                          controller: controller,
+                          itemCount: _all.length,
+                          itemBuilder: (ctx, i) {
+                            final a = _all[i];
+                            final isMe = a['uid'] == currentUid;
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: isMe ? null : () {
+                                  Navigator.pop(context);
+                                  ctx.push(AppRoutes.userProfile,
+                                      extra: {'uid': a['uid']!, 'requestId': null});
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  child: Row(children: [
+                                    _avatar(a),
+                                    const SizedBox(width: 14),
+                                    Expanded(child: Text(a['name']!, style: TheyDiTextStyles.labelMedium)),
+                                    if (isMe)
+                                      Text('You', style: TheyDiTextStyles.caption.copyWith(color: TheyDiColors.textMuted)),
+                                    if (!isMe)
+                                      const Icon(Icons.chevron_right, size: 18, color: TheyDiColors.textMuted),
+                                  ]),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

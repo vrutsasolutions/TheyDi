@@ -15,12 +15,14 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/services/cloudflare_upload.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../shared/screens/image_cropper_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../services/community_service.dart';
 import '../models/community_model.dart';
 import '../widgets/community_share_sheet.dart';
 import '../../../../shared/widgets/avatar_online_status_dot.dart';
+import '../../../../shared/widgets/image_preview_overlay.dart';
 
 const _kCommunityReportReasons = [
   'Spam or unwanted content',
@@ -48,6 +50,9 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
   bool _saving = false;
   bool _shareAnimating = false;
 
+  // ── Member profile photo cache: uid → photoUrl (empty string = no photo) ──
+  final Map<String, String> _memberPhotoCache = {};
+
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
@@ -57,6 +62,29 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
     _isHost = _myUid == _community.creatorUid;
     _nameController.text = _community.name;
     _descController.text = _community.description;
+    _loadMemberPhotos();
+  }
+
+  Future<void> _loadMemberPhotos() async {
+    final uids = _community.memberMap.keys.toList();
+    if (uids.isEmpty) return;
+    try {
+      final docs = await Future.wait(
+        uids.map((uid) =>
+            FirebaseFirestore.instance.collection('users').doc(uid).get()),
+      );
+      if (!mounted) return;
+      final updated = <String, String>{};
+      for (final doc in docs) {
+        if (doc.exists) {
+          final d = doc.data() ?? {};
+          updated[doc.id] = (d['profileImageUrl'] as String? ??
+              d['photoUrl'] as String? ??
+              '');
+        }
+      }
+      setState(() => _memberPhotoCache.addAll(updated));
+    } catch (_) {}
   }
 
   @override
@@ -78,6 +106,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
         _community = CommunityModel.fromFirestore(doc);
         _isHost = _myUid == _community.creatorUid;
       });
+      _loadMemberPhotos();
     }
   }
 
@@ -611,7 +640,16 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                     // ── Group Avatar ──
                     Center(
                       child: GestureDetector(
-                        onTap: _isHost ? _pickGroupPhoto : null,
+                        onTap: _isHost
+                            ? _pickGroupPhoto
+                            : (_community.coverImageUrl != null &&
+                                    _community.coverImageUrl!.isNotEmpty
+                                ? () => showImagePreview(
+                                      context,
+                                      imageUrl: _community.coverImageUrl,
+                                      fallbackLabel: _community.name,
+                                    )
+                                : null),
                         child: Stack(
                           children: [
                             Container(
@@ -697,7 +735,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center),
                                 ),
-                                if (_community.requiresApproval) ...[
+                                if (_community.requiresApproval && !_community.isWomenOnly) ...[
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -708,6 +746,22 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                                     child: Text('Approval',
                                         style: TheyDiTextStyles.caption.copyWith(
                                             color: Colors.orange, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                                if (_community.isWomenOnly) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE91E8C).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFE91E8C).withValues(alpha: 0.4)),
+                                    ),
+                                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Text('♀', style: TextStyle(fontSize: 10, color: Color(0xFFE91E8C))),
+                                      SizedBox(width: 4),
+                                      Text('Women Only', style: TextStyle(fontSize: 10, color: Color(0xFFE91E8C), fontWeight: FontWeight.w700)),
+                                    ]),
                                   ),
                                 ],
                               ],
@@ -857,99 +911,151 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                       final name = entry.value;
                       final isCreator = uid == _community.creatorUid;
                       final isMe = uid == _myUid;
+                      final photoUrl = _memberPhotoCache[uid] ?? '';
+                      final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: TheyDiColors.card,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: TheyDiColors.divider),
                         ),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: Stack(
-                                clipBehavior: Clip.none,
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: isMe
+                                ? null
+                                : () => context.push(
+                                      AppRoutes.userProfile,
+                                      extra: {'uid': uid, 'requestId': null},
+                                    ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              child: Row(
                                 children: [
-                                  Container(
+                                  // Avatar with real photo + online dot
+                                  SizedBox(
                                     width: 44,
                                     height: 44,
-                                    decoration: BoxDecoration(
-                                      gradient: TheyDiColors.gradientPrimary,
-                                      borderRadius: BorderRadius.circular(12),
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            gradient:
+                                                TheyDiColors.gradientPrimary,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: photoUrl.isNotEmpty
+                                                ? Image.network(
+                                                    photoUrl,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder:
+                                                        (_, __, ___) => Center(
+                                                          child: Text(initial,
+                                                              style: TheyDiTextStyles
+                                                                  .labelLarge
+                                                                  .copyWith(
+                                                                      color: Colors
+                                                                          .white)),
+                                                        ),
+                                                  )
+                                                : Center(
+                                                    child: Text(initial,
+                                                        style: TheyDiTextStyles
+                                                            .labelLarge
+                                                            .copyWith(
+                                                                color: Colors
+                                                                    .white)),
+                                                  ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: AvatarOnlineStatusDot(uid: uid),
+                                        ),
+                                      ],
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                        style: TheyDiTextStyles.labelLarge
-                                            .copyWith(color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(name,
+                                              style:
+                                                  TheyDiTextStyles.labelMedium,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
+                                        ),
+                                        if (isMe) ...[
+                                          const SizedBox(width: 6),
+                                          Text('(You)',
+                                              style: TheyDiTextStyles.caption
+                                                  .copyWith(
+                                                      color: TheyDiColors
+                                                          .textMuted)),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isCreator
+                                          ? TheyDiColors.primary
+                                              .withValues(alpha: 0.15)
+                                          : Colors.green
+                                              .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      isCreator ? 'Admin' : 'Member',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                        color: isCreator
+                                            ? TheyDiColors.primary
+                                            : Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
                                       ),
                                     ),
                                   ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: AvatarOnlineStatusDot(uid: uid),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(name,
-                                        style: TheyDiTextStyles.labelMedium,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                  ),
-                                  if (isMe) ...[
-                                    const SizedBox(width: 6),
-                                    Text('(You)',
-                                        style: TheyDiTextStyles.caption
-                                            .copyWith(color: TheyDiColors.textMuted)),
+                                  if (_isHost && !isMe && !isCreator) ...[
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () => _removeMember(uid, name),
+                                      child: Container(
+                                        width: 30,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          color: Colors.red
+                                              .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                            Icons.remove_circle_outline,
+                                            size: 16,
+                                            color: Colors.red),
+                                      ),
+                                    ),
                                   ],
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isCreator
-                                    ? TheyDiColors.primary.withValues(alpha: 0.15)
-                                    : Colors.green.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                isCreator ? 'Admin' : 'Member',
-                                style: TheyDiTextStyles.caption.copyWith(
-                                  color: isCreator ? TheyDiColors.primary : Colors.green,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                            if (_isHost && !isMe && !isCreator) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () => _removeMember(uid, name),
-                                child: Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.remove_circle_outline,
-                                      size: 16, color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
                       );
                     }),

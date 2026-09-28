@@ -384,7 +384,7 @@ class _DashboardContent extends StatelessWidget {
               const SizedBox(height: 12),
               _RuleItem(
                   text:
-                      'Payouts will be credited to your linked bank account within 24 hours after your experience completes successfully.'),
+                      'Payouts will be credited to your linked bank account within 48 hours after your experience completes successfully.'),
               const SizedBox(height: 8),
               _RuleItem(
                   text:

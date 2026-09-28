@@ -803,7 +803,7 @@ class NotificationService {
         message:
             'Hi ${hostResolved.name}, your event "$eventTitle" has been successfully completed '
             'and payouts are being automatically processed.\n\n'
-            'Please check your bank account details in the TheyDi app immediately. You will receive your payout within 24 hours. If your account details are incorrect, you might lose the payment.\n\n'
+            'Please check your bank account details in the TheyDi app immediately. You will receive your payout within 48 hours. If your account details are incorrect, you might lose the payment.\n\n'
             'Thank you for hosting on TheyDi!',
       );
     }

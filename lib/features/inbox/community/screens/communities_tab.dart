@@ -238,6 +238,25 @@ class _CommunityCardState extends State<_CommunityCard> {
           .get();
       final userName =
           (userDoc.data()?['displayName'] as String?) ?? 'Member';
+
+      // Women Only enforcement — block non-female users at the Flutter layer.
+      // The backend Cloud Function / Firestore rules provide a second layer.
+      if (community.isWomenOnly) {
+        final gender = ((userDoc.data()?['gender'] as String?) ?? '').toLowerCase();
+        if (gender != 'female') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: const Text('This is a Women Only community — it is open to female members only.'),
+              backgroundColor: const Color(0xFFE91E8C),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ));
+          }
+          setState(() => _busy = false);
+          return;
+        }
+      }
+
       if (community.requiresApproval) {
         await CommunityService.requestToJoin(community, userName: userName);
         if (mounted) {
@@ -343,32 +362,45 @@ class _CommunityCardState extends State<_CommunityCard> {
       );
     }
 
-    // Non-members: no outer tap wrapper — HitTestBehavior.opaque on PressableScale
-    // would absorb taps meant for the inner Join button. Only members get the
-    // card tap (opens chat). Non-members tap only the Join button itself.
+    // Members tap the card → open chat. Non-members tap the card → open
+    // Community Info so they can read about it before joining/requesting.
+    // The Join/Request button still has its own PressableScale so it works
+    // independently even inside the card tap.
     if (isMember) {
       return PressableScale(
         onTap: () => context.push(AppRoutes.communityChat, extra: community),
         child: _buildCard(context, community, trailing),
       );
     }
-    return _buildCard(context, community, trailing);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () =>
+            context.push(AppRoutes.communityInfo, extra: community),
+        child: _buildCard(context, community, trailing),
+      ),
+    );
   }
 
+  static const _kPink = Color(0xFFE91E8C);
+
   Widget _buildCard(BuildContext context, CommunityModel community, Widget trailing) {
+    final isWomenOnly = community.isWomenOnly;
     return Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: TheyDiColors.divider),
+          border: isWomenOnly
+              ? Border.all(color: _kPink, width: 1.5)
+              : Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+            isWomenOnly
+                ? BoxShadow(color: _kPink.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 4))
+                : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -377,11 +409,13 @@ class _CommunityCardState extends State<_CommunityCard> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                gradient: TheyDiColors.gradientPrimary,
+                gradient: isWomenOnly
+                    ? const LinearGradient(colors: [Color(0xFFFF6BAE), Color(0xFFE91E8C)])
+                    : TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: TheyDiColors.primary.withValues(alpha: 0.25),
+                    color: (isWomenOnly ? _kPink : TheyDiColors.primary).withValues(alpha: 0.25),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -411,11 +445,33 @@ class _CommunityCardState extends State<_CommunityCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(community.name,
-                      style: TheyDiTextStyles.labelMedium
-                          .copyWith(letterSpacing: -0.1),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(community.name,
+                            style: TheyDiTextStyles.labelMedium
+                                .copyWith(letterSpacing: -0.1),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      if (isWomenOnly) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _kPink.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _kPink.withValues(alpha: 0.4)),
+                          ),
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text('♀', style: TextStyle(fontSize: 9, color: _kPink)),
+                            SizedBox(width: 3),
+                            Text('Women Only', style: TextStyle(fontSize: 9, color: _kPink, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     '${community.memberCount} member${community.memberCount == 1 ? '' : 's'}',

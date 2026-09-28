@@ -875,23 +875,57 @@ class _EmptySectionMessage extends StatelessWidget {
   }
 }
 
-class _EventCard extends StatelessWidget {
+const _kFemaleHostPink = Color.fromARGB(255, 255, 29, 162);
+
+class _EventCard extends StatefulWidget {
   final EventModel event;
   final double distance;
   const _EventCard({required this.event, required this.distance});
 
   @override
+  State<_EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<_EventCard> {
+  bool _isFemaleHost = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHostGender();
+  }
+
+  Future<void> _fetchHostGender() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.event.creatorUid)
+          .get();
+      if (!mounted) return;
+      final gender = (doc.data()?['gender'] as String? ?? '').toLowerCase();
+      if (gender == 'female') setState(() => _isFemaleHost = true);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final event = widget.event;
     final dateStr = DateFormat('EEE, MMM d · h:mm a').format(event.dateTime);
-    final distanceLabel = LocationService.formatDistance(distance);
+    final distanceLabel = LocationService.formatDistance(widget.distance);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: TheyDiColors.divider),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 16, offset: const Offset(0, 6))]),
+          border: _isFemaleHost
+              ? Border.all(color: _kFemaleHostPink, width: 2)
+              : Border.all(color: TheyDiColors.divider),
+          boxShadow: [
+            _isFemaleHost
+                ? BoxShadow(color: _kFemaleHostPink.withValues(alpha: 0.18), blurRadius: 16, offset: const Offset(0, 6))
+                : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 16, offset: const Offset(0, 6))
+          ]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Stack(children: [
           GestureDetector(
@@ -931,6 +965,23 @@ class _EventCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(distanceLabel, style: TheyDiTextStyles.caption.copyWith(color: Colors.white70, fontSize: 10)),
                     ]))),
+          if (_isFemaleHost)
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _kFemaleHostPink.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('♀', style: TextStyle(fontSize: 10, color: Colors.white)),
+                  SizedBox(width: 3),
+                  Text('Women-led', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
         ]),
         GestureDetector(
           onTap: () => context.push('/event/${event.id}', extra: event),

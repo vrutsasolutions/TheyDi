@@ -17,11 +17,13 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/services/event_circle_service.dart';
 import '../models/circle_model.dart';
 
 // ── NEW import ──
 import '../widgets/circle_share_sheet.dart';
+import '../../../../shared/widgets/image_preview_overlay.dart';
 
 const _kCircleReportReasons = [
   'Spam or unwanted content',
@@ -51,6 +53,12 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
   // ── NEW: share button animation state ──
   bool _shareAnimating = false;
 
+  // ── Member profile photo cache: uid → photoUrl (empty string = no photo) ──
+  final Map<String, String> _memberPhotoCache = {};
+
+  // ── Women-Led: true when the circle creator is female ──
+  bool _isCreatorFemale = false;
+
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
@@ -60,6 +68,41 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
     _isHost = _myUid == _circle.creatorUid;
     _nameController.text = _circle.name;
     _descController.text = _circle.description;
+    _loadMemberPhotos();
+    _fetchCreatorGender();
+  }
+
+  Future<void> _fetchCreatorGender() async {
+    if (_circle.creatorUid.isEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users').doc(_circle.creatorUid).get();
+      if (!mounted) return;
+      final gender = (doc.data()?['gender'] as String? ?? '').toLowerCase();
+      if (gender == 'female') setState(() => _isCreatorFemale = true);
+    } catch (_) {}
+  }
+
+  Future<void> _loadMemberPhotos() async {
+    final uids = _circle.memberMap.keys.toList();
+    if (uids.isEmpty) return;
+    try {
+      final docs = await Future.wait(
+        uids.map((uid) =>
+            FirebaseFirestore.instance.collection('users').doc(uid).get()),
+      );
+      if (!mounted) return;
+      final updated = <String, String>{};
+      for (final doc in docs) {
+        if (doc.exists) {
+          final d = doc.data() ?? {};
+          updated[doc.id] = (d['profileImageUrl'] as String? ??
+              d['photoUrl'] as String? ??
+              '');
+        }
+      }
+      setState(() => _memberPhotoCache.addAll(updated));
+    } catch (_) {}
   }
 
   @override
@@ -79,6 +122,7 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
         _circle = CircleModel.fromFirestore(doc);
         _isHost = _myUid == _circle.creatorUid;
       });
+      _loadMemberPhotos();
     }
   }
 
@@ -624,7 +668,16 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                     // ── Group Avatar ──
                     Center(
                       child: GestureDetector(
-                        onTap: _isHost ? _pickGroupPhoto : null,
+                        onTap: _isHost
+                            ? _pickGroupPhoto
+                            : (_circle.profileImageUrl != null &&
+                                    _circle.profileImageUrl!.isNotEmpty
+                                ? () => showImagePreview(
+                                      context,
+                                      imageUrl: _circle.profileImageUrl,
+                                      fallbackLabel: _circle.name,
+                                    )
+                                : null),
                         child: Stack(
                           children: [
                             Container(
@@ -743,6 +796,22 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                                                     FontWeight.w600)),
                                   ),
                                 ],
+                                if (_isCreatorFemale) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE91E8C).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFE91E8C).withValues(alpha: 0.4)),
+                                    ),
+                                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Text('♀', style: TextStyle(fontSize: 10, color: Color(0xFFE91E8C))),
+                                      SizedBox(width: 4),
+                                      Text('Women Led', style: TextStyle(fontSize: 10, color: Color(0xFFE91E8C), fontWeight: FontWeight.w700)),
+                                    ]),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -846,100 +915,130 @@ class _CircleInfoScreenState extends State<CircleInfoScreen> {
                       final name = entry.value;
                       final isCreator = uid == _circle.creatorUid;
                       final isMe = uid == _myUid;
+                      final photoUrl = _memberPhotoCache[uid] ?? '';
+                      final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: TheyDiColors.card,
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: TheyDiColors.divider),
+                          border: Border.all(color: TheyDiColors.divider),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                gradient: TheyDiColors.gradientPrimary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  name.isNotEmpty
-                                      ? name[0].toUpperCase()
-                                      : '?',
-                                  style: TheyDiTextStyles.labelLarge
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: isMe
+                                ? null
+                                : () => context.push(
+                                      AppRoutes.userProfile,
+                                      extra: {'uid': uid, 'requestId': null},
+                                    ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
                               child: Row(
                                 children: [
-                                  Text(name,
-                                      style:
-                                          TheyDiTextStyles.labelMedium),
-                                  if (isMe) ...[
-                                    const SizedBox(width: 6),
-                                    Text('(You)',
-                                        style: TheyDiTextStyles.caption
-                                            .copyWith(
-                                                color: TheyDiColors
-                                                    .textMuted)),
+                                  // Avatar with real photo
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      gradient: TheyDiColors.gradientPrimary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: photoUrl.isNotEmpty
+                                          ? Image.network(
+                                              photoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  Center(
+                                                    child: Text(initial,
+                                                        style: TheyDiTextStyles
+                                                            .labelLarge
+                                                            .copyWith(
+                                                                color: Colors
+                                                                    .white)),
+                                                  ),
+                                            )
+                                          : Center(
+                                              child: Text(initial,
+                                                  style: TheyDiTextStyles
+                                                      .labelLarge
+                                                      .copyWith(
+                                                          color: Colors.white)),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Text(name,
+                                            style: TheyDiTextStyles.labelMedium),
+                                        if (isMe) ...[
+                                          const SizedBox(width: 6),
+                                          Text('(You)',
+                                              style: TheyDiTextStyles.caption
+                                                  .copyWith(
+                                                      color: TheyDiColors
+                                                          .textMuted)),
+                                        ],
+                                        const SizedBox(width: 6),
+                                        _OnlineDot(uid: uid),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isCreator
+                                          ? TheyDiColors.primary
+                                              .withValues(alpha: 0.15)
+                                          : Colors.green
+                                              .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      isCreator ? 'Admin' : 'Member',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                        color: isCreator
+                                            ? TheyDiColors.primary
+                                            : Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_isHost && !isMe && !isCreator) ...[
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () => _removeMember(uid, name),
+                                      child: Container(
+                                        width: 30,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              Colors.red.withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                            Icons.remove_circle_outline,
+                                            size: 16,
+                                            color: Colors.red),
+                                      ),
+                                    ),
                                   ],
-                                  const SizedBox(width: 6),
-                                  _OnlineDot(uid: uid),
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isCreator
-                                    ? TheyDiColors.primary
-                                        .withValues(alpha: 0.15)
-                                    : Colors.green
-                                        .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                isCreator ? 'Admin' : 'Member',
-                                style: TheyDiTextStyles.caption.copyWith(
-                                  color: isCreator
-                                      ? TheyDiColors.primary
-                                      : Colors.green,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                            if (_isHost && !isMe && !isCreator) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () =>
-                                    _removeMember(uid, name),
-                                child: Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red
-                                        .withValues(alpha: 0.12),
-                                    borderRadius:
-                                        BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                      Icons.remove_circle_outline,
-                                      size: 16,
-                                      color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
                       );
                     }),

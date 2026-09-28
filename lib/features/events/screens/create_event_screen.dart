@@ -2043,7 +2043,7 @@ Future<void> _pickTime() async {
                       const SizedBox(height: 16),
 
                       // ── Gender Balance ──
-                      const _Label('Gender Balance (Optional)'),
+                      const _Label('Gender Balance'),
                       const SizedBox(height: 8),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         _PillButton(
@@ -2585,32 +2585,43 @@ Future<void> _pickTime() async {
                                   fontSize: 11))),
 
                       const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: TheyDiColors.primary.withValues(alpha: 0.1),
-                          border: Border.all(
-                              color:
-                                  TheyDiColors.primary.withValues(alpha: 0.5)),
+                      Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        child: InkWell(
                           borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.info_outline,
-                                color: TheyDiColors.primary, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'By creating this event, you agree to the Host Guidelines & Rules. Please check the Host Dashboard for important terms regarding payouts, cancellation limits, and platform fees.',
-                                style: TheyDiTextStyles.caption.copyWith(
-                                    color: TheyDiColors.textPrimary,
-                                    fontSize: 12,
-                                    height: 2),
-                              ),
+                          onTap: () => context.push(AppRoutes.hostDashboard),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: TheyDiColors.primary.withValues(alpha: 0.1),
+                              border: Border.all(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.5)),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.info_outline,
+                                    color: TheyDiColors.primary, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'By creating this event, you agree to the Host Guidelines & Rules. Please check the Host Dashboard for important terms regarding payouts, cancellation limits, and platform fees.',
+                                    style: TheyDiTextStyles.caption.copyWith(
+                                        color: TheyDiColors.textPrimary,
+                                        fontSize: 12,
+                                        height: 2),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(Icons.chevron_right,
+                                    color: TheyDiColors.primary, size: 16),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),

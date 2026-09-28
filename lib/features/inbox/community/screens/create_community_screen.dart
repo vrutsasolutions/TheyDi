@@ -41,20 +41,29 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   String _city = '';
   final Set<String> _selectedInterests = {};
   bool _requiresApproval = false;
+  bool _isWomenOnly = false;
+  bool _isCreatorFemale = false; // only female users can enable Women Only
   bool _isCreating = false;
 
   @override
   void initState() {
     super.initState();
-    _prefillCity();
+    _prefillFromProfile();
   }
 
-  Future<void> _prefillCity() async {
+  Future<void> _prefillFromProfile() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final city = (doc.data()?['city'] as String?) ?? '';
-    if (mounted && city.isNotEmpty) setState(() => _city = city);
+    final data = doc.data() ?? {};
+    final city = (data['city'] as String?) ?? '';
+    final gender = ((data['gender'] as String?) ?? '').toLowerCase();
+    if (mounted) {
+      setState(() {
+        if (city.isNotEmpty) _city = city;
+        _isCreatorFemale = gender == 'female';
+      });
+    }
   }
 
   @override
@@ -90,6 +99,10 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       final creatorName =
           (userDoc.data()?['displayName'] as String?) ?? 'Member';
 
+      // Women Only communities automatically require approval so we can
+      // gate the request at the join-request stage.
+      final effectiveApproval = _requiresApproval || _isWomenOnly;
+
       await FirebaseFirestore.instance.collection('communities').add({
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -103,7 +116,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         'memberNames': [creatorName],
         'createdAt': Timestamp.now(),
         'coverImageUrl': null,
-        'requiresApproval': _requiresApproval,
+        'requiresApproval': effectiveApproval,
+        'isWomenOnly': _isWomenOnly,
       });
 
       if (mounted) context.pop();
@@ -327,6 +341,58 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                           ],
                         ),
                       ),
+                      // ── Women Only toggle (female creators only) ──
+                      if (_isCreatorFemale) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                TheyDiColors.card,
+                                const Color(0xFFE91E8C).withValues(alpha: 0.06),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _isWomenOnly
+                                  ? const Color(0xFFE91E8C).withValues(alpha: 0.5)
+                                  : TheyDiColors.divider,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      const Text('♀ ', style: TextStyle(fontSize: 14, color: Color(0xFFE91E8C))),
+                                      Text('Women Only',
+                                          style: TheyDiTextStyles.labelMedium
+                                              .copyWith(color: const Color(0xFFE91E8C), fontWeight: FontWeight.w700)),
+                                    ]),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Only women can join this community. Approval is required.',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                          color: TheyDiColors.textSecondary, height: 1.3),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _isWomenOnly,
+                                onChanged: (v) => setState(() => _isWomenOnly = v),
+                                activeColor: const Color(0xFFE91E8C),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,

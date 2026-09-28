@@ -455,9 +455,15 @@ class _SuggestionsSubTab extends ConsumerWidget {
           itemCount: people.length,
           itemBuilder: (context, index) {
             final p = people[index];
+            // Resolve display name from whichever field this user has
+            final resolvedName = (p['displayName'] as String? ??
+                    p['fullName'] as String? ??
+                    p['name'] as String? ??
+                    '')
+                .trim();
             return _SuggestionCard(
               uid: p['uid'] ?? '',
-              displayName: p['displayName'] ?? 'Member',
+              displayName: resolvedName.isNotEmpty ? resolvedName : 'User',
               city: p['city'] ?? '',
               photoUrl: p['profileImageUrl'] ?? p['photoUrl'] ?? '',
             )
@@ -529,7 +535,6 @@ class _SuggestionCardState extends State<_SuggestionCard> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(16),
@@ -542,58 +547,69 @@ class _SuggestionCardState extends State<_SuggestionCard> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              gradient: TheyDiColors.gradientPrimary,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: widget.photoUrl.isNotEmpty
-                  ? Image.network(
-                      widget.photoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Text(initial,
-                            style: TheyDiTextStyles.labelLarge
-                                .copyWith(color: Colors.white)),
-                      ),
-                    )
-                  : Center(
-                      child: Text(initial,
-                          style: TheyDiTextStyles.labelLarge
-                              .copyWith(color: Colors.white)),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: widget.uid.isNotEmpty
+              ? () => context.push(AppRoutes.userProfile,
+                  extra: {'uid': widget.uid, 'requestId': null})
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
               children: [
-                Text(widget.displayName,
-                    style: TheyDiTextStyles.labelLarge
-                        .copyWith(letterSpacing: -0.1)),
-                if (widget.city.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Row(
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: TheyDiColors.gradientPrimary,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: widget.photoUrl.isNotEmpty
+                        ? Image.network(
+                            widget.photoUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(initial,
+                                  style: TheyDiTextStyles.labelLarge
+                                      .copyWith(color: Colors.white)),
+                            ),
+                          )
+                        : Center(
+                            child: Text(initial,
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(color: Colors.white)),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.location_on_outlined,
-                          size: 11, color: TheyDiColors.textMuted),
-                      const SizedBox(width: 3),
-                      Text(widget.city, style: TheyDiTextStyles.caption),
+                      Text(widget.displayName,
+                          style: TheyDiTextStyles.labelLarge
+                              .copyWith(letterSpacing: -0.1)),
+                      if (widget.city.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 11, color: TheyDiColors.textMuted),
+                            const SizedBox(width: 3),
+                            Text(widget.city, style: TheyDiTextStyles.caption),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
-                ],
-              ],
-            ),
-          ),
-          PressableScale(
-            onTap: (_busy || _sent) ? () {} : _connect,
+                ),
+                PressableScale(
+                  onTap: (_busy || _sent) ? () {} : _connect,
             child: Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -631,6 +647,9 @@ class _SuggestionCardState extends State<_SuggestionCard> {
             ),
           ),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }
@@ -703,6 +722,42 @@ class _RequestReceivedCard extends StatefulWidget {
 
 class _RequestReceivedCardState extends State<_RequestReceivedCard> {
   bool _processing = false;
+  String _resolvedName = '';
+  String _resolvedPhoto = '';
+  bool _profileLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedName = widget.fromName;
+    _fetchSenderProfile();
+  }
+
+  Future<void> _fetchSenderProfile() async {
+    if (widget.fromUid.isEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.fromUid)
+          .get();
+      if (!mounted) return;
+      final d = doc.data() ?? {};
+      final name = (d['displayName'] as String? ??
+              d['fullName'] as String? ??
+              d['name'] as String? ??
+              widget.fromName)
+          .trim();
+      final photo =
+          d['profileImageUrl'] as String? ?? d['photoUrl'] as String? ?? '';
+      setState(() {
+        _resolvedName = name.isNotEmpty ? name : widget.fromName;
+        _resolvedPhoto = photo;
+        _profileLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _profileLoaded = true);
+    }
+  }
 
   Future<void> _accept() async {
     setState(() => _processing = true);
@@ -710,7 +765,7 @@ class _RequestReceivedCardState extends State<_RequestReceivedCard> {
       await FriendsService.acceptFriendRequest(
         requestId: widget.requestId,
         fromUid: widget.fromUid,
-        fromName: widget.fromName,
+        fromName: _resolvedName,
       );
     } finally {
       if (mounted) setState(() => _processing = false);
@@ -731,17 +786,15 @@ class _RequestReceivedCardState extends State<_RequestReceivedCard> {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        widget.fromName.isNotEmpty ? widget.fromName[0].toUpperCase() : '?';
+    final name = _resolvedName;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: TheyDiColors.primary.withValues(alpha: 0.25)),
+        border: Border.all(color: TheyDiColors.primary.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -753,80 +806,110 @@ class _RequestReceivedCardState extends State<_RequestReceivedCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: TheyDiColors.gradientPrimary,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Center(
-                  child: Text(initial,
-                      style: TheyDiTextStyles.labelLarge
-                          .copyWith(color: Colors.white)),
+          Material(
+            color: Colors.transparent,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              onTap: widget.fromUid.isNotEmpty
+                  ? () => context.push(AppRoutes.userProfile,
+                      extra: {'uid': widget.fromUid, 'requestId': null})
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: _resolvedPhoto.isNotEmpty
+                            ? Image.network(
+                                _resolvedPhoto,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(initial,
+                                      style: TheyDiTextStyles.labelLarge
+                                          .copyWith(color: Colors.white)),
+                                ),
+                              )
+                            : Center(
+                                child: Text(initial,
+                                    style: TheyDiTextStyles.labelLarge
+                                        .copyWith(color: Colors.white)),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(name, style: TheyDiTextStyles.labelLarge),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        size: 16, color: TheyDiColors.textMuted),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child:
-                    Text(widget.fromName, style: TheyDiTextStyles.labelLarge),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: PressableScale(
-                  onTap: _processing ? () {} : _decline,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: TheyDiColors.surface,
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: TheyDiColors.divider),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: PressableScale(
+                    onTap: _processing ? () {} : _decline,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: TheyDiColors.surface,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: TheyDiColors.divider),
+                      ),
+                      child: Text('Decline',
+                          style: TheyDiTextStyles.labelMedium
+                              .copyWith(color: TheyDiColors.textSecondary)),
                     ),
-                    child: Text('Decline',
-                        style: TheyDiTextStyles.labelMedium
-                            .copyWith(color: TheyDiColors.textSecondary)),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: PressableScale(
-                  onTap: _processing ? () {} : _accept,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      gradient: TheyDiColors.gradientPrimary,
-                      borderRadius: BorderRadius.circular(11),
-                      boxShadow: [
-                        BoxShadow(
-                          color: TheyDiColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: PressableScale(
+                    onTap: _processing ? () {} : _accept,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: TheyDiColors.gradientPrimary,
+                        borderRadius: BorderRadius.circular(11),
+                        boxShadow: [
+                          BoxShadow(
+                            color: TheyDiColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: _processing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text('Accept',
+                              style: TheyDiTextStyles.labelMedium
+                                  .copyWith(color: Colors.white)),
                     ),
-                    child: _processing
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : Text('Accept',
-                            style: TheyDiTextStyles.labelMedium
-                                .copyWith(color: Colors.white)),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -899,6 +982,36 @@ class _RequestSentCard extends StatefulWidget {
 
 class _RequestSentCardState extends State<_RequestSentCard> {
   bool _busy = false;
+  String _resolvedName = '';
+  String _resolvedPhoto = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedName = widget.toName;
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    if (widget.toUid.isEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users').doc(widget.toUid).get();
+      if (!mounted) return;
+      final d = doc.data() ?? {};
+      final name = (d['displayName'] as String? ??
+              d['fullName'] as String? ??
+              d['name'] as String? ??
+              widget.toName)
+          .trim();
+      final photo =
+          d['profileImageUrl'] as String? ?? d['photoUrl'] as String? ?? '';
+      setState(() {
+        _resolvedName = name.isNotEmpty ? name : widget.toName;
+        _resolvedPhoto = photo;
+      });
+    } catch (_) {}
+  }
 
   Future<void> _cancel() async {
     if (_busy) return;
@@ -912,12 +1025,11 @@ class _RequestSentCardState extends State<_RequestSentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        widget.toName.isNotEmpty ? widget.toName[0].toUpperCase() : '?';
+    final name = _resolvedName;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(16),
@@ -930,55 +1042,83 @@ class _RequestSentCardState extends State<_RequestSentCard> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: TheyDiColors.gradientPrimary,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(initial,
-                  style: TheyDiTextStyles.labelLarge
-                      .copyWith(color: Colors.white)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: widget.toUid.isNotEmpty
+              ? () => context.push(AppRoutes.userProfile,
+                  extra: {'uid': widget.toUid, 'requestId': null})
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
               children: [
-                Text(widget.toName, style: TheyDiTextStyles.labelLarge),
-                const SizedBox(height: 2),
-                Text('Waiting for response',
-                    style: TheyDiTextStyles.caption
-                        .copyWith(color: TheyDiColors.textSecondary)),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: TheyDiColors.gradientPrimary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: _resolvedPhoto.isNotEmpty
+                        ? Image.network(
+                            _resolvedPhoto,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(initial,
+                                  style: TheyDiTextStyles.labelLarge
+                                      .copyWith(color: Colors.white)),
+                            ),
+                          )
+                        : Center(
+                            child: Text(initial,
+                                style: TheyDiTextStyles.labelLarge
+                                    .copyWith(color: Colors.white)),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: TheyDiTextStyles.labelLarge),
+                      const SizedBox(height: 2),
+                      Text('Waiting for response',
+                          style: TheyDiTextStyles.caption
+                              .copyWith(color: TheyDiColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                PressableScale(
+                  onTap: _busy ? () {} : _cancel,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: TheyDiColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: TheyDiColors.divider),
+                    ),
+                    child: _busy
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text('Cancel',
+                            style: TheyDiTextStyles.labelMedium.copyWith(
+                                color: TheyDiColors.textSecondary,
+                                fontSize: 12)),
+                  ),
+                ),
               ],
             ),
           ),
-          PressableScale(
-            onTap: _busy ? () {} : _cancel,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: TheyDiColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: TheyDiColors.divider),
-              ),
-              child: _busy
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text('Cancel',
-                      style: TheyDiTextStyles.labelMedium.copyWith(
-                          color: TheyDiColors.textSecondary, fontSize: 12)),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

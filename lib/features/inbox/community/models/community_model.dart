@@ -27,6 +27,10 @@ class CommunityModel {
   final String city;
   final List<String> interests;
 
+  // When true only female-identifying users may join.
+  // Set at creation time by a female creator; enforced in backend logic.
+  final bool isWomenOnly;
+
   const CommunityModel({
     required this.id,
     required this.name,
@@ -46,6 +50,7 @@ class CommunityModel {
     this.vibe = 'Social',
     this.city = '',
     this.interests = const [],
+    this.isWomenOnly = false,
   });
 
   factory CommunityModel.fromFirestore(DocumentSnapshot doc) {
@@ -73,6 +78,7 @@ class CommunityModel {
       vibe: data['vibe'] ?? data['type'] ?? 'Social',
       city: data['city'] ?? '',
       interests: List<String>.from(data['interests'] ?? []),
+      isWomenOnly: data['isWomenOnly'] ?? false,
     );
   }
 
@@ -95,6 +101,7 @@ class CommunityModel {
       'type': type,
       'city': city,
       'interests': interests,
+      'isWomenOnly': isWomenOnly,
     };
   }
 

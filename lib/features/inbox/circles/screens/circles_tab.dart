@@ -92,12 +92,41 @@ class CirclesTab extends ConsumerWidget {
   }
 }
 
-class _CircleCard extends StatelessWidget {
+const _kCirclePink = Color(0xFFE91E8C);
+
+class _CircleCard extends StatefulWidget {
   final CircleModel circle;
   const _CircleCard({required this.circle});
 
   @override
+  State<_CircleCard> createState() => _CircleCardState();
+}
+
+class _CircleCardState extends State<_CircleCard> {
+  bool _isWomenLed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCreatorGender();
+  }
+
+  Future<void> _fetchCreatorGender() async {
+    if (widget.circle.creatorUid.isEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.circle.creatorUid)
+          .get();
+      if (!mounted) return;
+      final gender = (doc.data()?['gender'] as String? ?? '').toLowerCase();
+      if (gender == 'female') setState(() => _isWomenLed = true);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final circle = widget.circle;
     return PressableScale(
       onTap: () => context.push(AppRoutes.circleChat, extra: circle),
       child: Container(
@@ -106,13 +135,13 @@ class _CircleCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TheyDiColors.divider),
+          border: _isWomenLed
+              ? Border.all(color: _kCirclePink, width: 1.5)
+              : Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
+            _isWomenLed
+                ? BoxShadow(color: _kCirclePink.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 3))
+                : BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3)),
           ],
         ),
         child: Row(
@@ -121,7 +150,9 @@ class _CircleCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                gradient: TheyDiColors.gradientPrimary,
+                gradient: _isWomenLed
+                    ? const LinearGradient(colors: [Color(0xFFFF6BAE), Color(0xFFE91E8C)])
+                    : TheyDiColors.gradientPrimary,
                 borderRadius: BorderRadius.circular(13),
               ),
               child: ClipRRect(
@@ -148,10 +179,30 @@ class _CircleCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(circle.name,
-                      style: TheyDiTextStyles.labelLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Row(children: [
+                    Flexible(
+                      child: Text(circle.name,
+                          style: TheyDiTextStyles.labelLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (_isWomenLed) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _kCirclePink.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _kCirclePink.withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('♀', style: TextStyle(fontSize: 9, color: _kCirclePink)),
+                          SizedBox(width: 3),
+                          Text('Women Led', style: TextStyle(fontSize: 9, color: _kCirclePink, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ],
+                  ]),
                   const SizedBox(height: 2),
                   Text(
                     (circle.lastMessage?.isNotEmpty ?? false)

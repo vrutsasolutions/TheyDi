@@ -1191,12 +1191,40 @@ class _VerticalSection extends StatelessWidget {
 }
 
 // ── Horizontal Event Card (Trending / House Parties sections) ──
-class _HorizontalEventCard extends StatelessWidget {
+const _kFemaleHostPink = Color.fromARGB(255, 255, 29, 162);
+
+class _HorizontalEventCard extends StatefulWidget {
   final EventModel event;
   const _HorizontalEventCard({required this.event});
 
   @override
+  State<_HorizontalEventCard> createState() => _HorizontalEventCardState();
+}
+
+class _HorizontalEventCardState extends State<_HorizontalEventCard> {
+  bool _isFemaleHost = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHostGender();
+  }
+
+  Future<void> _fetchHostGender() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.event.creatorUid)
+          .get();
+      if (!mounted) return;
+      final gender = (doc.data()?['gender'] as String? ?? '').toLowerCase();
+      if (gender == 'female') setState(() => _isFemaleHost = true);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final event = widget.event;
     final dateStr = DateFormat('MMM d · h:mm a').format(event.dateTime);
 
     return _PressableScale(
@@ -1206,13 +1234,13 @@ class _HorizontalEventCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: TheyDiColors.divider),
+          border: _isFemaleHost
+              ? Border.all(color: _kFemaleHostPink, width: 2)
+              : Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
+            _isFemaleHost
+                ? BoxShadow(color: _kFemaleHostPink.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 5))
+                : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 14, offset: const Offset(0, 5)),
           ],
         ),
         child: Column(
@@ -1283,6 +1311,23 @@ class _HorizontalEventCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (_isFemaleHost)
+                  Positioned(
+                    bottom: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _kFemaleHostPink.withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('♀', style: TextStyle(fontSize: 9, color: Colors.white)),
+                        SizedBox(width: 2),
+                        Text('Women-led', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  ),
               ],
             ),
 
@@ -1400,12 +1445,38 @@ class _HorizontalEventCard extends StatelessWidget {
 }
 
 // ── Explore Event Card (compact list — Most Popular, Newly Added, All Events) ──
-class _ExploreEventCard extends StatelessWidget {
+class _ExploreEventCard extends StatefulWidget {
   final EventModel event;
   const _ExploreEventCard({required this.event});
 
   @override
+  State<_ExploreEventCard> createState() => _ExploreEventCardState();
+}
+
+class _ExploreEventCardState extends State<_ExploreEventCard> {
+  bool _isFemaleHost = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHostGender();
+  }
+
+  Future<void> _fetchHostGender() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.event.creatorUid)
+          .get();
+      if (!mounted) return;
+      final gender = (doc.data()?['gender'] as String? ?? '').toLowerCase();
+      if (gender == 'female') setState(() => _isFemaleHost = true);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final event = widget.event;
     final dateStr = DateFormat('MMM d · h:mm a').format(event.dateTime);
 
     return _PressableScale(
@@ -1416,13 +1487,13 @@ class _ExploreEventCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TheyDiColors.divider),
+          border: _isFemaleHost
+              ? Border.all(color: _kFemaleHostPink, width: 2)
+              : Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+            _isFemaleHost
+                ? BoxShadow(color: _kFemaleHostPink.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))
+                : BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -1484,6 +1555,24 @@ class _ExploreEventCard extends StatelessWidget {
                           .copyWith(letterSpacing: -0.1),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
+
+                  // Women-led badge
+                  if (_isFemaleHost) ...[
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _kFemaleHostPink.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _kFemaleHostPink.withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('♀', style: TextStyle(fontSize: 9, color: _kFemaleHostPink)),
+                        SizedBox(width: 3),
+                        Text('Women-led', style: TextStyle(fontSize: 9, color: _kFemaleHostPink, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  ],
 
                   // Description snippet
                   if (event.description.isNotEmpty) ...[
