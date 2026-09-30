@@ -1932,3 +1932,591 @@ exports.sendPushOnNotification = onDocumentCreated(
     }
   }
 );
+// ═══════════════════════════════════════════════════════════════════════════
+// PASTE THIS ENTIRE BLOCK AT THE VERY BOTTOM OF functions/index.js
+// (after the last line, which ends the sendPushOnNotification export)
+// Then run: firebase deploy --only functions:getReferralAdmin
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Referral system constants ────────────────────────────────────────────
+const REFERRAL_MILESTONE_SIZE = 5;
+const NORMAL_MAX_REWARD       = 25;   // ₹ cap per 5-normal milestone
+const NORMAL_REWARD_RATE_PCT  = 5;    // 5% of referred booking amounts
+const WOMEN_MAX_REWARD        = 50;   // ₹ cap per 5-women milestone
+const WOMEN_REWARD_RATE_PCT   = 10;   // 10% of referred booking amounts
+
+// Helper: calculate proportional reward capped at milestone max
+function _calcReward(bookingAmounts, type) {
+  const sum  = bookingAmounts.reduce((a, b) => a + (Number(b) || 0), 0);
+  const rate = type === "women" ? WOMEN_REWARD_RATE_PCT  : NORMAL_REWARD_RATE_PCT;
+  const cap  = type === "women" ? WOMEN_MAX_REWARD        : NORMAL_MAX_REWARD;
+  return Math.max(0, Number(Math.min(cap, (sum * rate) / 100).toFixed(2)));
+}
+
+// Helper: build summary — MUST be defined before getReferralAdmin
+function _buildAdminSummary(records) {
+  return {
+    total:           records.length,
+    eligible:        records.filter(function(r) { return r.status === "eligible"; }).length,
+    pending:         records.filter(function(r) { return r.status === "attributed"; }).length,
+    women:           records.filter(function(r) { return r.gender === "female"; }).length,
+    rewarded:        records.filter(function(r) { return r.rewardStatus === "rewarded"; }).length,
+    milestonesCount: (function() {
+      var keys = records.filter(function(r) { return r.milestoneKey; }).map(function(r) { return r.milestoneKey; });
+      return new Set(keys).size;
+    })(),
+  };
+}
+
+// ── Process milestones for a referrer ────────────────────────────────────
+async function _processMilestones(referrerUid) {
+  var statsRef = db.collection("users").doc(referrerUid)
+    .collection("referralStats").doc("stats");
+
+  // Fetch OUTSIDE transaction (transactions cannot run collection queries)
+  var eligibleSnap;
+  try {
+    eligibleSnap = await db.collection("referrals")
+      .where("referrerUid", "==", referrerUid)
+      .where("status", "==", "eligible")
+      .get();
+  } catch (e) {
+    logger.error("[Referral] eligibleSnap fetch failed:", e.message);
+    throw e;
+  }
+
+  var allEligible = eligibleSnap.docs.map(function(d) {
+    return Object.assign({ id: d.id }, d.data());
+  });
+  var totalEligible = allEligible.length;
+  var womenEligible = allEligible.filter(function(r) {
+    return (r.inviteeGender || "").toLowerCase() === "female";
+  }).length;
+
+  // Sort in memory — no Firestore composite index required
+  var allSorted = allEligible.slice().sort(function(a, b) {
+    var aMs = (a.eligibleAt && a.eligibleAt.toMillis) ? a.eligibleAt.toMillis() : 0;
+    var bMs = (b.eligibleAt && b.eligibleAt.toMillis) ? b.eligibleAt.toMillis() : 0;
+    return aMs - bMs;
+  });
+  var womenSorted = allSorted.filter(function(r) {
+    return (r.inviteeGender || "").toLowerCase() === "female";
+  });
+
+  var normalMilestonesEarned = Math.floor(totalEligible / REFERRAL_MILESTONE_SIZE);
+  var womenMilestonesEarned  = Math.floor(womenEligible  / REFERRAL_MILESTONE_SIZE);
+
+  return db.runTransaction(async function(tx) {
+    var snap  = await tx.get(statsRef);
+    var stats = snap.exists ? snap.data() : {
+      totalEligible: 0, womenEligible: 0,
+      creditBalance: 0, totalCreditEarned: 0, rewardedMilestones: [],
+    };
+
+    var rewardedMilestones = (stats.rewardedMilestones || []).slice();
+    var creditBalance      = Number(stats.creditBalance     || 0);
+    var totalCreditEarned  = Number(stats.totalCreditEarned || 0);
+    var newMilestones      = [];
+    var notifications      = [];
+
+    // Normal milestones
+    for (var n = 1; n <= normalMilestonesEarned; n++) {
+      var key = "normal_" + n;
+      if (rewardedMilestones.indexOf(key) >= 0) continue;
+      var group   = allSorted.slice((n - 1) * REFERRAL_MILESTONE_SIZE, n * REFERRAL_MILESTONE_SIZE);
+      var amounts = group.map(function(r) { return Number(r.firstBookingAmount) || 0; });
+      var reward  = _calcReward(amounts, "normal");
+      var refUids = group.map(function(r) { return r.referredUid || r.id || ""; });
+
+      creditBalance     += reward;
+      totalCreditEarned += reward;
+      rewardedMilestones.push(key);
+      newMilestones.push({ key: key, reward: reward });
+
+      var ledgerRef = db.collection("creditTransactions").doc();
+      tx.set(ledgerRef, {
+        uid: referrerUid, type: "referral_reward",
+        amount: Number(reward.toFixed(2)),
+        milestoneKey: key, relatedReferralUids: refUids,
+        bookingAmounts: amounts,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      group.forEach(function(r) {
+        var rId = r.referredUid || r.id;
+        if (!rId) return;
+        tx.update(db.collection("referrals").doc(rId), {
+          milestoneKey: key, rewardStatus: "rewarded",
+          calculatedReward: Number((reward / REFERRAL_MILESTONE_SIZE).toFixed(2)),
+          rewardedAt: FieldValue.serverTimestamp(),
+        });
+      });
+
+      notifications.push({
+        title: "🎉 Event Credit earned!",
+        body: reward > 0
+          ? (n * REFERRAL_MILESTONE_SIZE) + " referrals! ₹" + reward.toFixed(2) + " Event Credit added."
+          : (n * REFERRAL_MILESTONE_SIZE) + " referrals reached!",
+        type: "referral_reward", creditAmount: reward, milestoneKey: key,
+      });
+    }
+
+    // Women milestones
+    for (var wn = 1; wn <= womenMilestonesEarned; wn++) {
+      var wkey = "women_" + wn;
+      if (rewardedMilestones.indexOf(wkey) >= 0) continue;
+      var wgroup   = womenSorted.slice((wn - 1) * REFERRAL_MILESTONE_SIZE, wn * REFERRAL_MILESTONE_SIZE);
+      var wamounts = wgroup.map(function(r) { return Number(r.firstBookingAmount) || 0; });
+      var wreward  = _calcReward(wamounts, "women");
+      var wrefUids = wgroup.map(function(r) { return r.referredUid || r.id || ""; });
+
+      creditBalance     += wreward;
+      totalCreditEarned += wreward;
+      rewardedMilestones.push(wkey);
+      newMilestones.push({ key: wkey, reward: wreward });
+
+      var wLedgerRef = db.collection("creditTransactions").doc();
+      tx.set(wLedgerRef, {
+        uid: referrerUid, type: "referral_reward",
+        amount: Number(wreward.toFixed(2)),
+        milestoneKey: wkey, relatedReferralUids: wrefUids,
+        bookingAmounts: wamounts,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      wgroup.forEach(function(r) {
+        var rId = r.referredUid || r.id;
+        if (!rId) return;
+        tx.update(db.collection("referrals").doc(rId), {
+          milestoneKey: wkey, rewardStatus: "rewarded",
+          calculatedReward: Number((wreward / REFERRAL_MILESTONE_SIZE).toFixed(2)),
+          rewardedAt: FieldValue.serverTimestamp(),
+        });
+      });
+
+      notifications.push({
+        title: "🌸 Women Referral Bonus!",
+        body: wreward > 0
+          ? (wn * REFERRAL_MILESTONE_SIZE) + " women referred! ₹" + wreward.toFixed(2) + " Event Credit added."
+          : (wn * REFERRAL_MILESTONE_SIZE) + " women referrals reached!",
+        type: "referral_reward", creditAmount: wreward, milestoneKey: wkey,
+      });
+    }
+
+    tx.set(statsRef, {
+      totalEligible: totalEligible,
+      womenEligible: womenEligible,
+      creditBalance:     Number(creditBalance.toFixed(2)),
+      totalCreditEarned: Number(totalCreditEarned.toFixed(2)),
+      rewardedMilestones: rewardedMilestones,
+      lastUpdated: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { newMilestones: newMilestones, notifications: notifications };
+  });
+}
+
+// ── onBookingCreated — marks referral eligible on first confirmed booking ─
+exports.onBookingCreated = onDocumentCreated(
+  { document: "bookings/{bookingId}", region: REGION },
+  async function(event) {
+    var booking = event.data && event.data.data();
+    if (!booking || booking.status !== "confirmed") return;
+    if (booking.paymentMethod === "event_credit") return;
+
+    var inviteeUid   = booking.userId;
+    var bookingId    = event.params.bookingId;
+    if (!inviteeUid) return;
+
+    var referralRef  = db.collection("referrals").doc(inviteeUid);
+    var referralSnap = await referralRef.get();
+    if (!referralSnap.exists) return;
+
+    var referral = referralSnap.data();
+    if (referral.status === "eligible") return;
+    var referrerUid = referral.referrerUid;
+    if (!referrerUid || referrerUid === inviteeUid) return;
+
+    try { await admin.auth().getUser(inviteeUid); }
+    catch (e) { logger.warn("[Referral] Invitee deleted: " + inviteeUid); return; }
+
+    var inviteeDoc = await db.collection("users").doc(inviteeUid).get();
+    if (!inviteeDoc.exists) return;
+    var gender        = (inviteeDoc.data().gender || "").toLowerCase();
+    var bookingAmount = Number(booking.totalAmount || booking.amount || 0);
+
+    var alreadyEligible = false;
+    await db.runTransaction(async function(tx) {
+      var rSnap = await tx.get(referralRef);
+      if (!rSnap.exists || rSnap.data().status === "eligible") {
+        alreadyEligible = true;
+        return;
+      }
+      tx.update(referralRef, {
+        status: "eligible",
+        eligibleAt: FieldValue.serverTimestamp(),
+        inviteeGender: gender || "unknown",
+        firstBookingId: bookingId,
+        firstBookingAmount: bookingAmount,
+        rewardStatus: "pending",
+      });
+    });
+    if (alreadyEligible) return;
+
+    try {
+      var result = await _processMilestones(referrerUid);
+      var notifications = result.notifications;
+      var newMilestones = result.newMilestones;
+      for (var i = 0; i < notifications.length; i++) {
+        await db.collection("users").doc(referrerUid)
+          .collection("notifications").add(
+            Object.assign({}, notifications[i], {
+              isRead: false,
+              createdAt: FieldValue.serverTimestamp(),
+            })
+          );
+      }
+      if (newMilestones.length > 0) {
+        logger.info("[Referral] Milestones for " + referrerUid + ": " +
+          newMilestones.map(function(m) { return m.key + "=₹" + m.reward; }).join(", "));
+      }
+    } catch (e) {
+      logger.error("[Referral] Milestone error for " + referrerUid + ":", e);
+    }
+  }
+);
+
+// ── getReferralStats — callable, user's own referral dashboard ────────────
+exports.getReferralStats = onCall({ region: REGION }, async function(request) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
+  var uid = request.auth.uid;
+
+  var results = await Promise.all([
+    db.collection("users").doc(uid).collection("referralStats").doc("stats").get(),
+    db.collection("referrals").where("referrerUid", "==", uid).limit(50).get(),
+    db.collection("users").doc(uid).get(),
+    db.collection("creditTransactions").where("uid", "==", uid).limit(20).get(),
+  ]);
+  var statsSnap = results[0];
+  var referralsSnap = results[1];
+  var userSnap = results[2];
+  var creditTxSnap = results[3];
+
+  var stats = statsSnap.exists ? statsSnap.data() : {
+    totalEligible: 0, womenEligible: 0, creditBalance: 0,
+    totalCreditEarned: 0, rewardedMilestones: [],
+  };
+
+  var sortedRefs = referralsSnap.docs.slice().sort(function(a, b) {
+    var aMs = (a.data().attributedAt && a.data().attributedAt.toMillis) ? a.data().attributedAt.toMillis() : 0;
+    var bMs = (b.data().attributedAt && b.data().attributedAt.toMillis) ? b.data().attributedAt.toMillis() : 0;
+    return bMs - aMs;
+  });
+
+  var history = [];
+  for (var i = 0; i < sortedRefs.length; i++) {
+    var doc = sortedRefs[i];
+    var r   = doc.data();
+    var inviteeName  = "Member";
+    var inviteePhoto = "";
+    try {
+      var inv = await db.collection("users").doc(r.referredUid).get();
+      if (inv.exists) {
+        var d = inv.data();
+        inviteeName  = d.displayName || d.fullName || d.name || "Member";
+        inviteePhoto = d.profileImageUrl || d.photoUrl || "";
+      }
+    } catch (e2) { /* best-effort */ }
+    history.push({
+      referredUid:        r.referredUid || "",
+      inviteeName:        inviteeName,
+      inviteePhoto:       inviteePhoto,
+      status:             r.status || "attributed",
+      gender:             r.inviteeGender || "unknown",
+      attributedAt:       (r.attributedAt && r.attributedAt.toMillis) ? r.attributedAt.toMillis()  : 0,
+      eligibleAt:         (r.eligibleAt   && r.eligibleAt.toMillis)   ? r.eligibleAt.toMillis()    : null,
+      firstBookingAmount: r.firstBookingAmount || null,
+      calculatedReward:   r.calculatedReward   || null,
+      milestoneKey:       r.milestoneKey       || null,
+      rewardStatus:       r.rewardStatus       || "pending",
+    });
+  }
+
+  var sortedTx = creditTxSnap.docs.slice().sort(function(a, b) {
+    var aMs = (a.data().createdAt && a.data().createdAt.toMillis) ? a.data().createdAt.toMillis() : 0;
+    var bMs = (b.data().createdAt && b.data().createdAt.toMillis) ? b.data().createdAt.toMillis() : 0;
+    return bMs - aMs;
+  });
+  var creditHistory = sortedTx.map(function(txDoc) {
+    var t = txDoc.data();
+    return {
+      txId:        txDoc.id,
+      type:        t.type,
+      amount:      t.amount || 0,
+      milestoneKey: t.milestoneKey || null,
+      bookingId:   t.bookingId || null,
+      createdAt:   (t.createdAt && t.createdAt.toMillis) ? t.createdAt.toMillis() : 0,
+    };
+  });
+
+  var totalEligible  = stats.totalEligible || 0;
+  var womenEligible  = stats.womenEligible  || 0;
+  var normalProgress = totalEligible % REFERRAL_MILESTONE_SIZE;
+  var womenProgress  = womenEligible  % REFERRAL_MILESTONE_SIZE;
+
+  return {
+    totalEligible:  totalEligible,
+    womenEligible:  womenEligible,
+    creditBalance:     Number((stats.creditBalance     || 0).toFixed(2)),
+    totalCreditEarned: Number((stats.totalCreditEarned || 0).toFixed(2)),
+    rewardedMilestones: stats.rewardedMilestones || [],
+    referralCode: userSnap.exists ? (userSnap.data().referralCode || "") : "",
+    history:       history,
+    creditHistory: creditHistory,
+    normalProgress:        normalProgress,
+    womenProgress:         womenProgress,
+    normalRemainingToNext: REFERRAL_MILESTONE_SIZE - normalProgress,
+    womenRemainingToNext:  REFERRAL_MILESTONE_SIZE - womenProgress,
+    normalMilestoneSize: REFERRAL_MILESTONE_SIZE,
+    normalMaxReward:     NORMAL_MAX_REWARD,
+    womenMilestoneSize:  REFERRAL_MILESTONE_SIZE,
+    womenMaxReward:      WOMEN_MAX_REWARD,
+  };
+});
+
+// ── getPaymentQuoteWithCredit ─────────────────────────────────────────────
+exports.getPaymentQuoteWithCredit = onCall({ region: REGION, cpu: 0.25 }, async function(request) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
+  var uid     = request.auth.uid;
+  var eventId = (request.data || {}).eventId;
+  if (!eventId) throw new HttpsError("invalid-argument", "eventId is required.");
+
+  var q = await quoteAttendeeFee(uid, eventId, false);
+  var statsSnap = await db.collection("users").doc(uid)
+    .collection("referralStats").doc("stats").get();
+  var creditBalance       = statsSnap.exists ? (statsSnap.data().creditBalance || 0) : 0;
+  var maxCreditApplicable = Math.min(creditBalance, q.total);
+
+  return {
+    eventPrice: q.eventPrice, listedFee: q.listedFee,
+    platformFee: q.platformFee, total: q.total,
+    waived: q.waived, ratePercent: q.ratePercent,
+    creditBalance:        creditBalance,
+    maxCreditApplicable:  maxCreditApplicable,
+    totalAfterCredit:     Math.max(0, q.total - maxCreditApplicable),
+  };
+});
+
+// ── createOrderWithCredit ─────────────────────────────────────────────────
+exports.createOrderWithCredit = onCall(
+  { region: REGION, cpu: 0.25, secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET_KEY"] },
+  async function(request) {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
+    var uid       = request.auth.uid;
+    var data      = request.data || {};
+    var eventId   = data.eventId;
+    var applyCredit = data.applyCredit;
+    if (!eventId) throw new HttpsError("invalid-argument", "eventId is required.");
+
+    var quote    = await quoteAttendeeFee(uid, eventId, true);
+    var statsRef = db.collection("users").doc(uid)
+      .collection("referralStats").doc("stats");
+
+    var creditDeducted = 0;
+    var remainingTotal = quote.total;
+
+    if (applyCredit) {
+      await db.runTransaction(async function(tx) {
+        var snap    = await tx.get(statsRef);
+        var balance = snap.exists ? (snap.data().creditBalance || 0) : 0;
+        creditDeducted = Math.min(balance, quote.total);
+        remainingTotal = Math.max(0, quote.total - creditDeducted);
+        if (creditDeducted > 0) {
+          tx.set(statsRef, {
+            creditBalance: balance - creditDeducted,
+            lastUpdated: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      });
+    }
+
+    async function writeCreditBooking() {
+      var eventSnap = await db.collection("events").doc(eventId).get();
+      if (!eventSnap.exists) throw new HttpsError("not-found", "Event not found.");
+      var ev      = eventSnap.data();
+      var userDoc = await db.collection("users").doc(uid).get();
+      var userName = userDoc.exists
+        ? (userDoc.data().displayName || userDoc.data().fullName || "User") : "User";
+      var bookingRef = db.collection("bookings").doc();
+      var batch      = db.batch();
+      batch.set(bookingRef, {
+        eventId: eventId, eventTitle: ev.title || "", userId: uid, userName: userName,
+        hostUid: ev.creatorUid || "", amount: quote.eventPrice,
+        platformFee: quote.platformFee, totalAmount: quote.total,
+        creditApplied: creditDeducted, status: "confirmed",
+        paymentMethod: "event_credit", transactionId: "credit_" + bookingRef.id,
+        createdAt: FieldValue.serverTimestamp(), confirmedAt: FieldValue.serverTimestamp(),
+      });
+      batch.update(db.collection("events").doc(eventId), { attendeeUids: FieldValue.arrayUnion(uid) });
+      batch.set(db.collection("users").doc(uid), { eventsAttended: FieldValue.increment(1) }, { merge: true });
+      await batch.commit();
+      await db.collection("creditTransactions").add({
+        uid: uid, type: "credit_used", amount: -creditDeducted,
+        eventId: eventId, bookingId: bookingRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return bookingRef.id;
+    }
+
+    if (remainingTotal === 0 && creditDeducted > 0) {
+      var bId = await writeCreditBooking();
+      return { fullyPaidByCredit: true, creditDeducted: creditDeducted, bookingId: bId };
+    }
+
+    var razorpay = getRazorpay();
+    if (!razorpay) {
+      if (creditDeducted > 0) {
+        await statsRef.set({ creditBalance: FieldValue.increment(creditDeducted),
+          lastUpdated: FieldValue.serverTimestamp() }, { merge: true });
+      }
+      throw new HttpsError("internal", "Razorpay is not configured.");
+    }
+
+    var amountPaise = Math.round(remainingTotal * 100);
+    if (amountPaise < 100 && creditDeducted > 0) {
+      var bId2 = await writeCreditBooking();
+      return { fullyPaidByCredit: true, creditDeducted: creditDeducted, bookingId: bId2 };
+    }
+    if (amountPaise < 100) throw new HttpsError("invalid-argument", "Amount too small.");
+
+    try {
+      var order = await razorpay.orders.create({
+        amount: amountPaise, currency: "INR", receipt: "cr_" + Date.now(),
+        notes: {
+          eventId: eventId, userId: uid, hostUid: quote.hostUid,
+          eventPrice: String(quote.eventPrice), platformFee: String(quote.platformFee),
+          totalAmount: String(quote.total), creditApplied: String(creditDeducted),
+          waiverApplied: String(quote.waived), fromApproval: "false",
+        },
+      });
+      if (creditDeducted > 0) {
+        await db.collection("creditTransactions").add({
+          uid: uid, type: "credit_used", amount: -creditDeducted,
+          eventId: eventId, orderId: order.id,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return {
+        fullyPaidByCredit: false, orderId: order.id,
+        amount: order.amount, currency: order.currency,
+        creditDeducted: creditDeducted, remainingTotal: remainingTotal,
+      };
+    } catch (e) {
+      if (creditDeducted > 0) {
+        await statsRef.set({ creditBalance: FieldValue.increment(creditDeducted),
+          lastUpdated: FieldValue.serverTimestamp() }, { merge: true });
+      }
+      throw new HttpsError("internal", "Razorpay error: " + e.message);
+    }
+  }
+);
+
+// ── getReferralAdmin — admin-only ─────────────────────────────────────────
+exports.getReferralAdmin = onCall({ region: REGION }, async function(request) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  var callerDoc;
+  try {
+    callerDoc = await db.collection("users").doc(request.auth.uid).get();
+  } catch (e) {
+    logger.error("[ReferralAdmin] caller fetch failed:", e.message);
+    throw new HttpsError("internal", "Could not verify admin role: " + e.message);
+  }
+  if (!callerDoc.exists || callerDoc.data().isAdmin !== true) {
+    throw new HttpsError("permission-denied", "Admin access required.");
+  }
+
+  var reqLimit = Math.min(Number(((request.data || {}).limit)) || 200, 500);
+
+  var snap;
+  try {
+    snap = await db.collection("referrals").limit(reqLimit).get();
+  } catch (e) {
+    logger.error("[ReferralAdmin] referrals fetch failed:", e.message);
+    throw new HttpsError("internal", "Firestore fetch failed: " + e.message);
+  }
+
+  if (snap.empty) {
+    return { records: [], total: 0, hasMore: false, summary: _buildAdminSummary([]) };
+  }
+
+  var uids = new Set();
+  snap.docs.forEach(function(d) {
+    var r = d.data();
+    if (r.referrerUid) uids.add(r.referrerUid);
+    if (r.referredUid) uids.add(r.referredUid);
+  });
+
+  var userCache = {};
+  await Promise.all(Array.from(uids).map(async function(uid) {
+    try {
+      var u = await db.collection("users").doc(uid).get();
+      if (u.exists) {
+        var d = u.data();
+        userCache[uid] = { name: d.displayName || d.fullName || d.name || "Unknown" };
+      }
+    } catch (e) {
+      logger.warn("[ReferralAdmin] user " + uid + " fetch failed:", e.message);
+    }
+  }));
+
+  var records = snap.docs.map(function(doc) {
+    var r = doc.data();
+    return {
+      inviteeUid:         doc.id,
+      referrerUid:        r.referrerUid || "",
+      referrerName:       (userCache[r.referrerUid] || {}).name || "Unknown",
+      referredUid:        r.referredUid || "",
+      referredName:       (userCache[r.referredUid] || {}).name || "Unknown",
+      referralCode:       r.referralCode || "",
+      gender:             r.inviteeGender || "unknown",
+      referralType:       (r.inviteeGender || "").toLowerCase() === "female" ? "women" : "normal",
+      registeredAt:       (r.attributedAt && r.attributedAt.toMillis) ? r.attributedAt.toMillis() : 0,
+      status:             r.status || "attributed",
+      eligibleAt:         (r.eligibleAt && r.eligibleAt.toMillis) ? r.eligibleAt.toMillis() : null,
+      firstBookingId:     r.firstBookingId     || null,
+      firstBookingAmount: r.firstBookingAmount || null,
+      calculatedReward:   r.calculatedReward   || null,
+      milestoneKey:       r.milestoneKey       || null,
+      rewardStatus:       r.rewardStatus       || "pending",
+      rewardedAt:         (r.rewardedAt && r.rewardedAt.toMillis) ? r.rewardedAt.toMillis() : null,
+    };
+  }).sort(function(a, b) { return b.registeredAt - a.registeredAt; });
+
+  var totalCreditIssued = 0;
+  var totalCreditUsed   = 0;
+  try {
+    var txSnap = await db.collection("creditTransactions").get();
+    txSnap.docs.forEach(function(d) {
+      var t   = d.data();
+      var amt = Number(t.amount || 0);
+      if (t.type === "referral_reward") totalCreditIssued += amt;
+      if (t.type === "credit_used")     totalCreditUsed   += Math.abs(amt);
+    });
+  } catch (e) {
+    logger.warn("[ReferralAdmin] creditTransactions fetch failed:", e.message);
+  }
+
+  return {
+    records:  records,
+    total:    records.length,
+    hasMore:  snap.size === reqLimit,
+    summary:  Object.assign({}, _buildAdminSummary(records), {
+      totalCreditIssued: Number(totalCreditIssued.toFixed(2)),
+      totalCreditUsed:   Number(totalCreditUsed.toFixed(2)),
+    }),
+  };
+});
+// ═══════════════════════════════════════════════════════════════════════════
+// END OF REFERRAL SYSTEM PATCH
+// ═══════════════════════════════════════════════════════════════════════════

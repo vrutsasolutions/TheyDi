@@ -65,6 +65,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _quoteLoading = true;
   String? _quoteError;
 
+  // Event Credit
+  double _creditBalance = 0;
+  bool _applyCredit = false;
+
   double get _eventPrice =>
       (_quote?['eventPrice'] as num?)?.toDouble() ?? widget.event.price;
   double get _listedFee => (_quote?['listedFee'] as num?)?.toDouble() ?? 0;
@@ -81,6 +85,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
     _loadQuote();
+    _loadCreditBalance();
+  }
+
+  Future<void> _loadCreditBalance() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('referralStats')
+          .doc('stats')
+          .get();
+      if (!mounted) return;
+      final balance =
+          (snap.data()?['creditBalance'] as num?)?.toDouble() ?? 0.0;
+      setState(() => _creditBalance = balance);
+    } catch (_) {}
   }
 
   Future<void> _loadQuote() async {
@@ -120,6 +142,53 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _isProcessing = true;
       _error = null;
     });
+
+    // If credit is applied, route through createOrderWithCredit
+    if (_applyCredit && _creditBalance > 0) {
+      try {
+        final result = await FirebaseFunctions.instanceFor(region: 'asia-south1')
+            .httpsCallable('createOrderWithCredit')
+            .call({'eventId': widget.event.id, 'applyCredit': true});
+        final data = Map<String, dynamic>.from(result.data as Map);
+
+        if (data['fullyPaidByCredit'] == true) {
+          // Booking was created server-side; navigate to success
+          if (mounted) {
+            setState(() => _isProcessing = false);
+            context.push(AppRoutes.paymentsuccess, extra: {
+              'eventTitle': widget.event.title,
+              'amount': 0.0,
+              'transactionId': data['bookingId'] ?? '',
+              'dateTime': widget.event.dateTime,
+              'venue': widget.event.location,
+            });
+          }
+          return;
+        }
+
+        // Partial credit — proceed with Razorpay for the remaining amount
+        final keyId = dotenv.env['RAZORPAY_KEY_ID']?.trim();
+        if (keyId == null || keyId.isEmpty || !mounted) {
+          setState(() => _isProcessing = false);
+          return;
+        }
+        _razorpay.open({
+          'key': keyId,
+          'amount': data['amount'],
+          'currency': data['currency'] ?? 'INR',
+          'name': 'TheyDi',
+          'description': widget.event.title,
+          'order_id': data['orderId'],
+          'prefill': {
+            'name': FirebaseAuth.instance.currentUser?.displayName ?? '',
+            'email': FirebaseAuth.instance.currentUser?.email ?? '',
+          },
+        }, context: context);
+      } catch (e) {
+        _showPaymentError('Unable to start payment: $e');
+      }
+      return;
+    }
 
     try {
       final event = widget.event;
@@ -386,6 +455,68 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                           height: 1,
                                           color: TheyDiColors.divider),
                                       const SizedBox(height: 12),
+                                      // ── Event Credit row ──
+                                      if (_creditBalance > 0) ...[
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: TheyDiColors.primary
+                                                .withValues(alpha: 0.06),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            border: Border.all(
+                                                color: TheyDiColors.primary
+                                                    .withValues(alpha: 0.2)),
+                                          ),
+                                          child: Row(children: [
+                                            const Icon(
+                                                Icons.wallet_rounded,
+                                                size: 16,
+                                                color:
+                                                    TheyDiColors.primary),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                      'Event Credit Available',
+                                                      style: TheyDiTextStyles
+                                                          .caption
+                                                          .copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700)),
+                                                  Text(
+                                                      '₹${_creditBalance.toStringAsFixed(2)} available',
+                                                      style: TheyDiTextStyles
+                                                          .caption
+                                                          .copyWith(
+                                                              color: TheyDiColors
+                                                                  .textSecondary)),
+                                                ],
+                                              ),
+                                            ),
+                                            Switch(
+                                              value: _applyCredit,
+                                              onChanged: (v) =>
+                                                  setState(() =>
+                                                      _applyCredit = v),
+                                              activeColor:
+                                                  TheyDiColors.primary,
+                                            ),
+                                          ]),
+                                        ),
+                                        if (_applyCredit) ...[
+                                          const SizedBox(height: 8),
+                                          _priceRow(
+                                              'Event Credit',
+                                              '-₹${_creditBalance.clamp(0, _total).toStringAsFixed(2)}',
+                                              valueColor: Colors.green),
+                                        ],
+                                        const SizedBox(height: 12),
+                                      ],
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
@@ -393,7 +524,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                           Text('Total',
                                               style:
                                                   TheyDiTextStyles.labelLarge),
-                                          Text('₹${_total.toStringAsFixed(0)}',
+                                          Text(
+                                              _applyCredit && _creditBalance > 0
+                                                  ? '₹${(_total - _creditBalance.clamp(0, _total)).toStringAsFixed(0)}'
+                                                  : '₹${_total.toStringAsFixed(0)}',
                                               style: TheyDiTextStyles
                                                   .displayMedium
                                                   .copyWith(
@@ -471,7 +605,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 : Text(
                                     _quote == null
                                         ? 'Pay'
-                                        : 'Pay ₹${_total.toStringAsFixed(0)}',
+                                        : _applyCredit && _creditBalance >= _total
+                                            ? 'Pay with Credit (Free)'
+                                            : _applyCredit && _creditBalance > 0
+                                                ? 'Pay ₹${(_total - _creditBalance).toStringAsFixed(0)}'
+                                                : 'Pay ₹${_total.toStringAsFixed(0)}',
                                     style: TheyDiTextStyles.labelLarge
                                         .copyWith(
                                             color: Colors.white,

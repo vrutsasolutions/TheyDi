@@ -71,6 +71,7 @@ class AppRoutes {
 
   static const String adminVerification = '/admin/verification';
   static const String adminPendingPayouts = '/admin/pending-payouts';
+  static const String adminReferrals = '/admin/referrals';
 
   static const darlaChat = '/darla-chat';
   static const onboarding = '/onboarding';

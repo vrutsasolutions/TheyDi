@@ -447,6 +447,9 @@ class _ProfileContent extends ConsumerWidget {
                     case 'adminPendingPayouts':
                       context.push(AppRoutes.adminPendingPayouts);
                       break;
+                    case 'adminReferrals':
+                      context.push(AppRoutes.adminReferrals);
+                      break;
                   }
                 },
               ),
@@ -983,6 +986,12 @@ class _SettingsMenuButton extends StatelessWidget {
             value: 'adminPendingPayouts',
             icon: Icons.account_balance_wallet_outlined,
             label: 'Pending Payouts',
+            color: TheyDiColors.primary,
+          ),
+          _settingsItem(
+            value: 'adminReferrals',
+            icon: Icons.people_outlined,
+            label: 'Referral Admin',
             color: TheyDiColors.primary,
           ),
           const PopupMenuDivider(height: 8),

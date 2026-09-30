@@ -72,6 +72,7 @@ import '../../features/settings/screens/terms_conditions_screen.dart';
 
 import '../../features/admin/screens/admin_verification_screen.dart';
 import '../../features/admin/screens/admin_pending_payouts_screen.dart';
+import '../../features/admin/screens/admin_referral_screen.dart';
 import '../../features/onboarding1/screens/onboarding_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -539,6 +540,11 @@ GoRoute(
       GoRoute(
         path: AppRoutes.adminPendingPayouts,
         builder: (context, state) => const AdminPendingPayoutsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminReferrals,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminReferralScreen(),
       ),
 
       GoRoute(
