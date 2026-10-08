@@ -17,6 +17,7 @@ import 'package:theydi/features/events/widgets/event_share_sheet.dart';
 import '../../../core/services/face_verification_service.dart';
 import '../../../core/services/event_circle_service.dart';
 import '../../../shared/widgets/image_preview_overlay.dart';
+import '../widgets/qr_checkin_section.dart';
 
 
 
@@ -66,6 +67,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   final PageController _pageController = PageController();
   bool _shareAnimating = false;
 
+  // ── QR Check-in ──────────────────────────────────────────────────────────
+  bool _enableQrCheckIn = false;
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +110,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           _genderRatio = data['genderRatio'] as Map<String, dynamic>?;
           _minAge = (data['minAge'] as num?)?.toInt() ?? 0;
           _eventAudience = data['eventAudience'] ?? '';
+          _enableQrCheckIn = data['enableQrCheckIn'] == true;  // ✅ CORRECT LOCATION
           _extraLoaded = true;
         });
       }
@@ -117,10 +122,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         final hData = hostDoc.data() ?? {};
         setState(() {
           _hostVerified = hData['isVerified'] ?? true;
-          // Firestore fields written by signup_data.dart:
-          //   'organization' → org / company name
-          //   'jobTitle'     → job title / role
-          // Fallback chain covers older docs that used different keys.
           _hostOrgName = (hData['organization'] as String? ?? '').isNotEmpty
               ? hData['organization'] as String
               : (hData['company'] as String? ??
@@ -220,8 +221,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       FirebaseAuth.instance.currentUser?.uid == widget.event.creatorUid;
   bool get _isPastEvent => _event.endTime.isBefore(DateTime.now());
 
-  // ── Navigate to host profile ─────────────────────────────────────────────────
-  // ADDED: skip navigation if viewer is the host themselves
   void _viewHostProfile() {
     if (_isHost) return;
     context.push(AppRoutes.userProfile,
@@ -243,7 +242,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               extra: {'event': _event, 'fromApproval': true});
         }
 
-      // ── CHANGED: joined → navigate to attendees screen ──
       case _BookingState.joined:
         if (mounted) context.push(AppRoutes.eventAttendees, extra: _event);
 
@@ -392,9 +390,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           eventId: _event.id,
         );
 
-        // The circle might already exist (it doesn't have to be created
-        // at the same time as the event) — if so, add this attendee and
-        // let them know, since they'd otherwise never find out.
         final existingCircle =
             await EventCircleService.getExistingEventCircle(_event.id);
         if (existingCircle != null) {
@@ -796,8 +791,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Tag Pills — Social/Professional badge is in the
-                    // hero image (bottom-left overlay), not repeated here.
+                    // Tag Pills
                     Wrap(spacing: 8, runSpacing: 8, children: [
                       if (event.category.isNotEmpty)
                         _TagPill(
@@ -942,8 +936,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
                     const SizedBox(height: 20),
 
-                    // ── Host card — avatar + name tappable → profile ──
-                    // ADDED: MouseRegion + GestureDetector on avatar+name, skip if own event
+                    // ── Host card ──
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -958,7 +951,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                           child: GestureDetector(
                             onTap: _isHost ? null : _viewHostProfile,
                             child: Row(children: [
-                              // Avatar — tappable for full-screen preview
                               GestureDetector(
                                 onTap: _hostPhotoUrl.isNotEmpty
                                     ? () => showImagePreview(
@@ -1014,7 +1006,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              // Name + verified badge + open_in_new hint
                               Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -1055,7 +1046,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                               ]),
                                         ),
                                       ],
-                                      // Hint icon — only shown to non-host viewers
                                       if (!_isHost) ...[
                                         const SizedBox(width: 6),
                                         Icon(Icons.open_in_new,
@@ -1063,7 +1053,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                             color: TheyDiColors.textMuted),
                                       ],
                                     ]),
-                                    // Org name + job title from host's user doc
                                     if (_hostOrgName.isNotEmpty) ...[
                                       const SizedBox(height: 3),
                                       Text(_hostOrgName,
@@ -1100,6 +1089,18 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                           .fade(duration: 300.ms),
 
                     const SizedBox(height: 20),
+
+                    // ── QR Check-in Section ───────────────────────────────
+                    if (_enableQrCheckIn)
+                      QrCheckInSection(
+                        event: _event,
+                        isHost: _isHost,
+                        bookingState: _bookingState,
+                        currentUid:
+                            FirebaseAuth.instance.currentUser?.uid ?? '',
+                      ).animate(delay: 340.ms).fade(duration: 300.ms),
+
+                    if (_enableQrCheckIn) const SizedBox(height: 20),
 
                     if (event.tags.isNotEmpty) ...[
                       Text('Tags', style: TheyDiTextStyles.displayLarge)
@@ -1202,14 +1203,12 @@ class _ImageCarousel extends StatelessWidget {
           );
         },
       ),
-      // Social / Professional badge — bottom LEFT
       if (eventAudience.isNotEmpty)
         Positioned(
           bottom: 16,
           left: 16,
           child: _HeroAudienceBadge(audience: eventAudience),
         ),
-      // Price / FREE badge — bottom RIGHT (unchanged)
       Positioned(
           bottom: 16,
           right: 16,
@@ -1225,7 +1224,6 @@ class _ImageCarousel extends StatelessWidget {
                     TheyDiTextStyles.labelLarge.copyWith(color: Colors.white)),
           )),
       if (images.length > 1) ...[
-        // Left arrow button
         if (currentIndex > 0)
           Positioned(
             left: 12,
@@ -1252,7 +1250,6 @@ class _ImageCarousel extends StatelessWidget {
             ),
           ),
 
-        // Right arrow button
         if (currentIndex < images.length - 1)
           Positioned(
             right: 12,
@@ -1331,14 +1328,12 @@ class _GradientBanner extends StatelessWidget {
             child: Text(event.category,
                 style: TheyDiTextStyles.displayLarge.copyWith(
                     color: Colors.white.withValues(alpha: 0.2), fontSize: 64))),
-        // Social / Professional badge — bottom LEFT
         if (eventAudience.isNotEmpty)
           Positioned(
             bottom: 16,
             left: 16,
             child: _HeroAudienceBadge(audience: eventAudience),
           ),
-        // Price badge — bottom RIGHT (unchanged)
         Positioned(
             bottom: 16,
             right: 16,
@@ -1358,7 +1353,6 @@ class _GradientBanner extends StatelessWidget {
   }
 }
 
-// Reusable audience badge — used in both _GradientBanner and _ImageCarousel
 class _HeroAudienceBadge extends StatelessWidget {
   final String audience;
   const _HeroAudienceBadge({required this.audience});
@@ -1656,11 +1650,10 @@ class _SafetyItem extends StatelessWidget {
 }
 
 // ── Attendee preview strip ────────────────────────────────────────────────────
-// Tapping anywhere → bottom sheet with ALL attendees.
 class _AttendeePreviewStrip extends StatelessWidget {
-  final List<Map<String, String>> attendees; // [{uid, name, photo}] (first 3)
+  final List<Map<String, String>> attendees;
   final int totalCount;
-  final String eventId; // needed to fetch remaining attendees in the sheet
+  final String eventId;
 
   const _AttendeePreviewStrip({
     required this.attendees,
@@ -1703,7 +1696,6 @@ class _AttendeePreviewStrip extends StatelessWidget {
       onTap: () => _openAttendeeSheet(context),
       child: Row(
         children: [
-          // Stacked avatars
           SizedBox(
             width: attendees.length * 24.0 + 8,
             height: 32,
@@ -1798,7 +1790,6 @@ class _AttendeeListSheetState extends State<_AttendeeListSheet> {
         if (mounted) setState(() { _all = []; _loading = false; });
         return;
       }
-      // Firestore `whereIn` is limited to 30 — fetch in batches
       final results = <Map<String, String>>[];
       for (int i = 0; i < uids.length; i += 30) {
         final batch = uids.sublist(i, i + 30 > uids.length ? uids.length : i + 30);
@@ -1851,7 +1842,6 @@ class _AttendeeListSheetState extends State<_AttendeeListSheet> {
         ),
         child: Column(
           children: [
-            // Handle
             Container(
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               width: 40, height: 4,

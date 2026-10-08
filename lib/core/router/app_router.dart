@@ -74,6 +74,9 @@ import '../../features/admin/screens/admin_verification_screen.dart';
 import '../../features/admin/screens/admin_pending_payouts_screen.dart';
 import '../../features/admin/screens/admin_referral_screen.dart';
 import '../../features/onboarding1/screens/onboarding_screen.dart';
+import '../../features/events/screens/qr_checkin_ready_screen.dart';
+import '../../features/events/screens/host_scanner_screen.dart';
+import '../../features/events/screens/attendee_qr_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Routes that require the user to be signed in
@@ -594,6 +597,42 @@ GoRoute(
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // ── QR Check-in ──────────────────────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.qrCheckInReady,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return QrCheckInReadyScreen(
+            eventId: (extra?['eventId'] as String?) ?? '',
+            eventTitle: (extra?['eventTitle'] as String?) ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.attendeeQr,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return AttendeeQrScreen(
+            eventId: (extra?['eventId'] as String?) ?? '',
+            bookingId: (extra?['bookingId'] as String?) ?? '',
+            userId: (extra?['userId'] as String?) ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.hostScanner,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return HostScannerScreen(
+            eventId: (extra?['eventId'] as String?) ?? '',
+            eventTitle: (extra?['eventTitle'] as String?) ?? '',
+          );
+        },
       ),
 
       // ── Shell routes ──

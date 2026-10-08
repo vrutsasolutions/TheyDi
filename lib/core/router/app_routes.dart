@@ -75,4 +75,9 @@ class AppRoutes {
 
   static const darlaChat = '/darla-chat';
   static const onboarding = '/onboarding';
+
+  // ── QR Check-in ──
+  static const qrCheckInReady  = '/qr-checkin-ready';   // host: post-creation card
+  static const attendeeQr      = '/attendee-qr';         // attendee: digital ticket
+  static const hostScanner     = '/host-scanner';        // host: camera scanner
 }

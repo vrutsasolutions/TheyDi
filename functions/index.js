@@ -10,6 +10,11 @@ const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 const db = admin.firestore();
+
+// ── QR Check-in functions (split into separate file for clarity) ──────────────
+const qrCheckin = require("./qr_checkin");
+exports.generateCheckInToken = qrCheckin.generateCheckInToken;
+exports.validateCheckIn      = qrCheckin.validateCheckIn;
 const REGION = "asia-south1";
 
 function calculateDistance(lat1, lon1, lat2, lon2) {

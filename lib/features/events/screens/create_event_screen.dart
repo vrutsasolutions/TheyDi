@@ -31,6 +31,7 @@ import '../../../core/constants/event_constants.dart';
 import '../../../core/constants/location_constants.dart';
 import '../../../features/profile/screens/personal_details_screen.dart';
 import '../../inbox/circles/screens/create_circle_screen.dart';
+import '../screens/qr_checkin_ready_screen.dart';
 
 // Looks up which state a given city belongs to. Used to keep
 // `_selectedState` in sync whenever `_selectedCity` changes, either from
@@ -153,6 +154,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   String _ageGroup = 'All Ages';
   String _approvalType = 'Host Approval';
+
+  // ── QR Check-in ──────────────────────────────────────────────────────────────
+  bool _enableQrCheckIn = false;
 
   final Set<String> _selectedAmenities = {};
   final List<String> _customAmenities = [];
@@ -951,6 +955,7 @@ Future<void> _pickTime() async {
         // B2B2C fields — audience and experience type for home feed filtering
         'eventAudience': _eventAudience,
         'experienceType': _eventAudience.toLowerCase(), // 'social' | 'professional'
+        'enableQrCheckIn': _enableQrCheckIn,
       };
 
       final docRef =
@@ -978,15 +983,24 @@ Future<void> _pickTime() async {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16)));
 
-        // Only the host who just created this experience can create its
-        // circle, so take them straight there instead of just closing the
-        // form. (This is the wiring that had gone missing.)
-        Navigator.of(context).pushReplacement(MaterialPageRoute(
-          builder: (_) => CreateCircleScreen(
-            linkedEventId: docRef.id,
-            linkedEventTitle: _titleController.text.trim(),
-          ),
-        ));
+        // If QR Check-in is enabled, show the host the QR Ready screen first.
+        // That screen will navigate to CreateCircleScreen when the host is done.
+        // Otherwise go straight to CreateCircleScreen as before.
+        if (_enableQrCheckIn) {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) => QrCheckInReadyScreen(
+              eventId: docRef.id,
+              eventTitle: _titleController.text.trim(),
+            ),
+          ));
+        } else {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) => CreateCircleScreen(
+              linkedEventId: docRef.id,
+              linkedEventTitle: _titleController.text.trim(),
+            ),
+          ));
+        }
       }
     } catch (e) {
       _showError('Failed to create event. Please try again.');
@@ -2230,6 +2244,107 @@ Future<void> _pickTime() async {
                           ],
                         ]),
                       ).animate(delay: 220.ms).fade(duration: 300.ms),
+
+                      const SizedBox(height: 16),
+
+                      // ── QR Check-in Toggle ──────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _enableQrCheckIn
+                              ? TheyDiColors.primary.withValues(alpha: 0.06)
+                              : TheyDiColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: _enableQrCheckIn
+                                ? TheyDiColors.primary.withValues(alpha: 0.4)
+                                : TheyDiColors.divider,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: _enableQrCheckIn
+                                          ? TheyDiColors.primary
+                                              .withValues(alpha: 0.15)
+                                          : TheyDiColors.inputFill,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.qr_code_scanner_outlined,
+                                      size: 18,
+                                      color: _enableQrCheckIn
+                                          ? TheyDiColors.primary
+                                          : TheyDiColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Enable QR Check-in',
+                                        style:
+                                            TheyDiTextStyles.bodyMedium.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Speed up entry with digital tickets',
+                                        style: TheyDiTextStyles.caption.copyWith(
+                                          color: TheyDiColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ]),
+                                Switch(
+                                  value: _enableQrCheckIn,
+                                  activeThumbColor: TheyDiColors.primary,
+                                  onChanged: (v) =>
+                                      setState(() => _enableQrCheckIn = v),
+                                ),
+                              ],
+                            ),
+                            if (_enableQrCheckIn) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: TheyDiColors.primary
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(children: [
+                                  const Icon(Icons.info_outline,
+                                      size: 14,
+                                      color: TheyDiColors.primary),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Each confirmed attendee will receive a unique QR code. You can scan them at entry using the Host Scanner.',
+                                      style: TheyDiTextStyles.caption.copyWith(
+                                        color: TheyDiColors.primary,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ]),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ).animate(delay: 225.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 20),
 
