@@ -16,6 +16,6 @@
     "razorpay": "^2.9.6"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   }
 }

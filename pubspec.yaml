@@ -74,6 +74,7 @@ dependencies:
 
   flutter_windowmanager_plus: ^1.0.1
   flutter_local_notifications: ^22.2.0
+  share_plus: ^10.1.4
   
   
 

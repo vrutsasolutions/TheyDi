@@ -7,13 +7,11 @@
 //  Joined view  → "Show My QR Code" button → fetches bookingId → AttendeeQrScreen
 //  Other states → informational chip (pending / not confirmed)
 //
-// File 8 in the QR Check-in series.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -64,53 +62,95 @@ class _QrCheckInSectionState extends State<QrCheckInSection> {
   }
 
   // ── Fetch bookingId then open Attendee QR ─────────────────────────────────
+  //
+  // Strategy:
+  //   1. Query bookings collection for userId + eventId (2-field query, no
+  //      composite index needed). Filter status == 'confirmed' client-side.
+  //   2. If confirmed booking found → navigate with real bookingId.
+  //   3. If no booking found AND the event is free → the user joined via
+  //      attendeeUids directly (no booking document is created for free events).
+  //      Navigate with bookingId = '' so AttendeeQrScreen uses the free-event
+  //      token path in QrCheckInService.
+  //   4. If no booking found AND the event is paid → show specific error.
+  //
   Future<void> _openAttendeeQr() async {
     if (_loading) return;
     setState(() => _loading = true);
     try {
+      // Guard: must have a valid UID
+      if (widget.currentUid.isEmpty) {
+        _showError('You must be signed in to view your QR code.');
+        return;
+      }
+
+      // Step 1: Query bookings (2 fields only — avoids composite index)
       final snap = await FirebaseFirestore.instance
           .collection('bookings')
           .where('userId', isEqualTo: widget.currentUid)
           .where('eventId', isEqualTo: widget.event.id)
-          .where('status', isEqualTo: 'confirmed')
-          .limit(1)
+          .limit(10)
           .get();
 
       if (!mounted) return;
 
-      if (snap.docs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not find your booking. Please try again.'),
-            backgroundColor: TheyDiColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+      // Step 2: Filter confirmed bookings client-side
+      final confirmedDocs = snap.docs
+          .where((d) => d.data()['status'] == 'confirmed')
+          .toList();
+
+      if (confirmedDocs.isNotEmpty) {
+        // Found a confirmed booking → paid event path
+        final bookingId = confirmedDocs.first.id;
+        context.push(AppRoutes.attendeeQr, extra: {
+          'eventId': widget.event.id,
+          'bookingId': bookingId,
+          'userId': widget.currentUid,
+        });
         return;
       }
 
-      final bookingId = snap.docs.first.id;
-      context.push(AppRoutes.attendeeQr, extra: {
-        'eventId': widget.event.id,
-        'bookingId': bookingId,
-        'userId': widget.currentUid,
-      });
+      // Step 3: No confirmed booking found
+      // If this is a FREE event, the user joined via attendeeUids array
+      // (no booking document is created for free events). Navigate with
+      // bookingId = '' — AttendeeQrScreen / QrCheckInService handles this.
+      if (widget.event.isFree) {
+        // Double-check: user must actually be in attendeeUids
+        if (widget.event.attendeeUids.contains(widget.currentUid)) {
+          context.push(AppRoutes.attendeeQr, extra: {
+            'eventId': widget.event.id,
+            'bookingId': '', // free event: no booking doc
+            'userId': widget.currentUid,
+          });
+          return;
+        } else {
+          _showError('You have not joined this event yet.');
+          return;
+        }
+      }
+
+      // Step 4: Paid event but no confirmed booking — show specific message
+      _showError('No confirmed booking found for this event. '
+          'Complete your payment to get your ticket.');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: TheyDiColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showError('Error loading your ticket: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: TheyDiColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override

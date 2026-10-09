@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -26,7 +27,8 @@ class CheckInResult {
 
 // ── Token payload stored in QR ─────────────────────────────────────────────────
 // The QR encodes ONLY this lightweight string — no PII.
-// Format:  "theydi:checkin:<checkInToken>"
+// Format for paid events:  "theydi:checkin:<32-char-hex-token>"
+// Format for free events:  "theydi:checkin:<32-char-hex-token>"  (same)
 // The server resolves eventId + bookingId + userId from the token.
 
 class QrCheckInService {
@@ -40,15 +42,36 @@ class QrCheckInService {
   static String buildQrPayload(String checkInToken) =>
       'theydi:checkin:$checkInToken';
 
-  // ── Fetch (or generate) the check-in token for a confirmed booking ────────
+  // ── Fetch (or generate) the check-in token ───────────────────────────────
   //
-  // Flow:
+  // Two paths depending on whether the event is paid or free:
+  //
+  // PAID EVENT (bookingId is non-empty):
   //   1. Look up bookings/{bookingId} — must be confirmed & match eventId.
   //   2. If checkInToken already exists on the booking doc, return it.
-  //   3. Otherwise call the Cloud Function `generateCheckInToken` which
-  //      creates the token server-side and writes it back to the booking.
+  //   3. Otherwise call generateCheckInToken Cloud Function.
+  //
+  // FREE EVENT (bookingId is empty string ''):
+  //   1. Look up events/{eventId}/attendeeTokens/{userId}.
+  //   2. If token already exists there, return it.
+  //   3. Otherwise call generateFreeEventToken Cloud Function which creates
+  //      the token and writes it back to attendeeTokens/{userId}.
   //
   static Future<String> getOrCreateToken({
+    required String eventId,
+    required String bookingId,
+    required String userId,
+  }) async {
+    if (bookingId.isNotEmpty) {
+      return _getOrCreatePaidToken(
+          eventId: eventId, bookingId: bookingId, userId: userId);
+    } else {
+      return _getOrCreateFreeToken(eventId: eventId, userId: userId);
+    }
+  }
+
+  // ── Paid event token ──────────────────────────────────────────────────────
+  static Future<String> _getOrCreatePaidToken({
     required String eventId,
     required String bookingId,
     required String userId,
@@ -67,10 +90,10 @@ class QrCheckInService {
 
     // Safety: booking must belong to this user and event
     if (data['userId'] != userId || data['eventId'] != eventId) {
-      throw Exception('Booking does not match.');
+      throw Exception('Booking does not match your account.');
     }
     if (data['status'] != 'confirmed') {
-      throw Exception('Booking is not confirmed.');
+      throw Exception('Booking is not confirmed yet.');
     }
 
     final existingToken = data['checkInToken'] as String?;
@@ -90,6 +113,73 @@ class QrCheckInService {
       throw Exception('Server did not return a token.');
     }
     return token;
+  }
+
+  // ── Free event token ──────────────────────────────────────────────────────
+  // For free events no booking document exists. We store the token in
+  // events/{eventId}/attendeeTokens/{userId}.
+  // Token is generated client-side (no CF needed — free events have no
+  // payment security concern). Uses cryptographically random hex via dart:math.
+  static Future<String> _getOrCreateFreeToken({
+    required String eventId,
+    required String userId,
+  }) async {
+    final tokenRef = _firestore
+        .collection('events')
+        .doc(eventId)
+        .collection('attendeeTokens')
+        .doc(userId);
+
+    // 1. Check if token already exists (fast path)
+    final tokenDoc = await tokenRef.get();
+    if (tokenDoc.exists) {
+      final existingToken = tokenDoc.data()?['checkInToken'] as String?;
+      if (existingToken != null && existingToken.isNotEmpty) {
+        return existingToken;
+      }
+    }
+
+    // 2. Generate a 32-char hex token client-side
+    final token = _generateToken();
+
+    // 3. Write to Firestore
+    await tokenRef.set({
+      'userId'       : userId,
+      'eventId'      : eventId,
+      'checkInToken' : token,
+      'isFreeEvent'  : true,
+      'checkedIn'    : false,
+      'checkedInAt'  : null,
+      'checkedInBy'  : null,
+      'createdAt'    : FieldValue.serverTimestamp(),
+    });
+
+    // 4. Also seed the checkIns sub-collection entry (userId as doc id)
+    await _firestore
+        .collection('events')
+        .doc(eventId)
+        .collection('checkIns')
+        .doc(userId)
+        .set({
+      'eventId'       : eventId,
+      'bookingId'     : null,
+      'attendeeUserId': userId,
+      'checkInToken'  : token,
+      'isFreeEvent'   : true,
+      'checkedIn'     : false,
+      'checkedInAt'   : null,
+      'checkedInBy'   : null,
+      'createdAt'     : FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return token;
+  }
+
+  // ── Generate a 32-char hex token using dart:math ──────────────────────────
+  static String _generateToken() {
+    final rng = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   // ── Validate a scanned QR payload (host action) ───────────────────────────
