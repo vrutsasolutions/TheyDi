@@ -80,4 +80,5 @@ class AppRoutes {
   static const qrCheckInReady  = '/qr-checkin-ready';   // host: post-creation card
   static const attendeeQr      = '/attendee-qr';         // attendee: digital ticket
   static const hostScanner     = '/host-scanner';        // host: camera scanner
+  static const hostAttendance  = '/host-attendance';     // host: attendance tracker
 }

@@ -856,6 +856,10 @@ Future<void> _pickTime() async {
       _showError('Please set a location for your event');
       return;
     }
+    if (_eventImages.isEmpty) {
+      _showError('Please add at least one event image');
+      return;
+    }
     if (_eventImages.any((img) => img.isUploading)) {
       _showError('Please wait for images to finish uploading');
       return;
@@ -1492,86 +1496,38 @@ Future<void> _pickTime() async {
 
                       const SizedBox(height: 16),
 
-                      // ── House / Room ─────────────────────────────────────
-                      const _Label('House/Room/Floor/Additional'),
+                      // ── Venue (full width) ──────────────────────────────
+                      const _Label('Venue *'),
                       const SizedBox(height: 8),
-
                       TextFormField(
-                        controller: _additionalAddressController,
+                        controller: _venueController,
                         style: TheyDiTextStyles.bodyMedium,
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. Room 4B, 3rd Floor',
-                          prefixIcon: Icon(Icons.info_outline),
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Sky Lounge, MG Road',
+                          prefixIcon: const Icon(Icons.place_outlined),
+                          suffixIcon: (_isGeocoding || _isFetchingPredictions)
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: TheyDiColors.primary,
+                                    ),
+                                  ),
+                                )
+                              : _pinnedLat != null
+                                  ? const Icon(Icons.check_circle,
+                                      color: Colors.green, size: 20)
+                                  : null,
                         ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Venue is required'
+                            : null,
                       ).animate(delay: 120.ms).fade(duration: 300.ms),
 
-                      const SizedBox(height: 16),
-
-                      // ── Venue + Country ───────────────────────────────────
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _Label('Venue *'),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _venueController,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  decoration: InputDecoration(
-                                    hintText: 'e.g. Sky Lounge, MG Road',
-                                    prefixIcon:
-                                        const Icon(Icons.place_outlined),
-                                    suffixIcon: (_isGeocoding ||
-                                            _isFetchingPredictions)
-                                        ? const Padding(
-                                            padding: EdgeInsets.all(12),
-                                            child: SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: TheyDiColors.primary,
-                                              ),
-                                            ),
-                                          )
-                                        : _pinnedLat != null
-                                            ? const Icon(Icons.check_circle,
-                                                color: Colors.green, size: 20)
-                                            : null,
-                                  ),
-                                  validator: (v) =>
-                                      (v == null || v.trim().isEmpty)
-                                          ? 'Venue is required'
-                                          : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _Label('Country'),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  initialValue: 'India',
-                                  enabled: false,
-                                  style: TheyDiTextStyles.bodyMedium,
-                                  decoration: const InputDecoration(
-                                    prefixIcon: Icon(Icons.flag_outlined),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ).animate(delay: 140.ms).fade(duration: 300.ms),
-
-                      // ── Multiple results picker ──
+                      // ── Multiple results picker (under Venue) ──
                       if (_showPredictions && _placePredictions.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -1637,6 +1593,50 @@ Future<void> _pickTime() async {
                           ),
                         ),
                       ],
+
+                      const SizedBox(height: 16),
+
+                      // ── House/Room/Floor + Country ─────────────────────
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('House/Room/Floor/Additional'),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _additionalAddressController,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                  decoration: const InputDecoration(
+                                    hintText: 'e.g. Room 4B, 3rd Floor',
+                                    prefixIcon: Icon(Icons.info_outline),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _Label('Country'),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  initialValue: 'India',
+                                  enabled: false,
+                                  style: TheyDiTextStyles.bodyMedium,
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.flag_outlined),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ).animate(delay: 140.ms).fade(duration: 300.ms),
 
                       const SizedBox(height: 12),
 
@@ -2539,10 +2539,10 @@ Future<void> _pickTime() async {
                       const SizedBox(height: 24),
 
                       // ── Event Images ──
-                      const _Label('Event Images'),
+                      const _Label('Event Images *'),
                       const SizedBox(height: 4),
                       Text(
-                          'Add up to $_maxImages photos to showcase your event',
+                          'At least 1 photo required · up to $_maxImages photos',
                           style: TheyDiTextStyles.caption
                               .copyWith(color: TheyDiColors.textSecondary)),
                       const SizedBox(height: 8),

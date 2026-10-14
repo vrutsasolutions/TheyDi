@@ -59,6 +59,47 @@ function _formatTime(ts) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPER — generate a unique, human-readable booking reference code
+//          Format: TDI-XXXXXX  (6 alphanumeric chars, no ambiguous I/O/1/0)
+// ─────────────────────────────────────────────────────────────────────────────
+function _generateBookingRef() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 30 chars, no I/O/1/0
+  const bytes = crypto.randomBytes(6);
+  let ref = "TDI-";
+  for (let i = 0; i < 6; i++) {
+    ref += chars.charAt(bytes[i] % chars.length);
+  }
+  return ref;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — send check-in notification to the attendee
+//
+// Writes a doc to users/{attendeeUid}/notifications/ which triggers the
+// existing sendPushOnNotification Cloud Function (Firestore onCreate trigger).
+// ─────────────────────────────────────────────────────────────────────────────
+async function _notifyAttendeeCheckedIn(attendeeUid, eventId, eventTitle) {
+  try {
+    await db.collection("users").doc(attendeeUid)
+      .collection("notifications").add({
+        type      : "check_in",
+        title     : "You're checked in! 🎉",
+        body      : `Your QR code was scanned for "${eventTitle}". Enjoy the event!`,
+        eventId   : eventId,
+        fromUid   : "",
+        circleId  : "",
+        chatId    : "",
+        imageUrl  : "",
+        read      : false,
+        createdAt : admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (err) {
+    // Non-critical — don't let notification failure break check-in
+    console.error(`[CheckIn] Failed to notify attendee ${attendeeUid}:`, err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 1. generateCheckInToken  (PAID EVENTS)
 //
 // Called by: AttendeeQrScreen (Flutter) for paid event bookings.
@@ -100,15 +141,30 @@ exports.generateCheckInToken = onCall({ region: REGION }, async (request) => {
 
   // Return existing token if already generated (idempotent)
   if (booking.checkInToken) {
-    return { checkInToken: booking.checkInToken };
+    // Migration: if token exists but bookingRef doesn't, generate one now
+    let existingRef = booking.bookingRef;
+    if (!existingRef) {
+      existingRef = _generateBookingRef();
+      await bookingRef.update({ bookingRef: existingRef });
+      // Also update checkIns doc if it exists
+      const existingCheckIn = db
+        .collection("events").doc(eventId)
+        .collection("checkIns").doc(bookingId);
+      const ciDoc = await existingCheckIn.get();
+      if (ciDoc.exists) {
+        await existingCheckIn.update({ bookingRef: existingRef });
+      }
+    }
+    return { checkInToken: booking.checkInToken, bookingRef: existingRef };
   }
 
-  // Generate new token
-  const token = _randomToken();
-  const now   = admin.firestore.FieldValue.serverTimestamp();
+  // Generate new token + booking reference
+  const token      = _randomToken();
+  const bkRef      = _generateBookingRef();
+  const now        = admin.firestore.FieldValue.serverTimestamp();
 
-  // Write token to booking doc
-  await bookingRef.update({ checkInToken: token });
+  // Write token + ref to booking doc
+  await bookingRef.update({ checkInToken: token, bookingRef: bkRef });
 
   // Create the checkIns sub-collection document (checkedIn = false initially)
   const checkInRef = db
@@ -122,6 +178,7 @@ exports.generateCheckInToken = onCall({ region: REGION }, async (request) => {
     bookingId,
     attendeeUserId : uid,
     checkInToken   : token,
+    bookingRef     : bkRef,
     isFreeEvent    : false,
     checkedIn      : false,
     checkedInAt    : null,
@@ -129,7 +186,7 @@ exports.generateCheckInToken = onCall({ region: REGION }, async (request) => {
     createdAt      : now,
   }, { merge: true });
 
-  return { checkInToken: token };
+  return { checkInToken: token, bookingRef: bkRef };
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,18 +238,34 @@ exports.generateFreeEventToken = onCall({ region: REGION }, async (request) => {
 
   const tokenDoc = await tokenRef.get();
   if (tokenDoc.exists && tokenDoc.data().checkInToken) {
-    return { checkInToken: tokenDoc.data().checkInToken };
+    // Migration: if token exists but bookingRef doesn't, generate one now
+    let existingRef = tokenDoc.data().bookingRef;
+    if (!existingRef) {
+      existingRef = _generateBookingRef();
+      await tokenRef.update({ bookingRef: existingRef });
+      // Also update checkIns doc if it exists
+      const existingCheckIn = db
+        .collection("events").doc(eventId)
+        .collection("checkIns").doc(userId);
+      const ciDoc = await existingCheckIn.get();
+      if (ciDoc.exists) {
+        await existingCheckIn.update({ bookingRef: existingRef });
+      }
+    }
+    return { checkInToken: tokenDoc.data().checkInToken, bookingRef: existingRef };
   }
 
-  // Generate new token
+  // Generate new token + booking reference
   const token = _randomToken();
+  const bkRef = _generateBookingRef();
   const now   = admin.firestore.FieldValue.serverTimestamp();
 
-  // Write token to attendeeTokens sub-collection
+  // Write token + ref to attendeeTokens sub-collection
   await tokenRef.set({
     userId,
     eventId,
     checkInToken : token,
+    bookingRef   : bkRef,
     isFreeEvent  : true,
     checkedIn    : false,
     checkedInAt  : null,
@@ -212,6 +285,7 @@ exports.generateFreeEventToken = onCall({ region: REGION }, async (request) => {
     bookingId      : null,    // no booking for free events
     attendeeUserId : uid,
     checkInToken   : token,
+    bookingRef     : bkRef,
     isFreeEvent    : true,
     checkedIn      : false,
     checkedInAt    : null,
@@ -219,7 +293,7 @@ exports.generateFreeEventToken = onCall({ region: REGION }, async (request) => {
     createdAt      : now,
   }, { merge: true });
 
-  return { checkInToken: token };
+  return { checkInToken: token, bookingRef: bkRef };
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -231,7 +305,7 @@ exports.generateFreeEventToken = onCall({ region: REGION }, async (request) => {
 // Handles both paid and free event tokens.
 //
 // Input:  { qrPayload: string, eventId: string, hostUid: string }
-//         qrPayload format: "theydi:checkin:<token>"
+//         qrPayload format: "theydi:checkin:<token>" or "theydi:ref:<bookingRef>"
 //
 // Output (success):
 //   { success: true, status: 'checked_in', attendeeName, eventTitle, checkedInAt }
@@ -255,16 +329,31 @@ exports.validateCheckIn = onCall({ region: REGION }, async (request) => {
   }
 
   // ── Parse QR payload ──────────────────────────────────────────────────────
-  const PREFIX = "theydi:checkin:";
-  if (!qrPayload.startsWith(PREFIX)) {
-    return {
-      success      : false,
-      status       : "invalid",
-      errorMessage : "This QR code is not valid for this event.",
-    };
-  }
-  const token = qrPayload.slice(PREFIX.length).trim();
-  if (!token || token.length < 10) {
+  const TOKEN_PREFIX = "theydi:checkin:";
+  const REF_PREFIX   = "theydi:ref:";
+
+  let token     = null;   // set when payload is a QR token
+  let refCode   = null;   // set when payload is a booking reference
+
+  if (qrPayload.startsWith(TOKEN_PREFIX)) {
+    token = qrPayload.slice(TOKEN_PREFIX.length).trim();
+    if (!token || token.length < 10) {
+      return {
+        success      : false,
+        status       : "invalid",
+        errorMessage : "This QR code is not valid for this event.",
+      };
+    }
+  } else if (qrPayload.startsWith(REF_PREFIX)) {
+    refCode = qrPayload.slice(REF_PREFIX.length).trim().toUpperCase();
+    if (!refCode || refCode.length < 4) {
+      return {
+        success      : false,
+        status       : "invalid",
+        errorMessage : "Invalid booking reference code.",
+      };
+    }
+  } else {
     return {
       success      : false,
       status       : "invalid",
@@ -286,13 +375,19 @@ exports.validateCheckIn = onCall({ region: REGION }, async (request) => {
     throw new HttpsError("permission-denied", "You are not the host of this event.");
   }
 
-  // ── Try paid event path first: search bookings by checkInToken ────────────
-  const bookingSnap = await db
-    .collection("bookings")
-    .where("checkInToken", "==", token)
-    .where("eventId",       "==", eventId)
-    .limit(1)
-    .get();
+  // ── Try paid event path first ────────────────────────────────────────────
+  // Search by checkInToken or bookingRef depending on payload type
+  const bookingQuery = token
+    ? db.collection("bookings")
+        .where("checkInToken", "==", token)
+        .where("eventId",       "==", eventId)
+        .limit(1)
+    : db.collection("bookings")
+        .where("bookingRef",   "==", refCode)
+        .where("eventId",      "==", eventId)
+        .limit(1);
+
+  const bookingSnap = await bookingQuery.get();
 
   if (!bookingSnap.empty) {
     // ── PAID EVENT PATH ──────────────────────────────────────────────────────
@@ -351,6 +446,9 @@ exports.validateCheckIn = onCall({ region: REGION }, async (request) => {
                          : now,
     }, { merge: true });
 
+    // Notify attendee that they've been checked in
+    await _notifyAttendeeCheckedIn(booking.userId, eventId, event.title || "");
+
     return {
       success      : true,
       status       : "checked_in",
@@ -360,14 +458,18 @@ exports.validateCheckIn = onCall({ region: REGION }, async (request) => {
     };
   }
 
-  // ── FREE EVENT PATH: search attendeeTokens by checkInToken ───────────────
-  const freeTokenSnap = await db
-    .collection("events")
-    .doc(eventId)
-    .collection("attendeeTokens")
-    .where("checkInToken", "==", token)
-    .limit(1)
-    .get();
+  // ── FREE EVENT PATH: search attendeeTokens by token or bookingRef ────────
+  const freeTokenQuery = token
+    ? db.collection("events").doc(eventId)
+        .collection("attendeeTokens")
+        .where("checkInToken", "==", token)
+        .limit(1)
+    : db.collection("events").doc(eventId)
+        .collection("attendeeTokens")
+        .where("bookingRef", "==", refCode)
+        .limit(1);
+
+  const freeTokenSnap = await freeTokenQuery.get();
 
   if (!freeTokenSnap.empty) {
     const tokenDoc    = freeTokenSnap.docs[0];
@@ -437,6 +539,9 @@ exports.validateCheckIn = onCall({ region: REGION }, async (request) => {
                          : now,
     }, { merge: true });
 
+    // Notify attendee that they've been checked in
+    await _notifyAttendeeCheckedIn(attendeeUid, eventId, event.title || "");
+
     return {
       success      : true,
       status       : "checked_in",
@@ -446,10 +551,12 @@ exports.validateCheckIn = onCall({ region: REGION }, async (request) => {
     };
   }
 
-  // ── Token not found in bookings or attendeeTokens ─────────────────────────
+  // ── Token / ref not found in bookings or attendeeTokens ────────────────────
   return {
     success      : false,
     status       : "invalid",
-    errorMessage : "This QR code is not valid for this event.",
+    errorMessage : refCode
+      ? "Booking reference not found for this event."
+      : "This QR code is not valid for this event.",
   };
 });

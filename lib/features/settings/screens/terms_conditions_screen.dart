@@ -47,7 +47,7 @@ class TermsConditionsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Effective Date: August 20, 2026\nLast Updated: September 21, 2026',
+                    'Effective Date: August 20, 2026\nLast Updated: October 11, 2026',
                     textAlign: TextAlign.center,
                     style: TheyDiTextStyles.bodyLarge.copyWith(color: TheyDiColors.textSecondary, fontSize: 12),
                   ),
@@ -111,6 +111,7 @@ class TermsConditionsScreen extends StatelessWidget {
             _section("6. Communities", const [
               "TheyDi supports two types of communities: Circles (private, invitation-based friend groups) and Communities (open or approval-gated groups around shared interests, industries, or goals).",
               "Every experience on TheyDi automatically generates an Experience Community — a temporary social space for participants to connect before, during, and after the experience. This community is visible only to participants of that experience.",
+              "Women-Led & Women-Only Communities: TheyDi supports the creation of women-led communities and women-only spaces where membership, participation, and moderation are managed by women. These communities provide safe networking, mentoring, support, and social environments. Only users who identify as women (as per their registered gender) may join women-only communities. Misrepresenting gender to gain access to women-only communities is a violation of these Terms and may result in immediate account suspension.",
               "Community creators and admins are responsible for managing their community, moderating content, and ensuring compliance with these Terms and community guidelines.",
               "Communities must not be used for unlawful purposes, spam, harassment, promotion of prohibited content, or circumvention of Platform rules.",
               "TheyDi may remove communities, posts, or members that violate these Terms, without prior notice.",
@@ -122,6 +123,8 @@ class TermsConditionsScreen extends StatelessWidget {
               "Hosts must accurately classify their experience. Misclassification to game the discovery algorithm is a violation of these Terms.",
               "For Professional experiences, hosts may additionally display organization information, job titles, and professional context to attendees.",
               "Social experiences may include age groups, gender balance settings, and indoor/outdoor type. Hosts must ensure these settings are accurate and comply with applicable laws.",
+              "Women-Led Experiences: Hosts who identify as women may create women-led experiences that are clearly labelled as such in discovery. These may include women-only gatherings, networking events, workshops, fitness sessions, and social meetups designed for safe, inclusive participation.",
+              "Hosts of women-only or women-led experiences may restrict attendance to users who identify as women and may reject booking requests from other genders at their sole discretion.",
               "TheyDi is not responsible for the professional claims or credentials of any host, speaker, or organization on the Platform.",
             ]),
 
@@ -129,7 +132,7 @@ class TermsConditionsScreen extends StatelessWidget {
               "You agree not to: post unlawful, obscene, defamatory, harassing, hateful, discriminatory, sexually explicit, or violent content.",
               "Host, promote, or attend experiences involving illegal activities (unlicensed alcohol, drugs, gambling, or anything prohibited under Indian law).",
               "Impersonate any person, organization, or brand, or misrepresent your identity, age, or professional credentials.",
-              "Harass, stalk, threaten, or harm other Users, or collect their personal information without consent.",
+              "Harass, stalk, threaten, or harm other Users, or collect their personal information without consent. This includes sexual harassment, gender-based intimidation, unsolicited sexual advances, sharing intimate or private images without consent, and any behaviour that creates an unsafe or hostile environment for women or any other users.",
               "Use bots, scrapers, or automated tools, or attempt unauthorised access to the Platform, accounts, or systems.",
               "Interfere with the Platform through malware, denial-of-service attacks, or exploits.",
               "Post spam or unsolicited advertisements in communities, chats, or experience communities.",
@@ -151,10 +154,15 @@ class TermsConditionsScreen extends StatelessWidget {
               "Hosts must accurately describe the experience including location, time, duration, capacity, age restrictions, gender balance, audience type (Social or Professional), and any associated organization.",
               "Attendees participate in experiences at their own risk. TheyDi does not guarantee the safety of any venue, host, organization, or attendee.",
               "Some experiences require Host approval before attendance is confirmed; approval or rejection is at the Host's or Organization's sole discretion.",
+              "QR Check-In & Attendance: Upon booking confirmation (paid events) or joining (free events), a unique QR code ticket is generated for the attendee. This QR code contains a secure, server-generated check-in token and must be presented to the Host at the venue for scanning. The Host scans the QR code to verify and check in the attendee. Each QR token is single-use and cannot be reused after a successful check-in.",
+              "Attendees must not share, duplicate, screenshot for resale, or transfer their QR check-in ticket to another person. Any attempt to forge, tamper with, or reverse-engineer check-in tokens is a violation of these Terms and may result in immediate account suspension.",
+              "Hosts have access to a real-time attendance dashboard showing which attendees have checked in and who has not yet arrived. This data is visible only to the event creator.",
+              "Push notifications are sent to attendees upon successful check-in, confirming their attendance status.",
             ]),
 
             _section("11. Payments, Ticketing & Refunds", const [
               "Attendee ticket payments are processed by Razorpay Payment Gateway, subject to Razorpay's own terms. Host payouts are processed directly by Vrutsa Entertainment Private Limited via netbanking bulk transfers (NEFT/RTGS/IMPS).",
+              "Upon successful booking (paid events) or joining (free events), a unique booking reference (e.g. TDI-XXXXXX) and a QR ticket are generated for the attendee. The QR ticket serves as the official entry pass and must be presented at the venue for check-in.",
               "Platform fee: approximately 10% (inclusive of applicable taxes) on ticket sales, deducted from Host payouts. Payment gateway fee: approximately 2%, charged by Razorpay.",
               "Attendee cancellations before the experience starts: 90% refund of the ticket price; 10% retained as cancellation fee. No refund for no-shows or cancellations after the experience starts.",
               "Host or Organization cancellations: allowed only 24–48 hours before the experience start (except emergencies/force majeure). All attendees receive a full 100% refund when cancelled within the permitted window.",
@@ -177,32 +185,43 @@ class TermsConditionsScreen extends StatelessWidget {
               "You may block or report other Users through in-app tools. We review reports and may take action including warnings, content removal, suspension, or reporting to law enforcement.",
             ]),
 
-            _section("14. Prohibited Experiences", const [
+            _section("14. Women's Safety", const [
+              "TheyDi is committed to providing a safe and respectful environment for women across all features of the Platform — experiences, communities, messaging, and social interactions.",
+              "Safety Features for Women: Verified profiles and face liveness verification help ensure that users are who they claim to be. Gender balance settings allow hosts to set appropriate male-to-female ratios. QR check-in provides a verified attendance trail at every experience. Block and report tools are available across the Platform.",
+              "Zero Tolerance: TheyDi maintains a zero-tolerance policy against sexual harassment, stalking, voyeurism, non-consensual photography or recording, unsolicited sexual messages, intimidation, and any form of gender-based violence or abuse — whether at experiences, in communities, or through direct messages.",
+              "Reporting & Action: Women users (and all users) may report misconduct via in-app reporting tools or by emailing theydi.app@gmail.com. Reports involving women's safety are treated with the highest priority. We may immediately suspend accused accounts pending investigation and cooperate with law enforcement authorities as required under the Bharatiya Nyaya Sanhita 2023 and other applicable laws.",
+              "Host Responsibility: Hosts and Organizations are responsible for maintaining a safe environment at their experiences. Hosts must take reasonable measures to prevent harassment and must immediately report any incidents to TheyDi and, where required, to local law enforcement.",
+              "Community Standards: All communities — including mixed-gender and women-only communities — must uphold dignity, respect, and safety. Admins must moderate content and remove members who violate these standards.",
+            ]),
+
+            _section("15. Prohibited Experiences", const [
               "Experiences promoting hate speech, terrorism, communal violence, or discrimination.",
               "Experiences involving unlicensed sale of alcohol or controlled substances.",
               "Adult, sexual, or escort services.",
               "Gambling, betting, or fantasy sports without proper licences.",
               "Political rallies or experiences that may incite violence.",
-              "Any activity prohibited under Indian law.",
+              "Experiences that exploit, objectify, or endanger women or any gender, including those that facilitate harassment, voyeurism, or non-consensual activities.",
+              "Any activity prohibited under Indian law, including but not limited to offences under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013, and the Protection of Women from Domestic Violence Act, 2005.",
               "Violation may result in immediate account and organization termination and reporting to law enforcement.",
             ]),
 
-            _section("15. Content Moderation & Grievance Redressal", const [
+            _section("16. Content Moderation & Grievance Redressal", const [
               "In compliance with the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, grievances, complaints, and reports may be sent to theydi.app@gmail.com.",
               "Response time: acknowledgement within 24 hours; resolution within 15 days.",
               "Report unlawful content, harmful community behaviour, or fraudulent organizations via in-app reporting or email.",
               "We may remove content, communities, organization profiles, or suspend accounts without prior notice where we determine a violation of these Terms or applicable law.",
             ]),
 
-            _section("16. Third-Party Services", const [
-              "Firebase (Google)",
-              "Google Maps",
-              "Razorpay",
+            _section("17. Third-Party Services", const [
+              "Firebase (Google) — including Authentication, Cloud Firestore, Cloud Functions, Cloud Messaging (FCM for push notifications), Cloud Storage, Analytics, and Crashlytics",
+              "Google Maps and Places APIs",
+              "Razorpay (payment processing)",
+              "Cloudflare R2 (media storage)",
               "Other integrated service providers",
               "Your use of these services is subject to their respective terms. We are not responsible for their availability, accuracy, or reliability.",
             ]),
 
-            _section("17. Disclaimers & Limitation of Liability", const [
+            _section("18. Disclaimers & Limitation of Liability", const [
               "The Platform is provided on an 'AS IS' and 'AS AVAILABLE' basis without warranties of any kind, express or implied.",
               "We do not warrant that the Platform will be uninterrupted, error-free, secure, or virus-free.",
               "We do not verify professional credentials, organizational claims, or the accuracy of user-provided professional identity information. Users rely on such information at their own discretion.",
@@ -211,27 +230,27 @@ class TermsConditionsScreen extends StatelessWidget {
               "Nothing in these Terms excludes liability that cannot be excluded under applicable Indian law.",
             ]),
 
-            _section("18. Indemnification", const [
+            _section("19. Indemnification", const [
               "You agree to indemnify, defend, and hold harmless Vrutsa Solutions, its officers, directors, employees, and agents from claims, damages, liabilities, costs, and legal fees arising from your use of the Platform, your violation of these Terms or any law or third-party rights, any experience you host or attend, any organization you create or manage, any community you administer, or any content you submit.",
             ]),
 
-            _section("19. Suspension & Termination", const [
+            _section("20. Suspension & Termination", const [
               "We may suspend or terminate your account, organization profile, or community at any time, with or without notice, for violation of these Terms, fraudulent or illegal activity, extended inactivity, or requests from law enforcement.",
               "You may delete your account at any time through in-app settings. Organization profiles and communities you own will be removed with your account unless transferred to another admin.",
               "Upon termination, your right to use the Platform ends immediately. Provisions on IP, indemnification, liability, and dispute resolution survive termination.",
             ]),
 
-            _section("20. Modifications to the Terms", const [
+            _section("21. Modifications to the Terms", const [
               "We may amend these Terms at any time. Material changes will be notified via in-app notification, email, or a prominent notice on the Platform.",
               "Continued use of the Platform after changes constitutes acceptance of the amended Terms.",
             ]),
 
-            _section("21. Governing Law & Dispute Resolution", const [
+            _section("22. Governing Law & Dispute Resolution", const [
               "These Terms are governed by the laws of India.",
               "Disputes are first attempted to be resolved amicably through good-faith negotiation for 30 days.",
             ]),
 
-            _section("22. Miscellaneous", const [
+            _section("23. Miscellaneous", const [
               "Severability: invalid provisions do not affect the remaining Terms.",
               "Waiver: failure to enforce a provision does not waive our rights.",
               "Assignment: you may not assign your rights under these Terms; we may assign ours without your consent.",
@@ -256,7 +275,7 @@ class TermsConditionsScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.contact_mail_rounded, color: Colors.green, size: 24),
                       SizedBox(width: 10),
-                      Text("23. Contact Us", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text("24. Contact Us", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   SizedBox(height: 16),

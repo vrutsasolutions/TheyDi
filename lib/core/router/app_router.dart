@@ -76,6 +76,7 @@ import '../../features/admin/screens/admin_referral_screen.dart';
 import '../../features/onboarding1/screens/onboarding_screen.dart';
 import '../../features/events/screens/qr_checkin_ready_screen.dart';
 import '../../features/events/screens/host_scanner_screen.dart';
+import '../../features/events/screens/host_attendance_screen.dart';
 import '../../features/events/screens/attendee_qr_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -629,6 +630,17 @@ GoRoute(
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           return HostScannerScreen(
+            eventId: (extra?['eventId'] as String?) ?? '',
+            eventTitle: (extra?['eventTitle'] as String?) ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.hostAttendance,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return HostAttendanceScreen(
             eventId: (extra?['eventId'] as String?) ?? '',
             eventTitle: (extra?['eventTitle'] as String?) ?? '',
           );

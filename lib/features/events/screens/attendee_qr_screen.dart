@@ -64,12 +64,12 @@ class _AttendeeQrScreenState extends State<AttendeeQrScreen> {
 
   Future<void> _loadTicket() async {
     try {
-      final token = await QrCheckInService.getOrCreateToken(
+      final tokenResult = await QrCheckInService.getOrCreateToken(
         eventId: widget.eventId,
         bookingId: widget.bookingId,
         userId: widget.userId,
       );
-      final payload = QrCheckInService.buildQrPayload(token);
+      final payload = QrCheckInService.buildQrPayload(tokenResult.checkInToken);
 
       final eventDoc = await FirebaseFirestore.instance
           .collection('events')
@@ -118,12 +118,9 @@ class _AttendeeQrScreenState extends State<AttendeeQrScreen> {
         _eventDate = date;
         _eventTime = time;
         _attendeeName = name.isNotEmpty ? name : 'Attendee';
-        _bookingRef =
-            widget.bookingId.length >= 8
-                ? widget.bookingId
-                    .substring(widget.bookingId.length - 8)
-                    .toUpperCase()
-                : widget.bookingId.toUpperCase();
+        _bookingRef = tokenResult.bookingRef.isNotEmpty
+            ? tokenResult.bookingRef
+            : 'N/A';
         _loading = false;
       });
     } catch (e) {

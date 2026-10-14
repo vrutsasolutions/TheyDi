@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -23,6 +22,15 @@ class CheckInResult {
 
   bool get isAlreadyCheckedIn => status == 'already_checked_in';
   bool get isInvalid           => status == 'invalid';
+}
+
+// ── Token + booking reference result ──────────────────────────────────────────
+
+class TokenResult {
+  final String checkInToken;
+  final String bookingRef;   // e.g. "TDI-A3K8F2"
+
+  const TokenResult({required this.checkInToken, required this.bookingRef});
 }
 
 // ── Token payload stored in QR ─────────────────────────────────────────────────
@@ -57,7 +65,7 @@ class QrCheckInService {
   //   3. Otherwise call generateFreeEventToken Cloud Function which creates
   //      the token and writes it back to attendeeTokens/{userId}.
   //
-  static Future<String> getOrCreateToken({
+  static Future<TokenResult> getOrCreateToken({
     required String eventId,
     required String bookingId,
     required String userId,
@@ -71,7 +79,7 @@ class QrCheckInService {
   }
 
   // ── Paid event token ──────────────────────────────────────────────────────
-  static Future<String> _getOrCreatePaidToken({
+  static Future<TokenResult> _getOrCreatePaidToken({
     required String eventId,
     required String bookingId,
     required String userId,
@@ -97,11 +105,13 @@ class QrCheckInService {
     }
 
     final existingToken = data['checkInToken'] as String?;
-    if (existingToken != null && existingToken.isNotEmpty) {
-      return existingToken;
+    final existingRef   = data['bookingRef'] as String?;
+    if (existingToken != null && existingToken.isNotEmpty &&
+        existingRef != null && existingRef.isNotEmpty) {
+      return TokenResult(checkInToken: existingToken, bookingRef: existingRef);
     }
 
-    // 2. Generate via Cloud Function
+    // 2. Generate via Cloud Function (creates token + bookingRef, or migrates)
     final callable = _functions.httpsCallable('generateCheckInToken');
     final result   = await callable.call<Map<String, dynamic>>({
       'eventId'  : eventId,
@@ -109,77 +119,71 @@ class QrCheckInService {
     });
 
     final token = result.data['checkInToken'] as String?;
+    final ref   = result.data['bookingRef']   as String?;
     if (token == null || token.isEmpty) {
       throw Exception('Server did not return a token.');
     }
-    return token;
+    return TokenResult(
+      checkInToken: token,
+      bookingRef: ref ?? '',
+    );
   }
 
   // ── Free event token ──────────────────────────────────────────────────────
-  // For free events no booking document exists. We store the token in
-  // events/{eventId}/attendeeTokens/{userId}.
-  // Token is generated client-side (no CF needed — free events have no
-  // payment security concern). Uses cryptographically random hex via dart:math.
-  static Future<String> _getOrCreateFreeToken({
+  // For free events no booking document exists. The token is stored in
+  // events/{eventId}/attendeeTokens/{userId} by the Cloud Function.
+  //
+  // Flow:
+  //   1. Fast-path: check if token already exists in attendeeTokens (read-only).
+  //   2. If not, call generateFreeEventToken CF which creates the token
+  //      server-side and writes to both attendeeTokens and checkIns.
+  //
+  // Client-side writes are NOT used — all mutations go through Cloud Functions
+  // so we don't need broad Firestore write rules on these sub-collections.
+  static Future<TokenResult> _getOrCreateFreeToken({
     required String eventId,
     required String userId,
   }) async {
-    final tokenRef = _firestore
-        .collection('events')
-        .doc(eventId)
-        .collection('attendeeTokens')
-        .doc(userId);
+    // 1. Fast-path: read existing token (Firestore rules allow attendee to
+    //    read their own attendeeTokens/{userId} doc).
+    try {
+      final tokenRef = _firestore
+          .collection('events')
+          .doc(eventId)
+          .collection('attendeeTokens')
+          .doc(userId);
 
-    // 1. Check if token already exists (fast path)
-    final tokenDoc = await tokenRef.get();
-    if (tokenDoc.exists) {
-      final existingToken = tokenDoc.data()?['checkInToken'] as String?;
-      if (existingToken != null && existingToken.isNotEmpty) {
-        return existingToken;
+      final tokenDoc = await tokenRef.get();
+      if (tokenDoc.exists) {
+        final existingToken = tokenDoc.data()?['checkInToken'] as String?;
+        final existingRef   = tokenDoc.data()?['bookingRef']   as String?;
+        if (existingToken != null && existingToken.isNotEmpty &&
+            existingRef != null && existingRef.isNotEmpty) {
+          return TokenResult(checkInToken: existingToken, bookingRef: existingRef);
+        }
       }
+    } catch (_) {
+      // If the fast-path read fails (e.g. doc doesn't exist yet, or
+      // rules haven't propagated), fall through to the CF path.
     }
 
-    // 2. Generate a 32-char hex token client-side
-    final token = _generateToken();
-
-    // 3. Write to Firestore
-    await tokenRef.set({
-      'userId'       : userId,
-      'eventId'      : eventId,
-      'checkInToken' : token,
-      'isFreeEvent'  : true,
-      'checkedIn'    : false,
-      'checkedInAt'  : null,
-      'checkedInBy'  : null,
-      'createdAt'    : FieldValue.serverTimestamp(),
+    // 2. Generate via Cloud Function (server-side write to both
+    //    attendeeTokens/{userId} and checkIns/{userId}).
+    final callable = _functions.httpsCallable('generateFreeEventToken');
+    final result = await callable.call<Map<String, dynamic>>({
+      'eventId': eventId,
+      'userId': userId,
     });
 
-    // 4. Also seed the checkIns sub-collection entry (userId as doc id)
-    await _firestore
-        .collection('events')
-        .doc(eventId)
-        .collection('checkIns')
-        .doc(userId)
-        .set({
-      'eventId'       : eventId,
-      'bookingId'     : null,
-      'attendeeUserId': userId,
-      'checkInToken'  : token,
-      'isFreeEvent'   : true,
-      'checkedIn'     : false,
-      'checkedInAt'   : null,
-      'checkedInBy'   : null,
-      'createdAt'     : FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    return token;
-  }
-
-  // ── Generate a 32-char hex token using dart:math ──────────────────────────
-  static String _generateToken() {
-    final rng = Random.secure();
-    final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final token = result.data['checkInToken'] as String?;
+    final ref   = result.data['bookingRef']   as String?;
+    if (token == null || token.isEmpty) {
+      throw Exception('Server did not return a token.');
+    }
+    return TokenResult(
+      checkInToken: token,
+      bookingRef: ref ?? '',
+    );
   }
 
   // ── Validate a scanned QR payload (host action) ───────────────────────────
@@ -248,13 +252,23 @@ class QrCheckInService {
   }
 
   // ── Fetch total confirmed attendee count for an event ─────────────────────
+  //
+  // Reads the event doc's attendeeUids array length. The event doc is publicly
+  // readable, so this avoids a bookings query that would fail Firestore rules
+  // (bookings rules require the requester to be userId/hostUid/etc., which a
+  // collection-wide query can't satisfy).
+  //
+  // For paid events the host may also have free-event attendees mixed in via
+  // attendeeUids, so this gives the true total of everyone who joined.
   static Future<int> confirmedAttendeeCount(String eventId) async {
-    final snap = await _firestore
-        .collection('bookings')
-        .where('eventId', isEqualTo: eventId)
-        .where('status', isEqualTo: 'confirmed')
-        .count()
+    final eventDoc = await _firestore
+        .collection('events')
+        .doc(eventId)
         .get();
-    return snap.count ?? 0;
+
+    if (!eventDoc.exists) return 0;
+    final data = eventDoc.data()!;
+    final attendeeUids = data['attendeeUids'] as List<dynamic>?;
+    return attendeeUids?.length ?? 0;
   }
 }

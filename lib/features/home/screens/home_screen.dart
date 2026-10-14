@@ -918,13 +918,9 @@ class _EventCardState extends State<_EventCard> {
       decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: _isFemaleHost
-              ? Border.all(color: _kFemaleHostPink, width: 2)
-              : Border.all(color: TheyDiColors.divider),
+          border: Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            _isFemaleHost
-                ? BoxShadow(color: _kFemaleHostPink.withValues(alpha: 0.18), blurRadius: 16, offset: const Offset(0, 6))
-                : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 16, offset: const Offset(0, 6))
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 16, offset: const Offset(0, 6))
           ]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Stack(children: [

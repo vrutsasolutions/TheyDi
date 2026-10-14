@@ -435,7 +435,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       const SizedBox(height: 8),
                                       if (_waived) ...[
                                         _priceRow(
-                                          'Platform fee ($_ratePercent%)',
+                                          'Platform fee ($_ratePercent% incl. GST)',
                                           '₹${_listedFee.toStringAsFixed(0)}',
                                           struck: true,
                                         ),
@@ -447,7 +447,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                         ),
                                       ] else
                                         _priceRow(
-                                          'Platform fee ($_ratePercent%)',
+                                          'Platform fee ($_ratePercent% incl. GST)',
                                           '₹${_platformFee.toStringAsFixed(0)}',
                                         ),
                                       const SizedBox(height: 12),

@@ -199,22 +199,13 @@ class _EventCardLargeState extends State<EventCardLarge> {
       decoration: BoxDecoration(
         color: TheyDiColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: _isFemaleHost
-            ? Border.all(color: _kFemaleHostPink, width: 2)
-            : Border.all(color: TheyDiColors.divider),
+        border: Border.all(color: TheyDiColors.divider),
         boxShadow: [
-          if (_isFemaleHost)
-            BoxShadow(
-              color: _kFemaleHostPink.withValues(alpha: 0.18),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            )
-          else
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       clipBehavior: Clip.antiAlias,

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/router/app_routes.dart';
-import '../models/onboarding_model.dart';
 import '../widgets/onboarding_page.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -18,36 +17,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   int _currentPage = 0;
 
-  final List<OnboardingModel> _pages = const [
-    OnboardingModel(
-      image: 'assets/onboarding/onboarding_1.png',
-      desktopImage: 'assets/onboarding/onboarding_1_desktop.png',
-      title: 'Discover Gatherings Near You',
-      description:
-          'Find interesting events, activities, and gatherings happening around you.',
-    ),
-    OnboardingModel(
-      image: 'assets/onboarding/onboarding_2.png',
-      desktopImage: 'assets/onboarding/onboarding_2_desktop.png',
-      title: 'Meet People. Build Your Circle.',
-      description:
-          'Connect with people who share your interests and turn gatherings into meaningful connections.',
-    ),
-    OnboardingModel(
-      image: 'assets/onboarding/onboarding_3.png',
-      desktopImage: 'assets/onboarding/onboarding_3_desktop.png',
-      title: 'Gather. Chat. Connect.',
-      description:
-          'Join gatherings, communicate with ease, and stay connected before and after every event.',
-    ),
-    OnboardingModel(
-      image: 'assets/onboarding/onboarding_4.png',
-      desktopImage: 'assets/onboarding/onboarding_4_desktop.png',
-      title: 'More Connections. Lower Platform Fee.',
-      description:
-          'Discover nearby gatherings, enjoy lower platform fees, and connect with your community.',
-    ),
-  ];
+  static const int _pageCount = 4;
+
+  /// Builds the coded onboarding page for the given index.
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return const OnboardingPage1();
+      case 1:
+        return const OnboardingPage2();
+      case 2:
+        return const OnboardingPage3();
+      case 3:
+        return const OnboardingPage4();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
   @override
   void dispose() {
@@ -66,7 +52,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _nextPage() {
-    if (_currentPage < _pages.length - 1) {
+    if (_currentPage < _pageCount - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
@@ -94,7 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Positioned.fill(
                 child: PageView.builder(
                   controller: _pageController,
-                  itemCount: _pages.length,
+                  itemCount: _pageCount,
                   clipBehavior: Clip.hardEdge,
                   onPageChanged: (int index) {
                     setState(() {
@@ -107,9 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ) {
                     return Stack(
                       children: [
-                        OnboardingPage(
-                          page: _pages[index],
-                        ),
+                        _buildPage(index),
                         SafeArea(
                           child: Align(
                             alignment: Alignment.topRight,
@@ -164,13 +148,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               if (isDesktop)
                 _DesktopControlsOverlay(
                   currentPage: _currentPage,
-                  pageCount: _pages.length,
+                  pageCount: _pageCount,
                   onNext: _nextPage,
                 )
               else
                 _MobileTapOverlay(
                   currentPage: _currentPage,
-                  pageCount: _pages.length,
+                  pageCount: _pageCount,
                   onNext: _nextPage,
                 ),
             ],

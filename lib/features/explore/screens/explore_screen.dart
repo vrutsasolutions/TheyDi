@@ -1234,13 +1234,9 @@ class _HorizontalEventCardState extends State<_HorizontalEventCard> {
         decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: _isFemaleHost
-              ? Border.all(color: _kFemaleHostPink, width: 2)
-              : Border.all(color: TheyDiColors.divider),
+          border: Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            _isFemaleHost
-                ? BoxShadow(color: _kFemaleHostPink.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 5))
-                : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 14, offset: const Offset(0, 5)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 14, offset: const Offset(0, 5)),
           ],
         ),
         child: Column(
@@ -1487,13 +1483,9 @@ class _ExploreEventCardState extends State<_ExploreEventCard> {
         decoration: BoxDecoration(
           color: TheyDiColors.card,
           borderRadius: BorderRadius.circular(14),
-          border: _isFemaleHost
-              ? Border.all(color: _kFemaleHostPink, width: 2)
-              : Border.all(color: TheyDiColors.divider),
+          border: Border.all(color: TheyDiColors.divider),
           boxShadow: [
-            _isFemaleHost
-                ? BoxShadow(color: _kFemaleHostPink.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))
-                : BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(

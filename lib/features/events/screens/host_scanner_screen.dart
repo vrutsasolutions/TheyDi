@@ -29,9 +29,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:go_router/go_router.dart';
+
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/qr_checkin_service.dart';
+import '../services/web_qr_decoder_stub.dart'
+    if (dart.library.js_interop) '../services/web_qr_decoder.dart'
+    as web_qr;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Camera state enum
@@ -237,7 +244,79 @@ class _HostScannerScreenState extends State<HostScannerScreen>
     setState(() => _torchOn = !_torchOn);
   }
 
-  // ── Manual code entry ─────────────────────────────────────────────────────
+  // ── Upload QR image fallback (especially useful on web) ─────────────────
+  Future<void> _pickAndScanQrImage() async {
+    try {
+      await _scannerCtrl?.stop();
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) {
+        _scannerCtrl?.start();
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _processing = true);
+
+      String? rawPayload;
+
+      if (kIsWeb) {
+        // Web: analyzeImage() is NOT supported on web in any mobile_scanner
+        // version. Use JS interop (BarcodeDetector API + ZXing fallback).
+        final bytes = await picked.readAsBytes();
+        rawPayload = await web_qr.decodeQrFromImageBytes(bytes);
+      } else {
+        // Mobile: use MobileScannerController.analyzeImage()
+        final controller = MobileScannerController();
+        final barcodes = await controller.analyzeImage(picked.path);
+        await controller.dispose();
+        if (barcodes != null && barcodes.barcodes.isNotEmpty) {
+          rawPayload = barcodes.barcodes.first.rawValue;
+        }
+      }
+
+      if (!mounted) return;
+
+      if (rawPayload != null && rawPayload.isNotEmpty) {
+        setState(() => _processing = false);
+        await _processPayload(rawPayload!);
+        return;
+      }
+
+      // No QR found in image
+      setState(() => _processing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'No QR code found in this image. Try a clearer photo.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+      _scannerCtrl?.start();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _processing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error scanning image: ${e.toString()}'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      _scannerCtrl?.start();
+    }
+  }
+
+  // ── Manual code entry (booking reference or full QR payload) ────────────
   void _showManualEntry() {
     _scannerCtrl?.stop();
     _manualCtrl.clear();
@@ -247,13 +326,13 @@ class _HostScannerScreenState extends State<HostScannerScreen>
         backgroundColor: TheyDiColors.card,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title:
-            Text('Enter QR Code', style: TheyDiTextStyles.headlineMedium),
+        title: Text('Enter Booking Reference',
+            style: TheyDiTextStyles.headlineMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Ask the attendee to copy their QR payload and paste it here.',
+              'Enter the attendee\'s booking reference code shown on their ticket.',
               style: TheyDiTextStyles.bodySmall
                   .copyWith(color: TheyDiColors.textSecondary),
             ),
@@ -261,10 +340,11 @@ class _HostScannerScreenState extends State<HostScannerScreen>
             TextField(
               controller: _manualCtrl,
               autofocus: true,
+              textCapitalization: TextCapitalization.characters,
               style: TheyDiTextStyles.labelMedium
-                  .copyWith(fontFamily: 'monospace', fontSize: 12),
+                  .copyWith(fontFamily: 'monospace', fontSize: 14),
               decoration: InputDecoration(
-                hintText: 'theydi:checkin:...',
+                hintText: 'TDI-XXXXXX',
                 hintStyle: TheyDiTextStyles.caption
                     .copyWith(color: TheyDiColors.textMuted),
                 filled: true,
@@ -301,8 +381,13 @@ class _HostScannerScreenState extends State<HostScannerScreen>
           ),
         ],
       ),
-    ).then((payload) {
-      if (payload != null && payload.isNotEmpty) {
+    ).then((input) {
+      if (input != null && input.isNotEmpty) {
+        // If it already starts with theydi: prefix, pass as-is.
+        // Otherwise treat as a booking reference code.
+        final payload = input.startsWith('theydi:')
+            ? input
+            : 'theydi:ref:${input.toUpperCase()}';
         _processPayload(payload);
       } else {
         _scannerCtrl?.start();
@@ -421,6 +506,12 @@ class _HostScannerScreenState extends State<HostScannerScreen>
                         ),
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    // Fallback options when camera is denied
+                    _FallbackOptions(
+                      onUploadImage: _pickAndScanQrImage,
+                      onManualEntry: _showManualEntry,
+                    ),
                   ],
                 ),
               ),
@@ -458,9 +549,11 @@ class _HostScannerScreenState extends State<HostScannerScreen>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Camera Error',
-                      style: TextStyle(
+                    Text(
+                      kIsWeb
+                          ? 'Camera Not Available'
+                          : 'Camera Error',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -468,9 +561,11 @@ class _HostScannerScreenState extends State<HostScannerScreen>
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      _cameraError.isNotEmpty
-                          ? _cameraError
-                          : 'Could not start the camera. Please try again.',
+                      kIsWeb
+                          ? 'Camera could not be started.\n${_cameraError.isNotEmpty ? '\n$_cameraError\n' : ''}\nYou can still check in guests using the options below.'
+                          : _cameraError.isNotEmpty
+                              ? _cameraError
+                              : 'Could not start the camera. Please try again.',
                       style: const TextStyle(
                         color: Colors.white60,
                         fontSize: 13,
@@ -493,13 +588,11 @@ class _HostScannerScreenState extends State<HostScannerScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    TextButton(
-                      onPressed: _showManualEntry,
-                      child: const Text(
-                        'Enter Code Manually Instead',
-                        style: TextStyle(color: Colors.white54),
-                      ),
+                    const SizedBox(height: 20),
+                    // Fallback options when camera fails
+                    _FallbackOptions(
+                      onUploadImage: _pickAndScanQrImage,
+                      onManualEntry: _showManualEntry,
                     ),
                   ],
                 ),
@@ -597,14 +690,20 @@ class _HostScannerScreenState extends State<HostScannerScreen>
           ),
         ),
 
-        // Attendance counter
+        // Attendance counter (tap to view full list)
         Positioned(
           top: 100,
           right: 20,
-          child: _AttendanceCounter(
-            checkedIn: _checkedInCount,
-            total: _totalCount,
-          ).animate().fade(duration: 400.ms),
+          child: GestureDetector(
+            onTap: () => context.push(AppRoutes.hostAttendance, extra: {
+              'eventId': widget.eventId,
+              'eventTitle': widget.eventTitle,
+            }),
+            child: _AttendanceCounter(
+              checkedIn: _checkedInCount,
+              total: _totalCount,
+            ).animate().fade(duration: 400.ms),
+          ),
         ),
 
         // Corner-bracket scan frame
@@ -622,7 +721,17 @@ class _HostScannerScreenState extends State<HostScannerScreen>
           left: 0,
           right: 0,
           child: SafeArea(
-            child: _BottomBar(onManualEntry: _showManualEntry),
+            child: _BottomBar(
+              onManualEntry: _showManualEntry,
+              onUploadImage: _pickAndScanQrImage,
+              onViewAttendance: () => context.push(
+                AppRoutes.hostAttendance,
+                extra: {
+                  'eventId': widget.eventId,
+                  'eventTitle': widget.eventTitle,
+                },
+              ),
+            ),
           ),
         ),
 
@@ -801,6 +910,14 @@ class _AttendanceCounter extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap to view all',
+              style: TheyDiTextStyles.caption.copyWith(
+                color: Colors.white38,
+                fontSize: 9,
+              ),
+            ),
           ],
         ),
       ),
@@ -810,8 +927,14 @@ class _AttendanceCounter extends StatelessWidget {
 
 class _BottomBar extends StatelessWidget {
   final VoidCallback onManualEntry;
+  final VoidCallback? onUploadImage;
+  final VoidCallback? onViewAttendance;
 
-  const _BottomBar({required this.onManualEntry});
+  const _BottomBar({
+    required this.onManualEntry,
+    this.onUploadImage,
+    this.onViewAttendance,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -837,29 +960,151 @@ class _BottomBar extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: onManualEntry,
-              icon: const Icon(Icons.keyboard_outlined,
-                  size: 18, color: Colors.white70),
-              label: Text(
-                'Enter Code Manually',
-                style: TheyDiTextStyles.labelMedium
-                    .copyWith(color: Colors.white70),
+          Row(
+            children: [
+              if (onUploadImage != null) ...[
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: onUploadImage,
+                      icon: const Icon(Icons.image_outlined,
+                          size: 18, color: Colors.white70),
+                      label: Text(
+                        'Upload QR',
+                        style: TheyDiTextStyles.labelMedium
+                            .copyWith(color: Colors.white70),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: onManualEntry,
+                    icon: const Icon(Icons.keyboard_outlined,
+                        size: 18, color: Colors.white70),
+                    label: Text(
+                      'Enter Code',
+                      style: TheyDiTextStyles.labelMedium
+                          .copyWith(color: Colors.white70),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.3)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            ],
+          ),
+          if (onViewAttendance != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: onViewAttendance,
+                icon: const Icon(Icons.people_outline_rounded, size: 18),
+                label: Text(
+                  'View Attendance',
+                  style: TheyDiTextStyles.labelMedium
+                      .copyWith(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TheyDiColors.primary.withValues(alpha: 0.85),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _FallbackOptions — upload QR image + manual entry buttons for when camera
+// is unavailable (permission denied or hardware error)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FallbackOptions extends StatelessWidget {
+  final VoidCallback onUploadImage;
+  final VoidCallback onManualEntry;
+
+  const _FallbackOptions({
+    required this.onUploadImage,
+    required this.onManualEntry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(color: Colors.white24, height: 1),
+        const SizedBox(height: 20),
+        Text(
+          'Alternative check-in options',
+          style: TheyDiTextStyles.caption.copyWith(color: Colors.white54),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+            onPressed: onUploadImage,
+            icon: const Icon(Icons.image_outlined, size: 20),
+            label: const Text('Upload QR Image'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withValues(alpha: 0.12),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: onManualEntry,
+            icon: const Icon(Icons.keyboard_outlined,
+                size: 18, color: Colors.white70),
+            label: Text(
+              'Enter Code Manually',
+              style: TheyDiTextStyles.labelMedium
+                  .copyWith(color: Colors.white70),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.3)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
