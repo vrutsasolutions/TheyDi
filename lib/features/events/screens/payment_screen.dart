@@ -617,6 +617,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           ),
                         ),
                       ).animate(delay: 300.ms).fade(duration: 300.ms),
+
+                      // ── Cancellation & Refund Policy link ──
+                      const SizedBox(height: 20),
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => _showCancellationPolicy(context),
+                          child: Text(
+                            'Terms of Cancellation & Refund Policy',
+                            style: TheyDiTextStyles.caption.copyWith(
+                              color: TheyDiColors.primary,
+                              decoration: TextDecoration.underline,
+                              decorationColor: TheyDiColors.primary,
+                            ),
+                          ),
+                        ),
+                      ).animate(delay: 360.ms).fade(duration: 300.ms),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -625,6 +642,99 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showCancellationPolicy(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TheyDiColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: TheyDiColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Cancellation & Refund Policy',
+                    style: TheyDiTextStyles.headlineMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: const [
+                        _PolicyItem(
+                          number: 1,
+                          text:
+                              'Attendee Cancellation: Attendees may cancel their confirmed booking through the app, subject to the applicable cancellation terms.',
+                        ),
+                        _PolicyItem(
+                          number: 2,
+                          text:
+                              'Refund for Paid Bookings: As per the current policy, eligible paid bookings receive a 90% refund, with 10% deducted as a cancellation fee.',
+                        ),
+                        _PolicyItem(
+                          number: 3,
+                          text:
+                              'Refund Processing Time: Refunds are expected to take approximately 5–7 business days. Actual processing time may vary depending on the payment provider and payment method.',
+                        ),
+                        _PolicyItem(
+                          number: 4,
+                          text:
+                              'Free Experiences: Free bookings do not qualify for monetary refunds. Cancellation will follow the app\'s booking cancellation process.',
+                        ),
+                        _PolicyItem(
+                          number: 5,
+                          text:
+                              'Host Cancels an Experience: If the host cancels an eligible paid Experience, the attendee should receive a full refund of the amount paid, subject to successful payment-provider processing.',
+                        ),
+                        _PolicyItem(
+                          number: 6,
+                          text:
+                              'Refund Status: Users can check their booking or payment history in the app for the latest available refund status.',
+                        ),
+                        _PolicyItem(
+                          number: 7,
+                          text:
+                              'Refund Failures or Delays: If a refund fails or is delayed, the user should contact TheyDi support with their booking and payment details.',
+                        ),
+                        _PolicyItem(
+                          number: 8,
+                          text:
+                              'Review Before Payment: Users should read these terms before completing payment.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -878,6 +988,55 @@ class DuplicatePaymentSuccessScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// _PolicyItem — a single numbered policy point used in the Cancellation &
+// Refund Policy bottom sheet.
+// ══════════════════════════════════════════════════════════════════════════
+class _PolicyItem extends StatelessWidget {
+  final int number;
+  final String text;
+
+  const _PolicyItem({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.only(right: 12, top: 1),
+            decoration: BoxDecoration(
+              color: TheyDiColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$number',
+              style: TheyDiTextStyles.caption.copyWith(
+                color: TheyDiColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: TheyDiTextStyles.bodySmall.copyWith(
+                color: TheyDiColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

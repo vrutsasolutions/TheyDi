@@ -88,7 +88,17 @@ class _GeoResult {
 // }
 
 class CreateEventScreen extends ConsumerStatefulWidget {
-  const CreateEventScreen({super.key});
+  /// Optional title pre-filled by Darla AI content generator.
+  final String? initialTitle;
+
+  /// Optional description pre-filled by Darla AI content generator.
+  final String? initialDescription;
+
+  const CreateEventScreen({
+    super.key,
+    this.initialTitle,
+    this.initialDescription,
+  });
 
   @override
   ConsumerState<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -170,6 +180,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     super.initState();
     _loadUserAge();
     _venueController.addListener(_onVenueChanged);
+
+    // Pre-fill title and description if provided by Darla AI
+    if (widget.initialTitle != null && widget.initialTitle!.isNotEmpty) {
+      _titleController.text = widget.initialTitle!;
+    }
+    if (widget.initialDescription != null &&
+        widget.initialDescription!.isNotEmpty) {
+      _descController.text = widget.initialDescription!;
+    }
   }
 
   @override

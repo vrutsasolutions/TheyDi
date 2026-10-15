@@ -44,14 +44,14 @@ class _DarlaChatScreenState extends ConsumerState<DarlaChatScreen> {
 
 
   final List<String> _suggestedQuestions = [
-    "Social Experiences",
-    "Professional Experiences",
-    "Circles",
-    "Communities",
-    "Connections",
-    "Create an Experience",
-    "Manage an Experience",
-    "Payments & Refunds",
+    "How Do I Create an Experience?",
+    "How Do QR Tickets Work?",
+    "Explain Payments & Refunds",
+    "How Do I Get Verified?",
+    "Circles vs Communities",
+    "How Do Bookings Work?",
+    "Report a Problem",
+    "Account & Settings",
   ];
 
   @override
@@ -72,7 +72,7 @@ class _DarlaChatScreenState extends ConsumerState<DarlaChatScreen> {
       ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text:
-            "Hi 👋\n\nI'm Darla, your TheyDi AI Support Assistant.\n\nI can help with social and professional experiences, Connections, Circles, Communities, bookings, payments, safety, and account support.\n\nWhat do you need help with today?",
+            "Hi 👋\n\nI'm Darla, your TheyDi support assistant.\n\nI can help you with:\n📍 Finding and booking Experiences\n💳 Payments, refunds & payouts\n🎟️ QR tickets & check-in\n👥 Circles, Communities & Connections\n🔒 Safety, verification & account settings\n\nAsk me anything!",
         sender: MessageSender.darla,
         timestamp: DateTime.now(),
       ),
@@ -336,9 +336,29 @@ class _DarlaChatScreenState extends ConsumerState<DarlaChatScreen> {
                                 const SizedBox(width: 8),
                             itemBuilder: (context, index) {
                               final question = _suggestedQuestions[index];
+                              // Pick an icon that matches the chip topic
+                              const chipIcons = <String, IconData>{
+                                'How Do I Create an Experience?':
+                                    Icons.add_circle_outline_rounded,
+                                'How Do QR Tickets Work?':
+                                    Icons.qr_code_2_rounded,
+                                'Explain Payments & Refunds':
+                                    Icons.payment_rounded,
+                                'How Do I Get Verified?':
+                                    Icons.verified_outlined,
+                                'Circles vs Communities':
+                                    Icons.people_outline_rounded,
+                                'How Do Bookings Work?':
+                                    Icons.event_available_rounded,
+                                'Report a Problem':
+                                    Icons.flag_outlined,
+                                'Account & Settings':
+                                    Icons.settings_outlined,
+                              };
                               return SuggestionChip(
                                 title: question,
-                                icon: Icons.help_outline_rounded,
+                                icon: chipIcons[question] ??
+                                    Icons.help_outline_rounded,
                                 onTap: () =>
                                     _sendSuggestedQuestion(question),
                               );
@@ -411,22 +431,35 @@ class _DarlaChatScreenState extends ConsumerState<DarlaChatScreen> {
 
   void _sendSuggestedQuestion(String question) {
     final prompts = <String, String>{
-      'Social Experiences':
-          'I need help with social Experiences on TheyDi.',
-      'Professional Experiences':
-          'I need help with professional Experiences on TheyDi.',
-      'Circles':
-          'I need help understanding Circles on TheyDi.',
-      'Communities':
-          'I need help understanding Communities on TheyDi.',
-      'Connections':
-          'I need help understanding Connections on TheyDi.',
-      'Create an Experience':
+      'How Do I Create an Experience?':
           'How do I create an Experience on TheyDi?',
-      'Manage an Experience':
-          'How do I manage an Experience I am hosting on TheyDi?',
-      'Payments & Refunds':
-          'I need help with payments or refunds for an Experience.',
+      'How Do QR Tickets Work?':
+          'How do QR tickets and check-in work on TheyDi?',
+      'Explain Payments & Refunds':
+          'How do payments, refunds, and host payouts work on TheyDi?',
+      'How Do I Get Verified?':
+          'How do I get verified on TheyDi?',
+      'Circles vs Communities':
+          "What's the difference between Circles and Communities on TheyDi?",
+      'Help Me Host an Experience':
+          'I want to host an Experience on TheyDi. Walk me through the process.',
+      'How Do Bookings Work?':
+          'How do I book an Experience on TheyDi? How does the booking process work?',
+      'Report a Problem':
+          'How do I report a problem or block someone on TheyDi?',
+      // Legacy chips from suggestedQuestions list (inline area)
+      'How do I create an Experience?':
+          'How do I create an Experience on TheyDi?',
+      'How do QR tickets work?':
+          'How do QR tickets and check-in work on TheyDi?',
+      'How do payments and refunds work?':
+          'How do payments, refunds, and host payouts work on TheyDi?',
+      "What's the difference between Circles and Communities?":
+          "What's the difference between Circles and Communities on TheyDi?",
+      'How do I get verified?':
+          'How do I get verified on TheyDi?',
+      'How do I host an Experience?':
+          'I want to host an Experience on TheyDi. Walk me through the process.',
     };
 
     final prompt = prompts[question] ?? question;

@@ -592,7 +592,10 @@ GoRoute(
       GoRoute(
         path: AppRoutes.createEvent,
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const CreateEventScreen(),
+        builder: (context, state) => CreateEventScreen(
+          initialTitle: state.uri.queryParameters['darlaTitle'],
+          initialDescription: state.uri.queryParameters['darlaDesc'],
+        ),
       ),
 
       GoRoute(
