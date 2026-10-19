@@ -255,13 +255,37 @@ class _PaymentScreenState extends State<PaymentScreen> {
       });
 
       // Booking is confirmed at this point (verifyPayment adds the uid to
-      // attendeeUids server-side). A circle may already exist for this
-      // event — if so, add this attendee and let them know, since they'd
-      // otherwise never find out it's there.
+      // attendeeUids server-side). Notify the host about the new booking,
+      // and if a circle already exists for this event, add this attendee
+      // and let them know.
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        final userName =
+        // Resolve the attendee's name from Firestore (covers users whose
+        // Auth displayName differs from Firestore, or was never set).
+        String userName =
             FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+          if (userDoc.exists) {
+            userName = userDoc.data()?['displayName'] ??
+                userDoc.data()?['name'] ??
+                userName;
+          }
+        } catch (_) {}
+
+        // ── Notify the host that this attendee has paid ──
+        await NotificationService.notifyHostNewAttendeeEmail(
+          hostUid: event.creatorUid,
+          attendeeName: userName,
+          eventTitle: event.title,
+          amount: _total.toStringAsFixed(0),
+          eventId: event.id,
+        );
+
+        // ── Circle auto-join ──
         final existingCircle =
             await EventCircleService.getExistingEventCircle(event.id);
         if (existingCircle != null) {

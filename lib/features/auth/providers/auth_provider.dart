@@ -31,10 +31,32 @@ class AuthNotifier extends AsyncNotifier<User?> {
       return null;
     }
 
+    // ── Self-heal: if Firebase Auth has a cached session but the
+    // Firestore profile document was never created (network glitch
+    // during original sign-up), create it now so the user's name,
+    // email, etc. are available throughout the app. ──
+    final currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      try {
+        final profile = await userService.getUserProfile(currentUser.uid);
+        if (profile == null) {
+          await userService.createUserProfile(
+            uid: currentUser.uid,
+            name: currentUser.displayName ?? 'User',
+            email: currentUser.email ?? '',
+            phone: currentUser.phoneNumber ?? '',
+          );
+        }
+      } catch (_) {
+        // Best-effort — don't block app startup if Firestore is
+        // temporarily unreachable; the next launch will retry.
+      }
+    }
+
     _auth.authStateChanges().listen((user) {
       state = AsyncData(user);
     });
-    return _auth.currentUser;
+    return currentUser;
   }
 
   Future<void> signUpWithEmail({

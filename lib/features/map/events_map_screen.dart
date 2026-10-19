@@ -28,6 +28,9 @@ const double _kMarkerHeight = 40;
 const double _kPopupWidth = 190;
 const double _kPopupHeightFallback = 150;
 
+// Pink color consistent with list-view women-led badges
+const Color _kFemaleHostPink = Color.fromARGB(255, 255, 29, 162);
+
 class _EventsMapScreenState extends State<EventsMapScreen> {
   EventModel? _selectedEvent;
   Offset? _markerScreenPosition;
@@ -41,6 +44,9 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
   // eventId → 'Social' | 'Professional' | ''
   // Populated once in initState from a single batched Firestore fetch.
   final Map<String, String> _audienceMap = {};
+
+  // eventId → true if host gender is 'female'
+  final Map<String, bool> _womenLedMap = {};
 
   void _measurePopupAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -58,6 +64,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
   void initState() {
     super.initState();
     _loadAudiences();
+    _loadHostGenders();
     _loadMarkers();
   }
 
@@ -85,6 +92,53 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
         if (mounted) setState(() => _audienceMap.addAll(updates));
       } catch (_) {
         // Non-fatal — badges simply won't show if fetch fails.
+      }
+    }
+  }
+
+  // ── Batch-fetch host genders to determine women-led events ────────────────
+  // Follows the same pattern used in list-view cards: read users/{creatorUid}.gender
+  Future<void> _loadHostGenders() async {
+    // Collect unique creator UIDs
+    final creatorUids = <String>{};
+    final eventsByCreator = <String, List<String>>{}; // creatorUid → [eventId]
+    for (final event in widget.events) {
+      if (event.creatorUid.isNotEmpty) {
+        creatorUids.add(event.creatorUid);
+        eventsByCreator
+            .putIfAbsent(event.creatorUid, () => [])
+            .add(event.id);
+      }
+    }
+    if (creatorUids.isEmpty) return;
+
+    final uidList = creatorUids.toList();
+    const chunkSize = 30;
+    for (var i = 0; i < uidList.length; i += chunkSize) {
+      final chunk = uidList.skip(i).take(chunkSize).toList();
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        final updates = <String, bool>{};
+        for (final doc in snap.docs) {
+          final gender =
+              (doc.data()['gender'] as String? ?? '').trim().toLowerCase();
+          final isFemale = gender == 'female';
+          // Mark all events created by this host
+          final eventIds = eventsByCreator[doc.id] ?? [];
+          for (final eid in eventIds) {
+            updates[eid] = isFemale;
+          }
+        }
+        if (mounted) {
+          setState(() => _womenLedMap.addAll(updates));
+          // Rebuild markers now that we know women-led status
+          _loadMarkers();
+        }
+      } catch (_) {
+        // Non-fatal — women-led badges simply won't show if fetch fails.
       }
     }
   }
@@ -133,7 +187,8 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     for (final event in widget.events) {
       if (event.latitude == 0 || event.longitude == 0) continue;
 
-      final icon = await _getMarker(event);
+      final isWomenLed = _womenLedMap[event.id] ?? false;
+      final icon = await _getMarker(event, isWomenLed);
       markerSet.add(Marker(
         markerId: MarkerId(event.id),
         position: LatLng(event.latitude, event.longitude),
@@ -148,16 +203,19 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     setState(() => _markers = markerSet);
   }
 
-  Future<BitmapDescriptor> _getMarker(EventModel event) async {
-    final key = event.isFree ? "FREE" : "₹${event.price.toInt()}";
+  Future<BitmapDescriptor> _getMarker(EventModel event, bool isWomenLed) async {
+    final priceLabel = event.isFree ? "FREE" : "₹${event.price.toInt()}";
+    final key = '${priceLabel}_${isWomenLed ? "W" : "N"}';
     if (_markerCache.containsKey(key)) return _markerCache[key]!;
-    final icon = await createPriceMarker(key, event.isFree);
+    final icon = await createPriceMarker(priceLabel, event.isFree, isWomenLed);
     _markerCache[key] = icon;
     return icon;
   }
 
-  Future<BitmapDescriptor> createPriceMarker(String text, bool isFree) async {
-    const double width = 56;
+  Future<BitmapDescriptor> createPriceMarker(
+      String text, bool isFree, bool isWomenLed) async {
+    // Wider marker when women-led indicator needs to show
+    final double width = isWomenLed ? 80 : 56;
     const double pillHeight = 26;
     const double stemHeight = 10;
     const double dotRadius = 4;
@@ -178,8 +236,9 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
 
+    final pillWidth = width - 4;
     final pill = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(2, 2, 52, 18),
+      Rect.fromLTWH(2, 2, pillWidth, 18),
       const Radius.circular(9),
     );
 
@@ -187,27 +246,82 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     canvas.drawRRect(pill, bgPaint);
     canvas.drawRRect(pill, borderPaint);
 
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: accentColor,
-          fontWeight: FontWeight.bold,
-          fontSize: text.length > 5 ? 8 : 9.5,
+    if (isWomenLed) {
+      // Draw price text on the left portion
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: accentColor,
+            fontWeight: FontWeight.bold,
+            fontSize: text.length > 5 ? 7.5 : 9,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    tp.layout();
-    tp.paint(canvas,
-        Offset((width - tp.width) / 2, (pillHeight - tp.height) / 2 - 1));
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      // Position price text in left half
+      final priceAreaWidth = width * 0.55;
+      tp.paint(canvas,
+          Offset((priceAreaWidth - tp.width) / 2, (pillHeight - tp.height) / 2 - 1));
 
+      // Draw small pink ♀ badge on the right portion
+      final femaleX = priceAreaWidth + 1;
+      final femaleWidth = pillWidth - priceAreaWidth + 1;
+      final femaleRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(femaleX, 4, femaleWidth, 14),
+        const Radius.circular(7),
+      );
+      canvas.drawRRect(
+          femaleRect, Paint()..color = _kFemaleHostPink.withValues(alpha: 0.18));
+      canvas.drawRRect(
+          femaleRect,
+          Paint()
+            ..color = _kFemaleHostPink.withValues(alpha: 0.5)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 0.8);
+
+      final ftp = TextPainter(
+        text: const TextSpan(
+          text: '♀',
+          style: TextStyle(
+            color: _kFemaleHostPink,
+            fontWeight: FontWeight.bold,
+            fontSize: 9,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      ftp.layout();
+      ftp.paint(canvas,
+          Offset(femaleX + (femaleWidth - ftp.width) / 2, 4 + (14 - ftp.height) / 2));
+    } else {
+      // Standard: price text centered
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: accentColor,
+            fontWeight: FontWeight.bold,
+            fontSize: text.length > 5 ? 8 : 9.5,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      tp.paint(canvas,
+          Offset((width - tp.width) / 2, (pillHeight - tp.height) / 2 - 1));
+    }
+
+    // Stem + dot
     final centerX = width / 2;
     final stemStartY = pillHeight;
     final dotCenterY = height - dotRadius;
 
+    final stemColor = isWomenLed ? _kFemaleHostPink : accentColor;
+
     final stemPaint = Paint()
-      ..color = accentColor
+      ..color = stemColor
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(Offset(centerX, stemStartY),
@@ -219,7 +333,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
     canvas.drawCircle(
         Offset(centerX, dotCenterY + 0.5), dotRadius, dotShadowPaint);
 
-    final dotFillPaint = Paint()..color = accentColor;
+    final dotFillPaint = Paint()..color = stemColor;
     canvas.drawCircle(Offset(centerX, dotCenterY), dotRadius, dotFillPaint);
 
     final dotRingPaint = Paint()
@@ -315,6 +429,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
                 key: _popupKey,
                 event: _selectedEvent!,
                 audience: _audienceMap[_selectedEvent!.id] ?? '',
+                isWomenLed: _womenLedMap[_selectedEvent!.id] ?? false,
               ),
             ),
 
@@ -384,6 +499,7 @@ class _EventsMapScreenState extends State<EventsMapScreen> {
               child: _EventPreviewCard(
                 event: _selectedEvent!,
                 audience: _audienceMap[_selectedEvent!.id] ?? '',
+                isWomenLed: _womenLedMap[_selectedEvent!.id] ?? false,
                 onClose: () => setState(() => _selectedEvent = null),
               ),
             ),
@@ -457,20 +573,62 @@ class _AudienceBadge extends StatelessWidget {
   }
 }
 
+// ── Women-led badge widget ──────────────────────────────────────────────────
+// Pink pill with ♀ symbol, consistent with list-view women-led badges.
+class _WomenLedBadge extends StatelessWidget {
+  const _WomenLedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: _kFemaleHostPink.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _kFemaleHostPink.withValues(alpha: 0.35), width: 0.8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(
+          '♀',
+          style: TextStyle(
+            color: _kFemaleHostPink,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          'Women-led',
+          style: TextStyle(
+            color: _kFemaleHostPink,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 // ── Bottom selected-event card ───────────────────────────────────────────────
 class _EventPreviewCard extends StatelessWidget {
   final EventModel event;
   final String audience;
+  final bool isWomenLed;
   final VoidCallback onClose;
 
   const _EventPreviewCard({
     required this.event,
     required this.audience,
+    required this.isWomenLed,
     required this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
+    final images = event.allImages;
+    final hasImage = images.isNotEmpty && images.first.isNotEmpty;
+
     return GestureDetector(
       onTap: () => context.push('/event/${event.id}', extra: event),
       child: Container(
@@ -489,20 +647,26 @@ class _EventPreviewCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Category thumbnail
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                gradient: TheyDiColors.gradientPrimary,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Center(
-                child: Text(
-                  event.category.isNotEmpty ? event.category[0] : 'E',
-                  style: TheyDiTextStyles.displayMedium
-                      .copyWith(color: Colors.white, fontSize: 24),
-                ),
+            // Event image thumbnail (replaces category initial)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 70,
+                height: 70,
+                child: hasImage
+                    ? Image.network(
+                        images.first,
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return _CategoryPlaceholder(category: event.category);
+                        },
+                        errorBuilder: (_, __, ___) =>
+                            _CategoryPlaceholder(category: event.category),
+                      )
+                    : _CategoryPlaceholder(category: event.category),
               ),
             ),
             const SizedBox(width: 12),
@@ -517,31 +681,35 @@ class _EventPreviewCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
-                  // Audience badge + price on the same row
-                  Row(children: [
-                    _AudienceBadge(audience: audience),
-                    if (audience.isNotEmpty) const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: event.isFree
-                            ? Colors.green.withValues(alpha: 0.13)
-                            : TheyDiColors.primary.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        event.isFree ? 'FREE' : '₹${event.price.toInt()}',
-                        style: TextStyle(
+                  // Badges row: audience + price + women-led
+                  Wrap(
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      _AudienceBadge(audience: audience),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
                           color: event.isFree
-                              ? Colors.green
-                              : TheyDiColors.primary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                              ? Colors.green.withValues(alpha: 0.13)
+                              : TheyDiColors.primary.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          event.isFree ? 'FREE' : '₹${event.price.toInt()}',
+                          style: TextStyle(
+                            color: event.isFree
+                                ? Colors.green
+                                : TheyDiColors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  ]),
+                      if (isWomenLed) const _WomenLedBadge(),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Row(children: [
                     const Icon(Icons.calendar_today_outlined,
@@ -562,6 +730,46 @@ class _EventPreviewCard extends StatelessWidget {
                           style: TheyDiTextStyles.caption,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                  const SizedBox(height: 5),
+                  // Attendees, duration, spots left
+                  Row(children: [
+                    const Icon(Icons.people_outline,
+                        size: 11, color: TheyDiColors.textMuted),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${event.currentAttendees} going',
+                      style: TheyDiTextStyles.caption.copyWith(
+                        color: TheyDiColors.textMuted,
+                        fontSize: 10,
+                      ),
+                    ),
+                    if (event.durationHours > 0) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.timer_outlined,
+                          size: 11, color: TheyDiColors.textMuted),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${event.durationHours} hrs',
+                        style: TheyDiTextStyles.caption.copyWith(
+                          color: TheyDiColors.textMuted,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    Text(
+                      event.isFull
+                          ? 'Full'
+                          : '${event.spotsLeft} spots left',
+                      style: TheyDiTextStyles.caption.copyWith(
+                        color: event.spotsLeft < 5
+                            ? TheyDiColors.error
+                            : const Color(0xff2ECC71),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ]),
                 ],
@@ -599,15 +807,39 @@ class _EventPreviewCard extends StatelessWidget {
   }
 }
 
+// ── Category placeholder (fallback when event has no image) ─────────────────
+class _CategoryPlaceholder extends StatelessWidget {
+  final String category;
+  const _CategoryPlaceholder({required this.category});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: TheyDiColors.gradientPrimary,
+      ),
+      child: Center(
+        child: Text(
+          category.isNotEmpty ? category[0] : 'E',
+          style: TheyDiTextStyles.displayMedium
+              .copyWith(color: Colors.white, fontSize: 24),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Map marker popup card ────────────────────────────────────────────────────
 class _MarkerPopupCard extends StatelessWidget {
   final EventModel event;
   final String audience;
+  final bool isWomenLed;
 
   const _MarkerPopupCard({
     super.key,
     required this.event,
     required this.audience,
+    required this.isWomenLed,
   });
 
   @override
@@ -645,29 +877,33 @@ class _MarkerPopupCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
-                // Audience badge + price badge on the same row
-                Row(children: [
-                  _AudienceBadge(audience: audience),
-                  if (audience.isNotEmpty) const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: event.isFree
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.red.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      event.isFree ? 'FREE' : '₹${event.price.toInt()}',
-                      style: TextStyle(
-                        color: event.isFree ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                // Badges: audience + price + women-led
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 4,
+                  children: [
+                    _AudienceBadge(audience: audience),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: event.isFree
+                            ? Colors.green.withValues(alpha: 0.12)
+                            : Colors.red.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        event.isFree ? 'FREE' : '₹${event.price.toInt()}',
+                        style: TextStyle(
+                          color: event.isFree ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
-                  ),
-                ]),
+                    if (isWomenLed) const _WomenLedBadge(),
+                  ],
+                ),
               ],
             ),
           ),

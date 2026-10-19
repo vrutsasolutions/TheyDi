@@ -4,6 +4,7 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { beforeUserCreated, beforeUserSignedIn } = require("firebase-functions/v2/identity");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
@@ -2531,3 +2532,87 @@ exports.getReferralAdmin = onCall({ region: REGION }, async (request) => {
     },
   };
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// Self-heal: ensure every Firebase-Auth user has a Firestore profile
+// ══════════════════════════════════════════════════════════════════════════
+
+// Helper — creates a minimal Firestore profile from an Auth record if none
+// exists yet. Returns true when a new document was created.
+async function _ensureFirestoreProfile(user) {
+  const docRef = db.collection("users").doc(user.uid);
+  const snap = await docRef.get();
+  if (snap.exists) return false;
+
+  await docRef.set({
+    uid:          user.uid,
+    name:         user.displayName || "User",
+    displayName:  user.displayName || "User",
+    email:        user.email || "",
+    phone:        user.phoneNumber || "",
+    createdAt:    FieldValue.serverTimestamp(),
+    eventsJoined: [],
+    eventsHosted: [],
+    city:         "",
+    bio:          "",
+    photoUrl:     user.photoURL || "",
+    age:          null,
+    gender:       "",
+    interests:    [],
+    isVerified:   false,
+  });
+  return true;
+}
+
+// ── 1. Blocking sign-in trigger ──────────────────────────────────────────
+// Fires on EVERY sign-in (including returning sessions). If the Firestore
+// profile is missing it creates one. Wrapped in try/catch so a transient
+// Firestore error never blocks the user from signing in.
+exports.ensureUserProfileOnSignIn = beforeUserSignedIn(
+  { region: REGION },
+  async (event) => {
+    try {
+      const user = event.data;
+      const created = await _ensureFirestoreProfile(user);
+      if (created) {
+        logger.info(`[ensureUserProfileOnSignIn] Created missing profile for ${user.uid}`);
+      }
+    } catch (err) {
+      // Log but do NOT throw — sign-in must not be blocked.
+      logger.error("[ensureUserProfileOnSignIn] Non-fatal:", err.message);
+    }
+    // Returning nothing (or an empty object) lets sign-in proceed normally.
+  },
+);
+
+// ── 2. One-time backfill callable ────────────────────────────────────────
+// Call once from the Firebase console (or Flutter app) to create Firestore
+// profiles for every Auth user that is currently missing one.
+exports.backfillMissingUserProfiles = onCall(
+  { region: REGION },
+  async (request) => {
+    let fixed = 0;
+    let total = 0;
+    let nextPageToken;
+
+    do {
+      const listResult = await admin.auth().listUsers(1000, nextPageToken);
+      for (const user of listResult.users) {
+        total++;
+        try {
+          const created = await _ensureFirestoreProfile(user);
+          if (created) {
+            fixed++;
+            logger.info(`[backfill] Created profile for ${user.uid} (${user.email || "no-email"})`);
+          }
+        } catch (err) {
+          logger.error(`[backfill] Failed for ${user.uid}:`, err.message);
+        }
+      }
+      nextPageToken = listResult.pageToken;
+    } while (nextPageToken);
+
+    logger.info(`[backfill] Done. Fixed ${fixed} out of ${total} users.`);
+    return { fixed, total };
+  },
+);

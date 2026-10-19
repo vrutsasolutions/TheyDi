@@ -10,9 +10,30 @@ class UserService {
     required String email,
     required String phone,
   }) async {
-    await _db.collection('users').doc(uid).set({
+    final docRef = _db.collection('users').doc(uid);
+    final snap = await docRef.get();
+
+    if (snap.exists) {
+      // Document already exists — don't overwrite, just fill missing fields
+      final data = snap.data() ?? {};
+      final updates = <String, dynamic>{};
+      if ((data['displayName'] ?? '').toString().isEmpty) {
+        updates['displayName'] = name;
+      }
+      if ((data['name'] ?? '').toString().isEmpty) {
+        updates['name'] = name;
+      }
+      if (updates.isNotEmpty) {
+        await docRef.update(updates);
+      }
+      return;
+    }
+
+    // Document does not exist — create it
+    await docRef.set({
       'uid': uid,
       'name': name,
+      'displayName': name,
       'email': email,
       'phone': phone,
       'createdAt': FieldValue.serverTimestamp(),

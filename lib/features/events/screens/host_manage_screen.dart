@@ -112,7 +112,11 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
             .collection('users')
             .doc(userUid)
             .get();
-        if (userDoc.exists) userName = userDoc.data()?['displayName'] ?? 'User';
+        if (userDoc.exists) {
+          userName = userDoc.data()?['displayName'] ??
+              userDoc.data()?['name'] ??
+              'User';
+        }
       } catch (_) {}
       final hostName =
           FirebaseAuth.instance.currentUser?.displayName ?? 'The host';
@@ -213,7 +217,11 @@ class _HostManageScreenState extends ConsumerState<HostManageScreen> {
             .collection('users')
             .doc(userUid)
             .get();
-        if (userDoc.exists) userName = userDoc.data()?['displayName'] ?? 'User';
+        if (userDoc.exists) {
+          userName = userDoc.data()?['displayName'] ??
+              userDoc.data()?['name'] ??
+              'User';
+        }
       } catch (_) {}
       await eventRef.update({
         'pendingUids': FieldValue.arrayRemove([userUid]),
@@ -826,7 +834,7 @@ class _PendingRequestCardState extends State<_PendingRequestCard> {
         final userData = userSnap?.data() as Map<String, dynamic>? ?? {};
         final metaData = metaSnap?.data() as Map<String, dynamic>? ?? {};
 
-        final name = userData['displayName'] ?? 'Loading...';
+        final name = userData['displayName'] ?? userData['name'] ?? 'User';
         final email = userData['email'] ?? '';
         final tag = (metaData['tag'] as String?) ?? '…';
 
@@ -984,7 +992,7 @@ class _AwaitingPaymentCardState extends State<_AwaitingPaymentCard> {
       future: _future,
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-        final name = data['displayName'] ?? 'Loading...';
+        final name = data['displayName'] ?? data['name'] ?? 'User';
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
@@ -1149,7 +1157,7 @@ class _AttendeeCardState extends State<_AttendeeCard> {
           .get(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-        final name = data['displayName'] ?? 'Loading...';
+        final name = data['displayName'] ?? data['name'] ?? 'User';
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

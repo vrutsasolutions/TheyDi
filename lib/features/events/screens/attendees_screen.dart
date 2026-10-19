@@ -426,7 +426,7 @@ class _AttendeeCardState extends State<_AttendeeCard> {
           FirebaseFirestore.instance.collection('users').doc(widget.uid).get(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-        final name = data['displayName'] ?? 'User';
+        final name = data['displayName'] ?? data['name'] ?? 'User';
         final city = data['city'] ?? '';
         final photoUrl = data['profileImageUrl'] ?? data['photoUrl'] ?? '';
         final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
